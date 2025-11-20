@@ -1,0 +1,114 @@
+
+import { createClient } from '@supabase/supabase-js';
+import { Person, Role, Team, TaskTemplate, Shift } from '../types';
+
+const supabaseUrl = 'https://rfqkkzhhvytkkgrnyarm.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmcWtremhodnl0a2tncm55YXJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwNjgxMjMsImV4cCI6MjA3NzY0NDEyM30.4kMkKtzq4eowtOQvQXVxwBU5iiEfNqw0f2JYBrVXR4E';
+
+export const isSupabaseConfigured = !!(supabaseUrl && supabaseKey);
+
+// Create client
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// --- Mappers (App Types <-> DB Types) ---
+
+// People
+export const mapPersonFromDB = (dbPerson: any): Person => ({
+    id: dbPerson.id,
+    name: dbPerson.name,
+    teamId: dbPerson.team_id,
+    roleIds: dbPerson.role_ids || [],
+    maxHoursPerWeek: dbPerson.max_hours_per_week,
+    unavailableDates: dbPerson.unavailable_dates || [],
+    preferences: dbPerson.preferences || { preferNight: false, avoidWeekends: false },
+    color: dbPerson.color,
+    dailyAvailability: dbPerson.daily_availability || {}
+});
+
+export const mapPersonToDB = (person: Person) => ({
+    id: person.id,
+    name: person.name,
+    team_id: person.teamId,
+    role_ids: person.roleIds,
+    max_hours_per_week: person.maxHoursPerWeek,
+    unavailable_dates: person.unavailableDates,
+    preferences: person.preferences,
+    color: person.color,
+    daily_availability: person.dailyAvailability
+});
+
+// Teams
+export const mapTeamFromDB = (dbTeam: any): Team => ({
+    id: dbTeam.id,
+    name: dbTeam.name,
+    color: dbTeam.color
+});
+
+export const mapTeamToDB = (team: Team) => ({
+    id: team.id,
+    name: team.name,
+    color: team.color
+});
+
+// Roles
+export const mapRoleFromDB = (dbRole: any): Role => ({
+    id: dbRole.id,
+    name: dbRole.name,
+    color: dbRole.color,
+    icon: dbRole.icon
+});
+
+export const mapRoleToDB = (role: Role) => ({
+    id: role.id,
+    name: role.name,
+    color: role.color,
+    icon: role.icon
+});
+
+// Tasks
+export const mapTaskFromDB = (dbTask: any): TaskTemplate => ({
+    id: dbTask.id,
+    name: dbTask.name,
+    durationHours: dbTask.duration_hours,
+    requiredPeople: dbTask.required_people,
+    requiredRoleIds: dbTask.required_role_ids || [],
+    minRestHoursBefore: dbTask.min_rest_hours_before,
+    difficulty: dbTask.difficulty,
+    color: dbTask.color,
+    schedulingType: dbTask.scheduling_type as any,
+    defaultStartTime: dbTask.default_start_time,
+    specificDate: dbTask.specific_date
+});
+
+export const mapTaskToDB = (task: TaskTemplate) => ({
+    id: task.id,
+    name: task.name,
+    duration_hours: task.durationHours,
+    required_people: task.requiredPeople,
+    required_role_ids: task.requiredRoleIds,
+    min_rest_hours_before: task.minRestHoursBefore,
+    difficulty: task.difficulty,
+    color: task.color,
+    scheduling_type: task.schedulingType,
+    default_start_time: task.defaultStartTime,
+    specific_date: task.specificDate
+});
+
+// Shifts
+export const mapShiftFromDB = (dbShift: any): Shift => ({
+    id: dbShift.id,
+    taskId: dbShift.task_id,
+    startTime: dbShift.start_time,
+    endTime: dbShift.end_time,
+    assignedPersonIds: dbShift.assigned_person_ids || [],
+    isLocked: dbShift.is_locked
+});
+
+export const mapShiftToDB = (shift: Shift) => ({
+    id: shift.id,
+    task_id: shift.taskId,
+    start_time: shift.startTime,
+    end_time: shift.endTime,
+    assigned_person_ids: shift.assignedPersonIds,
+    is_locked: shift.isLocked
+});
