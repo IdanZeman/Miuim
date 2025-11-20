@@ -1,15 +1,15 @@
 import React, { useMemo } from 'react';
 import { Person, Shift, TaskTemplate } from '../types';
-import { Moon, Sun, Clock, Battery, Award, Calendar } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Moon, Sun, Clock, Award } from 'lucide-react';
 
 interface PersonalStatsProps {
     person: Person;
     shifts: Shift[];
     tasks: TaskTemplate[];
+    onClick?: () => void;
 }
 
-export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, tasks }) => {
+export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, tasks, onClick }) => {
 
     const stats = useMemo(() => {
         const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id))
@@ -70,13 +70,11 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, ta
         };
     }, [person, shifts, tasks]);
 
-    const dayNightData = [
-        { name: 'יום', value: stats.dayHours, color: '#fbbf24' },
-        { name: 'לילה', value: stats.nightHours, color: '#6366f1' },
-    ];
-
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 hover:shadow-md transition-shadow">
+        <div
+            onClick={onClick}
+            className={`bg-white rounded-xl shadow-sm border border-slate-100 p-4 hover:shadow-md transition-all ${onClick ? 'cursor-pointer hover:border-blue-300 hover:scale-[1.02]' : ''}`}
+        >
             <div className="flex items-center gap-3 mb-4 border-b border-slate-50 pb-3">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm" style={{ backgroundColor: person.color }}>
                     {person.name.charAt(0)}

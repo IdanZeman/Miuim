@@ -546,7 +546,7 @@ const App = () => {
                     onDeleteTask={handleDeleteTask}
                 />;
             case 'stats':
-                return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} />;
+                return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} />;
             case 'dashboard':
             default:
                 return (

@@ -1,17 +1,20 @@
 import React from 'react';
-import { Person, Shift, TaskTemplate } from '../types';
+import { Person, Shift, TaskTemplate, Role } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Activity, Users, CalendarCheck, UserCircle, BarChart2 } from 'lucide-react';
 import { PersonalStats } from './PersonalStats';
+import { DetailedUserStats } from './DetailedUserStats';
 
 interface StatsDashboardProps {
    people: Person[];
    shifts: Shift[];
    tasks: TaskTemplate[];
+   roles: Role[];
 }
 
-export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, tasks }) => {
+export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, tasks, roles }) => {
    const [viewMode, setViewMode] = React.useState<'overview' | 'personal'>('overview');
+   const [selectedPersonId, setSelectedPersonId] = React.useState<string | null>(null);
 
    const loadData = people.map(person => {
       const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id));
@@ -63,12 +66,48 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, 
             </div>
          </div>
 
-         {viewMode === 'personal' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-               {people.map(person => (
-                  <PersonalStats key={person.id} person={person} shifts={shifts} tasks={tasks} />
-               ))}
+         {viewMode === 'personal' && !selectedPersonId && (
+            <div className="mb-6 flex justify-end">
+               <div className="relative">
+                  <select
+                     className="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pr-4 pl-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                     onChange={(e) => setSelectedPersonId(e.target.value)}
+                     value=""
+                  >
+                     <option value="" disabled>🔍 חפש או בחר עובד...</option>
+                     {people.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                     ))}
+                  </select>
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                     <Users size={16} />
+                  </div>
+               </div>
             </div>
+         )}
+
+         {viewMode === 'personal' ? (
+            selectedPersonId ? (
+               <DetailedUserStats
+                  person={people.find(p => p.id === selectedPersonId)!}
+                  shifts={shifts}
+                  tasks={tasks}
+                  roles={roles}
+                  onBack={() => setSelectedPersonId(null)}
+               />
+            ) : (
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {people.map(person => (
+                     <PersonalStats
+                        key={person.id}
+                        person={person}
+                        shifts={shifts}
+                        tasks={tasks}
+                        onClick={() => setSelectedPersonId(person.id)}
+                     />
+                  ))}
+               </div>
+            )
          ) : (
             <>
                {/* Top Stats Cards */}
