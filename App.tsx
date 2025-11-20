@@ -24,6 +24,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { generateShiftsForTask } from './utils/shiftUtils';
 import { PersonnelManager } from './components/PersonnelManager';
 import { AttendanceManager } from './components/AttendanceManager';
+import { OrganizationSettings } from './components/OrganizationSettings';
 
 // --- Main App Content (Authenticated) ---
 const MainApp: React.FC = () => {
@@ -470,6 +471,8 @@ const MainApp: React.FC = () => {
                 />;
             case 'stats':
                 return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} />;
+            case 'settings':
+                return <OrganizationSettings />;
             case 'dashboard':
             default:
                 return (

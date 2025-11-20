@@ -1,15 +1,28 @@
+export type UserRole = 'admin' | 'editor' | 'viewer' | 'attendance_only';
+
+export interface Profile {
+  id: string;
+  email: string;
+  full_name?: string;
+  organization_id: string | null;
+  role: UserRole;
+}
+
 export interface Organization {
   id: string;
   name: string;
   created_at: string;
 }
 
-export interface Profile {
+export interface OrganizationInvite {
   id: string;
+  organization_id: string;
   email: string;
-  full_name: string;
-  organization_id: string | null;
-  role: string;
+  role: UserRole;
+  invited_by: string;
+  created_at: string;
+  expires_at: string;
+  accepted: boolean;
 }
 
 export interface Role {
@@ -88,4 +101,4 @@ export interface AppState {
   shifts: Shift[];
 }
 
-export type ViewMode = 'dashboard' | 'personnel' | 'tasks' | 'schedule' | 'stats' | 'attendance';
+export type ViewMode = 'dashboard' | 'personnel' | 'tasks' | 'schedule' | 'stats' | 'attendance' | 'settings';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock } from 'lucide-react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -37,7 +37,7 @@ const TopNavLink = ({
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-  const { user, organization, signOut } = useAuth();
+  const { user, profile, organization, signOut } = useAuth();
 
   const handleLogout = async () => {
     console.log('Logout clicked');
@@ -49,6 +49,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children }
       console.error('Error signing out:', error);
     }
   };
+
+  const isAdmin = profile?.role === 'admin';
 
   return (
     <div className="flex flex-col h-screen bg-idf-bg overflow-hidden font-sans">
@@ -76,6 +78,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children }
               <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות וזמינות" icon={Clock} />
               <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" />
               <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label="דוחות" />
+              {isAdmin && (
+                <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
+              )}
             </nav>
           </div>
 
@@ -106,6 +111,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children }
           <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('attendance'); setIsMobileMenuOpen(false) }}>נוכחות</button>
           <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('tasks'); setIsMobileMenuOpen(false) }}>משימות</button>
           <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('stats'); setIsMobileMenuOpen(false) }}>דוחות</button>
+          {isAdmin && (
+            <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('settings'); setIsMobileMenuOpen(false) }}>הגדרות</button>
+          )}
         </div>
       )}
 
@@ -120,6 +128,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children }
               {currentView === 'attendance' && 'יומן נוכחות'}
               {currentView === 'tasks' && 'בנק משימות'}
               {currentView === 'stats' && 'מרכז נתונים'}
+              {currentView === 'settings' && 'הגדרות ארגון'}
             </h1>
             <div className="w-16 h-1.5 bg-white/40 rounded-full mt-3"></div>
           </div>
