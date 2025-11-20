@@ -1,190 +1,95 @@
-
 import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
-import { PersonnelManager } from './components/PersonnelManager';
-import { TaskManager } from './components/TaskManager';
 import { ScheduleBoard } from './components/ScheduleBoard';
+import { TaskManager } from './components/TaskManager';
 import { StatsDashboard } from './components/StatsDashboard';
-import { AttendanceManager } from './components/AttendanceManager';
-import { ViewMode, AppState, Person, TaskTemplate, Shift, Team, Role } from './types';
-import { solveSchedule } from './services/scheduler';
-import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
-import { analyzeScheduleHealth } from './services/geminiService';
-import { Wand2, Loader2 } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
-import { INITIAL_STATE } from './constants';
+import { Login } from './components/Login';
+import { LandingPage } from './components/LandingPage';
+import { Onboarding } from './components/Onboarding';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Person, Shift, TaskTemplate, Role, Team } from './types';
+import { supabase } from './services/supabaseClient';
 import {
-    supabase,
+    mapShiftFromDB, mapShiftToDB,
     mapPersonFromDB, mapPersonToDB,
     mapTeamFromDB, mapTeamToDB,
     mapRoleFromDB, mapRoleToDB,
-    mapTaskFromDB, mapTaskToDB,
-    mapShiftFromDB, mapShiftToDB
+    mapTaskFromDB, mapTaskToDB
 } from './services/supabaseClient';
+import { solveSchedule } from './services/scheduler';
+import { analyzeScheduleHealth } from './services/geminiService';
+import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
+import { Wand2, Loader2 } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import { generateShiftsForTask } from './utils/shiftUtils';
+import { PersonnelManager } from './components/PersonnelManager';
+import { AttendanceManager } from './components/AttendanceManager';
 
-// Helper function to generate shifts for a specific task
-const generateShiftsForTask = (task: TaskTemplate, baseDate: Date): Shift[] => {
-    const newShifts: Shift[] = [];
-
-    // 1. Handle Specific Date Tasks (One-time)
-    if (task.schedulingType === 'one-time' && task.specificDate) {
-        const [year, month, day] = task.specificDate.split('-').map(Number);
-        const [h, m] = (task.defaultStartTime || '00:00').split(':').map(Number);
-
-        const start = new Date(year, month - 1, day, h, m, 0, 0);
-        const end = new Date(start);
-        end.setHours(start.getHours() + task.durationHours);
-        end.setMinutes(start.getMinutes());
-
-        newShifts.push({
-            id: uuidv4(),
-            taskId: task.id,
-            startTime: start.toISOString(),
-            endTime: end.toISOString(),
-            assignedPersonIds: [],
-            isLocked: false
-        });
-
-        return newShifts;
-    }
-
-    // 2. Handle Continuous / Recurring Tasks
-    const startDate = new Date(baseDate);
-    startDate.setHours(0, 0, 0, 0);
-
-    // Generate for 7 days window
-    for (let i = 0; i < 7; i++) {
-        const currentDate = new Date(startDate);
-        currentDate.setDate(startDate.getDate() + i);
-
-        if (task.schedulingType === 'continuous') {
-            const [startH, startM] = (task.defaultStartTime || '00:00').split(':').map(Number);
-            const anchor = new Date(currentDate);
-            anchor.setHours(startH, startM, 0, 0);
-
-            const potentialStarts: Date[] = [];
-            potentialStarts.push(new Date(anchor));
-
-            // Forward
-            let next = new Date(anchor);
-            while (true) {
-                next.setHours(next.getHours() + task.durationHours);
-                if (next.getDate() === currentDate.getDate()) {
-                    potentialStarts.push(new Date(next));
-                } else {
-                    break;
-                }
-            }
-
-            // Backward
-            let prev = new Date(anchor);
-            while (true) {
-                prev.setHours(prev.getHours() - task.durationHours);
-                if (prev.getDate() === currentDate.getDate()) {
-                    potentialStarts.push(new Date(prev));
-                } else {
-                    break;
-                }
-            }
-
-            potentialStarts.sort((a, b) => a.getTime() - b.getTime());
-
-            potentialStarts.forEach(startTime => {
-                const endTime = new Date(startTime);
-                endTime.setHours(startTime.getHours() + task.durationHours);
-
-                newShifts.push({
-                    id: uuidv4(),
-                    taskId: task.id,
-                    startTime: startTime.toISOString(),
-                    endTime: endTime.toISOString(),
-                    assignedPersonIds: [],
-                    isLocked: false
-                });
-            });
-
-        } else {
-            const start = new Date(currentDate);
-            if (task.defaultStartTime) {
-                const [h, m] = task.defaultStartTime.split(':').map(Number);
-                start.setHours(h || 0, m || 0, 0, 0);
-            } else {
-                start.setHours(22, 0, 0, 0);
-            }
-
-            const end = new Date(start);
-            end.setHours(start.getHours() + task.durationHours);
-            end.setMinutes(start.getMinutes());
-
-            newShifts.push({
-                id: uuidv4(),
-                taskId: task.id,
-                startTime: start.toISOString(),
-                endTime: end.toISOString(),
-                assignedPersonIds: [],
-                isLocked: false
-            });
-        }
-    }
-    return newShifts;
-};
-
-const App = () => {
-    const [view, setView] = useState<ViewMode>('dashboard');
-    const [state, setState] = useState<AppState>({
-        people: [],
-        teams: [],
-        roles: [],
-        taskTemplates: [],
-        shifts: []
-    });
-    const [aiHealthMsg, setAiHealthMsg] = useState('');
+// --- Main App Content (Authenticated) ---
+const MainApp: React.FC = () => {
+    const { organization } = useAuth();
+    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats'>('dashboard');
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [aiHealthMsg, setAiHealthMsg] = useState<string | null>(null);
 
-    // Fetch Initial Data from Supabase (or Fallback to Mock)
+    const [state, setState] = useState<{
+        people: Person[];
+        shifts: Shift[];
+        taskTemplates: TaskTemplate[];
+        roles: Role[];
+        teams: Team[];
+    }>({
+        people: [],
+        shifts: [],
+        taskTemplates: [],
+        roles: [],
+        teams: []
+    });
+
     useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            try {
-                const [rolesRes, teamsRes, peopleRes, tasksRes, shiftsRes] = await Promise.all([
-                    supabase.from('roles').select('*'),
-                    supabase.from('teams').select('*'),
-                    supabase.from('people').select('*'),
-                    supabase.from('task_templates').select('*'),
-                    supabase.from('shifts').select('*')
-                ]);
-
-                if (rolesRes.error) throw rolesRes.error;
-                if (teamsRes.error) throw teamsRes.error;
-                if (peopleRes.error) throw peopleRes.error;
-                if (tasksRes.error) throw tasksRes.error;
-                if (shiftsRes.error) throw shiftsRes.error;
-
-                setState({
-                    roles: rolesRes.data.map(mapRoleFromDB),
-                    teams: teamsRes.data.map(mapTeamFromDB),
-                    people: peopleRes.data.map(mapPersonFromDB),
-                    taskTemplates: tasksRes.data.map(mapTaskFromDB),
-                    shifts: shiftsRes.data.map(mapShiftFromDB)
-                });
-
-            } catch (error) {
-                console.warn("Supabase Error (Falling back to local data):", error);
-                setState(INITIAL_STATE);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
+        if (!organization) return;
         fetchData();
-    }, []);
 
-    // --- Personnel Handlers ---
+        // Realtime subscription
+        const channel = supabase.channel('db-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_templates', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [organization]);
+
+    const fetchData = async () => {
+        if (!organization) return;
+        setIsLoading(true);
+
+        const { data: peopleData } = await supabase.from('people').select('*').eq('organization_id', organization.id);
+        const { data: shiftsData } = await supabase.from('shifts').select('*').eq('organization_id', organization.id);
+        const { data: tasksData } = await supabase.from('task_templates').select('*').eq('organization_id', organization.id);
+        const { data: rolesData } = await supabase.from('roles').select('*').eq('organization_id', organization.id);
+        const { data: teamsData } = await supabase.from('teams').select('*').eq('organization_id', organization.id);
+
+        setState({
+            people: (peopleData || []).map(mapPersonFromDB),
+            shifts: (shiftsData || []).map(mapShiftFromDB),
+            taskTemplates: (tasksData || []).map(mapTaskFromDB),
+            roles: (rolesData || []).map(mapRoleFromDB),
+            teams: (teamsData || []).map(mapTeamFromDB)
+        });
+        setIsLoading(false);
+    };
+
+    // --- Person Handlers ---
 
     const handleAddPerson = async (p: Person) => {
+        if (!organization) return;
+        const personWithOrg = { ...p, organization_id: organization.id };
         try {
-            const { error } = await supabase.from('people').insert(mapPersonToDB(p));
+            const { error } = await supabase.from('people').insert(mapPersonToDB(personWithOrg));
             if (error) throw error;
             setState(prev => ({ ...prev, people: [...prev.people, p] }));
         } catch (e) {
@@ -221,8 +126,10 @@ const App = () => {
     };
 
     const handleAddTeam = async (t: Team) => {
+        if (!organization) return;
+        const teamWithOrg = { ...t, organization_id: organization.id };
         try {
-            const { error } = await supabase.from('teams').insert(mapTeamToDB(t));
+            const { error } = await supabase.from('teams').insert(mapTeamToDB(teamWithOrg));
             if (error) throw error;
             setState(prev => ({ ...prev, teams: [...prev.teams, t] }));
         } catch (e) {
@@ -251,8 +158,10 @@ const App = () => {
     };
 
     const handleAddRole = async (r: Role) => {
+        if (!organization) return;
+        const roleWithOrg = { ...r, organization_id: organization.id };
         try {
-            const { error } = await supabase.from('roles').insert(mapRoleToDB(r));
+            const { error } = await supabase.from('roles').insert(mapRoleToDB(roleWithOrg));
             if (error) throw error;
             setState(prev => ({ ...prev, roles: [...prev.roles, r] }));
         } catch (e) {
@@ -283,8 +192,10 @@ const App = () => {
     // --- Task Handlers ---
 
     const handleAddTask = async (t: TaskTemplate) => {
+        if (!organization) return;
+        const taskWithOrg = { ...t, organization_id: organization.id };
         try {
-            const { error } = await supabase.from('task_templates').insert(mapTaskToDB(t));
+            const { error } = await supabase.from('task_templates').insert(mapTaskToDB(taskWithOrg));
             if (error) throw error;
 
             const today = new Date();
@@ -293,9 +204,10 @@ const App = () => {
             startOfWeek.setDate(today.getDate() - today.getDay());
 
             const newShifts = generateShiftsForTask(t, startOfWeek);
+            const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: organization.id }));
 
-            if (newShifts.length > 0) {
-                await supabase.from('shifts').insert(newShifts.map(mapShiftToDB));
+            if (shiftsWithOrg.length > 0) {
+                await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
             }
 
             setState(prev => ({
@@ -319,6 +231,7 @@ const App = () => {
     };
 
     const handleUpdateTask = async (t: TaskTemplate) => {
+        if (!organization) return;
         const oldTask = state.taskTemplates.find(task => task.id === t.id);
         let updatedShifts = state.shifts;
         const schedulingChanged =
@@ -334,11 +247,11 @@ const App = () => {
             const startOfWeek = new Date(today);
             startOfWeek.setDate(today.getDate() - today.getDay());
             const newShifts = generateShiftsForTask(t, startOfWeek);
-            updatedShifts = [...updatedShifts, ...newShifts];
+            const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: organization.id }));
 
             try {
-                await supabase.from('shifts').delete().eq('task_id', t.id);
-                if (newShifts.length > 0) await supabase.from('shifts').insert(newShifts.map(mapShiftToDB));
+                await supabase.from('shifts').delete().eq('task_id', t.id).eq('organization_id', organization.id);
+                if (shiftsWithOrg.length > 0) await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
             } catch (e) { console.warn(e); }
         }
 
@@ -354,8 +267,10 @@ const App = () => {
     };
 
     const handleDeleteTask = async (id: string) => {
+        if (!organization) return;
         try {
-            await supabase.from('task_templates').delete().eq('id', id);
+            await supabase.from('task_templates').delete().eq('id', id).eq('organization_id', organization.id);
+            await supabase.from('shifts').delete().eq('task_id', id).eq('organization_id', organization.id);
         } catch (e) { console.warn(e); }
         setState(prev => ({
             ...prev,
@@ -429,6 +344,7 @@ const App = () => {
     };
 
     const handleAddShift = async (task: TaskTemplate, date: Date) => {
+        if (!organization) return;
         const start = new Date(date);
         if (task.defaultStartTime) {
             const [h, m] = task.defaultStartTime.split(':').map(Number);
@@ -445,7 +361,8 @@ const App = () => {
             startTime: start.toISOString(),
             endTime: end.toISOString(),
             assignedPersonIds: [],
-            isLocked: false
+            isLocked: false,
+            organization_id: organization.id
         };
 
         try {
@@ -455,6 +372,7 @@ const App = () => {
     };
 
     const handleAutoSchedule = async () => {
+        if (!organization) return;
         // Define the specific 24-hour window for the selected date
         const startDate = new Date(selectedDate);
         startDate.setHours(0, 0, 0, 0);
@@ -471,23 +389,27 @@ const App = () => {
 
         const solvedShifts = solveSchedule(state, startDate, endDate, historyScores);
 
+        // Ensure solved shifts have org id
+        const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: organization.id }));
+
         try {
-            const updates = solvedShifts.map(s => mapShiftToDB(s));
+            const updates = shiftsToSave.map(s => mapShiftToDB(s));
             await supabase.from('shifts').upsert(updates);
         } catch (e) { console.warn(e); }
 
         // Update state: Replace only the solved shifts in the state, keep others
-        const solvedIds = solvedShifts.map(s => s.id);
+        const solvedIds = shiftsToSave.map(s => s.id);
         setState(prev => ({
             ...prev,
-            shifts: prev.shifts.map(s => solvedIds.includes(s.id) ? solvedShifts.find(sol => sol.id === s.id)! : s)
+            shifts: prev.shifts.map(s => solvedIds.includes(s.id) ? shiftsToSave.find(sol => sol.id === s.id)! : s)
         }));
 
-        const feedback = await analyzeScheduleHealth(solvedShifts, state.people, state.taskTemplates);
+        const feedback = await analyzeScheduleHealth(shiftsToSave, state.people, state.taskTemplates);
         setAiHealthMsg(feedback);
     };
 
     const handleClearDay = async () => {
+        if (!organization) return;
         // REMOVED WINDOW.CONFIRM due to sandbox blocking. Action is now immediate.
         // Using toLocaleDateString('en-CA') ensures strict YYYY-MM-DD matching regardless of timezones
         const selectedDateKey = selectedDate.toLocaleDateString('en-CA');
@@ -507,7 +429,8 @@ const App = () => {
         try {
             await supabase.from('shifts')
                 .update({ assigned_person_ids: [] })
-                .in('id', ids);
+                .in('id', ids)
+                .eq('organization_id', organization.id);
         } catch (e) { console.warn(e); }
 
         // Local State Update
@@ -595,6 +518,41 @@ const App = () => {
         <Layout currentView={view} setView={setView}>
             {renderContent()}
         </Layout>
+    );
+};
+
+// --- App Wrapper with Auth Logic ---
+const AppContent: React.FC = () => {
+    const { session, loading, organization } = useAuth();
+    const [showLanding, setShowLanding] = useState(!session);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+                <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
+            </div>
+        );
+    }
+
+    if (!session) {
+        if (showLanding) {
+            return <LandingPage onGetStarted={() => setShowLanding(false)} />;
+        }
+        return <Login onBack={() => setShowLanding(true)} />;
+    }
+
+    if (!organization) {
+        return <Onboarding />;
+    }
+
+    return <MainApp />;
+};
+
+const App: React.FC = () => {
+    return (
+        <AuthProvider>
+            <AppContent />
+        </AuthProvider>
     );
 };
 

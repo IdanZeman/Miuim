@@ -1,15 +1,30 @@
+export interface Organization {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface Profile {
+  id: string;
+  email: string;
+  full_name: string;
+  organization_id: string | null;
+  role: string;
+}
 
 export interface Role {
   id: string;
   name: string;
   color: string;
   icon?: string; // Icon name from Lucide
+  organization_id?: string;
 }
 
 export interface Team {
   id: string;
   name: string;
   color: string; // CSS class for border/bg
+  organization_id?: string;
 }
 
 export interface AvailabilitySlot {
@@ -35,6 +50,7 @@ export interface Person {
   };
   color: string; // Avatar color
   dailyAvailability?: DailyAvailability; // New field
+  organization_id?: string;
 }
 
 export type SchedulingType = 'continuous' | 'one-time';
@@ -51,6 +67,7 @@ export interface TaskTemplate {
   schedulingType: SchedulingType;
   defaultStartTime?: string; // "HH:MM"
   specificDate?: string; // "YYYY-MM-DD"
+  organization_id?: string;
 }
 
 export interface Shift {
@@ -60,6 +77,7 @@ export interface Shift {
   endTime: string; // ISO string
   assignedPersonIds: string[];
   isLocked: boolean;
+  organization_id?: string;
 }
 
 export interface AppState {

@@ -60,31 +60,11 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, 
                >
                   <div className="flex items-center gap-2">
                      <UserCircle size={16} />
-                     <span>דשבורד אישי</span>
+                     <span>מבט אישי</span>
                   </div>
                </button>
             </div>
          </div>
-
-         {viewMode === 'personal' && !selectedPersonId && (
-            <div className="mb-6 flex justify-end">
-               <div className="relative">
-                  <select
-                     className="appearance-none bg-white border border-slate-200 text-slate-700 py-2 pr-4 pl-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
-                     onChange={(e) => setSelectedPersonId(e.target.value)}
-                     value=""
-                  >
-                     <option value="" disabled>🔍 חפש או בחר עובד...</option>
-                     {people.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                     ))}
-                  </select>
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
-                     <Users size={16} />
-                  </div>
-               </div>
-            </div>
-         )}
 
          {viewMode === 'personal' ? (
             selectedPersonId ? (
