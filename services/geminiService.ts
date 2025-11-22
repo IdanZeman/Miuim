@@ -46,34 +46,41 @@ export const generateAssignmentExplanation = async (
   }
 };
 
+/**
+ * Analyze schedule health without requiring AI/API
+ * Provides simple deterministic feedback based on coverage statistics
+ */
 export const analyzeScheduleHealth = async (
   shifts: Shift[],
   people: Person[],
   tasks: TaskTemplate[]
 ): Promise<string> => {
-    const ai = getAI();
-    if (!ai) return "מפתח API לא מוגדר.";
+  // Simple deterministic analysis without AI
+  const totalShifts = shifts.length;
+  const unassignedCount = shifts.filter(s => {
+    const task = tasks.find(t => t.id === s.taskId);
+    const required = task?.requiredPeople || 1;
+    return s.assignedPersonIds.length < required;
+  }).length;
 
-    const dataSummary = {
-        totalShifts: shifts.length,
-        unassigned: shifts.filter(s => s.assignedPersonIds.length < (tasks.find(t => t.id === s.taskId)?.requiredPeople || 1)).length,
-        peopleCount: people.length
-    };
+  const fullyAssignedCount = totalShifts - unassignedCount;
+  const coveragePercent = totalShifts > 0 ? Math.round((fullyAssignedCount / totalShifts) * 100) : 0;
 
-    const prompt = `
-      נתח את בריאות השיבוץ הנוכחי על סמך הנתונים הבאים:
-      ${JSON.stringify(dataSummary)}
-      
-      תן 3 נקודות לשיפור או לשימור בעברית.
-    `;
+  let feedback = `✅ **שיבוץ הושלם!**\n\n`;
+  feedback += `📊 **סיכום:**\n`;
+  feedback += `- סה"כ משמרות: ${totalShifts}\n`;
+  feedback += `- משמרות מאוישות: ${fullyAssignedCount} (${coveragePercent}%)\n`;
+  feedback += `- משמרות חסרות: ${unassignedCount}\n\n`;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
-        return response.text || "לא התקבל ניתוח.";
-    } catch (e) {
-        return "שגיאה בניתוח.";
-    }
-}
+  if (coveragePercent === 100) {
+    feedback += `🎉 מצוין! כל המשמרות מאוישות במלואן.`;
+  } else if (coveragePercent >= 80) {
+    feedback += `👍 טוב! רוב המשמרות מאוישות. נותרו ${unassignedCount} משמרות לאיוש ידני.`;
+  } else if (coveragePercent >= 50) {
+    feedback += `⚠️ חלקי. יש צורך באיוש ידני של ${unassignedCount} משמרות נוספות.`;
+  } else {
+    feedback += `❌ נמוך. רק ${fullyAssignedCount} משמרות אוישו. בדוק זמינות כוח אדם ותפקידים נדרשים.`;
+  }
+
+  return feedback;
+};

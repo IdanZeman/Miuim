@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export const generateShiftsForTask = (task: TaskTemplate, startOfWeek: Date): Shift[] => {
     const shifts: Shift[] = [];
-    const daysToCheck = 7; // Generate for a week
+    const daysToCheck = 30; // Generate for 30 days ahead
 
     for (let i = 0; i < daysToCheck; i++) {
         const currentDate = new Date(startOfWeek);
@@ -17,13 +17,7 @@ export const generateShiftsForTask = (task: TaskTemplate, startOfWeek: Date): Sh
             }
         }
 
-        // Basic logic: Create a shift for this day
-        // In a real app, we might check schedulingType ('continuous' vs 'one-time')
-        // For 'one-time', we might only generate if it matches specificDate
-
         if (task.schedulingType === 'one-time' && !task.specificDate) {
-            // If one-time but no date, maybe don't auto-generate? 
-            // Or generate for today? Let's skip for now to be safe.
             continue;
         }
 
@@ -35,20 +29,47 @@ export const generateShiftsForTask = (task: TaskTemplate, startOfWeek: Date): Sh
             start.setHours(8, 0, 0, 0); // Default to 08:00
         }
 
-        const end = new Date(start);
-        end.setHours(start.getHours() + (task.durationHours || 4)); // Default duration if missing
+        // 24/7 Logic: Generate shifts until the end of the day (or cover 24 hours)
+        if (task.is247) {
+            let currentShiftStart = new Date(start);
+            const dayLimit = new Date(start);
+            dayLimit.setHours(start.getHours() + 24);
 
-        const shift: Shift = {
-            id: uuidv4(),
-            taskId: task.id,
-            startTime: start.toISOString(),
-            endTime: end.toISOString(),
-            assignedPersonIds: [],
-            isLocked: false,
-            organization_id: task.organization_id
-        };
+            let count = 0;
+            while (currentShiftStart < dayLimit && count < 20) { // Safety break
+                const end = new Date(currentShiftStart);
+                end.setHours(currentShiftStart.getHours() + (task.durationHours || 4));
 
-        shifts.push(shift);
+                const shift: Shift = {
+                    id: uuidv4(),
+                    taskId: task.id,
+                    startTime: currentShiftStart.toISOString(),
+                    endTime: end.toISOString(),
+                    assignedPersonIds: [],
+                    isLocked: false,
+                    organization_id: task.organization_id
+                };
+                shifts.push(shift);
+
+                currentShiftStart = new Date(end);
+                count++;
+            }
+        } else {
+            // Single shift logic
+            const end = new Date(start);
+            end.setHours(start.getHours() + (task.durationHours || 4));
+
+            const shift: Shift = {
+                id: uuidv4(),
+                taskId: task.id,
+                startTime: start.toISOString(),
+                endTime: end.toISOString(),
+                assignedPersonIds: [],
+                isLocked: false,
+                organization_id: task.organization_id
+            };
+            shifts.push(shift);
+        }
     }
 
     return shifts;

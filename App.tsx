@@ -195,20 +195,28 @@ const MainApp: React.FC = () => {
     const handleAddTask = async (t: TaskTemplate) => {
         if (!organization) return;
         const taskWithOrg = { ...t, organization_id: organization.id };
+        console.log("Creating task:", taskWithOrg);
+
         try {
             const { error } = await supabase.from('task_templates').insert(mapTaskToDB(taskWithOrg));
             if (error) throw error;
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() - today.getDay());
 
-            const newShifts = generateShiftsForTask(t, startOfWeek);
+            // Generate for the next 30 days starting today
+            console.log("Generating shifts for task starting from:", today);
+            const newShifts = generateShiftsForTask(taskWithOrg, today);
             const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: organization.id }));
 
+            console.log("Generated shifts:", shiftsWithOrg);
+
             if (shiftsWithOrg.length > 0) {
-                await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
+                const { error: shiftError } = await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
+                if (shiftError) {
+                    console.error("Error inserting auto-generated shifts:", shiftError);
+                    throw shiftError;
+                }
             }
 
             setState(prev => ({
@@ -222,7 +230,7 @@ const MainApp: React.FC = () => {
             today.setHours(0, 0, 0, 0);
             const startOfWeek = new Date(today);
             startOfWeek.setDate(today.getDate() - today.getDay());
-            const newShifts = generateShiftsForTask(t, startOfWeek);
+            const newShifts = generateShiftsForTask(taskWithOrg, startOfWeek);
             setState(prev => ({
                 ...prev,
                 taskTemplates: [...prev.taskTemplates, t],

@@ -81,6 +81,7 @@ export interface TaskTemplate {
   defaultStartTime?: string; // "HH:MM"
   specificDate?: string; // "YYYY-MM-DD"
   organization_id?: string;
+  is247?: boolean;
 }
 
 export interface Shift {

@@ -89,7 +89,7 @@ const ShiftCard: React.FC<{
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-bold shadow-sm ${p.color}`}>
                                 {getPersonInitials(p.name)}
                             </div>
-                            <span className="text-xs text-slate-700 font-bold truncate">{getPersonInitials(p.name)}</span>
+                            <span className="text-xs text-slate-700 font-bold truncate">{p.name}</span>
                         </div>
                     ))
                 )}
@@ -315,10 +315,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     <div key={p.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-100 rounded-xl">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${p.color}`}>{getPersonInitials(p.name)}</div>
-                                            <span className="font-bold text-slate-800 text-sm">{getPersonInitials(p.name)}</span>
+                                            <span className="font-bold text-slate-800 text-sm">{p.name}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <button onClick={() => handleExplain(selectedShift, p)} className="text-purple-600 p-1.5 hover:bg-purple-100 rounded-lg" title="AI Explain"><Sparkles size={16} /></button>
                                             <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-red-500 p-1.5 hover:bg-red-100 rounded-lg"><X size={16} /></button>
                                         </div>
                                     </div>
@@ -326,12 +325,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 {assignedPeople.length === 0 && <p className="text-slate-400 text-sm text-center py-4">לא שובצו לוחמים</p>}
                             </div>
 
-                            {(loadingAi || aiExplanation) && (
-                                <div className="mt-6 p-4 bg-purple-50 rounded-xl border border-purple-100 text-sm">
-                                    {loadingAi ? <div className="flex items-center gap-2 text-purple-700"><BrainCircuit className="animate-spin" size={16} /> מעבד נתונים...</div> :
-                                        <div className="text-slate-700"><span className="font-bold text-purple-800 block mb-1">ניתוח AI:</span>{aiExplanation}</div>}
-                                </div>
-                            )}
+
                         </div>
 
                         <div className="flex-1 p-6 overflow-y-auto bg-slate-50/50">
@@ -344,7 +338,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${p.color}`}>{getPersonInitials(p.name)}</div>
                                                 <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-700 text-sm" title={p.name}>{getPersonInitials(p.name)}</span>
+                                                    <span className="font-bold text-slate-700 text-sm" title={p.name}>{p.name}</span>
                                                     {!hasRole && <span className="text-[10px] text-red-500">אין התאמה</span>}
                                                 </div>
                                             </div>

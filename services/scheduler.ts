@@ -158,7 +158,18 @@ export const solveSchedule = (
   const allSortedTasks = [...criticalTasks, ...standardTasks];
 
   // 3. Allocation Loop
-  allSortedTasks.forEach(task => {
+  console.log('🔍 Starting allocation for', allSortedTasks.length, 'tasks');
+  console.log('👥 Available users:', algoUsers.length);
+
+  allSortedTasks.forEach((task, taskIndex) => {
+    console.log(`\n📋 Task ${taskIndex + 1}/${allSortedTasks.length}:`, {
+      taskId: task.taskId,
+      requiredPeople: task.requiredPeople,
+      requiredRoles: task.requiredRoles,
+      isCritical: task.isCritical,
+      startTime: new Date(task.startTime).toLocaleString('he-IL')
+    });
+
     const needed = task.requiredPeople;
 
     // Find Candidates
@@ -166,7 +177,10 @@ export const solveSchedule = (
       // Role Match
       if (task.requiredRoles.length > 0) {
         const hasRole = task.requiredRoles.some(rid => u.person.roleIds.includes(rid));
-        if (!hasRole) return false;
+        if (!hasRole) {
+          console.log(`  ❌ ${u.person.name}: No matching role`);
+          return false;
+        }
       }
 
       // Time Availability (Task Duration + Post-Task Rest)
@@ -174,8 +188,16 @@ export const solveSchedule = (
       const restDurationMs = task.minRest * 60 * 60 * 1000;
       const totalBlockEnd = task.endTime + restDurationMs;
 
-      return canFit(u, task.startTime, totalBlockEnd);
+      const canFitResult = canFit(u, task.startTime, totalBlockEnd);
+      if (!canFitResult) {
+        console.log(`  ❌ ${u.person.name}: Time conflict`);
+      } else {
+        console.log(`  ✅ ${u.person.name}: Available (load: ${u.loadScore.toFixed(1)})`);
+      }
+      return canFitResult;
     });
+
+    console.log(`  🎯 Found ${candidates.length} candidates for ${needed} positions`);
 
     // Scoring (Fairness)
     // Sort by Load Score (asc) -> Prefer those who worked less / easier tasks
@@ -183,6 +205,7 @@ export const solveSchedule = (
 
     // Assign Top N
     const selected = candidates.slice(0, needed);
+    console.log(`  ✨ Selected ${selected.length} people:`, selected.map(u => u.person.name));
 
     selected.forEach(u => {
       // Assign

@@ -22,7 +22,8 @@ export const mapPersonFromDB = (dbPerson: any): Person => ({
     unavailableDates: dbPerson.unavailable_dates || [],
     preferences: dbPerson.preferences || { preferNight: false, avoidWeekends: false },
     color: dbPerson.color,
-    dailyAvailability: dbPerson.daily_availability || {}
+    dailyAvailability: dbPerson.daily_availability || {},
+    organization_id: dbPerson.organization_id
 });
 
 export const mapPersonToDB = (person: Person) => ({
@@ -34,20 +35,23 @@ export const mapPersonToDB = (person: Person) => ({
     unavailable_dates: person.unavailableDates,
     preferences: person.preferences,
     color: person.color,
-    daily_availability: person.dailyAvailability
+    daily_availability: person.dailyAvailability,
+    organization_id: person.organization_id
 });
 
 // Teams
 export const mapTeamFromDB = (dbTeam: any): Team => ({
     id: dbTeam.id,
     name: dbTeam.name,
-    color: dbTeam.color
+    color: dbTeam.color,
+    organization_id: dbTeam.organization_id
 });
 
 export const mapTeamToDB = (team: Team) => ({
     id: team.id,
     name: team.name,
-    color: team.color
+    color: team.color,
+    organization_id: team.organization_id
 });
 
 // Roles
@@ -55,14 +59,16 @@ export const mapRoleFromDB = (dbRole: any): Role => ({
     id: dbRole.id,
     name: dbRole.name,
     color: dbRole.color,
-    icon: dbRole.icon
+    icon: dbRole.icon,
+    organization_id: dbRole.organization_id
 });
 
 export const mapRoleToDB = (role: Role) => ({
     id: role.id,
     name: role.name,
     color: role.color,
-    icon: role.icon
+    icon: role.icon,
+    organization_id: role.organization_id
 });
 
 // Tasks
@@ -77,7 +83,9 @@ export const mapTaskFromDB = (dbTask: any): TaskTemplate => ({
     color: dbTask.color,
     schedulingType: dbTask.scheduling_type as any,
     defaultStartTime: dbTask.default_start_time,
-    specificDate: dbTask.specific_date
+    specificDate: dbTask.specific_date,
+    organization_id: dbTask.organization_id,
+    is247: dbTask.is_24_7
 });
 
 export const mapTaskToDB = (task: TaskTemplate) => ({
@@ -91,7 +99,9 @@ export const mapTaskToDB = (task: TaskTemplate) => ({
     color: task.color,
     scheduling_type: task.schedulingType,
     default_start_time: task.defaultStartTime,
-    specific_date: task.specificDate
+    specific_date: task.specificDate,
+    organization_id: task.organization_id,
+    is_24_7: task.is247
 });
 
 // Shifts
@@ -101,7 +111,8 @@ export const mapShiftFromDB = (dbShift: any): Shift => ({
     startTime: dbShift.start_time,
     endTime: dbShift.end_time,
     assignedPersonIds: dbShift.assigned_person_ids || [],
-    isLocked: dbShift.is_locked
+    isLocked: dbShift.is_locked,
+    organization_id: dbShift.organization_id
 });
 
 export const mapShiftToDB = (shift: Shift) => ({
@@ -110,5 +121,6 @@ export const mapShiftToDB = (shift: Shift) => ({
     start_time: shift.startTime,
     end_time: shift.endTime,
     assigned_person_ids: shift.assignedPersonIds,
-    is_locked: shift.isLocked
+    is_locked: shift.isLocked,
+    organization_id: shift.organization_id
 });
