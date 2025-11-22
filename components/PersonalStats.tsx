@@ -7,9 +7,11 @@ interface PersonalStatsProps {
     shifts: Shift[];
     tasks: TaskTemplate[];
     onClick?: () => void;
+    nightShiftStart?: string;
+    nightShiftEnd?: string;
 }
 
-export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, tasks, onClick }) => {
+export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, tasks, onClick, nightShiftStart = '22:00', nightShiftEnd = '06:00' }) => {
 
     const stats = useMemo(() => {
         const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id))
@@ -28,16 +30,24 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, ta
             totalHours += duration;
             totalLoad += duration * task.difficulty;
 
-            // Night Hours Calculation (Approximate: overlap with 22:00 - 06:00)
+            // Night Hours Calculation
             const start = new Date(shift.startTime);
             const end = new Date(shift.endTime);
 
             // Check each hour of the shift
             let current = new Date(start);
             let shiftNightHours = 0;
+
+            const startHour = parseInt(nightShiftStart.split(':')[0]);
+            const endHour = parseInt(nightShiftEnd.split(':')[0]);
+
             while (current < end) {
                 const h = current.getHours();
-                if (h >= 22 || h < 6) {
+                const isNight = startHour > endHour
+                    ? (h >= startHour || h < endHour)
+                    : (h >= startHour && h < endHour);
+
+                if (isNight) {
                     shiftNightHours += 1; // Count full hours for simplicity
                 }
                 current.setHours(current.getHours() + 1);
@@ -68,7 +78,7 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, ta
             maxRest,
             avgRest
         };
-    }, [person, shifts, tasks]);
+    }, [person, shifts, tasks, nightShiftStart, nightShiftEnd]);
 
     return (
         <div

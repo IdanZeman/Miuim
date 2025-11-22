@@ -396,6 +396,27 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         <h3 className="text-xl font-bold text-slate-800">
                             מבט יומי
                         </h3>
+                        {/* Daily Availability Badge */}
+                        {(() => {
+                            const dateKey = selectedDate.toLocaleDateString('en-CA');
+                            const unavailableCount = people.filter(p => {
+                                // Check if person is unavailable on this date
+                                if (p.unavailableDates?.includes(dateKey)) return true;
+                                // Check daily availability
+                                if (p.dailyAvailability?.[dateKey]?.isAvailable === false) return true;
+                                return false;
+                            }).length;
+                            const availableCount = people.length - unavailableCount;
+
+                            return (
+                                <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-4 py-2 rounded-full border border-emerald-200">
+                                    <User size={16} className="text-emerald-600" />
+                                    <span className="text-sm font-bold text-emerald-700">
+                                        זמינים: {availableCount}/{people.length}
+                                    </span>
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     <div className="flex items-center gap-2">

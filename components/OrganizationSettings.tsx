@@ -3,7 +3,84 @@ import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { OrganizationInvite, Profile, UserRole } from '../types';
 import { getRoleDisplayName, getRoleDescription, canManageOrganization } from '../utils/permissions';
-import { Users, Mail, Trash2, Shield, UserPlus, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Mail, Trash2, Shield, UserPlus, Clock, CheckCircle, XCircle, Moon, Save } from 'lucide-react';
+
+const NightShiftSettings: React.FC<{ organizationId: string }> = ({ organizationId }) => {
+    const [start, setStart] = useState('22:00');
+    const [end, setEnd] = useState('06:00');
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        fetchSettings();
+    }, [organizationId]);
+
+    const fetchSettings = async () => {
+        const { data, error } = await supabase
+            .from('organization_settings')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .single();
+
+        if (data) {
+            setStart(data.night_shift_start.slice(0, 5));
+            setEnd(data.night_shift_end.slice(0, 5));
+        }
+        setLoading(false);
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        const { error } = await supabase
+            .from('organization_settings')
+            .upsert({
+                organization_id: organizationId,
+                night_shift_start: start,
+                night_shift_end: end
+            });
+
+        if (error) {
+            console.error('Error saving settings:', error);
+            alert('שגיאה בשמירת ההגדרות');
+        } else {
+            alert('הגדרות נשמרו בהצלחה');
+        }
+        setSaving(false);
+    };
+
+    if (loading) return <div className="text-slate-500">טוען הגדרות...</div>;
+
+    return (
+        <div className="flex items-end gap-4">
+            <div>
+                <label className="block text-slate-700 font-medium mb-2 text-right">התחלה</label>
+                <input
+                    type="time"
+                    value={start}
+                    onChange={e => setStart(e.target.value)}
+                    className="px-4 py-2 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none"
+                />
+            </div>
+            <div>
+                <label className="block text-slate-700 font-medium mb-2 text-right">סיום</label>
+                <input
+                    type="time"
+                    value={end}
+                    onChange={e => setEnd(e.target.value)}
+                    className="px-4 py-2 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none"
+                />
+            </div>
+            <button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+                <Save size={18} />
+                {saving ? 'שומר...' : 'שמור'}
+            </button>
+        </div>
+    );
+};
 
 export const OrganizationSettings: React.FC = () => {
     const { user, profile, organization } = useAuth();
@@ -157,6 +234,15 @@ export const OrganizationSettings: React.FC = () => {
                         <p className="text-slate-600">{members.length} חברי צוות</p>
                     </div>
                 </div>
+            </div>
+
+            {/* Night Shift Settings */}
+            <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-indigo-200">
+                <div className="flex items-center gap-3 mb-6">
+                    <Moon className="text-indigo-600" size={24} />
+                    <h2 className="text-2xl font-bold text-slate-800">הגדרות לילה</h2>
+                </div>
+                <NightShiftSettings organizationId={organization?.id || ''} />
             </div>
 
             {/* Invite Form */}

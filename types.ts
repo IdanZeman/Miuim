@@ -14,6 +14,12 @@ export interface Organization {
   created_at: string;
 }
 
+export interface OrganizationSettings {
+  organization_id: string;
+  night_shift_start: string; // "HH:MM:SS"
+  night_shift_end: string;   // "HH:MM:SS"
+}
+
 export interface OrganizationInvite {
   id: string;
   organization_id: string;

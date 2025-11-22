@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Person, Shift, TaskTemplate, Role } from '../types';
 import {
@@ -15,9 +16,11 @@ interface DetailedUserStatsProps {
     tasks: TaskTemplate[];
     roles: Role[];
     onBack: () => void;
+    nightShiftStart?: string;
+    nightShiftEnd?: string;
 }
 
-export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, shifts, tasks, roles, onBack }) => {
+export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, shifts, tasks, roles, onBack, nightShiftStart = '22:00', nightShiftEnd = '06:00' }) => {
 
     const stats = useMemo(() => {
         const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id))
@@ -43,9 +46,17 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
             // Night Hours
             const end = new Date(shift.endTime);
             let current = new Date(start);
+
+            const startHour = parseInt(nightShiftStart.split(':')[0]);
+            const endHour = parseInt(nightShiftEnd.split(':')[0]);
+
             while (current < end) {
                 const h = current.getHours();
-                if (h >= 22 || h < 6) nightHours += 1;
+                const isNight = startHour > endHour
+                    ? (h >= startHour || h < endHour)
+                    : (h >= startHour && h < endHour);
+
+                if (isNight) nightHours += 1;
                 current.setHours(current.getHours() + 1);
             }
         });
@@ -62,7 +73,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
             })),
             shifts: personShifts
         };
-    }, [person, shifts, tasks]);
+    }, [person, shifts, tasks, nightShiftStart, nightShiftEnd]);
 
     const dayNightData = [
         { name: 'יום', value: stats.dayHours, color: '#fbbf24' },
@@ -173,6 +184,136 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
                                 <span className="text-sm text-slate-600 font-bold">{d.name} ({d.value})</span>
                             </div>
                         ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Task Breakdown Chart */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <Award className="text-orange-500" size={20} />
+                    התפלגות משימות
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={(() => {
+                                        // Helper to convert Tailwind color class to hex
+                                        const getColorFromClass = (colorClass: string): string => {
+                                            const colorMap: Record<string, string> = {
+                                                'border-l-blue-500': '#3b82f6',
+                                                'border-l-green-500': '#22c55e',
+                                                'border-l-red-500': '#ef4444',
+                                                'border-l-yellow-500': '#eab308',
+                                                'border-l-purple-500': '#a855f7',
+                                                'border-l-pink-500': '#ec4899',
+                                                'border-l-indigo-500': '#6366f1',
+                                                'border-l-orange-500': '#f97316',
+                                                'border-l-teal-500': '#14b8a6',
+                                                'border-l-cyan-500': '#06b6d4',
+                                            };
+                                            return colorMap[colorClass] || colorClass;
+                                        };
+
+                                        const taskData = stats.shifts.reduce((acc: any[], shift) => {
+                                            const task = tasks.find(t => t.id === shift.taskId);
+                                            if (!task) return acc;
+                                            const existing = acc.find(i => i.name === task.name);
+                                            if (existing) {
+                                                existing.value++;
+                                            } else {
+                                                acc.push({
+                                                    name: task.name,
+                                                    value: 1,
+                                                    color: getColorFromClass(task.color)
+                                                });
+                                            }
+                                            return acc;
+                                        }, []);
+                                        return taskData;
+                                    })()}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {(() => {
+                                        const getColorFromClass = (colorClass: string): string => {
+                                            const colorMap: Record<string, string> = {
+                                                'border-l-blue-500': '#3b82f6',
+                                                'border-l-green-500': '#22c55e',
+                                                'border-l-red-500': '#ef4444',
+                                                'border-l-yellow-500': '#eab308',
+                                                'border-l-purple-500': '#a855f7',
+                                                'border-l-pink-500': '#ec4899',
+                                                'border-l-indigo-500': '#6366f1',
+                                                'border-l-orange-500': '#f97316',
+                                                'border-l-teal-500': '#14b8a6',
+                                                'border-l-cyan-500': '#06b6d4',
+                                            };
+                                            return colorMap[colorClass] || colorClass;
+                                        };
+
+                                        return stats.shifts.reduce((acc: any[], shift) => {
+                                            const task = tasks.find(t => t.id === shift.taskId);
+                                            if (!task) return acc;
+                                            const existing = acc.find(i => i.name === task.name);
+                                            if (existing) {
+                                                existing.value++;
+                                            } else {
+                                                acc.push({
+                                                    name: task.name,
+                                                    value: 1,
+                                                    color: getColorFromClass(task.color)
+                                                });
+                                            }
+                                            return acc;
+                                        }, []).map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ));
+                                    })()}
+                                </Pie>
+                                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        {(() => {
+                            const getColorFromClass = (colorClass: string): string => {
+                                const colorMap: Record<string, string> = {
+                                    'border-l-blue-500': '#3b82f6',
+                                    'border-l-green-500': '#22c55e',
+                                    'border-l-red-500': '#ef4444',
+                                    'border-l-yellow-500': '#eab308',
+                                    'border-l-purple-500': '#a855f7',
+                                    'border-l-pink-500': '#ec4899',
+                                    'border-l-indigo-500': '#6366f1',
+                                    'border-l-orange-500': '#f97316',
+                                    'border-l-teal-500': '#14b8a6',
+                                    'border-l-cyan-500': '#06b6d4',
+                                };
+                                return colorMap[colorClass] || colorClass;
+                            };
+
+                            return Array.from(new Set(stats.shifts.map(s => s.taskId))).map(taskId => {
+                                const task = tasks.find(t => t.id === taskId);
+                                if (!task) return null;
+                                const count = stats.shifts.filter(s => s.taskId === taskId).length;
+                                return (
+                                    <div key={taskId} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                        <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: getColorFromClass(task.color) }}></div>
+                                        <div>
+                                            <span className="block font-bold text-slate-700">{task.name}</span>
+                                            <span className="text-xs text-slate-500">{count} ביצועים</span>
+                                        </div>
+                                    </div>
+                                );
+                            });
+                        })()}
                     </div>
                 </div>
             </div>
