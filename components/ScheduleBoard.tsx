@@ -120,7 +120,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     onDeleteShift,
     onClearDay
 }) => {
-    const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+    const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
+
+    const selectedShift = useMemo(() =>
+        shifts.find(s => s.id === selectedShiftId) || null
+        , [shifts, selectedShiftId]);
+
     const [aiExplanation, setAiExplanation] = useState<string | null>(null);
     const [loadingAi, setLoadingAi] = useState(false);
 
@@ -176,7 +181,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         </div>
                         <div className="flex gap-3">
                             <button
-                                onClick={() => setSelectedShift(upcoming)}
+                                onClick={() => setSelectedShiftId(upcoming.id)}
                                 className="bg-idf-yellow hover:bg-idf-yellow-hover text-slate-900 px-6 py-2.5 rounded-full font-bold shadow-sm transition-colors"
                             >
                                 נהל משמרת
@@ -294,14 +299,14 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 onClick={() => {
                                     // NO CONFIRM
                                     onDeleteShift(selectedShift.id);
-                                    setSelectedShift(null);
+                                    setSelectedShiftId(null);
                                 }}
                                 className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"
                                 title="מחק משמרת"
                             >
                                 <Trash2 size={20} />
                             </button>
-                            <button onClick={() => setSelectedShift(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+                            <button onClick={() => setSelectedShiftId(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
                                 <X size={24} />
                             </button>
                         </div>
@@ -315,7 +320,14 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     <div key={p.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-100 rounded-xl">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${p.color}`}>{getPersonInitials(p.name)}</div>
-                                            <span className="font-bold text-slate-800 text-sm">{p.name}</span>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-800 text-sm">{p.name}</span>
+                                                {task.requiredRoleIds.length > 0 && (
+                                                    <span className="text-[10px] text-slate-500">
+                                                        {roles.find(r => task.requiredRoleIds.includes(r.id) && p.roleIds.includes(r.id))?.name || ''}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-red-500 p-1.5 hover:bg-red-100 rounded-lg"><X size={16} /></button>
@@ -333,16 +345,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             <div className="space-y-2">
                                 {availablePeople.map(p => {
                                     const hasRole = task.requiredRoleIds.length === 0 || task.requiredRoleIds.some(req => p.roleIds.includes(req));
+                                    const isFull = assignedPeople.length >= task.requiredPeople;
+                                    const canAssign = hasRole && !isFull;
+
                                     return (
-                                        <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${hasRole ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
+                                        <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${canAssign ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${p.color}`}>{getPersonInitials(p.name)}</div>
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-slate-700 text-sm" title={p.name}>{p.name}</span>
                                                     {!hasRole && <span className="text-[10px] text-red-500">אין התאמה</span>}
+                                                    {isFull && hasRole && <span className="text-[10px] text-amber-500">משמרת מלאה</span>}
                                                 </div>
                                             </div>
-                                            <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!hasRole} className={`px-3 py-1 rounded-full text-xs font-bold ${hasRole ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
+                                            <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!canAssign} className={`px-3 py-1 rounded-full text-xs font-bold ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
                                         </div>
                                     );
                                 })}
@@ -434,7 +450,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        {taskShifts.map(shift => <ShiftCard key={shift.id} shift={shift} tasks={tasks} people={people} onSelect={setSelectedShift} onDelete={onDeleteShift} />)}
+                                        {taskShifts.map(shift => <ShiftCard key={shift.id} shift={shift} tasks={tasks} people={people} onSelect={(s) => setSelectedShiftId(s.id)} onDelete={onDeleteShift} />)}
                                         {taskShifts.length === 0 && <div className="text-center py-10 text-slate-400 text-sm italic">אין משמרות ליום זה</div>}
                                     </div>
                                 </div>
