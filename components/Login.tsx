@@ -6,13 +6,18 @@ interface LoginProps {
     onBack?: () => void;
 }
 
+import { Layout } from './Layout';
+
 export const Login: React.FC<LoginProps> = ({ onBack }) => {
     const handleGoogleLogin = async () => {
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: window.location.origin
+                    redirectTo: window.location.origin,
+                    queryParams: {
+                        prompt: 'select_account'
+                    }
                 }
             });
             if (error) throw error;
@@ -27,21 +32,21 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-yellow-50">
-            {/* Back Button */}
-            {onBack && (
-                <button
-                    onClick={onBack}
-                    className="absolute top-8 right-8 text-slate-600 hover:text-slate-800 transition-colors flex items-center gap-2 font-medium"
-                >
-                    <ArrowRight size={20} />
-                    <span>חזרה</span>
-                </button>
-            )}
+        <Layout isPublic={true}>
+            <div className="min-h-[60vh] flex items-center justify-center p-4">
+                <div className="bg-white p-12 rounded-3xl shadow-xl max-w-md w-full border-2 border-yellow-200 relative">
+                    {/* Back Button */}
+                    {onBack && (
+                        <button
+                            onClick={onBack}
+                            className="absolute top-8 right-8 text-slate-600 hover:text-slate-800 transition-colors flex items-center gap-2 font-medium"
+                        >
+                            <ArrowRight size={20} />
+                            <span>חזרה</span>
+                        </button>
+                    )}
 
-            <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="bg-white p-12 rounded-3xl shadow-xl max-w-md w-full border-2 border-yellow-200">
-                    {/* Logo */}
+                    {/* Logo - Optional inside card since it's in header now, but good for focus */}
                     <div className="flex justify-center mb-8">
                         <div className="w-16 h-16 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg">
                             <svg className="w-10 h-10 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -66,11 +71,7 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
                             <span className="text-lg">המשך עם Google</span>
                         </button>
 
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-right">
-                            <p className="text-sm text-yellow-800">
-                                💡 שים לב: יש להפעיל את Google Provider בלוח הבקרה של Supabase
-                            </p>
-                        </div>
+
                     </div>
 
                     {/* Terms */}
@@ -79,6 +80,6 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
                     </p>
                 </div>
             </div>
-        </div>
+        </Layout>
     );
 };

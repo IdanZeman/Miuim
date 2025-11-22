@@ -4,9 +4,10 @@ import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
-  currentView: ViewMode;
-  setView: (view: ViewMode) => void;
+  currentView?: ViewMode;
+  setView?: (view: ViewMode) => void;
   children: React.ReactNode;
+  isPublic?: boolean;
 }
 
 const TopNavLink = ({
@@ -35,7 +36,7 @@ const TopNavLink = ({
   </button>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children }) => {
+export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, isPublic = false }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const { user, profile, organization, signOut } = useAuth();
 
@@ -67,44 +68,48 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children }
                 </svg>
               </div>
               <span className="text-lg font-bold text-slate-800 tracking-tight">
-                {organization?.name || 'Miuim'}
+                {isPublic ? 'Miuim' : (organization?.name || 'Miuim')}
               </span>
             </div>
 
-            {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-1">
-              <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" />
-              <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" />
-              <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות וזמינות" icon={Clock} />
-              <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" />
-              <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label="דוחות" />
-              {isAdmin && (
-                <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
-              )}
-            </nav>
+            {/* Desktop Nav - Hidden in Public Mode */}
+            {!isPublic && setView && (
+              <nav className="hidden md:flex items-center gap-1">
+                <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" />
+                <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" />
+                <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות וזמינות" icon={Clock} />
+                <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" />
+                <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label="דוחות" />
+                {isAdmin && (
+                  <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
+                )}
+              </nav>
+            )}
           </div>
 
-          {/* Left: User Profile */}
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-slate-600 hidden md:block">
-              {user?.email?.split('@')[0] || 'משתמש'}
-            </span>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
-              title="התנתק"
-            >
-              <LogOut size={20} />
-            </button>
-            <button className="md:hidden p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-              <Menu size={24} />
-            </button>
-          </div>
+          {/* Left: User Profile - Hidden in Public Mode */}
+          {!isPublic && (
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-slate-600 hidden md:block">
+                {user?.email?.split('@')[0] || 'משתמש'}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
+                title="התנתק"
+              >
+                <LogOut size={20} />
+              </button>
+              <button className="md:hidden p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+                <Menu size={24} />
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Mobile Menu */}
-      {isMobileMenuOpen && (
+      {!isPublic && isMobileMenuOpen && setView && (
         <div className="absolute top-16 left-0 right-0 bg-white shadow-lg z-50 p-4 flex flex-col gap-2 md:hidden">
           <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('dashboard'); setIsMobileMenuOpen(false) }}>לוח שיבוצים</button>
           <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('personnel'); setIsMobileMenuOpen(false) }}>ניהול כוח אדם</button>
@@ -129,6 +134,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children }
               {currentView === 'tasks' && 'בנק משימות'}
               {currentView === 'stats' && 'מרכז נתונים'}
               {currentView === 'settings' && 'הגדרות ארגון'}
+              {isPublic && 'ברוכים הבאים ל-Miuim'}
             </h1>
             <div className="w-16 h-1.5 bg-white/40 rounded-full mt-3"></div>
           </div>
