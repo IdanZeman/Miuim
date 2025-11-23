@@ -792,8 +792,8 @@ const MainApp: React.FC = () => {
 
 // --- App Wrapper with Auth Logic ---
 const AppContent: React.FC = () => {
-    const { session, loading, organization } = useAuth();
-    const [showLanding, setShowLanding] = useState(!session);
+    const { user, profile, organization, loading } = useAuth();
+    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports'>('dashboard');
 
     if (loading) {
         return (
@@ -806,15 +806,22 @@ const AppContent: React.FC = () => {
         );
     }
 
-    // NEW: If not logged in, show landing page (no separate login page needed)
-    if (!session) {
-        return <LandingPage />; // No onGetStarted prop needed
-    }
-
-    if (!organization) {
+    // NEW: If user exists but NO profile → Show Onboarding
+    if (user && !profile) {
         return <Onboarding />;
     }
 
+    // If not logged in → Show Landing Page
+    if (!user) {
+        return <LandingPage />;
+    }
+
+    // NEW: If profile exists but NO organization → Show Create Organization
+    if (profile && !organization) {
+        return <Onboarding />;
+    }
+
+    // User is logged in, has profile, and has organization → Show Main App
     return <MainApp />;
 };
 
