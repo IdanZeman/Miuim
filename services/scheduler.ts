@@ -33,12 +33,16 @@ interface AlgoTask {
 
 /**
  * Check if a specific time slot is completely free in the user's timeline.
+ * INCLUDES checking if rest period after the task is also free!
  */
-const canFit = (user: AlgoUser, start: number, end: number): boolean => {
+const canFit = (user: AlgoUser, taskStart: number, taskEnd: number, restDurationMs: number): boolean => {
+  // The TOTAL period we need to check is: task time + rest time
+  const totalEnd = taskEnd + restDurationMs;
+  
   for (const segment of user.timeline) {
     // Check for overlap: (StartA < EndB) and (EndA > StartB)
-    if (start < segment.end && end > segment.start) {
-      return false; // Collision
+    if (taskStart < segment.end && totalEnd > segment.start) {
+      return false; // Collision with task OR rest period
     }
   }
   return true;
@@ -60,7 +64,8 @@ const initializeUsers = (
   targetDate: Date,
   historyScores: Record<string, { totalLoadScore: number, shiftsCount: number }> = {},
   futureAssignments: Shift[],
-  taskTemplates: TaskTemplate[]
+  taskTemplates: TaskTemplate[],
+  allShifts: Shift[] // NEW: Pass ALL shifts to check for cross-day tasks
 ): AlgoUser[] => {
   const dateKey = targetDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
@@ -104,7 +109,40 @@ const initializeUsers = (
       }
     }
 
-    // 2. Block Future Assignments (48h Lookahead)
+    // 2. Block PAST shifts that END during the target day (Cross-Day Tasks)
+    // Example: A shift starting 23:00 on Day 1 and ending 07:00 on Day 2
+    // When scheduling Day 2, we need to block 00:00-07:00 + rest period
+    const dayStart = new Date(targetDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(targetDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const crossDayShifts = allShifts.filter(s => {
+      if (!s.assignedPersonIds.includes(p.id)) return false;
+      
+      const shiftStart = new Date(s.startTime);
+      const shiftEnd = new Date(s.endTime);
+      
+      // Check if shift STARTS before target day but ENDS during or after it
+      return shiftStart < dayStart && shiftEnd > dayStart;
+    });
+
+    crossDayShifts.forEach(s => {
+      const shiftEnd = new Date(s.endTime).getTime();
+      const task = taskTemplates.find(t => t.id === s.taskId);
+
+      // Block from 00:00 until shift ends
+      const blockStart = dayStart.getTime();
+      addToTimeline(algoUser, blockStart, shiftEnd, 'TASK', s.taskId);
+
+      // Add rest period after shift ends
+      if (task && task.minRestHoursBefore > 0) {
+        const restEnd = shiftEnd + (task.minRestHoursBefore * 60 * 60 * 1000);
+        addToTimeline(algoUser, shiftEnd, restEnd, 'REST');
+      }
+    });
+
+    // 3. Block Future Assignments (48h Lookahead)
     const userFutureShifts = futureAssignments.filter(s => s.assignedPersonIds.includes(p.id));
     userFutureShifts.forEach(s => {
       const sStart = new Date(s.startTime).getTime();
@@ -150,7 +188,7 @@ export const solveSchedule = (
   if (shiftsToSolve.length === 0) return [];
 
   // Initialize Algorithm Users (Timeline & Constraints)
-  const algoUsers = initializeUsers(people, startDate, historyScores, futureAssignments, taskTemplates);
+  const algoUsers = initializeUsers(people, startDate, historyScores, futureAssignments, taskTemplates, shifts);
 
   // Calculate Role Rarity (<= 2 people is "Rare")
   const roleCounts = new Map<string, number>();
@@ -200,18 +238,18 @@ export const solveSchedule = (
 
         console.log(`   - Looking for ${count} people with role ${roleId}`);
 
+        const restDurationMs = task.minRest * 60 * 60 * 1000; // Calculate ONCE per task
+
         // Find Candidates for THIS specific role bucket
         let candidates = algoUsers.filter(u => {
           // 1. Role Check
           if (!u.person.roleIds.includes(roleId)) return false;
 
-          // 2. Already assigned to this task? (Shouldn't happen if buckets are distinct, but good safety)
+          // 2. Already assigned to this task?
           if (task.currentAssignees.includes(u.person.id)) return false;
 
-          // 3. Time Availability
-          const restDurationMs = task.minRest * 60 * 60 * 1000;
-          const totalBlockEnd = task.endTime + restDurationMs;
-          return canFit(u, task.startTime, totalBlockEnd);
+          // 3. Time Availability - NOW INCLUDES REST CHECK
+          return canFit(u, task.startTime, task.endTime, restDurationMs);
         });
 
         // Scoring (Fairness)
@@ -229,7 +267,6 @@ export const solveSchedule = (
           task.currentAssignees.push(u.person.id);
 
           // Update User State
-          const restDurationMs = task.minRest * 60 * 60 * 1000;
           addToTimeline(u, task.startTime, task.endTime, 'TASK', task.taskId);
           if (task.minRest > 0) {
             addToTimeline(u, task.endTime, task.endTime + restDurationMs, 'REST');
@@ -240,10 +277,6 @@ export const solveSchedule = (
           u.shiftsCount += 1;
         });
       });
-
-      // Handle Generic/Remainder if any (though we enforce explicit composition now)
-      // If requiredPeople > sum(composition), we might need generic fillers?
-      // For now, we strictly follow composition.
     });
   };
 
