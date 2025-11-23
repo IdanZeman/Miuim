@@ -6,13 +6,16 @@ interface TimelineSegment {
   end: number;
   type: 'TASK' | 'REST' | 'EXTERNAL_CONSTRAINT';
   taskId?: string;
+  isCritical?: boolean;
+  isMismatch?: boolean; // NEW: Flag for role mismatch (Level 4 assignments)
 }
 
 interface AlgoUser {
   person: Person;
   timeline: TimelineSegment[];
-  loadScore: number; // Total duration * difficulty assigned (Initial + New)
+  loadScore: number;
   shiftsCount: number;
+  criticalShiftCount: number; // NEW: counts critical shifts assigned
 }
 
 interface AlgoTask {
@@ -32,6 +35,20 @@ interface AlgoTask {
 // --- Helpers ---
 
 /**
+ * Check if a shift is during night hours (starts after 21:00 OR ends before 07:00)
+ */
+const isNightShift = (startTime: number, endTime: number): boolean => {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  
+  const startHour = start.getHours();
+  const endHour = end.getHours();
+  
+  // Night is defined as: starts at/after 21:00 OR ends at/before 07:00
+  return startHour >= 21 || endHour <= 7;
+}
+
+/**
  * Check if a specific time slot is completely free in the user's timeline.
  * INCLUDES checking if rest period after the task is also free!
  */
@@ -49,10 +66,77 @@ const canFit = (user: AlgoUser, taskStart: number, taskEnd: number, restDuration
 };
 
 /**
+ * NEW: Multi-level candidate finder with fallback mechanism
+ * @param relaxationLevel 1 (Strict) → 2 (Flexible) → 3 (Emergency) → 4 (Force/Hail Mary)
+ */
+const findBestCandidates = (
+  algoUsers: AlgoUser[],
+  task: AlgoTask,
+  roleId: string,
+  count: number,
+  relaxationLevel: 1 | 2 | 3 | 4 // NEW: Added Level 4
+): AlgoUser[] => {
+  const restDurationMs = task.minRest * 60 * 60 * 1000;
+
+  let candidates = algoUsers.filter(u => {
+    // 1. Already assigned to this task? (Always check)
+    if (task.currentAssignees.includes(u.person.id)) return false;
+
+    // 2. Role Check - SKIPPED IN LEVEL 4 (Force Assign)
+    if (relaxationLevel < 4) {
+      if (!u.person.roleIds.includes(roleId)) return false;
+    }
+
+    // LEVEL-SPECIFIC CHECKS
+
+    if (relaxationLevel === 1) {
+      // LEVEL 1: STRICT (Ideal conditions)
+      if (task.isCritical) {
+        const cooldownWindow = 36 * 60 * 60 * 1000;
+        const hadRecentCriticalShift = u.timeline.some(seg => 
+          seg.type === 'TASK' && 
+          seg.isCritical === true &&
+          seg.start > (task.startTime - cooldownWindow)
+        );
+        if (hadRecentCriticalShift) return false;
+      }
+      return canFit(u, task.startTime, task.endTime, restDurationMs);
+    }
+
+    if (relaxationLevel === 2) {
+      // LEVEL 2: FLEXIBLE ("Fair Grind")
+      const reducedRestMs = restDurationMs * 0.5;
+      return canFit(u, task.startTime, task.endTime, reducedRestMs);
+    }
+
+    if (relaxationLevel >= 3) {
+      // LEVEL 3 & 4: EMERGENCY/FORCE (Only physical availability)
+      return canFit(u, task.startTime, task.endTime, 0);
+    }
+
+    return false;
+  });
+
+  // CRITICAL: SORTING LOGIC IS IDENTICAL FOR ALL LEVELS
+  if (task.isCritical || relaxationLevel === 4) {
+    candidates.sort((a, b) => {
+      if (a.criticalShiftCount !== b.criticalShiftCount) {
+        return a.criticalShiftCount - b.criticalShiftCount;
+      }
+      return a.loadScore - b.loadScore;
+    });
+  } else {
+    candidates.sort((a, b) => a.loadScore - b.loadScore);
+  }
+
+  return candidates.slice(0, count);
+};
+
+/**
  * Add a segment to the user's timeline and sort it.
  */
-const addToTimeline = (user: AlgoUser, start: number, end: number, type: TimelineSegment['type'], taskId?: string) => {
-  user.timeline.push({ start, end, type, taskId });
+const addToTimeline = (user: AlgoUser, start: number, end: number, type: TimelineSegment['type'], taskId?: string, isCritical?: boolean, isMismatch?: boolean) => {
+  user.timeline.push({ start, end, type, taskId, isCritical, isMismatch });
   user.timeline.sort((a, b) => a.start - b.start);
 };
 
@@ -62,20 +146,22 @@ const addToTimeline = (user: AlgoUser, start: number, end: number, type: Timelin
 const initializeUsers = (
   people: Person[],
   targetDate: Date,
-  historyScores: Record<string, { totalLoadScore: number, shiftsCount: number }> = {},
+  historyScores: Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> = {}, // NEW: add criticalShiftCount
   futureAssignments: Shift[],
   taskTemplates: TaskTemplate[],
-  allShifts: Shift[] // NEW: Pass ALL shifts to check for cross-day tasks
+  allShifts: Shift[],
+  roleCounts: Map<string, number> // NEW: Pass roleCounts as parameter
 ): AlgoUser[] => {
   const dateKey = targetDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
   return people.map(p => {
-    const history = historyScores[p.id] || { totalLoadScore: 0, shiftsCount: 0 };
+    const history = historyScores[p.id] || { totalLoadScore: 0, shiftsCount: 0, criticalShiftCount: 0 };
     const algoUser: AlgoUser = {
       person: p,
       timeline: [],
       loadScore: history.totalLoadScore, // Start with historical load
-      shiftsCount: history.shiftsCount
+      shiftsCount: history.shiftsCount,
+      criticalShiftCount: history.criticalShiftCount // NEW: start with historical count
     };
 
     // 1. Check Availability (Attendance Manager)
@@ -110,8 +196,6 @@ const initializeUsers = (
     }
 
     // 2. Block PAST shifts that END during the target day (Cross-Day Tasks)
-    // Example: A shift starting 23:00 on Day 1 and ending 07:00 on Day 2
-    // When scheduling Day 2, we need to block 00:00-07:00 + rest period
     const dayStart = new Date(targetDate);
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(targetDate);
@@ -119,11 +203,8 @@ const initializeUsers = (
 
     const crossDayShifts = allShifts.filter(s => {
       if (!s.assignedPersonIds.includes(p.id)) return false;
-      
       const shiftStart = new Date(s.startTime);
       const shiftEnd = new Date(s.endTime);
-      
-      // Check if shift STARTS before target day but ENDS during or after it
       return shiftStart < dayStart && shiftEnd > dayStart;
     });
 
@@ -131,14 +212,49 @@ const initializeUsers = (
       const shiftEnd = new Date(s.endTime).getTime();
       const task = taskTemplates.find(t => t.id === s.taskId);
 
-      // Block from 00:00 until shift ends
       const blockStart = dayStart.getTime();
-      addToTimeline(algoUser, blockStart, shiftEnd, 'TASK', s.taskId);
+      const isCritical = task && (task.difficulty >= 4 || task.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2));
+      addToTimeline(algoUser, blockStart, shiftEnd, 'TASK', s.taskId, isCritical);
 
-      // Add rest period after shift ends
       if (task && task.minRestHoursBefore > 0) {
         const restEnd = shiftEnd + (task.minRestHoursBefore * 60 * 60 * 1000);
         addToTimeline(algoUser, shiftEnd, restEnd, 'REST');
+      }
+    });
+
+    // 2.5 NEW: Block RECENT critical shifts from the last 48h (INCREASED from 24h)
+    const lookbackStart = new Date(dayStart);
+    lookbackStart.setHours(lookbackStart.getHours() - 48); // NEW: 48 hours lookback
+
+    const recentCriticalShifts = allShifts.filter(s => {
+      if (!s.assignedPersonIds.includes(p.id)) return false;
+      const shiftStart = new Date(s.startTime);
+      
+      if (shiftStart < lookbackStart || shiftStart >= dayStart) return false;
+      
+      const task = taskTemplates.find(t => t.id === s.taskId);
+      if (!task) return false;
+      const isCritical = task.difficulty >= 4 || task.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2);
+      
+      return isCritical;
+    });
+
+    recentCriticalShifts.forEach(s => {
+      const shiftStart = new Date(s.startTime).getTime();
+      const shiftEnd = new Date(s.endTime).getTime();
+      const task = taskTemplates.find(t => t.id === s.taskId);
+      
+      const alreadyExists = algoUser.timeline.some(seg => seg.taskId === s.taskId && seg.start === shiftStart);
+      if (!alreadyExists) {
+        addToTimeline(algoUser, shiftStart, shiftEnd, 'TASK', s.taskId, true);
+        
+        if (task && task.minRestHoursBefore > 0) {
+          const restEnd = shiftEnd + (task.minRestHoursBefore * 60 * 60 * 1000);
+          addToTimeline(algoUser, shiftEnd, restEnd, 'REST');
+        }
+
+        // NEW: Increment criticalShiftCount for historical shifts
+        algoUser.criticalShiftCount += 1;
       }
     });
 
@@ -149,10 +265,9 @@ const initializeUsers = (
       const sEnd = new Date(s.endTime).getTime();
       const task = taskTemplates.find(t => t.id === s.taskId);
 
-      // Block the shift itself
-      addToTimeline(algoUser, sStart, sEnd, 'EXTERNAL_CONSTRAINT', s.taskId);
+      const isCritical = task && (task.difficulty >= 4 || task.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2));
+      addToTimeline(algoUser, sStart, sEnd, 'EXTERNAL_CONSTRAINT', s.taskId, isCritical);
 
-      // Block rest period if applicable
       if (task && task.minRestHoursBefore > 0) {
         const restEnd = sEnd + (task.minRestHoursBefore * 60 * 60 * 1000);
         addToTimeline(algoUser, sEnd, restEnd, 'REST');
@@ -170,7 +285,7 @@ export const solveSchedule = (
   currentState: AppState,
   startDate: Date,
   endDate: Date,
-  historyScores: Record<string, { totalLoadScore: number, shiftsCount: number }> = {},
+  historyScores: Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> = {},
   futureAssignments: Shift[] = [] // Shifts already assigned in the next 48h
 ): Shift[] => {
   const { people, taskTemplates, shifts } = currentState;
@@ -187,9 +302,6 @@ export const solveSchedule = (
   // If no shifts to solve, return empty array
   if (shiftsToSolve.length === 0) return [];
 
-  // Initialize Algorithm Users (Timeline & Constraints)
-  const algoUsers = initializeUsers(people, startDate, historyScores, futureAssignments, taskTemplates, shifts);
-
   // Calculate Role Rarity (<= 2 people is "Rare")
   const roleCounts = new Map<string, number>();
   people.forEach(p => {
@@ -198,26 +310,39 @@ export const solveSchedule = (
     });
   });
 
-  // Map Shifts to AlgoTasks
+  // Initialize Algorithm Users
+  const algoUsers = initializeUsers(people, startDate, historyScores, futureAssignments, taskTemplates, shifts, roleCounts);
+
+  // Map Shifts to AlgoTasks with DYNAMIC DIFFICULTY
   const algoTasks: AlgoTask[] = shiftsToSolve.map(s => {
     const template = taskTemplates.find(t => t.id === s.taskId);
     if (!template) return null;
 
+    const startTime = new Date(s.startTime).getTime();
+    const endTime = new Date(s.endTime).getTime();
+
+    // PRINCIPLE 1: Calculate effective difficulty based on time
+    const isNight = isNightShift(startTime, endTime);
+    const effectiveDifficulty = isNight ? template.difficulty * 1.5 : template.difficulty;
+
     // Check if any required role is Rare
     const hasRareRole = template.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2);
+
+    // UPDATED: isCritical based on EFFECTIVE difficulty
+    const isCritical = effectiveDifficulty >= 4 || hasRareRole;
 
     return {
       shiftId: s.id,
       taskId: template.id,
-      startTime: new Date(s.startTime).getTime(),
-      endTime: new Date(s.endTime).getTime(),
+      startTime,
+      endTime,
       durationHours: template.durationHours,
-      difficulty: template.difficulty,
+      difficulty: effectiveDifficulty, // Use effective difficulty
       roleComposition: template.roleComposition,
       requiredPeople: template.requiredPeople,
       minRest: template.minRestHoursBefore,
-      isCritical: template.difficulty >= 4 || hasRareRole, // Definition of "Big Rock"
-      currentAssignees: [] // Clean slate for this run
+      isCritical,
+      currentAssignees: []
     };
   }).filter(Boolean) as AlgoTask[];
 
@@ -228,46 +353,86 @@ export const solveSchedule = (
   const processTasks = (tasks: AlgoTask[], phaseName: string) => {
     console.log(`\n🚀 Starting Phase: ${phaseName} (${tasks.length} tasks)`);
 
-    tasks.forEach((task, i) => {
-      console.log(`\n📋 Task ${task.taskId} (${new Date(task.startTime).toLocaleTimeString()}): Needs ${task.requiredPeople}`);
+    tasks.forEach((task) => {
+      console.log(`\n📋 Task ${task.taskId} (${new Date(task.startTime).toLocaleTimeString()}): Needs ${task.requiredPeople} | Difficulty: ${task.difficulty.toFixed(1)} | Critical: ${task.isCritical}`);
 
-      // Iterate through Role Composition Buckets
       task.roleComposition.forEach(comp => {
         const { roleId, count } = comp;
         if (count <= 0) return;
 
         console.log(`   - Looking for ${count} people with role ${roleId}`);
 
-        const restDurationMs = task.minRest * 60 * 60 * 1000; // Calculate ONCE per task
+        // MULTI-PASS FALLBACK MECHANISM (4 LEVELS)
+        let selected: AlgoUser[] = [];
+        let usedLevel: 1 | 2 | 3 | 4 = 1;
 
-        // Find Candidates for THIS specific role bucket
-        let candidates = algoUsers.filter(u => {
-          // 1. Role Check
-          if (!u.person.roleIds.includes(roleId)) return false;
-
-          // 2. Already assigned to this task?
-          if (task.currentAssignees.includes(u.person.id)) return false;
-
-          // 3. Time Availability - NOW INCLUDES REST CHECK
-          return canFit(u, task.startTime, task.endTime, restDurationMs);
-        });
-
-        // Scoring (Fairness)
-        candidates.sort((a, b) => a.loadScore - b.loadScore);
-
-        // Assign Top N
-        const selected = candidates.slice(0, count);
+        // Try Level 1: Strict (Ideal)
+        selected = findBestCandidates(algoUsers, task, roleId, count, 1);
 
         if (selected.length < count) {
-          console.warn(`   ⚠️ Not enough candidates for role ${roleId}! Needed ${count}, found ${selected.length}`);
+          console.warn(`   ⚠️ Level 1 (Strict) insufficient: Found ${selected.length}/${count}. Trying Level 2 (Flexible)...`);
+          
+          // Try Level 2: Flexible
+          selected = findBestCandidates(algoUsers, task, roleId, count, 2);
+          usedLevel = 2;
+
+          if (selected.length < count) {
+            console.warn(`   ⚠️ Level 2 (Flexible) insufficient: Found ${selected.length}/${count}. Trying Level 3 (Emergency)...`);
+            
+            // Try Level 3: Emergency
+            selected = findBestCandidates(algoUsers, task, roleId, count, 3);
+            usedLevel = 3;
+
+            if (selected.length < count) {
+              console.warn(`   🛑 Level 3 (Emergency) insufficient: Found ${selected.length}/${count}. Trying Level 4 (Force Assign - Role Mismatch)...`);
+              
+              // NEW: Try Level 4: Force Assign (Ignore Role)
+              const forceCandidates = findBestCandidates(algoUsers, task, roleId, count, 4);
+              usedLevel = 4;
+              
+              // Take only the missing count
+              const needed = count - selected.length;
+              selected = [...selected, ...forceCandidates.slice(0, needed)];
+
+              if (selected.length < count) {
+                console.error(`   ❌ CRITICAL FAILURE: Even Level 4 (Force Assign) failed! Only ${selected.length}/${count}. Physically no humans available at this time.`);
+              }
+            }
+          }
         }
 
+        // Log the outcome
+        if (selected.length >= count) {
+          if (usedLevel === 1) {
+            console.log(`   ✅ Assigned via Level 1 (Strict/Ideal)`);
+          } else if (usedLevel === 2) {
+            console.log(`   ⚠️ Assigned via Level 2 (Flexible - Fair Grind)`);
+          } else if (usedLevel === 3) {
+            console.log(`   🚨 Assigned via Level 3 (Emergency - All Hands)`);
+          } else if (usedLevel === 4) {
+            console.log(`   🛑 Assigned via Level 4 (Force Assign - ROLE MISMATCH)`);
+          }
+        }
+
+        // Show top candidates for transparency
+        if (task.isCritical && selected.length > 0) {
+          console.log(`   📊 Selected candidates by critical shift count:`);
+          selected.forEach(c => {
+            const hasRole = c.person.roleIds.includes(roleId);
+            const roleWarning = hasRole ? '' : ' [⚠️ ROLE MISMATCH]';
+            console.log(`      ${c.person.name}: ${c.criticalShiftCount} critical shifts | Load: ${c.loadScore.toFixed(1)}${roleWarning}`);
+          });
+        }
+
+        // Assign selected users
         selected.forEach(u => {
-          // Assign
           task.currentAssignees.push(u.person.id);
 
-          // Update User State
-          addToTimeline(u, task.startTime, task.endTime, 'TASK', task.taskId);
+          const restDurationMs = task.minRest * 60 * 60 * 1000;
+          const isMismatch = !u.person.roleIds.includes(roleId); // NEW: Check for role mismatch
+
+          // Update User State with mismatch flag
+          addToTimeline(u, task.startTime, task.endTime, 'TASK', task.taskId, task.isCritical, isMismatch);
           if (task.minRest > 0) {
             addToTimeline(u, task.endTime, task.endTime + restDurationMs, 'REST');
           }
@@ -275,6 +440,18 @@ export const solveSchedule = (
           // Update Metrics
           u.loadScore += (task.durationHours * task.difficulty);
           u.shiftsCount += 1;
+          if (task.isCritical) {
+            u.criticalShiftCount += 1;
+          }
+
+          // Log assignment with warning if role mismatch
+          if (isMismatch) {
+            console.log(`   🛑 ${u.person.name} FORCE ASSIGNED (Wrong Role: needed ${roleId}) - Load: ${u.loadScore.toFixed(1)}`);
+          } else if (task.isCritical) {
+            console.log(`   ✅ ${u.person.name} assigned (Critical: ${u.criticalShiftCount - 1} → ${u.criticalShiftCount})`);
+          } else {
+            console.log(`   ✅ ${u.person.name} assigned (Load: ${(u.loadScore - task.durationHours * task.difficulty).toFixed(1)} → ${u.loadScore.toFixed(1)})`);
+          }
         });
       });
     });

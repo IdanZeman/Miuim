@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings } from 'lucide-react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -86,7 +86,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 )}
                 <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label="דוחות" />
                 {isAdmin && (
-                  <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
+                  <>
+                    <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="ייצוא נתונים" icon={FileText} />
+                    <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
+                  </>
                 )}
               </nav>
             )}
@@ -126,7 +129,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           )}
           <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('stats'); setIsMobileMenuOpen(false) }}>דוחות</button>
           {isAdmin && (
-            <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('settings'); setIsMobileMenuOpen(false) }}>הגדרות</button>
+            <>
+              <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('reports'); setIsMobileMenuOpen(false) }}>ייצוא נתונים</button>
+              <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('settings'); setIsMobileMenuOpen(false) }}>הגדרות</button>
+            </>
           )}
         </div>
       )}
@@ -143,6 +149,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'tasks' && 'בנק משימות'}
               {currentView === 'stats' && 'מרכז נתונים'}
               {currentView === 'settings' && 'הגדרות ארגון'}
+              {currentView === 'reports' && 'ייצוא נתונים'}
               {isPublic && 'ברוכים הבאים ל-Miuim'}
             </h1>
             <div className="w-16 h-1.5 bg-white/40 rounded-full mt-3"></div>

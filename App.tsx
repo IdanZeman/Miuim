@@ -24,14 +24,24 @@ import { generateShiftsForTask } from './utils/shiftUtils';
 import { PersonnelManager } from './components/PersonnelManager';
 import { AttendanceManager } from './components/AttendanceManager';
 import { OrganizationSettings } from './components/OrganizationSettings';
+import { ShiftReport } from './components/ShiftReport';
 
 // --- Main App Content (Authenticated) ---
 const MainApp: React.FC = () => {
     const { organization, user, profile } = useAuth();
-    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats'>('dashboard');
+    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports'>('dashboard');
     const [isLoading, setIsLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [aiHealthMsg, setAiHealthMsg] = useState<string | null>(null);
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
+    const [scheduleStartDate, setScheduleStartDate] = useState<Date>(new Date());
+    const [scheduleEndDate, setScheduleEndDate] = useState<Date>(() => {
+        const end = new Date();
+        end.setDate(end.getDate() + 6); // Default: 7 days
+        return end;
+    });
+    const [isScheduling, setIsScheduling] = useState(false);
 
     const [state, setState] = useState<{
         people: Person[];
@@ -380,46 +390,173 @@ const MainApp: React.FC = () => {
     };
 
     const handleAutoSchedule = async () => {
-        if (!organization) return;
-        const startDate = new Date(selectedDate);
-        startDate.setHours(0, 0, 0, 0);
-
-        const endDate = new Date(selectedDate);
-        endDate.setHours(23, 59, 59, 999);
-
-        const historyShifts = await fetchUserHistory(startDate, 30);
-        const historyScores = calculateHistoricalLoad(historyShifts, state.taskTemplates, state.people.map(p => p.id));
-
-        const futureStart = new Date(endDate);
-        const futureEnd = new Date(futureStart);
-        futureEnd.setHours(futureEnd.getHours() + 48);
-
-        const { data: futureData } = await supabase
-            .from('shifts')
-            .select('*')
-            .gte('start_time', futureStart.toISOString())
-            .lte('start_time', futureEnd.toISOString())
-            .eq('organization_id', organization.id);
-
-        const futureAssignments = (futureData || []).map(mapShiftFromDB);
-
-        const solvedShifts = solveSchedule(state, startDate, endDate, historyScores, futureAssignments);
-
-        const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: organization.id }));
-
+        setIsScheduling(true);
         try {
-            const updates = shiftsToSave.map(s => mapShiftToDB(s));
-            await supabase.from('shifts').upsert(updates);
-        } catch (e) { console.warn(e); }
+            if (scheduleMode === 'single') {
+                // Single day scheduling (existing logic)
+                const startDate = new Date(selectedDate);
+                startDate.setHours(0, 0, 0, 0);
+                const endDate = new Date(selectedDate);
+                endDate.setHours(23, 59, 59, 999);
 
-        const solvedIds = shiftsToSave.map(s => s.id);
-        setState(prev => ({
-            ...prev,
-            shifts: prev.shifts.map(s => solvedIds.includes(s.id) ? shiftsToSave.find(sol => sol.id === s.id)! : s)
-        }));
+                const historyShifts = await fetchUserHistory(startDate, 30);
+                const historyScores = calculateHistoricalLoad(historyShifts, state.taskTemplates, state.people.map(p => p.id));
 
-        // הצגת הודעת הצלחה פשוטה
-        alert(`✅ שיבוץ אוטומטי הושלם!\n\nסה"כ משמרות: ${solvedShifts.length}\nמשמרות מאוישות: ${solvedShifts.filter(s => s.assignedPersonIds.length > 0).length}`);
+                const futureStart = new Date(endDate);
+                const futureEnd = new Date(futureStart);
+                futureEnd.setHours(futureEnd.getHours() + 48);
+
+                const { data: futureData } = await supabase
+                    .from('shifts')
+                    .select('*')
+                    .gte('start_time', futureStart.toISOString())
+                    .lte('start_time', futureEnd.toISOString())
+                    .eq('organization_id', organization.id);
+
+                const futureAssignments = (futureData || []).map(mapShiftFromDB);
+                const solvedShifts = solveSchedule(state, startDate, endDate, historyScores, futureAssignments);
+                const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: organization.id }));
+
+                try {
+                    const updates = shiftsToSave.map(s => mapShiftToDB(s));
+                    await supabase.from('shifts').upsert(updates);
+                } catch (e) { console.warn(e); }
+
+                const solvedIds = shiftsToSave.map(s => s.id);
+                setState(prev => ({
+                    ...prev,
+                    shifts: prev.shifts.map(s => solvedIds.includes(s.id) ? shiftsToSave.find(sol => sol.id === s.id)! : s)
+                }));
+
+                alert(`✅ שיבוץ הושלם ליום ${selectedDate.toLocaleDateString('he-IL')}!`);
+            } else {
+                // Range scheduling with CUMULATIVE state tracking
+                const start = new Date(scheduleStartDate);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(scheduleEndDate);
+                end.setHours(23, 59, 59, 999);
+
+                const daysToSchedule: Date[] = [];
+                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                    daysToSchedule.push(new Date(d));
+                }
+
+                console.log(`🗓️ Scheduling ${daysToSchedule.length} days...`);
+
+                // NEW: Calculate roleCounts ONCE for the entire range
+                const roleCounts = new Map<string, number>();
+                state.people.forEach(p => {
+                    p.roleIds.forEach(rid => {
+                        roleCounts.set(rid, (roleCounts.get(rid) || 0) + 1);
+                    });
+                });
+
+                let allSolvedShifts: Shift[] = [];
+                let cumulativeShifts = [...state.shifts];
+                let cumulativeHistoryScores: Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> = {};
+
+                for (const day of daysToSchedule) {
+                    const dayStart = new Date(day);
+                    dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(day);
+                    dayEnd.setHours(23, 59, 59, 999);
+
+                    // Calculate history including what we just scheduled
+                    const historyShifts = await fetchUserHistory(dayStart, 30);
+                    const baseHistoryScores = calculateHistoricalLoad(historyShifts, state.taskTemplates, state.people.map(p => p.id));
+
+                    // Merge with cumulative scores from this run
+                    const historyScores: Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> = {};
+                    
+                    // First, copy base history
+                    Object.keys(baseHistoryScores).forEach(uid => {
+                        historyScores[uid] = { ...baseHistoryScores[uid] };
+                    });
+
+                    // Then merge cumulative scores
+                    Object.keys(cumulativeHistoryScores).forEach(uid => {
+                        if (historyScores[uid]) {
+                            historyScores[uid].totalLoadScore += cumulativeHistoryScores[uid].totalLoadScore;
+                            historyScores[uid].shiftsCount += cumulativeHistoryScores[uid].shiftsCount;
+                            historyScores[uid].criticalShiftCount += cumulativeHistoryScores[uid].criticalShiftCount;
+                        } else {
+                            historyScores[uid] = { ...cumulativeHistoryScores[uid] };
+                        }
+                    });
+
+                    // Fetch future assignments (48h lookahead from this day)
+                    const futureStart = new Date(dayEnd);
+                    const futureEnd = new Date(futureStart);
+                    futureEnd.setHours(futureEnd.getHours() + 48);
+
+                    const { data: futureData } = await supabase
+                        .from('shifts')
+                        .select('*')
+                        .gte('start_time', futureStart.toISOString())
+                        .lte('start_time', futureEnd.toISOString())
+                        .eq('organization_id', organization!.id);
+
+                    const futureAssignments = (futureData || []).map(mapShiftFromDB);
+
+                    // Create a temporary state object with cumulative shifts
+                    const tempState = {
+                        ...state,
+                        shifts: cumulativeShifts
+                    };
+
+                    // Solve for this day using cumulative data
+                    const solvedShifts = solveSchedule(tempState, dayStart, dayEnd, historyScores, futureAssignments);
+                    allSolvedShifts = [...allSolvedShifts, ...solvedShifts];
+
+                    // Update cumulative scores
+                    solvedShifts.forEach(shift => {
+                        const task = state.taskTemplates.find(t => t.id === shift.taskId);
+                        if (!task) return;
+
+                        const isCritical = task.difficulty >= 4 || task.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2);
+
+                        shift.assignedPersonIds.forEach(pid => {
+                            if (!cumulativeHistoryScores[pid]) {
+                                cumulativeHistoryScores[pid] = { totalLoadScore: 0, shiftsCount: 0, criticalShiftCount: 0 };
+                            }
+                            cumulativeHistoryScores[pid].totalLoadScore += (task.durationHours * task.difficulty);
+                            cumulativeHistoryScores[pid].shiftsCount += 1;
+                            if (isCritical) {
+                                cumulativeHistoryScores[pid].criticalShiftCount += 1;
+                            }
+                        });
+                    });
+
+                    // Update cumulative shifts immediately (in-memory)
+                    const solvedIds = solvedShifts.map(s => s.id);
+                    cumulativeShifts = cumulativeShifts.map(s => 
+                        solvedIds.includes(s.id) ? solvedShifts.find(sol => sol.id === s.id)! : s
+                    );
+
+                    // Save to DB
+                    const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: organization!.id }));
+                    try {
+                        const updates = shiftsToSave.map(s => mapShiftToDB(s));
+                        await supabase.from('shifts').upsert(updates);
+                    } catch (e) { console.warn(e); }
+
+                    // Update UI state
+                    setState(prev => ({
+                        ...prev,
+                        shifts: prev.shifts.map(s => solvedIds.includes(s.id) ? shiftsToSave.find(sol => sol.id === s.id)! : s)
+                    }));
+                }
+
+                alert(`✅ שיבוץ הושלם!\n📅 ${daysToSchedule.length} ימים\n📋 ${allSolvedShifts.length} משמרות`);
+            }
+
+            setShowScheduleModal(false);
+        } catch (error) {
+            console.error('Scheduling error:', error);
+            alert('❌ אירעה שגיאה בשיבוץ');
+        } finally {
+            setIsScheduling(false);
+        }
     };
 
     const handleClearDay = async () => {
@@ -494,22 +631,137 @@ const MainApp: React.FC = () => {
                 />;
             case 'settings':
                 return <OrganizationSettings />;
+            case 'reports':
+                return <ShiftReport
+                    shifts={state.shifts}
+                    people={state.people}
+                    tasks={state.taskTemplates}
+                    roles={state.roles}
+                    teams={state.teams}
+                />;
             case 'dashboard':
             default:
                 return (
                     <div className="space-y-6">
                         {profile?.role !== 'viewer' && (
-                            <div className="fixed bottom-8 left-8 z-50">
-                                <button
-                                    onClick={handleAutoSchedule}
-                                    className="bg-[#82d682] hover:bg-[#6cc16c] text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 transition-all hover:scale-105 font-bold"
-                                >
-                                    <Wand2 size={20} />
-                                    <span>שיבוץ אוטומטי</span>
-                                </button>
-                            </div>
-                        )}
+                            <>
+                                {/* Auto Schedule Button */}
+                                <div className="fixed bottom-8 left-8 z-50">
+                                    <button
+                                        onClick={() => setShowScheduleModal(true)}
+                                        className="bg-[#82d682] hover:bg-[#6cc16c] text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 transition-all hover:scale-105 font-bold"
+                                    >
+                                        <Wand2 size={20} />
+                                        <span>שיבוץ אוטומטי</span>
+                                    </button>
+                                </div>
 
+                                {/* Schedule Modal */}
+                                {showScheduleModal && (
+                                    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+                                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fadeIn">
+                                            <h2 className="text-2xl font-bold text-slate-800 mb-6">שיבוץ אוטומטי</h2>
+
+                                            {/* Mode Selection */}
+                                            <div className="space-y-3 mb-6">
+                                                <label className="flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors"
+                                                    style={{ borderColor: scheduleMode === 'single' ? '#82d682' : '#e2e8f0' }}>
+                                                    <input
+                                                        type="radio"
+                                                        name="scheduleMode"
+                                                        checked={scheduleMode === 'single'}
+                                                        onChange={() => setScheduleMode('single')}
+                                                        className="w-4 h-4"
+                                                    />
+                                                    <div className="flex-1">
+                                                        <p className="font-bold text-slate-800">שיבוץ יום בודד</p>
+                                                        <p className="text-sm text-slate-500">שיבוץ ליום הנוכחי בלבד</p>
+                                                    </div>
+                                                </label>
+
+                                                <label className="flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors"
+                                                    style={{ borderColor: scheduleMode === 'range' ? '#82d682' : '#e2e8f0' }}>
+                                                    <input
+                                                        type="radio"
+                                                        name="scheduleMode"
+                                                        checked={scheduleMode === 'range'}
+                                                        onChange={() => setScheduleMode('range')}
+                                                        className="w-4 h-4"
+                                                    />
+                                                    <div className="flex-1">
+                                                        <p className="font-bold text-slate-800">שיבוץ טווח ימים</p>
+                                                        <p className="text-sm text-slate-500">שיבוץ לטווח תאריכים</p>
+                                                    </div>
+                                                </label>
+                                            </div>
+
+                                            {/* Date Selection */}
+                                            {scheduleMode === 'single' ? (
+                                                <div className="mb-6">
+                                                    <label className="block text-slate-700 font-medium mb-2">תאריך</label>
+                                                    <input
+                                                        type="date"
+                                                        value={selectedDate.toISOString().split('T')[0]}
+                                                        onChange={e => setSelectedDate(new Date(e.target.value))}
+                                                        className="w-full px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-[#82d682] focus:outline-none"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 gap-4 mb-6">
+                                                    <div>
+                                                        <label className="block text-slate-700 font-medium mb-2">מתאריך</label>
+                                                        <input
+                                                            type="date"
+                                                            value={scheduleStartDate.toISOString().split('T')[0]}
+                                                            onChange={e => setScheduleStartDate(new Date(e.target.value))}
+                                                            className="w-full px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-[#82d682] focus:outline-none"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-slate-700 font-medium mb-2">עד תאריך</label>
+                                                        <input
+                                                            type="date"
+                                                            value={scheduleEndDate.toISOString().split('T')[0]}
+                                                            onChange={e => setScheduleEndDate(new Date(e.target.value))}
+                                                            className="w-full px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-[#82d682] focus:outline-none"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Actions */}
+                                            <div className="flex gap-3">
+                                                <button
+                                                    onClick={() => setShowScheduleModal(false)}
+                                                    disabled={isScheduling}
+                                                    className="flex-1 px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium transition-colors disabled:opacity-50"
+                                                >
+                                                    ביטול
+                                                </button>
+                                                <button
+                                                    onClick={handleAutoSchedule}
+                                                    disabled={isScheduling}
+                                                    className="flex-1 px-4 py-2 rounded-lg bg-[#82d682] hover:bg-[#6cc16c] text-white font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                                >
+                                                    {isScheduling ? (
+                                                        <>
+                                                            <Loader2 size={18} className="animate-spin" />
+                                                            <span>משבץ...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Wand2 size={18} />
+                                                            <span>התחל שיבוץ</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+
+                        )}
 
                         <ScheduleBoard
                             shifts={state.shifts}

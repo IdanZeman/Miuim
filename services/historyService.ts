@@ -5,6 +5,7 @@ export interface HistoryScore {
   userId: string;
   totalLoadScore: number;
   shiftsCount: number;
+  criticalShiftCount: number;
 }
 
 /**
@@ -39,27 +40,37 @@ export const fetchUserHistory = async (endDate: Date, daysBack: number = 30): Pr
  * Load Score = Sum(Duration * Difficulty)
  */
 export const calculateHistoricalLoad = (
-  shifts: Shift[], 
-  tasks: TaskTemplate[], 
-  allUserIds: string[]
-): Record<string, HistoryScore> => {
-  const scores: Record<string, HistoryScore> = {};
+  historyShifts: Shift[],
+  tasks: TaskTemplate[],
+  userIds: string[]
+): Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> => {
+  const scores: Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> = {};
 
-  // Initialize 0 for everyone
-  allUserIds.forEach(uid => {
-    scores[uid] = { userId: uid, totalLoadScore: 0, shiftsCount: 0 };
+  // Calculate Role Rarity for critical detection
+  const roleCounts = new Map<string, number>();
+  tasks.forEach(t => {
+    t.roleComposition.forEach(rc => {
+      roleCounts.set(rc.roleId, (roleCounts.get(rc.roleId) || 0) + 1);
+    });
   });
 
-  shifts.forEach(shift => {
+  userIds.forEach(uid => {
+    scores[uid] = { totalLoadScore: 0, shiftsCount: 0, criticalShiftCount: 0 };
+  });
+
+  historyShifts.forEach(shift => {
     const task = tasks.find(t => t.id === shift.taskId);
     if (!task) return;
 
-    const load = task.durationHours * task.difficulty;
+    const isCritical = task.difficulty >= 4 || task.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2);
 
-    shift.assignedPersonIds.forEach(uid => {
-      if (scores[uid]) {
-        scores[uid].totalLoadScore += load;
-        scores[uid].shiftsCount += 1;
+    shift.assignedPersonIds.forEach(pid => {
+      if (scores[pid]) {
+        scores[pid].totalLoadScore += (task.durationHours * task.difficulty);
+        scores[pid].shiftsCount += 1;
+        if (isCritical) {
+          scores[pid].criticalShiftCount += 1;
+        }
       }
     });
   });

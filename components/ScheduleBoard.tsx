@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
-import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Sparkles, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 import { supabase } from '../services/supabaseClient';
@@ -43,7 +43,7 @@ const ShiftCard: React.FC<{
     return (
         <div
             onClick={() => onSelect(shift)}
-            className={`bg-white p-3 rounded-xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-all mb-3 group relative overflow-hidden`}
+            className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-all mb-3 group relative overflow-hidden"
         >
             {/* Color Indicator Strip */}
             <div className={`absolute top-0 right-0 w-1 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
@@ -100,7 +100,7 @@ const ShiftCard: React.FC<{
                 {/* Warning if understaffed and has assignments but not enough */}
                 {(!isFull && assigned.length > 0) && (
                     <div className="text-[10px] text-amber-500 flex items-center gap-1 mt-1">
-                        <AlertTriangle size={10} />
+                        <Sparkles size={10} />
                         <span>חסרים {task.requiredPeople - assigned.length}</span>
                     </div>
                 )}
@@ -109,7 +109,8 @@ const ShiftCard: React.FC<{
     );
 };
 
-export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
+export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
+  const {
     shifts,
     people,
     tasks,
@@ -123,7 +124,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     onUpdateShift,
     onDeleteShift,
     onClearDay
-}) => {
+} = props;
     const { profile, organization } = useAuth();
     const isViewer = profile?.role === 'viewer';
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
@@ -373,7 +374,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         </div>
                         {upcoming.assignedPersonIds.length < task.requiredPeople && (
                             <div className="mt-3 text-xs text-red-500 font-medium flex items-center gap-1">
-                                <AlertTriangle size={12} />
+                                <Sparkles size={12} />
                                 חסרים {task.requiredPeople - upcoming.assignedPersonIds.length} לוחמים
                             </div>
                         )}
@@ -547,7 +548,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     // Helper to filter visible tasks for the daily view
     const visibleTasks = useMemo(() => {
-        // Use local date string (YYYY-MM-DD) for accurate daily matching
         const dateKey = selectedDate.toLocaleDateString('en-CA');
         return tasks.filter(task => {
             if (task.schedulingType === 'one-time' && task.specificDate) {
@@ -560,14 +560,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     // Date Navigation Logic for Viewers
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const isToday = selectedDate.toDateString() === today.toDateString();
-
+    
     // Calculate max date for viewers
     const maxViewerDate = new Date(today);
-    maxViewerDate.setDate(today.getDate() + (viewerDaysLimit - 1)); // -1 because today is day 1
+    maxViewerDate.setDate(today.getDate() + (viewerDaysLimit - 1));
 
     const isAtViewerLimit = selectedDate >= maxViewerDate;
 
