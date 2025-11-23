@@ -498,7 +498,7 @@ const MainApp: React.FC = () => {
 
                     const futureAssignments = (futureData || []).map(mapShiftFromDB);
 
-                    // Create a temporary state object with cumulative shifts
+                    // Create a temporary state with cumulative shifts
                     const tempState = {
                         ...state,
                         shifts: cumulativeShifts
@@ -797,17 +797,18 @@ const AppContent: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-                <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50">
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600 font-medium">טוען...</p>
+                </div>
             </div>
         );
     }
 
+    // NEW: If not logged in, show landing page (no separate login page needed)
     if (!session) {
-        if (showLanding) {
-            return <LandingPage onGetStarted={() => setShowLanding(false)} />;
-        }
-        return <Login onBack={() => setShowLanding(true)} />;
+        return <LandingPage />; // No onGetStarted prop needed
     }
 
     if (!organization) {

@@ -150,7 +150,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'stats' && 'מרכז נתונים'}
               {currentView === 'settings' && 'הגדרות ארגון'}
               {currentView === 'reports' && 'ייצוא נתונים'}
-              {isPublic && 'ברוכים הבאים ל-Miuim'}
             </h1>
             <div className="w-16 h-1.5 bg-white/40 rounded-full mt-3"></div>
           </div>
