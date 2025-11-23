@@ -30,8 +30,6 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
         {/* ...existing header code... */}
 
         <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-8rem)]">
-          {/* ...existing task info... */}
-
           {/* Assigned Personnel Section */}
           <div>
             <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
@@ -43,24 +41,57 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 const person = people.find(p => p.id === pid);
                 if (!person) return null;
 
-                // remove qualification / mismatch logic
+                // NEW: Check qualification
+                const isQualified = person.roleIds.some(rid => requiredRoleIds.includes(rid));
+                const personRoles = person.roleIds
+                  .map(rid => roles.find(r => r.id === rid)?.name)
+                  .filter(Boolean)
+                  .join(', ');
+
                 return (
                   <div
                     key={pid}
-                    className="p-3 rounded-lg border-2 flex items-start justify-between transition-all bg-blue-50 border-blue-200"
+                    className={`p-3 rounded-lg border-2 flex items-start justify-between transition-all ${
+                      isQualified
+                        ? 'bg-blue-50 border-blue-200'
+                        : 'bg-red-50 border-red-500 shadow-red-100 shadow-md'
+                    }`}
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-lg text-blue-900">{person.name}</span>
+                        {!isQualified && (
+                          <span className="text-red-600 text-xl" title="אזהרה: לא מוסמך לתפקיד זה!">
+                            ⚠️
+                          </span>
+                        )}
+                        <span className={`font-bold text-lg ${isQualified ? 'text-blue-900' : 'text-red-900'}`}>
+                          {person.name}
+                        </span>
+                        {!isQualified && (
+                          <span className="px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                            <AlertTriangle size={12} /> שיבוץ כפוי
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-slate-600">
-                        <strong>תפקידים:</strong> {person.roleIds.map(rid => roles.find(r => r.id === rid)?.name).filter(Boolean).join(', ') || 'אין'}
+                        <strong>תפקידים:</strong> {personRoles || 'אין'}
                       </p>
+                      {!isQualified && (
+                        <p className="text-xs text-red-600 font-bold mt-1 flex items-center gap-1">
+                          <AlertTriangle size={12} />
+                          אדם זה אינו מוסמך לתפקיד הנדרש במשימה זו!
+                        </p>
+                      )}
                     </div>
+
                     {userRole !== 'viewer' && (
                       <button
                         onClick={() => onUnassign(shift.id, pid)}
-                        className="p-2 rounded-lg hover:bg-red-100 text-slate-400 hover:text-red-600 transition-colors"
+                        className={`p-2 rounded-lg transition-colors ${
+                          isQualified
+                            ? 'hover:bg-red-100 text-slate-400 hover:text-red-600'
+                            : 'bg-red-100 text-red-600 hover:bg-red-200'
+                        }`}
                         title="הסר שיבוץ"
                       >
                         <X size={18} />

@@ -1,9 +1,11 @@
-
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { Person, Shift, TaskTemplate, Role } from '../types';
+import { getPersonInitials } from '../utils/nameUtils';
+import { useAuth } from '../contexts/AuthContext'; // NEW: Import useAuth
+import { supabase } from '../services/supabaseClient'; // NEW: Import supabase
 import {
     Clock, Calendar, Award, TrendingUp, Moon, Sun,
-    ArrowLeft, CheckCircle, AlertCircle
+    ArrowRight, CheckCircle, AlertCircle
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -21,9 +23,41 @@ interface DetailedUserStatsProps {
 }
 
 export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, shifts, tasks, roles, onBack, nightShiftStart = '22:00', nightShiftEnd = '06:00' }) => {
+    const { organization } = useAuth(); // NEW: Get organization
+    const [viewerDaysLimit, setViewerDaysLimit] = useState(2); // NEW: Default 2 days
+
+    // NEW: Load viewer days limit from organization settings
+    useEffect(() => {
+        if (organization?.id) {
+            supabase
+                .from('organization_settings')
+                .select('viewer_schedule_days')
+                .eq('organization_id', organization.id)
+                .maybeSingle()
+                .then(({ data, error }) => {
+                    if (error) {
+                        console.error('Error fetching viewer settings:', error);
+                    }
+                    if (data?.viewer_schedule_days) {
+                        setViewerDaysLimit(data.viewer_schedule_days);
+                    }
+                });
+        }
+    }, [organization?.id]);
 
     const stats = useMemo(() => {
-        const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id))
+        // NEW: Calculate cutoff date based on viewer days limit
+        const now = new Date();
+        const cutoffDate = new Date(now);
+        cutoffDate.setDate(now.getDate() + viewerDaysLimit - 1); // Include today + N days
+        cutoffDate.setHours(23, 59, 59, 999); // End of the last allowed day
+
+        const personShifts = shifts
+            .filter(s => s.assignedPersonIds.includes(person.id))
+            .filter(s => {
+                const shiftStart = new Date(s.startTime);
+                return shiftStart <= cutoffDate; // Show shifts up to cutoff date
+            })
             .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
         let totalHours = 0;
@@ -73,7 +107,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
             })),
             shifts: personShifts
         };
-    }, [person, shifts, tasks, nightShiftStart, nightShiftEnd]);
+    }, [person, shifts, tasks, nightShiftStart, nightShiftEnd, viewerDaysLimit]); // NEW: Add viewerDaysLimit
 
     const dayNightData = [
         { name: 'יום', value: stats.dayHours, color: '#fbbf24' },
@@ -89,11 +123,13 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
                         onClick={onBack}
                         className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
                     >
-                        <ArrowLeft size={24} />
+                        <ArrowRight size={24} />
                     </button>
-                    <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-md"
-                        style={{ backgroundColor: person.color }}>
-                        {person.name.charAt(0)}
+                    {/* UPDATED: Avatar with Initials */}
+                    <div 
+                        className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-md ${person.color}`}
+                    >
+                        {getPersonInitials(person.name)}
                     </div>
                     <div>
                         <h2 className="text-2xl font-bold text-slate-800">{person.name}</h2>
@@ -318,32 +354,40 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
                 </div>
             </div>
 
-            {/* Recent Shifts List */}
+            {/* Recent Shifts List - UPDATED TITLE */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <Calendar size={20} className="text-purple-500" />
-                    משמרות אחרונות
+                    משמרות ({viewerDaysLimit} ימים קדימה) {/* UPDATED: Show limit */}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {stats.shifts.map(shift => {
-                        const task = tasks.find(t => t.id === shift.taskId);
-                        const start = new Date(shift.startTime);
-                        const end = new Date(shift.endTime);
-                        return (
-                            <div key={shift.id} className="border border-slate-100 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${task?.difficulty && task.difficulty > 1.5 ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-                                    {task?.difficulty && task.difficulty > 1.5 ? <AlertCircle size={20} /> : <CheckCircle size={20} />}
+                {stats.shifts.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400">
+                        <Calendar size={48} className="mx-auto mb-3 opacity-50" />
+                        <p className="font-medium">אין משמרות בטווח הזמן</p>
+                        <p className="text-sm mt-1">משמרות ב-{viewerDaysLimit} ימים הקרובים יופיעו כאן</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {stats.shifts.map(shift => {
+                            const task = tasks.find(t => t.id === shift.taskId);
+                            const start = new Date(shift.startTime);
+                            const end = new Date(shift.endTime);
+                            return (
+                                <div key={shift.id} className="border border-slate-100 rounded-xl p-4 flex items-center gap-4 hover:border-blue-200 transition-colors">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${task?.difficulty && task.difficulty > 1.5 ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
+                                        {task?.difficulty && task.difficulty > 1.5 ? <AlertCircle size={20} /> : <CheckCircle size={20} />}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-slate-800">{task?.name}</p>
+                                        <p className="text-xs text-slate-500">
+                                            {start.toLocaleDateString('he-IL')} • {start.getHours()}:{start.getMinutes().toString().padStart(2, '0')} - {end.getHours()}:{end.getMinutes().toString().padStart(2, '0')}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="font-bold text-slate-800">{task?.name}</p>
-                                    <p className="text-xs text-slate-500">
-                                        {start.toLocaleDateString('he-IL')} • {start.getHours()}:{start.getMinutes().toString().padStart(2, '0')} - {end.getHours()}:{end.getMinutes().toString().padStart(2, '0')}
-                                    </p>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );

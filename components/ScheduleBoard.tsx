@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
-import { ChevronLeft, ChevronRight, Plus, X, Check, Sparkles, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 import { supabase } from '../services/supabaseClient';
@@ -28,10 +28,12 @@ const ShiftCard: React.FC<{
     compact?: boolean;
     tasks: TaskTemplate[];
     people: Person[];
+    roles: Role[];
     onSelect: (shift: Shift) => void;
     onDelete: (shiftId: string) => void;
     isViewer: boolean;
-}> = ({ shift, compact = false, tasks, people, onSelect, onDelete, isViewer }) => {
+    acknowledgedWarnings: Set<string>; // NEW: Pass acknowledged warnings
+}> = ({ shift, compact = false, tasks, people, roles, onSelect, onDelete, isViewer, acknowledgedWarnings }) => {
     const task = tasks.find(t => t.id === shift.taskId);
     if (!task) return null;
     const isFull = shift.assignedPersonIds.length >= task.requiredPeople;
@@ -40,10 +42,26 @@ const ShiftCard: React.FC<{
         .map(id => people.find(p => p.id === id))
         .filter(Boolean) as Person[];
 
+    // NEW: Check if ANY assigned person lacks the required role (and is NOT acknowledged)
+    const requiredRoleIds = task.roleComposition.map(rc => rc.roleId);
+    const hasMismatch = isViewer ? false : shift.assignedPersonIds.some(pid => {
+        const person = people.find(p => p.id === pid);
+        if (!person) return false;
+        
+        const warningId = `${shift.id}-${pid}`;
+        if (acknowledgedWarnings.has(warningId)) return false;
+        
+        return !person.roleIds.some(rid => requiredRoleIds.includes(rid));
+    });
+
     return (
         <div
             onClick={() => onSelect(shift)}
-            className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 cursor-pointer hover:shadow-md transition-all mb-3 group relative overflow-hidden"
+            className={`p-3 rounded-xl shadow-sm border-2 cursor-pointer hover:shadow-md transition-all mb-3 group relative overflow-hidden ${
+                hasMismatch 
+                    ? 'bg-red-50 border-red-500 animate-pulse' 
+                    : 'bg-white border-slate-100'
+            }`}
         >
             {/* Color Indicator Strip */}
             <div className={`absolute top-0 right-0 w-1 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
@@ -62,7 +80,7 @@ const ShiftCard: React.FC<{
             )}
 
             <div className="flex justify-between items-start mb-2 pr-2">
-                <div>
+                <div className="flex-1">
                     <div className="font-bold text-sm text-slate-800 leading-tight">{task.name}</div>
                     <div className="text-[10px] font-bold text-slate-400 mt-0.5 flex items-center gap-1">
                         <Clock size={10} />
@@ -73,12 +91,21 @@ const ShiftCard: React.FC<{
                         </span>
                     </div>
                 </div>
-                {isFull
-                    ? <div className="bg-green-50 text-green-600 p-1 rounded-full"><Check size={12} /></div>
-                    : <div className="text-[10px] font-bold bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md">
-                        {shift.assignedPersonIds.length}/{task.requiredPeople}
-                    </div>
-                }
+                <div className="flex flex-col items-end gap-1">
+                    {isFull
+                        ? <div className="bg-green-50 text-green-600 p-1 rounded-full"><Check size={12} /></div>
+                        : <div className="text-[10px] font-bold bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md">
+                            {shift.assignedPersonIds.length}/{task.requiredPeople}
+                        </div>
+                    }
+                    {/* NEW: Force Assign Badge - MOVED HERE (below the status) */}
+                    {hasMismatch && (
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-bold">
+                            <AlertTriangle size={10} />
+                            שיבוץ כפוי
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="space-y-1.5 pr-2">
@@ -88,14 +115,39 @@ const ShiftCard: React.FC<{
                         <span>טרם שובצו</span>
                     </div>
                 ) : (
-                    assigned.map(p => (
-                        <div key={p.id} className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-bold shadow-sm ${p.color}`}>
-                                {getPersonInitials(p.name)}
+                    assigned.map(p => {
+                        // NEW: For viewers, always show as qualified
+                        const isQualified = isViewer ? true : p.roleIds.some(rid => requiredRoleIds.includes(rid));
+                        const warningId = `${shift.id}-${p.id}`;
+                        const isAcknowledged = isViewer ? true : acknowledgedWarnings.has(warningId);
+                        
+                        const showAsQualified = isQualified || isAcknowledged;
+                        
+                        return (
+                            <div 
+                                key={p.id} 
+                                className={`flex items-center gap-2 p-1.5 rounded-lg border ${
+                                    showAsQualified
+                                        ? 'bg-slate-50 border-slate-100' 
+                                        : 'bg-red-100 border-red-500 animate-pulse'
+                                }`}
+                            >
+                                {!showAsQualified && (
+                                    <AlertTriangle size={14} className="text-red-700 flex-shrink-0" />
+                                )}
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-bold shadow-sm ${p.color}`}>
+                                    {getPersonInitials(p.name)}
+                                </div>
+                                {/* FIX: Use showAsQualified for text color too */}
+                                <span className={`text-xs font-bold truncate ${showAsQualified ? 'text-slate-700' : 'text-red-900'}`}>
+                                    {p.name}
+                                </span>
+                                {!showAsQualified && (
+                                    <span className="text-red-700 text-xs font-bold">לא מוסמך</span>
+                                )}
                             </div>
-                            <span className="text-xs text-slate-700 font-bold truncate">{p.name}</span>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
                 {/* Warning if understaffed and has assignments but not enough */}
                 {(!isFull && assigned.length > 0) && (
@@ -110,26 +162,65 @@ const ShiftCard: React.FC<{
 };
 
 export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
-  const {
-    shifts,
-    people,
-    tasks,
-    roles,
-    teams,
-    selectedDate,
-    onDateChange,
-    onAssign,
-    onUnassign,
-    onAddShift,
-    onUpdateShift,
-    onDeleteShift,
-    onClearDay
-} = props;
+    const {
+        shifts,
+        people,
+        tasks,
+        roles,
+        teams,
+        selectedDate,
+        onDateChange,
+        onAssign,
+        onUnassign,
+        onAddShift,
+        onUpdateShift,
+        onDeleteShift,
+        onClearDay
+    } = props;
     const { profile, organization } = useAuth();
     const isViewer = profile?.role === 'viewer';
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
     const [viewerDaysLimit, setViewerDaysLimit] = useState(2);
     const [showCopySuccess, setShowCopySuccess] = useState(false);
+    
+    // NEW: Only load warnings for non-viewers
+    const [isLoadingWarnings, setIsLoadingWarnings] = useState(!isViewer); // Viewers skip loading
+    const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
+
+    // Load acknowledged warnings ONLY if NOT a viewer
+    useEffect(() => {
+        if (isViewer) {
+            setIsLoadingWarnings(false); // Skip for viewers
+            return;
+        }
+
+        const loadAcknowledgedWarnings = async () => {
+            if (!organization?.id) {
+                setIsLoadingWarnings(false);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from('acknowledged_warnings')
+                .select('warning_id')
+                .eq('organization_id', organization.id);
+
+            if (error) {
+                console.error('Error loading acknowledged warnings:', error);
+                setIsLoadingWarnings(false);
+                return;
+            }
+
+            if (data) {
+                const warningIds = new Set(data.map(w => w.warning_id));
+                setAcknowledgedWarnings(warningIds);
+            }
+            
+            setIsLoadingWarnings(false);
+        };
+
+        loadAcknowledgedWarnings();
+    }, [organization?.id, isViewer]); // NEW: Add isViewer dependency
 
     useEffect(() => {
         if (organization?.id) {
@@ -546,6 +637,68 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         );
     };
 
+    // NEW: Build mismatch warnings list (filtered by acknowledged ones)
+    const mismatchWarnings = useMemo(() => {
+        if (isViewer) return []; // NEW: Empty array for viewers
+
+        return shifts.flatMap(shift => {
+            const task = tasks.find(t => t.id === shift.taskId);
+            if (!task) return [];
+            const requiredRoleIds = task.roleComposition.map(rc => rc.roleId);
+            return shift.assignedPersonIds
+                .filter(pid => {
+                    const person = people.find(p => p.id === pid);
+                    if (!person) return false;
+                    
+                    // NEW: Create unique warning ID
+                    const warningId = `${shift.id}-${pid}`;
+                    
+                    // Skip if already acknowledged
+                    if (acknowledgedWarnings.has(warningId)) return false;
+                    
+                    return !person.roleIds.some(rid => requiredRoleIds.includes(rid));
+                })
+                .map(pid => {
+                    const person = people.find(p => p.id === pid)!;
+                    return {
+                        warningId: `${shift.id}-${pid}`, // NEW: Unique ID
+                        shiftId: shift.id,
+                        personId: pid, // NEW: Track person ID
+                        taskName: task.name,
+                        start: new Date(shift.startTime),
+                        end: new Date(shift.endTime),
+                        personName: person.name,
+                        missingRoles: requiredRoleIds
+                            .map(rid => roles.find(r => r.id === rid)?.name)
+                            .filter(Boolean) as string[]
+                    };
+                });
+        });
+    }, [shifts, tasks, people, roles, acknowledgedWarnings, isViewer]); // NEW: Add isViewer
+
+    // NEW: Handler to acknowledge (dismiss) a warning with DB save
+    const handleAcknowledgeWarning = async (warningId: string) => {
+        // Update local state immediately
+        setAcknowledgedWarnings(prev => new Set([...prev, warningId]));
+
+        // Save to database
+        if (organization?.id) {
+            const { error } = await supabase
+                .from('acknowledged_warnings')
+                .upsert({
+                    organization_id: organization.id,
+                    warning_id: warningId,
+                    acknowledged_at: new Date().toISOString()
+                }, {
+                    onConflict: 'organization_id,warning_id'
+                });
+
+            if (error) {
+                console.error('Error saving acknowledged warning:', error);
+            }
+        }
+    };
+
     // Helper to filter visible tasks for the daily view
     const visibleTasks = useMemo(() => {
         const dateKey = selectedDate.toLocaleDateString('en-CA');
@@ -570,6 +723,27 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     const canGoNext = !isViewer || !isAtViewerLimit;
     const canGoPrev = true; // Allow viewing history
 
+    // NEW: Handler to jump to a specific shift's date (WITHOUT opening modal)
+    const handleJumpToShift = (shiftId: string, shiftStart: Date) => {
+        // 1. Change to the shift's date
+        const shiftDate = new Date(shiftStart);
+        shiftDate.setHours(0, 0, 0, 0);
+        onDateChange(shiftDate);
+
+        // 2. Scroll to the shift card after a brief delay (to ensure date change renders)
+        setTimeout(() => {
+            const shiftElement = document.getElementById(`shift-card-${shiftId}`);
+            if (shiftElement) {
+                shiftElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Add a temporary highlight effect
+                shiftElement.classList.add('ring-4', 'ring-red-500', 'ring-offset-2');
+                setTimeout(() => {
+                    shiftElement.classList.remove('ring-4', 'ring-red-500', 'ring-offset-2');
+                }, 2000);
+            }
+        }, 300);
+    };
+
     return (
         <div className="flex flex-col gap-8">
             {renderFeaturedCard()}
@@ -587,9 +761,70 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                 </div>
             )}
 
+            {/* Global Mismatch Warnings Panel - HIDDEN FOR VIEWERS */}
+            {!isViewer && !isLoadingWarnings && mismatchWarnings.length > 0 && (
+                <div className="rounded-xl border-2 border-red-500 bg-red-50 p-4 space-y-3 animate-fadeIn">
+                    <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle className="text-red-600" size={20} />
+                            <h2 className="text-red-700 font-bold text-lg">
+                                אזהרות שיבוץ ({mismatchWarnings.length})
+                            </h2>
+                        </div>
+                        <button
+                            onClick={() => {
+                                const allWarningIds = mismatchWarnings.map(w => w.warningId);
+                                setAcknowledgedWarnings(new Set([...acknowledgedWarnings, ...allWarningIds]));
+                            }}
+                            className="text-xs text-red-600 hover:text-red-800 font-bold px-3 py-1 rounded-full bg-white hover:bg-red-100 transition-colors"
+                        >
+                            אשר הכל
+                        </button>
+                    </div>
+                    <ul className="space-y-2">
+                        {mismatchWarnings.map((w, i) => (
+                            <li
+                                key={w.warningId}
+                                className="text-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-white/60 rounded-md px-3 py-2 border border-red-300 transition-all"
+                            >
+                                <div 
+                                    onClick={() => handleJumpToShift(w.shiftId, w.start)}
+                                    className="flex-1 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 cursor-pointer hover:bg-white/80"
+                                >
+                                    <span className="font-bold text-red-700">{w.personName}</span>
+                                    <span className="text-red-600">
+                                        במשימה "{w.taskName}"
+                                    </span>
+                                    <span className="text-slate-600 font-medium">
+                                        📅 {w.start.toLocaleDateString('he-IL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </span>
+                                    <span className="text-slate-600" dir="ltr">
+                                        🕐 {w.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}–{w.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    <span className="text-xs text-red-500">
+                                        חסר: {w.missingRoles.join(', ')}
+                                    </span>
+                                </div>
+                                
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAcknowledgeWarning(w.warningId);
+                                    }}
+                                    className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-colors whitespace-nowrap"
+                                    title="אשר אזהרה (הסתר)"
+                                >
+                                    <CheckCircle size={14} />
+                                    אישור
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             {/* Calendar Board Container */}
             <div className="bg-white rounded-xl shadow-portal p-6">
-
                 {/* Controls Header */}
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                     <div className="flex items-center gap-3">
@@ -674,14 +909,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                 </div>
 
                 <div className="overflow-x-auto pb-4">
-                    {/* DAILY VIEW COLUMNS (KANBAN) */}
                     <div className="flex gap-4 min-w-[1000px]">
                         {visibleTasks.length > 0 ? visibleTasks.map(task => {
-                            // Safe filter for local dates
                             const dateKey = selectedDate.toLocaleDateString('en-CA');
                             const taskShifts = shifts.filter(s => {
                                 if (s.taskId !== task.id) return false;
-                                // Check if shift starts on this local date
                                 const shiftDate = new Date(s.startTime).toLocaleDateString('en-CA');
                                 return shiftDate === dateKey;
                             }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
@@ -696,7 +928,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        {taskShifts.map(shift => <ShiftCard key={shift.id} shift={shift} tasks={tasks} people={people} onSelect={(s) => setSelectedShiftId(s.id)} onDelete={onDeleteShift} isViewer={isViewer} />)}
+                                        {taskShifts.map(shift => (
+                                            <div key={shift.id} id={`shift-card-${shift.id}`}>
+                                                <ShiftCard 
+                                                    shift={shift} 
+                                                    tasks={tasks} 
+                                                    people={people} 
+                                                    roles={roles} 
+                                                    onSelect={(s) => setSelectedShiftId(s.id)} 
+                                                    onDelete={onDeleteShift} 
+                                                    isViewer={isViewer}
+                                                    acknowledgedWarnings={isViewer ? new Set() : acknowledgedWarnings} // NEW: Empty set for viewers
+                                                />
+                                            </div>
+                                        ))}
                                         {taskShifts.length === 0 && <div className="text-center py-10 text-slate-400 text-sm italic">אין משמרות ליום זה</div>}
                                     </div>
                                 </div>
