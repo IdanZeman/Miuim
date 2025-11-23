@@ -72,12 +72,13 @@ export const mapRoleToDB = (role: Role) => ({
 });
 
 // Tasks
+// Tasks
 export const mapTaskFromDB = (dbTask: any): TaskTemplate => ({
     id: dbTask.id,
     name: dbTask.name,
     durationHours: dbTask.duration_hours,
     requiredPeople: dbTask.required_people,
-    requiredRoleIds: dbTask.required_role_ids || [],
+    roleComposition: dbTask.role_composition || [],
     minRestHoursBefore: dbTask.min_rest_hours_before,
     difficulty: dbTask.difficulty,
     color: dbTask.color,
@@ -93,7 +94,7 @@ export const mapTaskToDB = (task: TaskTemplate) => ({
     name: task.name,
     duration_hours: task.durationHours,
     required_people: task.requiredPeople,
-    required_role_ids: task.requiredRoleIds,
+    role_composition: task.roleComposition,
     min_rest_hours_before: task.minRestHoursBefore,
     difficulty: task.difficulty,
     color: task.color,

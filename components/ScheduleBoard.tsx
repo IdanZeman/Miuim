@@ -1,10 +1,9 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
-import { generateAssignmentExplanation } from '../services/geminiService';
 import { getPersonInitials } from '../utils/nameUtils';
-import { ChevronLeft, ChevronRight, Plus, X, Check, BrainCircuit, AlertTriangle, Sparkles, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Sparkles, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+
 import { supabase } from '../services/supabaseClient';
 
 interface ScheduleBoardProps {
@@ -128,7 +127,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const { profile, organization } = useAuth();
     const isViewer = profile?.role === 'viewer';
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
-    const [viewerDaysLimit, setViewerDaysLimit] = useState(2); // Default to 2 days (Today + Tomorrow)
+    const [viewerDaysLimit, setViewerDaysLimit] = useState(2);
+    const [showCopySuccess, setShowCopySuccess] = useState(false);
 
     useEffect(() => {
         if (organization?.id) {
@@ -152,18 +152,96 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         shifts.find(s => s.id === selectedShiftId) || null
         , [shifts, selectedShiftId]);
 
-    const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-    const [loadingAi, setLoadingAi] = useState(false);
 
-    const handleExplain = async (shift: Shift, person: Person) => {
-        setLoadingAi(true);
-        setAiExplanation(null);
-        const task = tasks.find(t => t.id === shift.taskId);
-        if (task) {
-            const explanation = await generateAssignmentExplanation(shift, person, task, people, roles);
-            setAiExplanation(explanation);
+
+    // Export schedule to clipboard
+    const handleExportToClipboard = async () => {
+        const dateKey = selectedDate.toLocaleDateString('en-CA');
+        const dateDisplay = selectedDate.toLocaleDateString('he-IL', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+
+        let output = `📅 לוח שיבוצים - ${dateDisplay}\n`;
+        output += `${'='.repeat(50)}\n\n`;
+
+        // Get all shifts for this day
+        const dayShifts = shifts.filter(s => {
+            const shiftDate = new Date(s.startTime).toLocaleDateString('en-CA');
+            return shiftDate === dateKey;
+        }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+        // Group by task
+        const taskGroups = new Map<string, Shift[]>();
+        dayShifts.forEach(shift => {
+            const existing = taskGroups.get(shift.taskId) || [];
+            taskGroups.set(shift.taskId, [...existing, shift]);
+        });
+
+        // Build output for each task
+        taskGroups.forEach((shifts, taskId) => {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            output += `🔹 ${task.name}\n`;
+            output += `${'-'.repeat(40)}\n`;
+
+            shifts.forEach(shift => {
+                const startTime = new Date(shift.startTime).toLocaleTimeString('he-IL', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                const endTime = new Date(shift.endTime).toLocaleTimeString('he-IL', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const assignedPeople = shift.assignedPersonIds
+                    .map(id => people.find(p => p.id === id))
+                    .filter(Boolean) as Person[];
+
+                const assignedNames = assignedPeople.length > 0
+                    ? assignedPeople.map(p => p.name).join(', ')
+                    : 'לא שובץ';
+
+                const status = assignedPeople.length >= task.requiredPeople ? '✅' : '⚠️';
+
+                output += `  ${status} ${startTime} - ${endTime}\n`;
+                output += `     👥 ${assignedNames}\n`;
+
+                if (assignedPeople.length < task.requiredPeople) {
+                    output += `     📌 חסרים: ${task.requiredPeople - assignedPeople.length}\n`;
+                }
+                output += `\n`;
+            });
+
+            output += `\n`;
+        });
+
+        // Summary
+        const totalShifts = dayShifts.length;
+        const fullyAssigned = dayShifts.filter(s => {
+            const task = tasks.find(t => t.id === s.taskId);
+            return task && s.assignedPersonIds.length >= task.requiredPeople;
+        }).length;
+
+        output += `${'='.repeat(50)}\n`;
+        output += `📊 סיכום:\n`;
+        output += `   • סה"כ משמרות: ${totalShifts}\n`;
+        output += `   • מאוישות במלואן: ${fullyAssigned}\n`;
+        output += `   • דורשות השלמה: ${totalShifts - fullyAssigned}\n`;
+
+        // Copy to clipboard
+        try {
+            await navigator.clipboard.writeText(output);
+            setShowCopySuccess(true);
+            setTimeout(() => setShowCopySuccess(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+            alert('❌ שגיאה בהעתקה ללוח ההדבקה');
         }
-        setLoadingAi(false);
     };
 
     // Portal Style Card for "Current/Next" Shift
@@ -415,9 +493,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${p.color}`}>{getPersonInitials(p.name)}</div>
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-slate-800 text-sm">{p.name}</span>
-                                                {task.requiredRoleIds.length > 0 && (
+                                                {task.roleComposition && task.roleComposition.length > 0 && (
                                                     <span className="text-[10px] text-slate-500">
-                                                        {roles.find(r => task.requiredRoleIds.includes(r.id) && p.roleIds.includes(r.id))?.name || ''}
+                                                        {roles.find(r => task.roleComposition.some(rc => rc.roleId === r.id) && p.roleIds.includes(r.id))?.name || ''}
                                                     </span>
                                                 )}
                                             </div>
@@ -440,7 +518,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 <h4 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider">מאגר זמין</h4>
                                 <div className="space-y-2">
                                     {availablePeople.map(p => {
-                                        const hasRole = task.requiredRoleIds.length === 0 || task.requiredRoleIds.some(req => p.roleIds.includes(req));
+                                        const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => p.roleIds.includes(rc.roleId));
                                         const isFull = assignedPeople.length >= task.requiredPeople;
                                         const canAssign = hasRole && !isFull;
 
@@ -501,6 +579,18 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             {renderFeaturedCard()}
             {selectedShift && <Modal />}
 
+            {/* Copy Success Toast */}
+            {showCopySuccess && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
+                    <div className="bg-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 border-2 border-emerald-400">
+                        <div className="bg-emerald-50 rounded-full p-1.5">
+                            <Check size={16} className="text-emerald-600" />
+                        </div>
+                        <span className="font-medium text-slate-700">הלוח הועתק בהצלחה</span>
+                    </div>
+                </div>
+            )}
+
             {/* Calendar Board Container */}
             <div className="bg-white rounded-xl shadow-portal p-6">
 
@@ -534,6 +624,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleExportToClipboard}
+                            className="flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-full font-bold text-sm transition-colors"
+                        >
+                            <Copy size={16} />
+                            העתק ללוח
+                        </button>
                         {!isViewer && (
                             <button
                                 onClick={onClearDay}

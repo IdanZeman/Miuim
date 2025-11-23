@@ -1,4 +1,3 @@
-
 import { AppState, Person, Shift, TaskTemplate } from "../types";
 
 // --- Internal Types for the Algorithm ---
@@ -23,10 +22,10 @@ interface AlgoTask {
   endTime: number;
   durationHours: number;
   difficulty: number;
-  requiredRoles: string[];
+  roleComposition: { roleId: string; count: number }[];
   requiredPeople: number;
   minRest: number; // Hours of rest required AFTER this task
-  isCritical: boolean; // Difficulty >= 4
+  isCritical: boolean; // Difficulty >= 4 OR Rare Role
   currentAssignees: string[]; // IDs of people already assigned
 }
 
@@ -54,9 +53,15 @@ const addToTimeline = (user: AlgoUser, start: number, end: number, type: Timelin
 };
 
 /**
- * Initialize users with external constraints (Attendance/Availability).
+ * Initialize users with external constraints (Attendance/Availability) AND Future Assignments.
  */
-const initializeUsers = (people: Person[], targetDate: Date, historyScores: Record<string, { totalLoadScore: number, shiftsCount: number }> = {}): AlgoUser[] => {
+const initializeUsers = (
+  people: Person[],
+  targetDate: Date,
+  historyScores: Record<string, { totalLoadScore: number, shiftsCount: number }> = {},
+  futureAssignments: Shift[],
+  taskTemplates: TaskTemplate[]
+): AlgoUser[] => {
   const dateKey = targetDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
   return people.map(p => {
@@ -99,6 +104,23 @@ const initializeUsers = (people: Person[], targetDate: Date, historyScores: Reco
       }
     }
 
+    // 2. Block Future Assignments (48h Lookahead)
+    const userFutureShifts = futureAssignments.filter(s => s.assignedPersonIds.includes(p.id));
+    userFutureShifts.forEach(s => {
+      const sStart = new Date(s.startTime).getTime();
+      const sEnd = new Date(s.endTime).getTime();
+      const task = taskTemplates.find(t => t.id === s.taskId);
+
+      // Block the shift itself
+      addToTimeline(algoUser, sStart, sEnd, 'EXTERNAL_CONSTRAINT', s.taskId);
+
+      // Block rest period if applicable
+      if (task && task.minRestHoursBefore > 0) {
+        const restEnd = sEnd + (task.minRestHoursBefore * 60 * 60 * 1000);
+        addToTimeline(algoUser, sEnd, restEnd, 'REST');
+      }
+    });
+
     return algoUser;
   });
 };
@@ -110,29 +132,41 @@ export const solveSchedule = (
   currentState: AppState,
   startDate: Date,
   endDate: Date,
-  historyScores: Record<string, { totalLoadScore: number, shiftsCount: number }> = {}
+  historyScores: Record<string, { totalLoadScore: number, shiftsCount: number }> = {},
+  futureAssignments: Shift[] = [] // Shifts already assigned in the next 48h
 ): Shift[] => {
   const { people, taskTemplates, shifts } = currentState;
 
   // 1. Prepare Data
   const targetDateKey = startDate.toLocaleDateString('en-CA');
 
-  // Filter shifts relevant to this specific day
+  // Filter shifts relevant to this specific day (to be solved)
   const shiftsToSolve = shifts.filter(s => {
     const sDate = new Date(s.startTime).toLocaleDateString('en-CA');
     return sDate === targetDateKey && !s.isLocked;
   });
 
-  // If no shifts to solve, return empty array (or original)
+  // If no shifts to solve, return empty array
   if (shiftsToSolve.length === 0) return [];
 
   // Initialize Algorithm Users (Timeline & Constraints)
-  const algoUsers = initializeUsers(people, startDate, historyScores);
+  const algoUsers = initializeUsers(people, startDate, historyScores, futureAssignments, taskTemplates);
+
+  // Calculate Role Rarity (<= 2 people is "Rare")
+  const roleCounts = new Map<string, number>();
+  people.forEach(p => {
+    p.roleIds.forEach(rid => {
+      roleCounts.set(rid, (roleCounts.get(rid) || 0) + 1);
+    });
+  });
 
   // Map Shifts to AlgoTasks
   const algoTasks: AlgoTask[] = shiftsToSolve.map(s => {
     const template = taskTemplates.find(t => t.id === s.taskId);
     if (!template) return null;
+
+    // Check if any required role is Rare
+    const hasRareRole = template.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2);
 
     return {
       shiftId: s.id,
@@ -141,102 +175,85 @@ export const solveSchedule = (
       endTime: new Date(s.endTime).getTime(),
       durationHours: template.durationHours,
       difficulty: template.difficulty,
-      requiredRoles: template.requiredRoleIds,
+      roleComposition: template.roleComposition,
       requiredPeople: template.requiredPeople,
       minRest: template.minRestHoursBefore,
-      isCritical: template.difficulty >= 4, // Definition of "Big Rock"
+      isCritical: template.difficulty >= 4 || hasRareRole, // Definition of "Big Rock"
       currentAssignees: [] // Clean slate for this run
     };
   }).filter(Boolean) as AlgoTask[];
 
-  // 2. Sort Tasks for Multi-Pass
-  // Priority 1: Critical Tasks
-  // Priority 2: Standard Tasks (sorted by time)
+  // 2. Sort Tasks for Multi-Pass (Big Rocks First)
   const criticalTasks = algoTasks.filter(t => t.isCritical).sort((a, b) => a.startTime - b.startTime);
   const standardTasks = algoTasks.filter(t => !t.isCritical).sort((a, b) => a.startTime - b.startTime);
 
-  const allSortedTasks = [...criticalTasks, ...standardTasks];
+  const processTasks = (tasks: AlgoTask[], phaseName: string) => {
+    console.log(`\n🚀 Starting Phase: ${phaseName} (${tasks.length} tasks)`);
 
-  // 3. Allocation Loop
-  console.log('🔍 Starting allocation for', allSortedTasks.length, 'tasks');
-  console.log('👥 Available users:', algoUsers.length);
+    tasks.forEach((task, i) => {
+      console.log(`\n📋 Task ${task.taskId} (${new Date(task.startTime).toLocaleTimeString()}): Needs ${task.requiredPeople}`);
 
-  allSortedTasks.forEach((task, taskIndex) => {
-    console.log(`\n📋 Task ${taskIndex + 1}/${allSortedTasks.length}:`, {
-      taskId: task.taskId,
-      requiredPeople: task.requiredPeople,
-      requiredRoles: task.requiredRoles,
-      isCritical: task.isCritical,
-      startTime: new Date(task.startTime).toLocaleString('he-IL')
-    });
+      // Iterate through Role Composition Buckets
+      task.roleComposition.forEach(comp => {
+        const { roleId, count } = comp;
+        if (count <= 0) return;
 
-    const needed = task.requiredPeople;
+        console.log(`   - Looking for ${count} people with role ${roleId}`);
 
-    // Find Candidates
-    let candidates = algoUsers.filter(u => {
-      // Role Match
-      if (task.requiredRoles.length > 0) {
-        const hasRole = task.requiredRoles.some(rid => u.person.roleIds.includes(rid));
-        if (!hasRole) {
-          console.log(`  ❌ ${u.person.name}: No matching role`);
-          return false;
+        // Find Candidates for THIS specific role bucket
+        let candidates = algoUsers.filter(u => {
+          // 1. Role Check
+          if (!u.person.roleIds.includes(roleId)) return false;
+
+          // 2. Already assigned to this task? (Shouldn't happen if buckets are distinct, but good safety)
+          if (task.currentAssignees.includes(u.person.id)) return false;
+
+          // 3. Time Availability
+          const restDurationMs = task.minRest * 60 * 60 * 1000;
+          const totalBlockEnd = task.endTime + restDurationMs;
+          return canFit(u, task.startTime, totalBlockEnd);
+        });
+
+        // Scoring (Fairness)
+        candidates.sort((a, b) => a.loadScore - b.loadScore);
+
+        // Assign Top N
+        const selected = candidates.slice(0, count);
+
+        if (selected.length < count) {
+          console.warn(`   ⚠️ Not enough candidates for role ${roleId}! Needed ${count}, found ${selected.length}`);
         }
-      }
 
-      // Time Availability (Task Duration + Post-Task Rest)
-      // We treat minRest as time required AFTER the task before they can do another.
-      const restDurationMs = task.minRest * 60 * 60 * 1000;
-      const totalBlockEnd = task.endTime + restDurationMs;
+        selected.forEach(u => {
+          // Assign
+          task.currentAssignees.push(u.person.id);
 
-      const canFitResult = canFit(u, task.startTime, totalBlockEnd);
-      if (!canFitResult) {
-        console.log(`  ❌ ${u.person.name}: Time conflict`);
-      } else {
-        console.log(`  ✅ ${u.person.name}: Available (load: ${u.loadScore.toFixed(1)})`);
-      }
-      return canFitResult;
+          // Update User State
+          const restDurationMs = task.minRest * 60 * 60 * 1000;
+          addToTimeline(u, task.startTime, task.endTime, 'TASK', task.taskId);
+          if (task.minRest > 0) {
+            addToTimeline(u, task.endTime, task.endTime + restDurationMs, 'REST');
+          }
+
+          // Update Metrics
+          u.loadScore += (task.durationHours * task.difficulty);
+          u.shiftsCount += 1;
+        });
+      });
+
+      // Handle Generic/Remainder if any (though we enforce explicit composition now)
+      // If requiredPeople > sum(composition), we might need generic fillers?
+      // For now, we strictly follow composition.
     });
+  };
 
-    console.log(`  🎯 Found ${candidates.length} candidates for ${needed} positions`);
-
-    // Scoring (Fairness)
-    // Sort by Load Score (asc) -> Prefer those who worked less / easier tasks
-    candidates.sort((a, b) => a.loadScore - b.loadScore);
-
-    // Assign Top N
-    const selected = candidates.slice(0, needed);
-    console.log(`  ✨ Selected ${selected.length} people:`, selected.map(u => u.person.name));
-
-    selected.forEach(u => {
-      // Assign
-      task.currentAssignees.push(u.person.id);
-
-      // Update User State
-      const restDurationMs = task.minRest * 60 * 60 * 1000;
-
-      // Block Task
-      addToTimeline(u, task.startTime, task.endTime, 'TASK', task.taskId);
-
-      // Block Rest (if exists)
-      if (task.minRest > 0) {
-        addToTimeline(u, task.endTime, task.endTime + restDurationMs, 'REST');
-      }
-
-      // Update Metrics
-      u.loadScore += (task.durationHours * task.difficulty);
-      u.shiftsCount += 1;
-    });
-  });
+  // 3. Execute Phases
+  processTasks(criticalTasks, "BIG ROCKS (Critical)");
+  processTasks(standardTasks, "SAND (Standard)");
 
   // 4. Reconstruct Shifts
-  // Create a map of new assignments
   const assignmentMap = new Map<string, string[]>();
   algoTasks.forEach(t => assignmentMap.set(t.shiftId, t.currentAssignees));
-
-  // Return full list of updated shifts (including those we didn't touch, if any)
-  // But here we operated on a filtered list. We need to merge back.
-  // Actually, the app expects the *result* of the solver. 
-  // We will return the solved shifts with their new assignments.
 
   const solvedShifts = shiftsToSolve.map(s => ({
     ...s,

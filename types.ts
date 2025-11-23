@@ -79,8 +79,8 @@ export interface TaskTemplate {
   id: string;
   name: string;
   durationHours: number;
-  requiredPeople: number;
-  requiredRoleIds: string[]; // Role IDs required
+  requiredPeople: number; // Calculated sum of roleComposition
+  roleComposition: { roleId: string; count: number }[];
   minRestHoursBefore: number;
   difficulty: number; // 1-5
   color: string;

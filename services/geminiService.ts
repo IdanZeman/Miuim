@@ -26,7 +26,7 @@ export const generateAssignmentExplanation = async (
     הסבר בקצרה (עד 2 משפטים בעברית) מדוע ${assignedPerson.name} שובץ למשימה "${task.name}" בתאריך ${new Date(shift.startTime).toLocaleString('he-IL')}.
     
     נתונים:
-    - תפקידים נדרשים למשימה: ${task.requiredRoleIds.map(rid => roles.find(r => r.id === rid)?.name).join(', ')}
+    - תפקידים נדרשים למשימה: ${task.roleComposition.map(rc => `${rc.count}x ${roles.find(r => r.id === rc.roleId)?.name}`).join(', ')}
     - תפקידי/הכשרות האדם: ${personRoles}
     - העדפות האדם: ${assignedPerson.preferences.preferNight ? 'מעדיף לילה' : 'רגיל'}, ${assignedPerson.preferences.avoidWeekends ? 'נמנע מסופ"ש' : ''}
     - קושי המשימה: ${task.difficulty}/5

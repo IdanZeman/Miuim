@@ -17,7 +17,6 @@ import {
     mapTaskFromDB, mapTaskToDB
 } from './services/supabaseClient';
 import { solveSchedule } from './services/scheduler';
-import { analyzeScheduleHealth } from './services/geminiService';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
 import { Wand2, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -382,23 +381,30 @@ const MainApp: React.FC = () => {
 
     const handleAutoSchedule = async () => {
         if (!organization) return;
-        // Define the specific 24-hour window for the selected date
         const startDate = new Date(selectedDate);
         startDate.setHours(0, 0, 0, 0);
 
         const endDate = new Date(selectedDate);
         endDate.setHours(23, 59, 59, 999);
 
-        // Run the solver ONLY for this specific day range
-        // PRE-STEP: Clear existing assignments for this day to allow the "Big Rocks" algorithm to work on a clean slate
-
-        // 1. Fetch History (Last 30 days)
         const historyShifts = await fetchUserHistory(startDate, 30);
         const historyScores = calculateHistoricalLoad(historyShifts, state.taskTemplates, state.people.map(p => p.id));
 
-        const solvedShifts = solveSchedule(state, startDate, endDate, historyScores);
+        const futureStart = new Date(endDate);
+        const futureEnd = new Date(futureStart);
+        futureEnd.setHours(futureEnd.getHours() + 48);
 
-        // Ensure solved shifts have org id
+        const { data: futureData } = await supabase
+            .from('shifts')
+            .select('*')
+            .gte('start_time', futureStart.toISOString())
+            .lte('start_time', futureEnd.toISOString())
+            .eq('organization_id', organization.id);
+
+        const futureAssignments = (futureData || []).map(mapShiftFromDB);
+
+        const solvedShifts = solveSchedule(state, startDate, endDate, historyScores, futureAssignments);
+
         const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: organization.id }));
 
         try {
@@ -406,15 +412,14 @@ const MainApp: React.FC = () => {
             await supabase.from('shifts').upsert(updates);
         } catch (e) { console.warn(e); }
 
-        // Update state: Replace only the solved shifts in the state, keep others
         const solvedIds = shiftsToSave.map(s => s.id);
         setState(prev => ({
             ...prev,
             shifts: prev.shifts.map(s => solvedIds.includes(s.id) ? shiftsToSave.find(sol => sol.id === s.id)! : s)
         }));
 
-        const feedback = await analyzeScheduleHealth(shiftsToSave, state.people, state.taskTemplates);
-        setAiHealthMsg(feedback);
+        // הצגת הודעת הצלחה פשוטה
+        alert(`✅ שיבוץ אוטומטי הושלם!\n\nסה"כ משמרות: ${solvedShifts.length}\nמשמרות מאוישות: ${solvedShifts.filter(s => s.assignedPersonIds.length > 0).length}`);
     };
 
     const handleClearDay = async () => {
@@ -505,15 +510,6 @@ const MainApp: React.FC = () => {
                             </div>
                         )}
 
-                        {aiHealthMsg && (
-                            <div className="bg-white border-r-4 border-idf-yellow p-6 rounded-xl shadow-portal animate-fadeIn flex gap-4 items-start mb-6">
-                                <div className="bg-amber-100 p-2 rounded-full text-amber-600 mt-1"><Wand2 size={20} /></div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-lg">דוח אופטימיזציה AI</h4>
-                                    <p className="text-slate-600 mt-2 leading-relaxed">{aiHealthMsg}</p>
-                                </div>
-                            </div>
-                        )}
 
                         <ScheduleBoard
                             shifts={state.shifts}

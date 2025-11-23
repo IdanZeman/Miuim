@@ -12,9 +12,12 @@ interface StatsDashboardProps {
    shifts: Shift[];
    tasks: TaskTemplate[];
    roles: Role[];
+   isViewer?: boolean;
+   currentUserEmail?: string;
+   currentUserName?: string;
 }
 
-export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, tasks, roles }) => {
+export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, tasks, roles, isViewer = false, currentUserEmail, currentUserName }) => {
    const [viewMode, setViewMode] = useState<'overview' | 'personal'>('overview');
    const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
    const [nightShiftStart, setNightShiftStart] = useState('22:00');
@@ -34,6 +37,17 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, 
       };
       fetchSettings();
    }, []);
+
+   // Viewer Restriction Logic
+   useEffect(() => {
+      if (isViewer) {
+         setViewMode('personal');
+         const person = people.find(p => p.name === currentUserName || (p as any).email === currentUserEmail);
+         if (person) {
+            setSelectedPersonId(person.id);
+         }
+      }
+   }, [isViewer, currentUserName, currentUserEmail, people]);
 
    const loadData = people.map(person => {
       const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id));
@@ -62,28 +76,30 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, 
 
    return (
       <div className="space-y-8">
-         <div className="flex justify-end mb-4">
-            <div className="bg-slate-100 p-1 rounded-lg flex gap-1">
-               <button
-                  onClick={() => setViewMode('overview')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'overview' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-               >
-                  <div className="flex items-center gap-2">
-                     <BarChart2 size={16} />
-                     <span>מבט על</span>
-                  </div>
-               </button>
-               <button
-                  onClick={() => setViewMode('personal')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'personal' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-               >
-                  <div className="flex items-center gap-2">
-                     <UserCircle size={16} />
-                     <span>מבט אישי</span>
-                  </div>
-               </button>
+         {!isViewer && (
+            <div className="flex justify-end mb-4">
+               <div className="bg-slate-100 p-1 rounded-lg flex gap-1">
+                  <button
+                     onClick={() => setViewMode('overview')}
+                     className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'overview' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                     <div className="flex items-center gap-2">
+                        <BarChart2 size={16} />
+                        <span>מבט על</span>
+                     </div>
+                  </button>
+                  <button
+                     onClick={() => setViewMode('personal')}
+                     className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'personal' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                     <div className="flex items-center gap-2">
+                        <UserCircle size={16} />
+                        <span>מבט אישי</span>
+                     </div>
+                  </button>
+               </div>
             </div>
-         </div>
+         )}
 
          {viewMode === 'personal' ? (
             selectedPersonId ? (
@@ -92,31 +108,42 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, 
                   shifts={shifts}
                   tasks={tasks}
                   roles={roles}
-                  onBack={() => setSelectedPersonId(null)}
+                  onBack={isViewer ? undefined : () => setSelectedPersonId(null)}
                   nightShiftStart={nightShiftStart}
                   nightShiftEnd={nightShiftEnd}
                />
             ) : (
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {people.map(person => (
-                     <PersonalStats
-                        key={person.id}
-                        person={person}
-                        shifts={shifts}
-                        tasks={tasks}
-                        onClick={() => setSelectedPersonId(person.id)}
-                        nightShiftStart={nightShiftStart}
-                        nightShiftEnd={nightShiftEnd}
-                     />
-                  ))}
-                  <div className="bg-white rounded-xl shadow-portal p-6 flex items-center justify-between border-b-4 border-purple-400">
-                     <div>
-                        <p className="text-slate-500 font-medium text-sm mb-1">משמרות פעילות</p>
-                        <h3 className="text-3xl font-bold text-slate-800">{shifts.length}</h3>
-                     </div>
-                     <div className="bg-purple-50 p-3 rounded-full text-purple-500"><CalendarCheck size={24} /></div>
+               isViewer ? (
+                  <div className="flex flex-col items-center justify-center h-64 bg-white rounded-xl shadow-sm p-8 text-center">
+                     <UserCircle size={48} className="text-slate-300 mb-4" />
+                     <h3 className="text-lg font-bold text-slate-800 mb-2">לא נמצאו נתונים</h3>
+                     <p className="text-slate-500 max-w-md">
+                        לא הצלחנו למצוא פרופיל לוחם המקושר למשתמש שלך ({currentUserName || currentUserEmail}).
+                        אנא פנה למנהל המערכת לוודא שהשם שלך במערכת זהה לשם המשתמש.
+                     </p>
                   </div>
-               </div>
+               ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                     {people.map(person => (
+                        <PersonalStats
+                           key={person.id}
+                           person={person}
+                           shifts={shifts}
+                           tasks={tasks}
+                           onClick={() => setSelectedPersonId(person.id)}
+                           nightShiftStart={nightShiftStart}
+                           nightShiftEnd={nightShiftEnd}
+                        />
+                     ))}
+                     <div className="bg-white rounded-xl shadow-portal p-6 flex items-center justify-between border-b-4 border-purple-400">
+                        <div>
+                           <p className="text-slate-500 font-medium text-sm mb-1">משמרות פעילות</p>
+                           <h3 className="text-3xl font-bold text-slate-800">{shifts.length}</h3>
+                        </div>
+                        <div className="bg-purple-50 p-3 rounded-full text-purple-500"><CalendarCheck size={24} /></div>
+                     </div>
+                  </div>
+               )
             )
          ) : (
             <>

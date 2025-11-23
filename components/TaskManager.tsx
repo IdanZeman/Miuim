@@ -30,10 +30,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     // Form State
     const [name, setName] = useState('');
     const [duration, setDuration] = useState(4);
-    const [requiredPeople, setRequiredPeople] = useState(2);
     const [minRest, setMinRest] = useState(8);
     const [difficulty, setDifficulty] = useState(3);
-    const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
+    const [roleComposition, setRoleComposition] = useState<{ roleId: string; count: number }[]>([]);
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
     const [schedulingType, setSchedulingType] = useState<SchedulingType>('continuous');
     const [startTime, setStartTime] = useState('08:00');
@@ -42,10 +41,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     const resetForm = () => {
         setName('');
         setDuration(4);
-        setRequiredPeople(2);
         setMinRest(8);
         setDifficulty(3);
-        setSelectedRoleIds([]);
+        setRoleComposition([]);
         setSelectedColor(COLORS[0]);
         setSchedulingType('continuous');
         setStartTime('08:00');
@@ -57,10 +55,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     const handleEditClick = (task: TaskTemplate) => {
         setName(task.name);
         setDuration(task.durationHours);
-        setRequiredPeople(task.requiredPeople);
         setMinRest(task.minRestHoursBefore);
         setDifficulty(task.difficulty);
-        setSelectedRoleIds(task.requiredRoleIds);
+        setRoleComposition(task.roleComposition || []);
         setSelectedColor(task.color);
         setSchedulingType(task.schedulingType);
         setStartTime(task.defaultStartTime || '08:00');
@@ -72,14 +69,19 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     const handleSubmit = () => {
         if (!name) return;
 
+        const totalPeople = roleComposition.reduce((sum, rc) => sum + rc.count, 0);
+        // If no composition is set, default to 1 person (generic) - or force at least one?
+        // Let's assume if empty, it's 1 generic person? No, user wants explicit.
+        // If empty, maybe allow it but warn? Let's just use the sum. If 0, it's 0.
+
         const taskData: TaskTemplate = {
             id: editId || `task-${Date.now()}`,
             name,
             durationHours: Number(duration),
-            requiredPeople: Number(requiredPeople),
+            requiredPeople: totalPeople > 0 ? totalPeople : 1, // Fallback to 1 if empty
             minRestHoursBefore: Number(minRest),
             difficulty: Number(difficulty),
-            requiredRoleIds: selectedRoleIds,
+            roleComposition,
             color: selectedColor,
             schedulingType,
             is247: schedulingType === 'continuous',
@@ -95,10 +97,23 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         resetForm();
     };
 
-    const toggleRole = (id: string) => {
-        if (selectedRoleIds.includes(id)) setSelectedRoleIds(prev => prev.filter(x => x !== id));
-        else setSelectedRoleIds(prev => [...prev, id]);
+    const addRoleRow = () => {
+        if (roles.length === 0) return;
+        setRoleComposition([...roleComposition, { roleId: roles[0].id, count: 1 }]);
     };
+
+    const updateRoleRow = (index: number, field: 'roleId' | 'count', value: string | number) => {
+        const newComp = [...roleComposition];
+        if (field === 'roleId') newComp[index].roleId = value as string;
+        if (field === 'count') newComp[index].count = Number(value);
+        setRoleComposition(newComp);
+    };
+
+    const removeRoleRow = (index: number) => {
+        setRoleComposition(roleComposition.filter((_, i) => i !== index));
+    };
+
+    const totalPeople = roleComposition.reduce((sum, rc) => sum + rc.count, 0);
 
     return (
         <div className="bg-white rounded-xl shadow-portal p-6 min-h-[600px]">
@@ -132,8 +147,10 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                 <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-idf-yellow outline-none" min="1" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">לוחמים נדרשים</label>
-                                <input type="number" value={requiredPeople} onChange={e => setRequiredPeople(Number(e.target.value))} className="w-full p-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-idf-yellow outline-none" min="1" />
+                                <label className="block text-xs font-bold text-slate-500 mb-1">סה"כ לוחמים</label>
+                                <div className="w-full p-2.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 font-bold">
+                                    {totalPeople > 0 ? totalPeople : 1}
+                                </div>
                             </div>
                         </div>
 
@@ -216,22 +233,39 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     </div>
 
                     <div className="mb-6">
-                        <label className="block text-xs font-bold text-slate-500 mb-2">תפקידים נדרשים (אופציונלי)</label>
-                        <div className="flex flex-wrap gap-2">
-                            {roles.map(r => (
-                                <button
-                                    key={r.id}
-                                    onClick={() => toggleRole(r.id)}
-                                    className={`px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1 ${selectedRoleIds.includes(r.id) ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}
-                                >
-                                    {r.name} {selectedRoleIds.includes(r.id) && <Check size={12} />}
-                                </button>
+                        <label className="block text-xs font-bold text-slate-500 mb-2">הרכב כוח אדם (תפקידים וכמות)</label>
+                        <div className="space-y-2">
+                            {roleComposition.map((rc, idx) => (
+                                <div key={idx} className="flex items-center gap-2 animate-fadeIn">
+                                    <select
+                                        value={rc.roleId}
+                                        onChange={e => updateRoleRow(idx, 'roleId', e.target.value)}
+                                        className="p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-idf-yellow outline-none flex-1 text-sm"
+                                    >
+                                        {roles.map(r => (
+                                            <option key={r.id} value={r.id}>{r.name}</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={rc.count}
+                                        onChange={e => updateRoleRow(idx, 'count', e.target.value)}
+                                        className="w-20 p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-idf-yellow outline-none text-sm"
+                                    />
+                                    <button onClick={() => removeRoleRow(idx)} className="text-red-500 hover:bg-red-50 p-2 rounded-full">
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             ))}
+                            <button onClick={addRoleRow} className="text-blue-600 text-sm font-bold hover:underline flex items-center gap-1">
+                                <Plus size={14} /> הוסף דרישת תפקיד
+                            </button>
                         </div>
                     </div>
 
                     <div className="flex justify-end gap-2">
-                        <button onClick={() => { /* Swap logic implemented */ handleSubmit(); }} className="px-6 py-2 bg-idf-yellow text-slate-900 rounded-lg font-bold shadow-sm hover:bg-idf-yellow-hover transition-colors">
+                        <button onClick={handleSubmit} className="px-6 py-2 bg-idf-yellow text-slate-900 rounded-lg font-bold shadow-sm hover:bg-idf-yellow-hover transition-colors">
                             {editId ? 'עדכן משימה' : 'שמור משימה'}
                         </button>
                         <button onClick={resetForm} className="px-5 py-2 text-slate-500 hover:bg-slate-200 rounded-lg text-sm font-medium transition-colors">ביטול</button>
@@ -294,16 +328,16 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                         </div>
 
                         <div className="pt-4 border-t border-slate-100 pr-4">
-                            <p className="text-xs font-bold text-slate-500 mb-3">תפקידים נדרשים:</p>
+                            <p className="text-xs font-bold text-slate-500 mb-3">הרכב כוח אדם:</p>
                             <div className="flex flex-wrap gap-2">
-                                {task.requiredRoleIds.length > 0 ? task.requiredRoleIds.map((rid, idx) => {
-                                    const r = roles.find(role => role.id === rid);
+                                {task.roleComposition && task.roleComposition.length > 0 ? task.roleComposition.map((rc, idx) => {
+                                    const r = roles.find(role => role.id === rc.roleId);
                                     return r ? (
-                                        <span key={`${rid}-${idx}`} className="text-xs px-3 py-1 rounded-full border border-slate-200 font-medium text-slate-600 bg-slate-50">
-                                            {r.name}
+                                        <span key={`${rc.roleId}-${idx}`} className="text-xs px-3 py-1 rounded-full border border-slate-200 font-medium text-slate-600 bg-slate-50">
+                                            {rc.count}x {r.name}
                                         </span>
                                     ) : null;
-                                }) : <span className="text-xs text-slate-400 italic">אין דרישות מיוחדות</span>}
+                                }) : <span className="text-xs text-slate-400 italic">ללא דרישות מיוחדות</span>}
                             </div>
                         </div>
                     </div>
