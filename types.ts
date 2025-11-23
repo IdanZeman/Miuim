@@ -18,6 +18,7 @@ export interface OrganizationSettings {
   organization_id: string;
   night_shift_start: string; // "HH:MM:SS"
   night_shift_end: string;   // "HH:MM:SS"
+  viewer_schedule_days?: number; // Default 2
 }
 
 export interface OrganizationInvite {

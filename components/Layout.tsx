@@ -76,9 +76,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             {!isPublic && setView && (
               <nav className="hidden md:flex items-center gap-1">
                 <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" />
-                <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" />
-                <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות וזמינות" icon={Clock} />
-                <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" />
+                {/* Hide personnel, attendance, and tasks from viewers */}
+                {profile?.role !== 'viewer' && (
+                  <>
+                    <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" />
+                    <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות וזמינות" icon={Clock} />
+                    <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" />
+                  </>
+                )}
                 <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label="דוחות" />
                 {isAdmin && (
                   <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
@@ -112,9 +117,13 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       {!isPublic && isMobileMenuOpen && setView && (
         <div className="absolute top-16 left-0 right-0 bg-white shadow-lg z-50 p-4 flex flex-col gap-2 md:hidden">
           <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('dashboard'); setIsMobileMenuOpen(false) }}>לוח שיבוצים</button>
-          <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('personnel'); setIsMobileMenuOpen(false) }}>ניהול כוח אדם</button>
-          <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('attendance'); setIsMobileMenuOpen(false) }}>נוכחות</button>
-          <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('tasks'); setIsMobileMenuOpen(false) }}>משימות</button>
+          {profile?.role !== 'viewer' && (
+            <>
+              <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('personnel'); setIsMobileMenuOpen(false) }}>ניהול כוח אדם</button>
+              <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('attendance'); setIsMobileMenuOpen(false) }}>נוכחות</button>
+              <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('tasks'); setIsMobileMenuOpen(false) }}>משימות</button>
+            </>
+          )}
           <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('stats'); setIsMobileMenuOpen(false) }}>דוחות</button>
           {isAdmin && (
             <button className="p-3 text-right font-medium hover:bg-slate-50 rounded-lg" onClick={() => { setView('settings'); setIsMobileMenuOpen(false) }}>הגדרות</button>

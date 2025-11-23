@@ -5,11 +5,13 @@ import { OrganizationInvite, Profile, UserRole } from '../types';
 import { getRoleDisplayName, getRoleDescription, canManageOrganization } from '../utils/permissions';
 import { Users, Mail, Trash2, Shield, UserPlus, Clock, CheckCircle, XCircle, Moon, Save } from 'lucide-react';
 
-const NightShiftSettings: React.FC<{ organizationId: string }> = ({ organizationId }) => {
+const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId }) => {
     const [start, setStart] = useState('22:00');
     const [end, setEnd] = useState('06:00');
+    const [viewerDays, setViewerDays] = useState(2);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
 
     useEffect(() => {
         fetchSettings();
@@ -25,6 +27,7 @@ const NightShiftSettings: React.FC<{ organizationId: string }> = ({ organization
         if (data) {
             setStart(data.night_shift_start.slice(0, 5));
             setEnd(data.night_shift_end.slice(0, 5));
+            setViewerDays(data.viewer_schedule_days || 2);
         }
         setLoading(false);
     };
@@ -36,14 +39,16 @@ const NightShiftSettings: React.FC<{ organizationId: string }> = ({ organization
             .upsert({
                 organization_id: organizationId,
                 night_shift_start: start,
-                night_shift_end: end
+                night_shift_end: end,
+                viewer_schedule_days: viewerDays
             });
 
         if (error) {
             console.error('Error saving settings:', error);
             alert('שגיאה בשמירת ההגדרות');
         } else {
-            alert('הגדרות נשמרו בהצלחה');
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 3000);
         }
         setSaving(false);
     };
@@ -51,33 +56,60 @@ const NightShiftSettings: React.FC<{ organizationId: string }> = ({ organization
     if (loading) return <div className="text-slate-500">טוען הגדרות...</div>;
 
     return (
-        <div className="flex items-end gap-4">
-            <div>
-                <label className="block text-slate-700 font-medium mb-2 text-right">התחלה</label>
-                <input
-                    type="time"
-                    value={start}
-                    onChange={e => setStart(e.target.value)}
-                    className="px-4 py-2 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none"
-                />
+        <div className="space-y-6">
+            <div className="flex items-end gap-4">
+                <div>
+                    <label className="block text-slate-700 font-medium mb-2 text-right">התחלת משמרת לילה</label>
+                    <input
+                        type="time"
+                        value={start}
+                        onChange={e => setStart(e.target.value)}
+                        className="px-4 py-2 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="block text-slate-700 font-medium mb-2 text-right">סיום משמרת לילה</label>
+                    <input
+                        type="time"
+                        value={end}
+                        onChange={e => setEnd(e.target.value)}
+                        className="px-4 py-2 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none"
+                    />
+                </div>
             </div>
-            <div>
-                <label className="block text-slate-700 font-medium mb-2 text-right">סיום</label>
-                <input
-                    type="time"
-                    value={end}
-                    onChange={e => setEnd(e.target.value)}
-                    className="px-4 py-2 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none"
-                />
+
+            <div className="border-t border-slate-100 pt-6">
+                <label className="block text-slate-700 font-medium mb-2 text-right">חשיפת לו"ז לצופים (ימים קדימה)</label>
+                <div className="flex items-center gap-4">
+                    <input
+                        type="number"
+                        min="1"
+                        max="30"
+                        value={viewerDays}
+                        onChange={e => setViewerDays(parseInt(e.target.value))}
+                        className="w-24 px-4 py-2 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none"
+                    />
+                    <span className="text-slate-500 text-sm">ימים</span>
+                </div>
+                <p className="text-slate-400 text-sm mt-1">המשתמשים יוכלו לראות את הלו"ז להיום ולמספר הימים הבאים שהוגדר.</p>
             </div>
-            <button
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2 disabled:opacity-50"
-            >
-                <Save size={18} />
-                {saving ? 'שומר...' : 'שמור'}
-            </button>
+
+            <div className="flex justify-end items-center gap-4">
+                {showSuccess && (
+                    <div className="flex items-center gap-2 text-green-600 animate-fadeIn">
+                        <CheckCircle size={18} />
+                        <span className="font-bold text-sm">נשמר בהצלחה!</span>
+                    </div>
+                )}
+                <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                    <Save size={18} />
+                    {saving ? 'שומר...' : 'שמור שינויים'}
+                </button>
+            </div>
         </div>
     );
 };
@@ -240,9 +272,9 @@ export const OrganizationSettings: React.FC = () => {
             <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-indigo-200">
                 <div className="flex items-center gap-3 mb-6">
                     <Moon className="text-indigo-600" size={24} />
-                    <h2 className="text-2xl font-bold text-slate-800">הגדרות לילה</h2>
+                    <h2 className="text-2xl font-bold text-slate-800">הגדרות כלליות</h2>
                 </div>
-                <NightShiftSettings organizationId={organization?.id || ''} />
+                <GeneralSettings organizationId={organization?.id || ''} />
             </div>
 
             {/* Invite Form */}

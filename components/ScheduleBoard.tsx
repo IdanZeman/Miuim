@@ -1,9 +1,11 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { generateAssignmentExplanation } from '../services/geminiService';
 import { getPersonInitials } from '../utils/nameUtils';
 import { ChevronLeft, ChevronRight, Plus, X, Check, BrainCircuit, AlertTriangle, Sparkles, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabaseClient';
 
 interface ScheduleBoardProps {
     shifts: Shift[];
@@ -29,7 +31,8 @@ const ShiftCard: React.FC<{
     people: Person[];
     onSelect: (shift: Shift) => void;
     onDelete: (shiftId: string) => void;
-}> = ({ shift, compact = false, tasks, people, onSelect, onDelete }) => {
+    isViewer: boolean;
+}> = ({ shift, compact = false, tasks, people, onSelect, onDelete, isViewer }) => {
     const task = tasks.find(t => t.id === shift.taskId);
     if (!task) return null;
     const isFull = shift.assignedPersonIds.length >= task.requiredPeople;
@@ -46,16 +49,18 @@ const ShiftCard: React.FC<{
             {/* Color Indicator Strip */}
             <div className={`absolute top-0 right-0 w-1 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
 
-            {/* Delete Action (Visible on Hover) - NO CONFIRM */}
-            <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(shift.id);
-                }}
-                className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 p-1 rounded-full bg-white/80 transition-all z-20"
-            >
-                <Trash2 size={14} />
-            </button>
+            {/* Delete Action (Visible on Hover) - NO CONFIRM - Hidden for Viewers */}
+            {!isViewer && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(shift.id);
+                    }}
+                    className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 p-1 rounded-full bg-white/80 transition-all z-20"
+                >
+                    <Trash2 size={14} />
+                </button>
+            )}
 
             <div className="flex justify-between items-start mb-2 pr-2">
                 <div>
@@ -120,7 +125,28 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     onDeleteShift,
     onClearDay
 }) => {
+    const { profile, organization } = useAuth();
+    const isViewer = profile?.role === 'viewer';
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
+    const [viewerDaysLimit, setViewerDaysLimit] = useState(2); // Default to 2 days (Today + Tomorrow)
+
+    useEffect(() => {
+        if (organization?.id) {
+            supabase
+                .from('organization_settings')
+                .select('viewer_schedule_days')
+                .eq('organization_id', organization.id)
+                .maybeSingle()
+                .then(({ data, error }) => {
+                    if (error) {
+                        console.error('Error fetching viewer settings:', error);
+                    }
+                    if (data?.viewer_schedule_days) {
+                        setViewerDaysLimit(data.viewer_schedule_days);
+                    }
+                });
+        }
+    }, [organization?.id]);
 
     const selectedShift = useMemo(() =>
         shifts.find(s => s.id === selectedShiftId) || null
@@ -143,6 +169,69 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     // Portal Style Card for "Current/Next" Shift
     const renderFeaturedCard = () => {
         const now = new Date();
+
+        if (isViewer) {
+            // --- Viewer Personalized View ---
+            const currentPerson = people.find(p => p.name === profile?.full_name || (p as any).email === profile?.email);
+            const nextPersonalShift = currentPerson
+                ? shifts
+                    .filter(s => s.assignedPersonIds.includes(currentPerson.id) && new Date(s.startTime) > now)
+                    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0]
+                : null;
+
+            const task = nextPersonalShift ? tasks.find(t => t.id === nextPersonalShift.taskId) : null;
+
+            return (
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-0 overflow-hidden mb-8">
+                    <div className="p-6 md:p-8">
+                        <div className="mb-6">
+                            <h2 className="text-3xl font-bold text-slate-800 mb-1">
+                                שלום, {profile?.full_name?.split(' ')[0] || 'לוחם'}
+                            </h2>
+                            <p className="text-slate-500 text-lg">הנה המשימה הבאה  שלך להיום</p>
+                        </div>
+
+                        {nextPersonalShift && task ? (
+                            <div className={`bg-white rounded-xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all`}>
+                                <div className={`absolute top-0 right-0 w-1.5 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
+
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">המשמרת הבאה</span>
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-slate-800 mb-2">{task.name}</h3>
+                                        <div className="flex flex-wrap gap-x-6 gap-y-2 text-slate-600">
+                                            <div className="flex items-center gap-2">
+                                                <CalendarIcon size={18} className="text-slate-400" />
+                                                <span className="font-medium">{new Date(nextPersonalShift.startTime).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Clock size={18} className="text-slate-400" />
+                                                <span className="font-medium" dir="ltr">
+                                                    {new Date(nextPersonalShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(nextPersonalShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-center bg-slate-50 rounded-full w-12 h-12 md:w-16 md:h-16 text-slate-400">
+                                        <Clock size={24} />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-slate-50 rounded-xl p-8 text-center border border-slate-100">
+                                <p className="text-slate-600 text-lg font-medium">אין משמרות קרובות ביומן</p>
+                                <p className="text-slate-400 text-sm mt-1">ניתן לנוח ולהתעדכן בהמשך</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // --- Admin/Manager General View ---
         const upcoming = shifts.find(s => new Date(s.startTime) > now);
         if (!upcoming) return null;
         const task = tasks.find(t => t.id === upcoming.taskId);
@@ -258,7 +347,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[85vh]">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                         <div>
-                            <h3 className="text-xl font-bold text-slate-900">{task.name} - ניהול שיבוץ</h3>
+                            <h3 className="text-xl font-bold text-slate-900">{task.name} - {isViewer ? 'פרטי משמרת' : 'ניהול שיבוץ'}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
                                 {!isEditingTime ? (
                                     <div className="flex items-center gap-2">
@@ -269,9 +358,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                 {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </p>
-                                        <button onClick={() => setIsEditingTime(true)} className="text-blue-600 hover:text-blue-800 p-1 bg-blue-50 rounded-full transition-colors" title="ערוך שעות">
-                                            <Pencil size={12} />
-                                        </button>
+                                        {!isViewer && (
+                                            <button onClick={() => setIsEditingTime(true)} className="text-blue-600 hover:text-blue-800 p-1 bg-blue-50 rounded-full transition-colors" title="ערוך שעות">
+                                                <Pencil size={12} />
+                                            </button>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2 animate-fadeIn">
@@ -295,17 +386,19 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => {
-                                    // NO CONFIRM
-                                    onDeleteShift(selectedShift.id);
-                                    setSelectedShiftId(null);
-                                }}
-                                className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"
-                                title="מחק משמרת"
-                            >
-                                <Trash2 size={20} />
-                            </button>
+                            {!isViewer && (
+                                <button
+                                    onClick={() => {
+                                        // NO CONFIRM
+                                        onDeleteShift(selectedShift.id);
+                                        setSelectedShiftId(null);
+                                    }}
+                                    className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"
+                                    title="מחק משמרת"
+                                >
+                                    <Trash2 size={20} />
+                                </button>
+                            )}
                             <button onClick={() => setSelectedShiftId(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
                                 <X size={24} />
                             </button>
@@ -329,9 +422,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-red-500 p-1.5 hover:bg-red-100 rounded-lg"><X size={16} /></button>
-                                        </div>
+                                        {!isViewer && (
+                                            <div className="flex items-center gap-1">
+                                                <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-red-500 p-1.5 hover:bg-red-100 rounded-lg"><X size={16} /></button>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                                 {assignedPeople.length === 0 && <p className="text-slate-400 text-sm text-center py-4">לא שובצו לוחמים</p>}
@@ -340,30 +435,32 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                         </div>
 
-                        <div className="flex-1 p-6 overflow-y-auto bg-slate-50/50">
-                            <h4 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider">מאגר זמין</h4>
-                            <div className="space-y-2">
-                                {availablePeople.map(p => {
-                                    const hasRole = task.requiredRoleIds.length === 0 || task.requiredRoleIds.some(req => p.roleIds.includes(req));
-                                    const isFull = assignedPeople.length >= task.requiredPeople;
-                                    const canAssign = hasRole && !isFull;
+                        {!isViewer && (
+                            <div className="flex-1 p-6 overflow-y-auto bg-slate-50/50">
+                                <h4 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider">מאגר זמין</h4>
+                                <div className="space-y-2">
+                                    {availablePeople.map(p => {
+                                        const hasRole = task.requiredRoleIds.length === 0 || task.requiredRoleIds.some(req => p.roleIds.includes(req));
+                                        const isFull = assignedPeople.length >= task.requiredPeople;
+                                        const canAssign = hasRole && !isFull;
 
-                                    return (
-                                        <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${canAssign ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${p.color}`}>{getPersonInitials(p.name)}</div>
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-700 text-sm" title={p.name}>{p.name}</span>
-                                                    {!hasRole && <span className="text-[10px] text-red-500">אין התאמה</span>}
-                                                    {isFull && hasRole && <span className="text-[10px] text-amber-500">משמרת מלאה</span>}
+                                        return (
+                                            <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${canAssign ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${p.color}`}>{getPersonInitials(p.name)}</div>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-slate-700 text-sm" title={p.name}>{p.name}</span>
+                                                        {!hasRole && <span className="text-[10px] text-red-500">אין התאמה</span>}
+                                                        {isFull && hasRole && <span className="text-[10px] text-amber-500">משמרת מלאה</span>}
+                                                    </div>
                                                 </div>
+                                                <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!canAssign} className={`px-3 py-1 rounded-full text-xs font-bold ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
                                             </div>
-                                            <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!canAssign} className={`px-3 py-1 rounded-full text-xs font-bold ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -382,6 +479,23 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         });
     }, [tasks, selectedDate]);
 
+    // Date Navigation Logic for Viewers
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const isToday = selectedDate.toDateString() === today.toDateString();
+
+    // Calculate max date for viewers
+    const maxViewerDate = new Date(today);
+    maxViewerDate.setDate(today.getDate() + (viewerDaysLimit - 1)); // -1 because today is day 1
+
+    const isAtViewerLimit = selectedDate >= maxViewerDate;
+
+    const canGoNext = !isViewer || !isAtViewerLimit;
+    const canGoPrev = true; // Allow viewing history
+
     return (
         <div className="flex flex-col gap-8">
             {renderFeaturedCard()}
@@ -396,8 +510,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         <h3 className="text-xl font-bold text-slate-800">
                             מבט יומי
                         </h3>
-                        {/* Daily Availability Badge */}
-                        {(() => {
+                        {/* Daily Availability Badge - Hidden for Viewers */}
+                        {!isViewer && (() => {
                             const dateKey = selectedDate.toLocaleDateString('en-CA');
                             const unavailableCount = people.filter(p => {
                                 // Check if person is unavailable on this date
@@ -420,30 +534,48 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={onClearDay}
-                            className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-full font-bold text-sm transition-colors"
-                        >
-                            <Trash2 size={16} />
-                            נקה יום
-                        </button>
+                        {!isViewer && (
+                            <button
+                                onClick={onClearDay}
+                                className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-full font-bold text-sm transition-colors"
+                            >
+                                <Trash2 size={16} />
+                                נקה יום
+                            </button>
+                        )}
 
                         <div className="flex items-center bg-slate-100 rounded-full p-1">
-                            <button onClick={() => {
-                                const d = new Date(selectedDate);
-                                d.setDate(d.getDate() + 1);
-                                onDateChange(d);
-                            }} className="p-2 hover:bg-white rounded-full shadow-sm transition-all"><ChevronRight size={16} /></button>
+                            <button
+                                onClick={() => {
+                                    if (canGoNext) {
+                                        const d = new Date(selectedDate);
+                                        d.setDate(d.getDate() + 1);
+                                        onDateChange(d);
+                                    }
+                                }}
+                                disabled={!canGoNext}
+                                className={`p-2 rounded-full shadow-sm transition-all ${canGoNext ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}
+                            >
+                                <ChevronRight size={16} />
+                            </button>
 
                             <span className="px-4 text-sm font-bold text-slate-600 min-w-[140px] text-center">
                                 {selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
                             </span>
 
-                            <button onClick={() => {
-                                const d = new Date(selectedDate);
-                                d.setDate(d.getDate() - 1);
-                                onDateChange(d);
-                            }} className="p-2 hover:bg-white rounded-full shadow-sm transition-all"><ChevronLeft size={16} /></button>
+                            <button
+                                onClick={() => {
+                                    if (canGoPrev) {
+                                        const d = new Date(selectedDate);
+                                        d.setDate(d.getDate() - 1);
+                                        onDateChange(d);
+                                    }
+                                }}
+                                disabled={!canGoPrev}
+                                className={`p-2 rounded-full shadow-sm transition-all ${canGoPrev ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -471,7 +603,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        {taskShifts.map(shift => <ShiftCard key={shift.id} shift={shift} tasks={tasks} people={people} onSelect={(s) => setSelectedShiftId(s.id)} onDelete={onDeleteShift} />)}
+                                        {taskShifts.map(shift => <ShiftCard key={shift.id} shift={shift} tasks={tasks} people={people} onSelect={(s) => setSelectedShiftId(s.id)} onDelete={onDeleteShift} isViewer={isViewer} />)}
                                         {taskShifts.length === 0 && <div className="text-center py-10 text-slate-400 text-sm italic">אין משמרות ליום זה</div>}
                                     </div>
                                 </div>

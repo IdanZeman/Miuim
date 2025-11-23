@@ -28,7 +28,7 @@ import { OrganizationSettings } from './components/OrganizationSettings';
 
 // --- Main App Content (Authenticated) ---
 const MainApp: React.FC = () => {
-    const { organization } = useAuth();
+    const { organization, user, profile } = useAuth();
     const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats'>('dashboard');
     const [isLoading, setIsLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -478,22 +478,32 @@ const MainApp: React.FC = () => {
                     onDeleteTask={handleDeleteTask}
                 />;
             case 'stats':
-                return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} />;
+                return <StatsDashboard
+                    people={state.people}
+                    shifts={state.shifts}
+                    tasks={state.taskTemplates}
+                    roles={state.roles}
+                    isViewer={profile?.role === 'viewer'}
+                    currentUserEmail={profile?.email || user?.email}
+                    currentUserName={profile?.full_name}
+                />;
             case 'settings':
                 return <OrganizationSettings />;
             case 'dashboard':
             default:
                 return (
                     <div className="space-y-6">
-                        <div className="fixed bottom-8 left-8 z-50">
-                            <button
-                                onClick={handleAutoSchedule}
-                                className="bg-[#82d682] hover:bg-[#6cc16c] text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 transition-all hover:scale-105 font-bold"
-                            >
-                                <Wand2 size={20} />
-                                <span>שיבוץ אוטומטי</span>
-                            </button>
-                        </div>
+                        {profile?.role !== 'viewer' && (
+                            <div className="fixed bottom-8 left-8 z-50">
+                                <button
+                                    onClick={handleAutoSchedule}
+                                    className="bg-[#82d682] hover:bg-[#6cc16c] text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 transition-all hover:scale-105 font-bold"
+                                >
+                                    <Wand2 size={20} />
+                                    <span>שיבוץ אוטומטי</span>
+                                </button>
+                            </div>
+                        )}
 
                         {aiHealthMsg && (
                             <div className="bg-white border-r-4 border-idf-yellow p-6 rounded-xl shadow-portal animate-fadeIn flex gap-4 items-start mb-6">
