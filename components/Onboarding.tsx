@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Mail, CheckCircle } from 'lucide-react';
+import { Building2, Mail, CheckCircle, Sparkles, Shield } from 'lucide-react';
 
 export const Onboarding: React.FC = () => {
     const { user, refreshProfile } = useAuth();
@@ -120,10 +120,14 @@ export const Onboarding: React.FC = () => {
 
     if (checkingInvite) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-yellow-50 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-                    <p className="text-slate-600">בודק הזמנות...</p>
+                    <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg mb-4 mx-auto animate-pulse">
+                        <svg className="w-10 h-10 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                        </svg>
+                    </div>
+                    <p className="text-slate-600 font-medium">בודק הזמנות...</p>
                 </div>
             </div>
         );
@@ -132,56 +136,94 @@ export const Onboarding: React.FC = () => {
     // If user has a pending invite, show accept invite screen
     if (pendingInvite) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-emerald-50">
-                <div className="min-h-screen flex items-center justify-center p-4">
-                    <div className="bg-white p-12 rounded-3xl shadow-xl max-w-lg w-full border-2 border-blue-200">
-                        {/* Icon */}
-                        <div className="flex justify-center mb-8">
-                            <div className="bg-gradient-to-br from-blue-400 to-blue-600 p-5 rounded-2xl shadow-lg">
-                                <Mail size={48} className="text-white" />
+            <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 overflow-y-auto">
+                {/* Header with Logo */}
+                <div className="bg-white border-b border-slate-200 shadow-sm">
+                    <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
+                        <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
+                            <svg className="w-6 h-6 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                            </svg>
+                        </div>
+                        <span className="text-xl font-bold text-slate-800">Miuim</span>
+                    </div>
+                </div>
+
+                <div className="min-h-[calc(100vh-80px)] flex items-center justify-center p-4 md:p-8">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden border border-slate-200">
+                        {/* Header Section */}
+                        <div className="bg-gradient-to-r from-green-600 to-teal-600 p-8 md:p-12 text-center relative overflow-hidden">
+                            <div className="absolute inset-0 opacity-10">
+                                <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                                <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
+                            </div>
+                            
+                            <div className="relative z-10">
+                                <div className="flex justify-center mb-4">
+                                    <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl">
+                                        <Mail size={48} className="text-white" />
+                                    </div>
+                                </div>
+                                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">קיבלת הזמנה!</h1>
+                                <p className="text-green-50 text-lg">הוזמנת להצטרף לארגון</p>
                             </div>
                         </div>
 
-                        {/* Title */}
-                        <div className="text-center mb-8">
-                            <h1 className="text-4xl font-bold text-slate-800 mb-3">קיבלת הזמנה!</h1>
-                            <p className="text-slate-600 text-lg">הוזמנת להצטרף לארגון</p>
-                        </div>
-
-                        {/* Invite Details */}
-                        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-6">
-                            <div className="text-center">
-                                <p className="text-sm text-slate-600 mb-2">ארגון:</p>
-                                <p className="text-2xl font-bold text-slate-800 mb-4">
-                                    {pendingInvite.organizations?.name || 'ארגון'}
-                                </p>
-                                <p className="text-sm text-slate-600 mb-2">תפקיד:</p>
-                                <p className="text-lg font-medium text-blue-700">
-                                    {pendingInvite.invited_role === 'admin' && 'מנהל מערכת'}
-                                    {pendingInvite.invited_role === 'shift_manager' && 'אחראי שמירות'}
-                                    {pendingInvite.invited_role === 'viewer' && 'צופה'}
-                                </p>
+                        {/* Content Section */}
+                        <div className="p-8 md:p-12">
+                            {/* Invite Details Card */}
+                            <div className="bg-gradient-to-br from-green-50 to-teal-50 border-2 border-green-200 rounded-xl p-6 md:p-8 mb-8">
+                                <div className="flex items-center justify-center mb-4">
+                                    <Building2 size={32} className="text-green-600" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm text-slate-600 mb-2 font-medium">ארגון:</p>
+                                    <p className="text-2xl md:text-3xl font-bold text-slate-900 mb-6">
+                                        {pendingInvite.organizations?.name || 'ארגון'}
+                                    </p>
+                                    
+                                    <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 inline-block">
+                                        <p className="text-sm text-slate-600 mb-1 font-medium">תפקיד:</p>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <Shield size={18} className="text-green-600" />
+                                            <p className="text-lg font-bold text-green-700">
+                                                {pendingInvite.invited_role === 'admin' && 'מנהל מערכת'}
+                                                {pendingInvite.invited_role === 'shift_manager' && 'אחראי שמירות'}
+                                                {pendingInvite.invited_role === 'viewer' && 'צופה'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Accept Button */}
-                        <button
-                            onClick={handleAcceptInvite}
-                            disabled={loading}
-                            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed text-lg flex items-center justify-center gap-3"
-                        >
-                            <CheckCircle size={24} />
-                            <span>{loading ? 'מצטרף...' : 'קבל הזמנה והצטרף'}</span>
-                        </button>
-
-                        {/* Create Own Org Option */}
-                        <div className="mt-6 text-center">
+                            {/* Accept Button */}
                             <button
-                                onClick={() => setPendingInvite(null)}
-                                className="text-slate-600 hover:text-slate-800 text-sm underline"
+                                onClick={handleAcceptInvite}
+                                disabled={loading}
+                                className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed text-lg flex items-center justify-center gap-3"
                             >
-                                או צור ארגון חדש משלך
+                                {loading ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        מצטרף...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle size={24} />
+                                        קבל הזמנה והצטרף
+                                    </>
+                                )}
                             </button>
+
+                            {/* Alternative Option */}
+                            <div className="mt-6 text-center">
+                                <button
+                                    onClick={() => setPendingInvite(null)}
+                                    className="text-slate-600 hover:text-slate-800 font-medium text-sm transition-colors"
+                                >
+                                    או צור ארגון חדש משלך →
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -191,53 +233,88 @@ export const Onboarding: React.FC = () => {
 
     // Default: Create new organization
     return (
-        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-yellow-50">
-            <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="bg-white p-12 rounded-3xl shadow-xl max-w-lg w-full border-2 border-emerald-200">
-                    {/* Icon */}
-                    <div className="flex justify-center mb-8">
-                        <div className="bg-gradient-to-br from-emerald-400 to-green-500 p-5 rounded-2xl shadow-lg">
-                            <Building2 size={48} className="text-white" />
+        <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 overflow-y-auto">
+            {/* Header with Logo */}
+            <div className="bg-white border-b border-slate-200 shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
+                        <svg className="w-6 h-6 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                        </svg>
+                    </div>
+                    <span className="text-xl font-bold text-slate-800">Miuim</span>
+                </div>
+            </div>
+
+            <div className="min-h-[calc(100vh-80px)] flex items-center justify-center p-4 md:p-8">
+                <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden border border-slate-200">
+                    {/* Header Section */}
+                    <div className="bg-gradient-to-r from-green-600 to-teal-600 p-8 md:p-12 text-center relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-10">
+                            <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                            <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
+                        </div>
+                        
+                        <div className="relative z-10">
+                            <div className="flex justify-center mb-4">
+                                <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl">
+                                    <Building2 size={48} className="text-white" />
+                                </div>
+                            </div>
+                            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">ברוך הבא!</h1>
+                            <p className="text-green-50 text-lg">בוא ניצור את הארגון הראשון שלך</p>
                         </div>
                     </div>
 
-                    {/* Title */}
-                    <div className="text-center mb-8">
-                        <h1 className="text-4xl font-bold text-slate-800 mb-3">ברוך הבא!</h1>
-                        <p className="text-slate-600 text-lg">בוא ניצור את הארגון הראשון שלך</p>
-                    </div>
+                    {/* Form Section */}
+                    <div className="p-8 md:p-12">
+                        <form onSubmit={handleCreateOrg} className="space-y-6">
+                            <div>
+                                <label className="block text-slate-700 font-bold mb-3 text-right text-lg flex items-center gap-2">
+                                    <Building2 size={20} className="text-green-600" />
+                                    שם הארגון / היחידה
+                                </label>
+                                <input
+                                    type="text"
+                                    value={orgName}
+                                    onChange={(e) => setOrgName(e.target.value)}
+                                    placeholder="לדוגמה: פלוגה א׳, צוות..."
+                                    className="w-full px-4 py-4 rounded-xl bg-white border-2 border-slate-200 focus:border-green-500 focus:outline-none text-slate-800 placeholder-slate-400 text-right text-lg transition-colors shadow-sm"
+                                    required
+                                    disabled={loading}
+                                />
+                            </div>
 
-                    {/* Form */}
-                    <form onSubmit={handleCreateOrg} className="space-y-6">
-                        <div>
-                            <label className="block text-slate-700 font-medium mb-3 text-right text-lg">
-                                שם הארגון / היחידה
-                            </label>
-                            <input
-                                type="text"
-                                value={orgName}
-                                onChange={(e) => setOrgName(e.target.value)}
-                                placeholder="לדוגמה: פלוגה א׳, מחלקת IT..."
-                                className="w-full px-4 py-4 rounded-xl bg-white border-2 border-slate-200 focus:border-emerald-400 focus:outline-none text-slate-800 placeholder-slate-400 text-right text-lg transition-colors"
-                                required
-                                disabled={loading}
-                            />
+                            <button
+                                type="submit"
+                                disabled={loading || !orgName.trim()}
+                                className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed text-lg flex items-center justify-center gap-3"
+                            >
+                                {loading ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        יוצר ארגון...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles size={24} />
+                                        צור ארגון והמשך
+                                    </>
+                                )}
+                            </button>
+                        </form>
+
+                        {/* Info Card */}
+                        <div className="bg-gradient-to-br from-green-50 to-teal-50 border-2 border-green-200 rounded-xl p-6 mt-8">
+                            <div className="flex items-start gap-3">
+                                <div className="bg-green-100 p-2 rounded-lg flex-shrink-0">
+                                    <Sparkles size={20} className="text-green-600" />
+                                </div>
+                                <p className="text-sm text-slate-700 leading-relaxed">
+                                    תוכל להוסיף חברי צוות, להגדיר תפקידים וליצור משמרות מיד לאחר היצירה
+                                </p>
+                            </div>
                         </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading || !orgName.trim()}
-                            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed text-lg"
-                        >
-                            {loading ? 'יוצר ארגון...' : 'צור ארגון והמשך'}
-                        </button>
-                    </form>
-
-                    {/* Info */}
-                    <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 text-right mt-6">
-                        <p className="text-sm text-emerald-800">
-                            💡 תוכל להוסיף חברי צוות, להגדיר תפקידים וליצור משמרות מיד לאחר היצירה
-                        </p>
                     </div>
                 </div>
             </div>
