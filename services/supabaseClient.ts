@@ -78,7 +78,7 @@ export const mapTaskFromDB = (dbTask: any): TaskTemplate => ({
     name: dbTask.name,
     durationHours: dbTask.duration_hours,
     requiredPeople: dbTask.required_people,
-    roleComposition: dbTask.role_composition || [],
+    roleComposition: Array.isArray(dbTask.role_composition) ? dbTask.role_composition : [],
     minRestHoursBefore: dbTask.min_rest_hours_before,
     difficulty: dbTask.difficulty,
     color: dbTask.color,

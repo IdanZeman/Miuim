@@ -74,23 +74,40 @@ const MainApp: React.FC = () => {
     }, [organization]);
 
     const fetchData = async () => {
-        if (!organization) return;
+        if (!organization) {
+            return;
+        }
         setIsLoading(true);
 
-        const { data: peopleData } = await supabase.from('people').select('*').eq('organization_id', organization.id);
-        const { data: shiftsData } = await supabase.from('shifts').select('*').eq('organization_id', organization.id);
-        const { data: tasksData } = await supabase.from('task_templates').select('*').eq('organization_id', organization.id);
-        const { data: rolesData } = await supabase.from('roles').select('*').eq('organization_id', organization.id);
-        const { data: teamsData } = await supabase.from('teams').select('*').eq('organization_id', organization.id);
+        try {
+            const { data: peopleData, error: peopleError } = await supabase.from('people').select('*').eq('organization_id', organization.id);
+            if (peopleError) throw peopleError;
 
-        setState({
-            people: (peopleData || []).map(mapPersonFromDB),
-            shifts: (shiftsData || []).map(mapShiftFromDB),
-            taskTemplates: (tasksData || []).map(mapTaskFromDB),
-            roles: (rolesData || []).map(mapRoleFromDB),
-            teams: (teamsData || []).map(mapTeamFromDB)
-        });
-        setIsLoading(false);
+            const { data: shiftsData, error: shiftsError } = await supabase.from('shifts').select('*').eq('organization_id', organization.id);
+            if (shiftsError) throw shiftsError;
+
+            const { data: tasksData, error: tasksError } = await supabase.from('task_templates').select('*').eq('organization_id', organization.id);
+            if (tasksError) throw tasksError;
+
+            const { data: rolesData, error: rolesError } = await supabase.from('roles').select('*').eq('organization_id', organization.id);
+            if (rolesError) throw rolesError;
+
+            const { data: teamsData, error: teamsError } = await supabase.from('teams').select('*').eq('organization_id', organization.id);
+            if (teamsError) throw teamsError;
+
+            setState({
+                people: (peopleData || []).map(mapPersonFromDB),
+                shifts: (shiftsData || []).map(mapShiftFromDB),
+                taskTemplates: (tasksData || []).map(mapTaskFromDB),
+                roles: (rolesData || []).map(mapRoleFromDB),
+                teams: (teamsData || []).map(mapTeamFromDB)
+            });
+        } catch (error) {
+            console.error("❌ Error fetching data:", error);
+            alert("שגיאה בטעינת הנתונים. אנא רענן את העמוד.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // --- Person Handlers ---
@@ -467,7 +484,7 @@ const MainApp: React.FC = () => {
 
                     // Merge with cumulative scores from this run
                     const historyScores: Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> = {};
-                    
+
                     // First, copy base history
                     Object.keys(baseHistoryScores).forEach(uid => {
                         historyScores[uid] = { ...baseHistoryScores[uid] };
@@ -529,7 +546,7 @@ const MainApp: React.FC = () => {
 
                     // Update cumulative shifts immediately (in-memory)
                     const solvedIds = solvedShifts.map(s => s.id);
-                    cumulativeShifts = cumulativeShifts.map(s => 
+                    cumulativeShifts = cumulativeShifts.map(s =>
                         solvedIds.includes(s.id) ? solvedShifts.find(sol => sol.id === s.id)! : s
                     );
 
@@ -766,17 +783,17 @@ const MainApp: React.FC = () => {
                         <ScheduleBoard
                             shifts={state.shifts}
                             people={state.people}
-                            tasks={state.taskTemplates}
-                            roles={state.roles}
-                            teams={state.teams}
-                            selectedDate={selectedDate} // Pass down controlled date
-                            onDateChange={setSelectedDate} // Pass down handler
+                            selectedDate={selectedDate}
+                            onDateChange={setSelectedDate}
                             onAssign={handleAssign}
                             onUnassign={handleUnassign}
                             onAddShift={handleAddShift}
                             onUpdateShift={handleUpdateShift}
                             onDeleteShift={handleDeleteShift}
                             onClearDay={handleClearDay}
+                            teams={state.teams}
+                            roles={state.roles}
+                            taskTemplates={state.taskTemplates}
                         />
                     </div>
                 );
@@ -793,7 +810,6 @@ const MainApp: React.FC = () => {
 // --- App Wrapper with Auth Logic ---
 const AppContent: React.FC = () => {
     const { user, profile, organization, loading } = useAuth();
-    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports'>('dashboard');
 
     if (loading) {
         return (

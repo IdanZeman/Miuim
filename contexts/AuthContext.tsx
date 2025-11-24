@@ -22,29 +22,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
-      // 1. Try to get existing profile
-      const { data: profileData, error: profileError } = await supabase
+      // Create a promise that rejects after 5 seconds
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+      );
+
+      const dbPromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
+
+      const { data: profileData, error: profileError } = await Promise.race([
+        dbPromise,
+        timeoutPromise
+      ]) as any;
 
       if (profileError && profileError.code !== 'PGRST116') {
         console.error('Error fetching profile:', profileError);
         return;
       }
 
-      // NEW: If profile doesn't exist, CREATE IT (Fallback)
       if (!profileData) {
-        console.log('⚠️ Profile not found, creating via fallback...');
-        
         const { data: userData } = await supabase.auth.getUser();
         const email = userData?.user?.email || '';
-        const fullName = userData?.user?.user_metadata?.full_name || 
-                         userData?.user?.user_metadata?.name || 
-                         email.split('@')[0];
+        const fullName = userData?.user?.user_metadata?.full_name ||
+          userData?.user?.user_metadata?.name ||
+          email.split('@')[0];
 
-        // Use UPSERT to avoid conflicts
         const { data: newProfile, error: insertError } = await supabase
           .from('profiles')
           .upsert({
@@ -64,14 +69,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        console.log('✅ Profile created successfully (fallback):', newProfile);
         setProfile(newProfile);
         return;
       }
 
       setProfile(profileData);
 
-      // 2. Fetch organization if profile exists
       if (profileData.organization_id) {
         const { data: orgData, error: orgError } = await supabase
           .from('organizations')
@@ -84,6 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setOrganization(orgData);
         }
+      } else {
+        setOrganization(null);
       }
     } catch (error) {
       console.error('Unexpected error in fetchProfile:', error);
@@ -97,32 +102,95 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
+    let mounted = true;
+
+    const initAuth = async () => {
+      try {
+        // Strategy: Try getSession with a timeout. If it times out, try getUser (server verification).
+
+        const fetchSessionPromise = supabase.auth.getSession();
+
+        const timeoutPromise = new Promise<{ data: { session: null }; timeout: boolean }>((resolve) => {
+          setTimeout(() => {
+            resolve({ data: { session: null }, timeout: true });
+          }, 8000);
+        });
+
+        // Race
+        const result: any = await Promise.race([
+          fetchSessionPromise,
+          timeoutPromise
+        ]);
+
+        let session = result.data?.session;
+
+        // If timed out or no session, try getUser as a robust fallback
+        if (result.timeout || !session) {
+
+          // Wrap getUser in timeout as well
+          const fetchUserPromise = supabase.auth.getUser();
+          const userTimeoutPromise = new Promise<{ data: { user: null }; error: any }>((resolve) => {
+            setTimeout(() => {
+              resolve({ data: { user: null }, error: { message: "Timeout" } });
+            }, 5000);
+          });
+
+          const userResult: any = await Promise.race([
+            fetchUserPromise,
+            userTimeoutPromise
+          ]);
+
+          const { user } = userResult.data || {};
+          const error = userResult.error;
+
+          if (user && !error) {
+            if (!mounted) return;
+            setUser(user);
+            await fetchProfile(user.id);
+            return; // Done
+          }
+        }
+
+        if (!mounted) return;
+
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+
+        if (currentUser) {
+          await fetchProfile(currentUser.id);
+        } else {
+          setProfile(null);
+          setOrganization(null);
+        }
+      } catch (error) {
+        console.error('Init auth error:', error);
+      } finally {
+        if (mounted) setLoading(false);
       }
-    });
+    };
+
+    initAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await fetchProfile(session.user.id);
+      if (!mounted) return;
+
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        await fetchProfile(currentUser.id);
       } else {
         setProfile(null);
         setOrganization(null);
       }
-      
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []); // ✅ Empty dependency array - only run once
 
   const signOut = async () => {
     await supabase.auth.signOut();

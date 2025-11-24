@@ -9,7 +9,7 @@ import { supabase } from '../services/supabaseClient';
 interface ScheduleBoardProps {
     shifts: Shift[];
     people: Person[];
-    tasks: TaskTemplate[];
+    taskTemplates: TaskTemplate[];
     roles: Role[];
     teams: Team[];
     selectedDate: Date;
@@ -26,15 +26,15 @@ interface ScheduleBoardProps {
 const ShiftCard: React.FC<{
     shift: Shift;
     compact?: boolean;
-    tasks: TaskTemplate[];
+    taskTemplates: TaskTemplate[];
     people: Person[];
     roles: Role[];
     onSelect: (shift: Shift) => void;
     onDelete: (shiftId: string) => void;
     isViewer: boolean;
     acknowledgedWarnings: Set<string>; // NEW: Pass acknowledged warnings
-}> = ({ shift, compact = false, tasks, people, roles, onSelect, onDelete, isViewer, acknowledgedWarnings }) => {
-    const task = tasks.find(t => t.id === shift.taskId);
+}> = ({ shift, compact = false, taskTemplates, people, roles, onSelect, onDelete, isViewer, acknowledgedWarnings }) => {
+    const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const isFull = shift.assignedPersonIds.length >= task.requiredPeople;
 
@@ -47,21 +47,20 @@ const ShiftCard: React.FC<{
     const hasMismatch = isViewer ? false : shift.assignedPersonIds.some(pid => {
         const person = people.find(p => p.id === pid);
         if (!person) return false;
-        
+
         const warningId = `${shift.id}-${pid}`;
         if (acknowledgedWarnings.has(warningId)) return false;
-        
+
         return !person.roleIds.some(rid => requiredRoleIds.includes(rid));
     });
 
     return (
         <div
             onClick={() => onSelect(shift)}
-            className={`p-3 rounded-xl shadow-sm border-2 cursor-pointer hover:shadow-md transition-all mb-3 group relative overflow-hidden ${
-                hasMismatch 
-                    ? 'bg-red-50 border-red-500 animate-pulse' 
-                    : 'bg-white border-slate-100'
-            }`}
+            className={`p-3 rounded-xl shadow-sm border-2 cursor-pointer hover:shadow-md transition-all mb-3 group relative overflow-hidden ${hasMismatch
+                ? 'bg-red-50 border-red-500 animate-pulse'
+                : 'bg-white border-slate-100'
+                }`}
         >
             {/* Color Indicator Strip */}
             <div className={`absolute top-0 right-0 w-1 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
@@ -120,17 +119,16 @@ const ShiftCard: React.FC<{
                         const isQualified = isViewer ? true : p.roleIds.some(rid => requiredRoleIds.includes(rid));
                         const warningId = `${shift.id}-${p.id}`;
                         const isAcknowledged = isViewer ? true : acknowledgedWarnings.has(warningId);
-                        
+
                         const showAsQualified = isQualified || isAcknowledged;
-                        
+
                         return (
-                            <div 
-                                key={p.id} 
-                                className={`flex items-center gap-2 p-1.5 rounded-lg border ${
-                                    showAsQualified
-                                        ? 'bg-slate-50 border-slate-100' 
-                                        : 'bg-red-100 border-red-500 animate-pulse'
-                                }`}
+                            <div
+                                key={p.id}
+                                className={`flex items-center gap-2 p-1.5 rounded-lg border ${showAsQualified
+                                    ? 'bg-slate-50 border-slate-100'
+                                    : 'bg-red-100 border-red-500 animate-pulse'
+                                    }`}
                             >
                                 {!showAsQualified && (
                                     <AlertTriangle size={14} className="text-red-700 flex-shrink-0" />
@@ -165,7 +163,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     const {
         shifts,
         people,
-        tasks,
+        taskTemplates,
         roles,
         teams,
         selectedDate,
@@ -182,7 +180,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
     const [viewerDaysLimit, setViewerDaysLimit] = useState(2);
     const [showCopySuccess, setShowCopySuccess] = useState(false);
-    
+
     // NEW: Only load warnings for non-viewers
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(!isViewer); // Viewers skip loading
     const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
@@ -215,7 +213,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                 const warningIds = new Set(data.map(w => w.warning_id));
                 setAcknowledgedWarnings(warningIds);
             }
-            
+
             setIsLoadingWarnings(false);
         };
 
@@ -404,7 +402,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         // --- Admin/Manager General View ---
         const upcoming = shifts.find(s => new Date(s.startTime) > now);
         if (!upcoming) return null;
-        const task = tasks.find(t => t.id === upcoming.taskId);
+        const task = taskTemplates.find(t => t.id === upcoming.taskId);
         if (!task) return null;
 
         const isAssigned = upcoming.assignedPersonIds.length >= task.requiredPeople;
@@ -477,7 +475,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
 
     const Modal = () => {
         if (!selectedShift) return null;
-        const task = tasks.find(t => t.id === selectedShift.taskId);
+        const task = taskTemplates.find(t => t.id === selectedShift.taskId);
         if (!task) return null;
 
         const [isEditingTime, setIsEditingTime] = useState(false);
@@ -642,20 +640,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         if (isViewer) return []; // NEW: Empty array for viewers
 
         return shifts.flatMap(shift => {
-            const task = tasks.find(t => t.id === shift.taskId);
+            const task = taskTemplates.find(t => t.id === shift.taskId);
             if (!task) return [];
             const requiredRoleIds = task.roleComposition.map(rc => rc.roleId);
             return shift.assignedPersonIds
                 .filter(pid => {
                     const person = people.find(p => p.id === pid);
                     if (!person) return false;
-                    
+
                     // NEW: Create unique warning ID
                     const warningId = `${shift.id}-${pid}`;
-                    
+
                     // Skip if already acknowledged
                     if (acknowledgedWarnings.has(warningId)) return false;
-                    
+
                     return !person.roleIds.some(rid => requiredRoleIds.includes(rid));
                 })
                 .map(pid => {
@@ -674,7 +672,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                     };
                 });
         });
-    }, [shifts, tasks, people, roles, acknowledgedWarnings, isViewer]); // NEW: Add isViewer
+    }, [shifts, taskTemplates, people, roles, acknowledgedWarnings, isViewer]); // NEW: Add isViewer
 
     // NEW: Handler to acknowledge (dismiss) a warning with DB save
     const handleAcknowledgeWarning = async (warningId: string) => {
@@ -702,18 +700,18 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     // Helper to filter visible tasks for the daily view
     const visibleTasks = useMemo(() => {
         const dateKey = selectedDate.toLocaleDateString('en-CA');
-        return tasks.filter(task => {
+        return taskTemplates.filter(task => {
             if (task.schedulingType === 'one-time' && task.specificDate) {
                 return task.specificDate === dateKey;
             }
             return true;
         });
-    }, [tasks, selectedDate]);
+    }, [taskTemplates, selectedDate]);
 
     // Date Navigation Logic for Viewers
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     // Calculate max date for viewers
     const maxViewerDate = new Date(today);
     maxViewerDate.setDate(today.getDate() + (viewerDaysLimit - 1));
@@ -787,7 +785,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                 key={w.warningId}
                                 className="text-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-white/60 rounded-md px-3 py-2 border border-red-300 transition-all"
                             >
-                                <div 
+                                <div
                                     onClick={() => handleJumpToShift(w.shiftId, w.start)}
                                     className="flex-1 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 cursor-pointer hover:bg-white/80"
                                 >
@@ -805,7 +803,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                         חסר: {w.missingRoles.join(', ')}
                                     </span>
                                 </div>
-                                
+
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -930,13 +928,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                     <div className="space-y-2">
                                         {taskShifts.map(shift => (
                                             <div key={shift.id} id={`shift-card-${shift.id}`}>
-                                                <ShiftCard 
-                                                    shift={shift} 
-                                                    tasks={tasks} 
-                                                    people={people} 
-                                                    roles={roles} 
-                                                    onSelect={(s) => setSelectedShiftId(s.id)} 
-                                                    onDelete={onDeleteShift} 
+                                                <ShiftCard
+                                                    shift={shift}
+                                                    taskTemplates={taskTemplates}
+                                                    people={people}
+                                                    roles={roles}
+                                                    onSelect={(s) => setSelectedShiftId(s.id)}
+                                                    onDelete={onDeleteShift}
                                                     isViewer={isViewer}
                                                     acknowledgedWarnings={isViewer ? new Set() : acknowledgedWarnings} // NEW: Empty set for viewers
                                                 />

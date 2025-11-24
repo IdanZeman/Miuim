@@ -16,7 +16,12 @@ export const Onboarding: React.FC = () => {
     }, [user]);
 
     const checkForInvite = async () => {
-        if (!user?.email) return;
+        console.log("🔍 Onboarding: Checking for invites...", user?.email);
+        if (!user?.email) {
+            console.warn("⚠️ Onboarding: No email found for user, skipping invite check.");
+            setCheckingInvite(false);
+            return;
+        }
 
         try {
             const { data: invites, error } = await supabase
@@ -31,7 +36,10 @@ export const Onboarding: React.FC = () => {
             if (error) throw error;
 
             if (invites && invites.length > 0) {
+                console.log("💌 Onboarding: Found invite!", invites[0]);
                 setPendingInvite(invites[0]);
+            } else {
+                console.log("📭 Onboarding: No invites found.");
             }
         } catch (error) {
             console.error('Error checking for invites:', error);
