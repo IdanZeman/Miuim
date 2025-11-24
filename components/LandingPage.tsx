@@ -10,10 +10,15 @@ export const LandingPage: React.FC = () => { // NEW: Remove onGetStarted prop
     const handleGoogleLogin = async () => {
         setIsLoggingIn(true);
         try {
+            // Determine redirect URL based on environment
+            const redirectUrl = window.location.hostname === 'localhost' 
+                ? window.location.origin 
+                : 'https://miuim.vercel.app';
+
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: window.location.origin, // Redirect back to app
+                    redirectTo: redirectUrl, // Use production URL in production
                 }
             });
 
