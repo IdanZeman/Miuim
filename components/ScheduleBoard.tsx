@@ -4,6 +4,7 @@ import { getPersonInitials } from '../utils/nameUtils';
 import { Sparkles } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { analytics } from '../services/analytics';
 
 import { supabase } from '../services/supabaseClient';
 
@@ -327,9 +328,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         // Copy to clipboard
         try {
             await navigator.clipboard.writeText(output);
+            analytics.trackScheduleExported(selectedDate.toISOString());
             setShowCopySuccess(true);
             setTimeout(() => setShowCopySuccess(false), 2000);
         } catch (err) {
+            analytics.trackError('Failed to copy schedule', 'Export');
             console.error('Failed to copy:', err);
             alert('❌ שגיאה בהעתקה ללוח ההדבקה');
         }
@@ -736,6 +739,47 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         }, 300);
     };
 
+    // Track date changes
+    const handleDateChange = (newDate: Date) => {
+        onDateChange(newDate);
+        analytics.trackDateChanged(newDate.toISOString());
+    };
+
+    // Track shift assignment
+    const handleAssign = (shiftId: string, personId: string) => {
+        const person = people.find(p => p.id === personId);
+        const shift = shifts.find(s => s.id === shiftId);
+        const task = shift ? taskTemplates.find(t => t.id === shift.taskId) : null;
+        
+        if (person && task) {
+            analytics.trackPersonAssigned(person.name, task.name);
+        }
+        onAssign(shiftId, personId);
+    };
+
+    // Track shift unassignment
+    const handleUnassign = (shiftId: string, personId: string) => {
+        const person = people.find(p => p.id === personId);
+        const shift = shifts.find(s => s.id === shiftId);
+        const task = shift ? taskTemplates.find(t => t.id === shift.taskId) : null;
+        
+        if (person && task) {
+            analytics.trackPersonUnassigned(person.name, task.name);
+        }
+        onUnassign(shiftId, personId);
+    };
+
+    // Track shift deletion
+    const handleDeleteShift = (shiftId: string) => {
+        const shift = shifts.find(s => s.id === shiftId);
+        const task = shift ? taskTemplates.find(t => t.id === shift.taskId) : null;
+        
+        if (task) {
+            analytics.trackShiftDeleted(task.name);
+        }
+        onDeleteShift(shiftId);
+    };
+
     return (
         <div className="flex flex-col gap-8">
             {renderFeaturedCard()}
@@ -831,13 +875,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                     <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 md:gap-3">
                         {/* Action Buttons */}
                         <div className="flex gap-2 order-2 sm:order-1">
-                            <button onClick={handleExportToClipboard} className="flex items-center justify-center gap-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors flex-1 sm:flex-initial">
+                            <button onClick={handleExportToClipboard} className="flex items-center justify-center gap-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors">
                                 <Copy size={14} />
                                 <span className="hidden sm:inline">העתק ללוח</span>
                                 <span className="sm:hidden">העתק</span>
                             </button>
                             {!isViewer && (
-                                <button onClick={onClearDay} className="flex items-center justify-center gap-1.5 text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors flex-1 sm:flex-initial">
+                                <button onClick={onClearDay} className="flex items-center justify-center gap-1.5 text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors">
                                     <Trash2 size={14} />
                                     <span className="hidden sm:inline">נקה יום</span>
                                     <span className="sm:hidden">נקה</span>
@@ -847,7 +891,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
 
                         {/* Date Navigation */}
                         <div className="flex items-center justify-center bg-slate-100 rounded-full p-0.5 md:p-1 order-1 sm:order-2">
-                            <button onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); onDateChange(d); } }} disabled={!canGoNext} className={`p-1.5 md:p-2 rounded-full transition-all ${canGoNext ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}>
+                            <button onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); handleDateChange(d); } }} disabled={!canGoNext} className={`p-1.5 md:p-2 rounded-full transition-all ${canGoNext ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}>
                                 <ChevronRight size={16} />
                             </button>
 
@@ -855,7 +899,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                 {selectedDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })}
                             </span>
 
-                            <button onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); onDateChange(d); } }} disabled={!canGoPrev} className={`p-1.5 md:p-2 rounded-full transition-all ${canGoPrev ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}>
+                            <button onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); handleDateChange(d); } }} disabled={!canGoPrev} className={`p-1.5 md:p-2 rounded-full transition-all ${canGoPrev ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}>
                                 <ChevronLeft size={16} />
                             </button>
                         </div>

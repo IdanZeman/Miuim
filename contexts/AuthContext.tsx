@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { Profile, Organization } from '../types';
+import { analytics } from '../services/analytics';
 
 interface AuthContextType {
   user: User | null;
@@ -192,11 +193,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []); // ✅ Empty dependency array - only run once
 
+  const signIn = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      
+      analytics.trackLogin('email');
+      return { data, error: null };
+    } catch (error) {
+      analytics.trackError((error as Error).message, 'Login');
+      return { data: null, error: error as Error };
+    }
+  };
+
+  const signUp = async (email: string, password: string, fullName: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+      analytics.trackSignup('email');
+      return { data, error: null };
+    } catch (error) {
+      analytics.trackError((error as Error).message, 'Signup');
+      return { data: null, error: error as Error };
+    }
+  };
+
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    setOrganization(null);
+    try {
+      analytics.trackLogout();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } catch (error) {
+      analytics.trackError((error as Error).message, 'Logout');
+      console.error('Error signing out:', error);
+    }
   };
 
   return (
@@ -208,7 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

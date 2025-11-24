@@ -27,6 +27,8 @@ import { OrganizationSettings } from './components/OrganizationSettings';
 import { ShiftReport } from './components/ShiftReport';
 import { logger } from './services/loggingService';
 import { AdminLogsViewer } from './components/AdminLogsViewer';
+import { useEffect } from 'react';
+import { initGA, trackPageView } from './services/analytics';
 
 // --- Main App Content (Authenticated) ---
 const MainApp: React.FC = () => {
@@ -857,6 +859,18 @@ const MainApp: React.FC = () => {
                 );
         }
     };
+
+    // Initialize Google Analytics
+    useEffect(() => {
+        initGA();
+    }, []);
+
+    // Track view changes
+    useEffect(() => {
+        if (view) {
+            trackPageView(`/${view}`);
+        }
+    }, [view]);
 
     return (
         <Layout currentView={view} setView={setView}>
