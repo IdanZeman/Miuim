@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-
+import { Analytics } from "@vercel/analytics/next"
 interface LayoutProps {
   currentView?: ViewMode;
   setView?: (view: ViewMode) => void;
