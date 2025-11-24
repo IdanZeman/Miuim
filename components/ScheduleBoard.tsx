@@ -512,8 +512,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         };
 
         return (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-2 md:p-4 animate-fadeIn">
-                <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[95vh] md:max-h-[85vh]">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 md:p-6 animate-fadeIn pt-20 md:pt-24">
+                <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[calc(100vh-10rem)] md:max-h-[calc(100vh-12rem)]">
                     <div className="p-3 md:p-6 border-b border-slate-100 bg-slate-50">
                         <div className="flex justify-between items-start gap-2">
                             <div className="flex-1 min-w-0">
@@ -558,9 +558,15 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
                         {/* Assigned People Section */}
-                        <div className="flex-1 p-3 md:p-6 overflow-y-auto border-b md:border-b-0 md:border-l border-slate-100">
+                        {/* Content Area */}
+                    {/* שינוי 1: העברנו את ה-overflow-y-auto לכאן כדי שכל המודל יגלל במידת הצורך */}
+                    <div className="flex-1 overflow-y-auto flex flex-col md:flex-row">
+                        
+                        {/* Assigned People Section */}
+                        {/* שינוי 2: הורדנו overflow-y-auto, הוספנו h-fit כדי שיהיה צמוד לתוכן */}
+                        <div className="md:flex-1 p-3 md:p-6 h-fit border-b md:border-b-0 md:border-l border-slate-100">
                             <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">משובצים ({assignedPeople.length}/{task.requiredPeople})</h4>
                             <div className="space-y-2 md:space-y-3">
                                 {assignedPeople.map(p => (
@@ -589,7 +595,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
 
                         {/* Available People Section */}
                         {!isViewer && (
-                            <div className="flex-1 p-3 md:p-6 overflow-y-auto bg-slate-50/50">
+                            // שינוי 3: גם כאן הורדנו גלילה פנימית והוספנו h-fit
+                            <div className="flex-1 p-3 md:p-6 h-fit bg-slate-50/50">
                                 <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">מאגר זמין</h4>
                                 <div className="space-y-1.5 md:space-y-2">
                                     {availablePeople.map(p => {
@@ -614,6 +621,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                 </div>
                             </div>
                         )}
+                    </div>
+                        
                     </div>
                 </div>
             </div>
