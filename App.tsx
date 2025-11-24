@@ -27,7 +27,6 @@ import { OrganizationSettings } from './components/OrganizationSettings';
 import { ShiftReport } from './components/ShiftReport';
 import { logger } from './services/loggingService';
 import { AdminLogsViewer } from './components/AdminLogsViewer';
-import { useEffect } from 'react';
 import { initGA, trackPageView } from './services/analytics';
 
 // --- Main App Content (Authenticated) ---
