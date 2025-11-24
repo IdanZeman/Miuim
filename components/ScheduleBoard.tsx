@@ -348,35 +348,35 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0]
                 : null;
 
-            const task = nextPersonalShift ? tasks.find(t => t.id === nextPersonalShift.taskId) : null;
+            const task = nextPersonalShift ? taskTemplates.find(t => t.id === nextPersonalShift.taskId) : null;
 
             return (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-0 overflow-hidden mb-8">
-                    <div className="p-6 md:p-8">
-                        <div className="mb-6">
-                            <h2 className="text-3xl font-bold text-slate-800 mb-1">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-0 overflow-hidden mb-6 md:mb-8">
+                    <div className="p-4 md:p-6 lg:p-8">
+                        <div className="mb-4 md:mb-6">
+                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-1">
                                 שלום, {profile?.full_name?.split(' ')[0] || 'לוחם'}
                             </h2>
-                            <p className="text-slate-500 text-lg">הנה המשימה הבאה  שלך להיום</p>
+                            <p className="text-slate-500 text-base md:text-lg">הנה המשימה הבאה שלך להיום</p>
                         </div>
 
                         {nextPersonalShift && task ? (
-                            <div className={`bg-white rounded-xl p-6 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all`}>
-                                <div className={`absolute top-0 right-0 w-1.5 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
+                            <div className={`bg-white rounded-xl p-4 md:p-6 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all`}>
+                                <div className={`absolute top-0 right-0 w-1 md:w-1.5 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
 
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex flex-col gap-3 md:gap-4">
                                     <div>
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">המשמרת הבאה</span>
                                         </div>
-                                        <h3 className="text-2xl font-bold text-slate-800 mb-2">{task.name}</h3>
-                                        <div className="flex flex-wrap gap-x-6 gap-y-2 text-slate-600">
+                                        <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">{task.name}</h3>
+                                        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-x-6 sm:gap-y-2 text-slate-600 text-sm md:text-base">
                                             <div className="flex items-center gap-2">
-                                                <CalendarIcon size={18} className="text-slate-400" />
+                                                <CalendarIcon size={16} className="text-slate-400 flex-shrink-0" />
                                                 <span className="font-medium">{new Date(nextPersonalShift.startTime).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <Clock size={18} className="text-slate-400" />
+                                                <Clock size={16} className="text-slate-400 flex-shrink-0" />
                                                 <span className="font-medium" dir="ltr">
                                                     {new Date(nextPersonalShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(nextPersonalShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
@@ -384,15 +384,15 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-center bg-slate-50 rounded-full w-12 h-12 md:w-16 md:h-16 text-slate-400">
-                                        <Clock size={24} />
+                                    <div className="hidden sm:flex items-center justify-center bg-slate-50 rounded-full w-12 h-12 md:w-16 md:h-16 text-slate-400 self-end">
+                                        <Clock size={20} />
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-slate-50 rounded-xl p-8 text-center border border-slate-100">
-                                <p className="text-slate-600 text-lg font-medium">אין משמרות קרובות ביומן</p>
-                                <p className="text-slate-400 text-sm mt-1">ניתן לנוח ולהתעדכן בהמשך</p>
+                            <div className="bg-slate-50 rounded-xl p-6 md:p-8 text-center border border-slate-100">
+                                <p className="text-slate-600 text-base md:text-lg font-medium">אין משמרות קרובות ביומן</p>
+                                <p className="text-slate-400 text-xs md:text-sm mt-1">ניתן לנוח ולהתעדכן בהמשך</p>
                             </div>
                         )}
                     </div>
@@ -409,54 +409,54 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         const isAssigned = upcoming.assignedPersonIds.length >= task.requiredPeople;
 
         return (
-            <div className="bg-white rounded-xl shadow-portal p-0 overflow-hidden mb-8">
-                <div className="flex flex-col md:flex-row">
-                    <div className="p-6 md:p-8 flex-1">
-                        <div className="flex items-center gap-2 mb-3">
+            <div className="bg-white rounded-xl shadow-portal p-0 overflow-hidden mb-6 md:mb-8">
+                <div className="flex flex-col">
+                    <div className="p-4 md:p-6 lg:p-8 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
                             <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1">
                                 <Clock size={12} /> משמרת קרובה
                             </span>
-                            <span className="text-green-600 text-sm font-bold flex items-center gap-1">
+                            <span className="text-green-600 text-xs md:text-sm font-bold flex items-center gap-1">
                                 <Check size={14} /> {isAssigned ? 'מאוישת' : 'נדרש איוש'}
                             </span>
                         </div>
-                        <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">{task.name}</h2>
-                        <div className="flex flex-wrap gap-4 text-slate-500 text-sm mb-6">
+                        <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 mb-2">{task.name}</h2>
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 text-slate-500 text-sm mb-4 md:mb-6">
                             <div className="flex items-center gap-1.5">
-                                <CalendarIcon size={16} />
+                                <CalendarIcon size={16} className="flex-shrink-0" />
                                 <span>{new Date(upcoming.startTime).toLocaleDateString('he-IL')}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <Clock size={16} />
+                                <Clock size={16} className="flex-shrink-0" />
                                 <span dir="ltr">
                                     {new Date(upcoming.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(upcoming.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <MapPin size={16} />
+                                <MapPin size={16} className="flex-shrink-0" />
                                 <span>מחנה נחשונים</span>
                             </div>
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex flex-col sm:flex-row gap-3">
                             <button
                                 onClick={() => setSelectedShiftId(upcoming.id)}
-                                className="bg-idf-yellow hover:bg-idf-yellow-hover text-slate-900 px-6 py-2.5 rounded-full font-bold shadow-sm transition-colors"
+                                className="bg-idf-yellow hover:bg-idf-yellow-hover text-slate-900 px-4 md:px-6 py-2 md:py-2.5 rounded-full font-bold shadow-sm transition-colors text-sm md:text-base"
                             >
                                 נהל משמרת
                             </button>
-                            <button className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-2.5 rounded-full font-bold transition-colors">
+                            <button className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 md:px-6 py-2 md:py-2.5 rounded-full font-bold transition-colors text-sm md:text-base">
                                 בקשות מיוחדות
                             </button>
                         </div>
                     </div>
-                    <div className="bg-slate-50 p-6 md:w-72 border-r border-slate-100 flex flex-col justify-center">
-                        <h4 className="font-bold text-slate-700 mb-3">צוות משובץ:</h4>
-                        <div className="flex -space-x-3 space-x-reverse">
-                            {upcoming.assignedPersonIds.length === 0 && <span className="text-slate-400 text-sm">טרם שובצו</span>}
+                    <div className="bg-slate-50 p-4 md:p-6 border-t md:border-t-0 md:border-r border-slate-100 flex flex-col justify-center">
+                        <h4 className="font-bold text-slate-700 mb-3 text-sm md:text-base">צוות משובץ:</h4>
+                        <div className="flex flex-wrap gap-2 md:-space-x-3 md:space-x-reverse md:flex-nowrap">
+                            {upcoming.assignedPersonIds.length === 0 && <span className="text-slate-400 text-xs md:text-sm">טרם שובצו</span>}
                             {upcoming.assignedPersonIds.map(pid => {
                                 const p = people.find(x => x.id === pid);
                                 return p ? (
-                                    <div key={pid} title={p.name} className={`w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white font-bold shadow-sm ${p.color}`}>
+                                    <div key={pid} title={p.name} className={`w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white flex items-center justify-center text-white font-bold shadow-sm text-xs md:text-sm ${p.color}`}>
                                         {getPersonInitials(p.name)}
                                     </div>
                                 ) : null;
@@ -512,118 +512,102 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         };
 
         return (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[85vh]">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-900">{task.name} - {isViewer ? 'פרטי משמרת' : 'ניהול שיבוץ'}</h3>
-                            <div className="flex items-center gap-2 mt-0.5">
-                                {!isEditingTime ? (
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-slate-500 text-sm flex items-center gap-2">
-                                            {new Date(selectedShift.startTime).toLocaleDateString('he-IL')}
-                                            <span className="text-slate-300">|</span>
-                                            <span dir="ltr">
-                                                {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </p>
-                                        {!isViewer && (
-                                            <button onClick={() => setIsEditingTime(true)} className="text-blue-600 hover:text-blue-800 p-1 bg-blue-50 rounded-full transition-colors" title="ערוך שעות">
-                                                <Pencil size={12} />
-                                            </button>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2 animate-fadeIn">
-                                        <input
-                                            type="time"
-                                            value={newStart}
-                                            onChange={e => setNewStart(e.target.value)}
-                                            className="text-sm p-1 rounded border border-slate-300"
-                                        />
-                                        <span>-</span>
-                                        <input
-                                            type="time"
-                                            value={newEnd}
-                                            onChange={e => setNewEnd(e.target.value)}
-                                            className="text-sm p-1 rounded border border-slate-300"
-                                        />
-                                        <button onClick={handleSaveTime} className="text-green-600 hover:text-green-800 p-1 bg-green-50 rounded-full transition-colors"><Save size={14} /></button>
-                                        <button onClick={() => setIsEditingTime(false)} className="text-red-500 hover:text-red-700 p-1 bg-red-50 rounded-full transition-colors"><X size={14} /></button>
-                                    </div>
-                                )}
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-2 md:p-4 animate-fadeIn">
+                <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[95vh] md:max-h-[85vh]">
+                    <div className="p-3 md:p-6 border-b border-slate-100 bg-slate-50">
+                        <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-base md:text-xl font-bold text-slate-900 truncate">{task.name} - {isViewer ? 'פרטי משמרת' : 'ניהול שיבוץ'}</h3>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    {!isEditingTime ? (
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <p className="text-slate-500 text-xs md:text-sm flex items-center gap-1 md:gap-2">
+                                                <span>{new Date(selectedShift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</span>
+                                                <span className="text-slate-300">|</span>
+                                                <span dir="ltr" className="text-[11px] md:text-sm">
+                                                    {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </p>
+                                            {!isViewer && (
+                                                <button onClick={() => setIsEditingTime(true)} className="text-blue-600 hover:text-blue-800 p-1 bg-blue-50 rounded-full transition-colors" title="ערוך שעות">
+                                                    <Pencil size={12} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1 md:gap-2 animate-fadeIn">
+                                            <input type="time" value={newStart} onChange={e => setNewStart(e.target.value)} className="text-xs md:text-sm p-1 rounded border border-slate-300 w-20" />
+                                            <span className="text-xs">-</span>
+                                            <input type="time" value={newEnd} onChange={e => setNewEnd(e.target.value)} className="text-xs md:text-sm p-1 rounded border border-slate-300 w-20" />
+                                            <button onClick={handleSaveTime} className="text-green-600 hover:text-green-800 p-1 bg-green-50 rounded-full transition-colors"><Save size={12} /></button>
+                                            <button onClick={() => setIsEditingTime(false)} className="text-red-500 hover:text-red-700 p-1 bg-red-50 rounded-full transition-colors"><X size={12} /></button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {!isViewer && (
-                                <button
-                                    onClick={() => {
-                                        // NO CONFIRM
-                                        onDeleteShift(selectedShift.id);
-                                        setSelectedShiftId(null);
-                                    }}
-                                    className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"
-                                    title="מחק משמרת"
-                                >
-                                    <Trash2 size={20} />
+                            <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+                                {!isViewer && (
+                                    <button onClick={() => { onDeleteShift(selectedShift.id); setSelectedShiftId(null); }} className="p-1.5 md:p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors" title="מחק משמרת">
+                                        <Trash2 size={16} />
+                                    </button>
+                                )}
+                                <button onClick={() => setSelectedShiftId(null)} className="p-1.5 md:p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+                                    <X size={20} />
                                 </button>
-                            )}
-                            <button onClick={() => setSelectedShiftId(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
-                                <X size={24} />
-                            </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-white">
-                        <div className="flex-1 p-6 overflow-y-auto border-l border-slate-100">
-                            <h4 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider">משובצים ({assignedPeople.length}/{task.requiredPeople})</h4>
-                            <div className="space-y-3">
+                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                        {/* Assigned People Section */}
+                        <div className="flex-1 p-3 md:p-6 overflow-y-auto border-b md:border-b-0 md:border-l border-slate-100">
+                            <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">משובצים ({assignedPeople.length}/{task.requiredPeople})</h4>
+                            <div className="space-y-2 md:space-y-3">
                                 {assignedPeople.map(p => (
-                                    <div key={p.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-100 rounded-xl">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${p.color}`}>{getPersonInitials(p.name)}</div>
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-slate-800 text-sm">{p.name}</span>
+                                    <div key={p.id} className="flex items-center justify-between p-2 md:p-3 bg-green-50 border border-green-100 rounded-lg md:rounded-xl">
+                                        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                                            <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
+                                            <div className="flex flex-col min-w-0 flex-1">
+                                                <span className="font-bold text-slate-800 text-xs md:text-sm truncate">{p.name}</span>
                                                 {task.roleComposition && task.roleComposition.length > 0 && (
-                                                    <span className="text-[10px] text-slate-500">
+                                                    <span className="text-[9px] md:text-[10px] text-slate-500 truncate">
                                                         {roles.find(r => task.roleComposition.some(rc => rc.roleId === r.id) && p.roleIds.includes(r.id))?.name || ''}
                                                     </span>
                                                 )}
                                             </div>
                                         </div>
                                         {!isViewer && (
-                                            <div className="flex items-center gap-1">
-                                                <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-red-500 p-1.5 hover:bg-red-100 rounded-lg"><X size={16} /></button>
-                                            </div>
+                                            <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-red-500 p-1 md:p-1.5 hover:bg-red-100 rounded-lg flex-shrink-0">
+                                                <X size={14} />
+                                            </button>
                                         )}
                                     </div>
                                 ))}
-                                {assignedPeople.length === 0 && <p className="text-slate-400 text-sm text-center py-4">לא שובצו לוחמים</p>}
+                                {assignedPeople.length === 0 && <p className="text-slate-400 text-xs md:text-sm text-center py-4">לא שובצו לוחמים</p>}
                             </div>
-
-
                         </div>
 
+                        {/* Available People Section */}
                         {!isViewer && (
-                            <div className="flex-1 p-6 overflow-y-auto bg-slate-50/50">
-                                <h4 className="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider">מאגר זמין</h4>
-                                <div className="space-y-2">
+                            <div className="flex-1 p-3 md:p-6 overflow-y-auto bg-slate-50/50">
+                                <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">מאגר זמין</h4>
+                                <div className="space-y-1.5 md:space-y-2">
                                     {availablePeople.map(p => {
                                         const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => p.roleIds.includes(rc.roleId));
                                         const isFull = assignedPeople.length >= task.requiredPeople;
                                         const canAssign = hasRole && !isFull;
 
                                         return (
-                                            <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${canAssign ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${p.color}`}>{getPersonInitials(p.name)}</div>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-slate-700 text-sm" title={p.name}>{p.name}</span>
-                                                        {!hasRole && <span className="text-[10px] text-red-500">אין התאמה</span>}
-                                                        {isFull && hasRole && <span className="text-[10px] text-amber-500">משמרת מלאה</span>}
+                                            <div key={p.id} className={`flex items-center justify-between p-2 md:p-3 rounded-lg md:rounded-xl border transition-all ${canAssign ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
+                                                <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                                                    <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
+                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                        <span className="font-bold text-slate-700 text-xs md:text-sm truncate">{p.name}</span>
+                                                        {!hasRole && <span className="text-[9px] md:text-[10px] text-red-500">אין התאמה</span>}
+                                                        {isFull && hasRole && <span className="text-[9px] md:text-[10px] text-amber-500">משמרת מלאה</span>}
                                                     </div>
                                                 </div>
-                                                <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!canAssign} className={`px-3 py-1 rounded-full text-xs font-bold ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
+                                                <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!canAssign} className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0 ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
                                             </div>
                                         );
                                     })}
@@ -760,13 +744,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                 </div>
             )}
 
-            {/* Global Mismatch Warnings Panel - HIDDEN FOR VIEWERS */}
+            {/* Global Mismatch Warnings Panel */}
             {!isViewer && !isLoadingWarnings && mismatchWarnings.length > 0 && (
-                <div className="rounded-xl border-2 border-red-500 bg-red-50 p-4 space-y-3 animate-fadeIn">
-                    <div className="flex items-center justify-between mb-1">
+                <div className="rounded-xl border-2 border-red-500 bg-red-50 p-3 md:p-4 space-y-2 md:space-y-3 animate-fadeIn">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
                         <div className="flex items-center gap-2">
-                            <AlertTriangle className="text-red-600" size={20} />
-                            <h2 className="text-red-700 font-bold text-lg">
+                            <AlertTriangle className="text-red-600 flex-shrink-0" size={18} />
+                            <h2 className="text-red-700 font-bold text-base md:text-lg">
                                 אזהרות שיבוץ ({mismatchWarnings.length})
                             </h2>
                         </div>
@@ -775,43 +759,28 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                 const allWarningIds = mismatchWarnings.map(w => w.warningId);
                                 setAcknowledgedWarnings(new Set([...acknowledgedWarnings, ...allWarningIds]));
                             }}
-                            className="text-xs text-red-600 hover:text-red-800 font-bold px-3 py-1 rounded-full bg-white hover:bg-red-100 transition-colors"
+                            className="text-xs text-red-600 hover:text-red-800 font-bold px-3 py-1 rounded-full bg-white hover:bg-red-100 transition-colors whitespace-nowrap"
                         >
                             אשר הכל
                         </button>
                     </div>
                     <ul className="space-y-2">
-                        {mismatchWarnings.map((w, i) => (
-                            <li
-                                key={w.warningId}
-                                className="text-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-white/60 rounded-md px-3 py-2 border border-red-300 transition-all"
-                            >
-                                <div
-                                    onClick={() => handleJumpToShift(w.shiftId, w.start)}
-                                    className="flex-1 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 cursor-pointer hover:bg-white/80"
-                                >
-                                    <span className="font-bold text-red-700">{w.personName}</span>
-                                    <span className="text-red-600">
-                                        במשימה "{w.taskName}"
-                                    </span>
-                                    <span className="text-slate-600 font-medium">
-                                        📅 {w.start.toLocaleDateString('he-IL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                    </span>
-                                    <span className="text-slate-600" dir="ltr">
-                                        🕐 {w.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}–{w.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                    <span className="text-xs text-red-500">
-                                        חסר: {w.missingRoles.join(', ')}
-                                    </span>
+                        {mismatchWarnings.map((w) => (
+                            <li key={w.warningId} className="text-xs md:text-sm flex flex-col gap-2 bg-white/60 rounded-md p-2 md:px-3 md:py-2 border border-red-300">
+                                <div onClick={() => handleJumpToShift(w.shiftId, w.start)} className="flex-1 flex flex-col gap-1 cursor-pointer hover:bg-white/80">
+                                    <div className="flex flex-wrap items-center gap-1">
+                                        <span className="font-bold text-red-700">{w.personName}</span>
+                                        <span className="text-red-600">במשימה "{w.taskName}"</span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 text-slate-600">
+                                        <span className="font-medium text-xs">📅 {w.start.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                                        <span className="text-xs" dir="ltr">🕐 {w.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}–{w.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                    <span className="text-xs text-red-500">חסר: {w.missingRoles.join(', ')}</span>
                                 </div>
-
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAcknowledgeWarning(w.warningId);
-                                    }}
-                                    className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-colors whitespace-nowrap"
-                                    title="אשר אזהרה (הסתר)"
+                                    onClick={(e) => { e.stopPropagation(); handleAcknowledgeWarning(w.warningId); }}
+                                    className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-full bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-colors"
                                 >
                                     <CheckCircle size={14} />
                                     אישור
@@ -823,29 +792,25 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
             )}
 
             {/* Calendar Board Container */}
-            <div className="bg-white rounded-xl shadow-portal p-6">
+            <div className="bg-white rounded-xl shadow-portal p-3 md:p-6">
                 {/* Controls Header */}
-                <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-bold text-slate-800">
-                            מבט יומי
-                        </h3>
-                        {/* Daily Availability Badge - Hidden for Viewers */}
+                <div className="flex flex-col gap-3 md:gap-4 mb-4 md:mb-6">
+                    {/* Top Row */}
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                        <h3 className="text-lg md:text-xl font-bold text-slate-800">מבט יומי</h3>
                         {!isViewer && (() => {
                             const dateKey = selectedDate.toLocaleDateString('en-CA');
                             const unavailableCount = people.filter(p => {
-                                // Check if person is unavailable on this date
                                 if (p.unavailableDates?.includes(dateKey)) return true;
-                                // Check daily availability
                                 if (p.dailyAvailability?.[dateKey]?.isAvailable === false) return true;
                                 return false;
                             }).length;
                             const availableCount = people.length - unavailableCount;
 
                             return (
-                                <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-4 py-2 rounded-full border border-emerald-200">
-                                    <User size={16} className="text-emerald-600" />
-                                    <span className="text-sm font-bold text-emerald-700">
+                                <div className="flex items-center gap-1.5 md:gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-2 md:px-4 py-1 md:py-2 rounded-full border border-emerald-200">
+                                    <User size={14} className="text-emerald-600" />
+                                    <span className="text-xs md:text-sm font-bold text-emerald-700">
                                         זמינים: {availableCount}/{people.length}
                                     </span>
                                 </div>
@@ -853,62 +818,43 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                         })()}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={handleExportToClipboard}
-                            className="flex items-center gap-2 text-blue-600 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-full font-bold text-sm transition-colors"
-                        >
-                            <Copy size={16} />
-                            העתק ללוח
-                        </button>
-                        {!isViewer && (
-                            <button
-                                onClick={onClearDay}
-                                className="flex items-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-full font-bold text-sm transition-colors"
-                            >
-                                <Trash2 size={16} />
-                                נקה יום
+                    {/* Bottom Row */}
+                    <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 md:gap-3">
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 order-2 sm:order-1">
+                            <button onClick={handleExportToClipboard} className="flex items-center justify-center gap-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors flex-1 sm:flex-initial">
+                                <Copy size={14} />
+                                <span className="hidden sm:inline">העתק ללוח</span>
+                                <span className="sm:hidden">העתק</span>
                             </button>
-                        )}
+                            {!isViewer && (
+                                <button onClick={onClearDay} className="flex items-center justify-center gap-1.5 text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors flex-1 sm:flex-initial">
+                                    <Trash2 size={14} />
+                                    <span className="hidden sm:inline">נקה יום</span>
+                                    <span className="sm:hidden">נקה</span>
+                                </button>
+                            )}
+                        </div>
 
-                        <div className="flex items-center bg-slate-100 rounded-full p-1">
-                            <button
-                                onClick={() => {
-                                    if (canGoNext) {
-                                        const d = new Date(selectedDate);
-                                        d.setDate(d.getDate() + 1);
-                                        onDateChange(d);
-                                    }
-                                }}
-                                disabled={!canGoNext}
-                                className={`p-2 rounded-full shadow-sm transition-all ${canGoNext ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}
-                            >
+                        {/* Date Navigation */}
+                        <div className="flex items-center justify-center bg-slate-100 rounded-full p-0.5 md:p-1 order-1 sm:order-2">
+                            <button onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); onDateChange(d); } }} disabled={!canGoNext} className={`p-1.5 md:p-2 rounded-full transition-all ${canGoNext ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}>
                                 <ChevronRight size={16} />
                             </button>
 
-                            <span className="px-4 text-sm font-bold text-slate-600 min-w-[140px] text-center">
-                                {selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                            <span className="px-2 md:px-4 text-xs md:text-sm font-bold text-slate-600 min-w-[120px] md:min-w-[140px] text-center">
+                                {selectedDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })}
                             </span>
 
-                            <button
-                                onClick={() => {
-                                    if (canGoPrev) {
-                                        const d = new Date(selectedDate);
-                                        d.setDate(d.getDate() - 1);
-                                        onDateChange(d);
-                                    }
-                                }}
-                                disabled={!canGoPrev}
-                                className={`p-2 rounded-full shadow-sm transition-all ${canGoPrev ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}
-                            >
+                            <button onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); onDateChange(d); } }} disabled={!canGoPrev} className={`p-1.5 md:p-2 rounded-full transition-all ${canGoPrev ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}>
                                 <ChevronLeft size={16} />
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div className="overflow-x-auto pb-4">
-                    <div className="flex gap-4 min-w-[1000px]">
+                <div className="overflow-x-auto pb-4 -mx-3 md:mx-0 px-3 md:px-0">
+                    <div className="flex gap-2 md:gap-4 min-w-max md:min-w-[1000px]">
                         {visibleTasks.length > 0 ? visibleTasks.map(task => {
                             const dateKey = selectedDate.toLocaleDateString('en-CA');
                             const taskShifts = shifts.filter(s => {
@@ -918,11 +864,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                             }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
                             return (
-                                <div key={task.id} className="flex-1 min-w-[250px] bg-slate-50 rounded-xl p-3">
-                                    <div className={`border-b-2 pb-2 mb-3 ${task.color.replace('border-l-', 'border-')}`}>
-                                        <h4 className="font-bold text-slate-800">{task.name}</h4>
-                                        <div className="flex justify-between text-xs text-slate-500 mt-1">
-                                            <span>{task.schedulingType === 'continuous' ? '24/7 רציף' : 'משימה בודדת'}</span>
+                                <div key={task.id} className="flex-1 min-w-[200px] md:min-w-[250px] bg-slate-50 rounded-xl p-2 md:p-3">
+                                    <div className={`border-b-2 pb-1.5 md:pb-2 mb-2 md:mb-3 ${task.color.replace('border-l-', 'border-')}`}>
+                                        <h4 className="font-bold text-slate-800 text-sm md:text-base truncate">{task.name}</h4>
+                                        <div className="flex justify-between text-[10px] md:text-xs text-slate-500 mt-0.5 md:mt-1">
+                                            <span>{task.schedulingType === 'continuous' ? 'רציף' : 'בודדת'}</span>
                                             <span>{taskShifts.length} משמרות</span>
                                         </div>
                                     </div>
@@ -937,7 +883,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                                     onSelect={(s) => setSelectedShiftId(s.id)}
                                                     onDelete={onDeleteShift}
                                                     isViewer={isViewer}
-                                                    acknowledgedWarnings={isViewer ? new Set() : acknowledgedWarnings} // NEW: Empty set for viewers
+                                                    acknowledgedWarnings={isViewer ? new Set() : acknowledgedWarnings}
                                                 />
                                             </div>
                                         ))}
@@ -945,7 +891,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                     </div>
                                 </div>
                             );
-                        }) : <div className="w-full text-center py-20 text-slate-400 font-medium">אין משימות המוגדרות לתאריך זה</div>}
+                        }) : <div className="w-full text-center py-12 md:py-20 text-slate-400 font-medium text-sm md:text-base">אין משימות המוגדרות לתאריך זה</div>}
                     </div>
                 </div>
             </div>
