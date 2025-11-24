@@ -18,7 +18,7 @@ import {
 } from './services/supabaseClient';
 import { solveSchedule } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
-import { Wand2, Loader2 } from 'lucide-react';
+import { Wand2, Loader2, Sparkles } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { generateShiftsForTask } from './utils/shiftUtils';
 import { PersonnelManager } from './components/PersonnelManager';
@@ -666,10 +666,31 @@ const MainApp: React.FC = () => {
                                 <div className="fixed bottom-8 left-8 z-50">
                                     <button
                                         onClick={() => setShowScheduleModal(true)}
-                                        className="bg-[#82d682] hover:bg-[#6cc16c] text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 transition-all hover:scale-105 font-bold"
+                                        disabled={isScheduling}
+                                        className={`
+                                            relative flex items-center gap-2 px-5 py-3 
+                                            bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 
+                                            text-white rounded-full shadow-xl 
+                                            transform transition-all duration-300 ease-out
+                                            hover:scale-105 hover:-translate-y-1 hover:shadow-indigo-500/40
+                                            active:scale-95
+                                            border border-white/20 backdrop-blur-sm
+                                            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:translate-y-0
+                                        `}
                                     >
-                                        <Wand2 size={20} />
-                                        <span>שיבוץ אוטומטי</span>
+                                        {isScheduling ? (
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                        ) : (
+                                            <div className="relative">
+                                                <Sparkles className="w-5 h-5" />
+                                                {/* Tiny decorative star */}
+                                                <Sparkles className="w-3 h-3 absolute -top-1 -right-2 text-yellow-300 animate-ping" />
+                                            </div>
+                                        )}
+                                        
+                                        <span className="font-bold text-base tracking-wide">
+                                            {isScheduling ? 'מייצר שיבוץ...' : 'שיבוץ אוטומטי'}
+                                        </span>
                                     </button>
                                 </div>
 
