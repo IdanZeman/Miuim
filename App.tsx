@@ -25,11 +25,13 @@ import { PersonnelManager } from './components/PersonnelManager';
 import { AttendanceManager } from './components/AttendanceManager';
 import { OrganizationSettings } from './components/OrganizationSettings';
 import { ShiftReport } from './components/ShiftReport';
+import { logger } from './services/loggingService';
+import { AdminLogsViewer } from './components/AdminLogsViewer';
 
 // --- Main App Content (Authenticated) ---
 const MainApp: React.FC = () => {
     const { organization, user, profile } = useAuth();
-    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports'>('dashboard');
+    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs'>('dashboard');
     const [isLoading, setIsLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [aiHealthMsg, setAiHealthMsg] = useState<string | null>(null);
@@ -72,6 +74,16 @@ const MainApp: React.FC = () => {
 
         return () => { supabase.removeChannel(channel); };
     }, [organization]);
+
+    // Set logging context when user/org changes
+    useEffect(() => {
+        logger.setContext(
+            organization?.id || null,
+            user?.id || null,
+            profile?.email || user?.email || null,
+            profile?.full_name || null
+        );
+    }, [organization, user, profile]);
 
     const fetchData = async () => {
         if (!organization) {
@@ -119,6 +131,9 @@ const MainApp: React.FC = () => {
             const { error } = await supabase.from('people').insert(mapPersonToDB(personWithOrg));
             if (error) throw error;
             setState(prev => ({ ...prev, people: [...prev.people, p] }));
+            
+            // LOG
+            await logger.logCreate('person', p.id, p.name, p);
         } catch (e) {
             console.warn("DB Insert Failed, updating local only:", e);
             setState(prev => ({ ...prev, people: [...prev.people, p] }));
@@ -126,9 +141,14 @@ const MainApp: React.FC = () => {
     };
 
     const handleUpdatePerson = async (p: Person) => {
+        const oldPerson = state.people.find(person => person.id === p.id);
+        
         try {
             const { error } = await supabase.from('people').update(mapPersonToDB(p)).eq('id', p.id);
             if (error) throw error;
+            
+            // LOG
+            await logger.logUpdate('person', p.id, p.name, oldPerson, p);
         } catch (e) { console.warn("DB Update Failed", e); }
 
         setState(prev => ({
@@ -138,8 +158,13 @@ const MainApp: React.FC = () => {
     };
 
     const handleDeletePerson = async (id: string) => {
+        const person = state.people.find(p => p.id === id);
+        
         try {
             await supabase.from('people').delete().eq('id', id);
+            
+            // LOG
+            await logger.logDelete('person', id, person?.name || 'אדם', person);
         } catch (e) { console.warn("DB Delete Failed", e); }
 
         setState(prev => ({
@@ -324,6 +349,10 @@ const MainApp: React.FC = () => {
 
         try {
             await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
+            
+            // LOG
+            const person = state.people.find(p => p.id === personId);
+            await logger.logAssign(shiftId, personId, person?.name || 'אדם');
         } catch (e) { console.warn(e); }
 
         setState(prev => ({
@@ -445,6 +474,9 @@ const MainApp: React.FC = () => {
                     shifts: prev.shifts.map(s => solvedIds.includes(s.id) ? shiftsToSave.find(sol => sol.id === s.id)! : s)
                 }));
 
+                // LOG
+                await logger.logAutoSchedule(1, solvedShifts.length, 'single');
+
                 alert(`✅ שיבוץ הושלם ליום ${selectedDate.toLocaleDateString('he-IL')}!`);
             } else {
                 // Range scheduling with CUMULATIVE state tracking
@@ -564,6 +596,9 @@ const MainApp: React.FC = () => {
                     }));
                 }
 
+                // LOG
+                await logger.logAutoSchedule(daysToSchedule.length, allSolvedShifts.length, 'range');
+
                 alert(`✅ שיבוץ הושלם!\n📅 ${daysToSchedule.length} ימים\n📋 ${allSolvedShifts.length} משמרות`);
             }
 
@@ -656,6 +691,8 @@ const MainApp: React.FC = () => {
                     roles={state.roles}
                     teams={state.teams}
                 />;
+            case 'logs':
+                return <AdminLogsViewer />;
             case 'dashboard':
             default:
                 return (

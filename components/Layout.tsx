@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText } from 'lucide-react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -87,8 +87,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label="דוחות" />
                 {isAdmin && (
                   <>
-                    <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="ייצוא נתונים" icon={FileText} />
+                    <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="דו״ח נוכחות" icon={FileText} />
                     <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
+                    {profile?.email === 'idanzeman@gmail.com' && (
+                      <TopNavLink active={currentView === 'logs'} onClick={() => setView('logs')} label="לוגים" icon={Shield} />
+                    )}
                   </>
                 )}
               </nav>
