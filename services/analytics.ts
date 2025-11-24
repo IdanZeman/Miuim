@@ -5,33 +5,21 @@ declare global {
   }
 }
 
-// Google Analytics Measurement ID (תחליף ב-ID שלך)
-export const GA_MEASUREMENT_ID = 'G-VYS2KQ5LZ6'; // TODO: החלף ב-ID אמיתי מ-Google Analytics
+// Google Analytics Measurement ID
+export const GA_MEASUREMENT_ID = 'G-VYS2KQ5LZ6';
 
-// Initialize Google Analytics
+// Initialize Google Analytics - לא צריך כי הוא כבר נטען מה-HTML
 export const initGA = () => {
-  if (typeof window === 'undefined') return;
-
-  // Load gtag.js script
-  const script = document.createElement('script');
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
-  script.async = true;
-  document.head.appendChild(script);
-
-  // Initialize dataLayer
-  window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag() {
-    window.dataLayer.push(arguments);
-  };
-  window.gtag('js', new Date());
-  window.gtag('config', GA_MEASUREMENT_ID, {
-    page_path: window.location.pathname,
-  });
+  // Google Analytics כבר נטען מ-index.html
+  // הפונקציה הזו כאן למקרה שצריך אתחול נוסף
+  if (typeof window !== 'undefined' && window.gtag) {
+    console.log('Google Analytics initialized successfully');
+  }
 };
 
 // Track page views
 export const trackPageView = (url: string) => {
-  if (typeof window.gtag !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof window.gtag !== 'undefined') {
     window.gtag('config', GA_MEASUREMENT_ID, {
       page_path: url,
     });
@@ -45,7 +33,7 @@ export const trackEvent = (
   label?: string,
   value?: number
 ) => {
-  if (typeof window.gtag !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof window.gtag !== 'undefined') {
     window.gtag('event', action, {
       event_category: category,
       event_label: label,
