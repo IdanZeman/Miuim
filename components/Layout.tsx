@@ -1,5 +1,5 @@
-import React from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -75,24 +75,24 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             {/* Desktop Nav - Hidden in Public Mode */}
             {!isPublic && setView && (
               <nav className="hidden md:flex items-center gap-1">
-                <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" />
+                <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" icon={Calendar}/>
                 {/* Hide personnel, attendance, and tasks from viewers */}
                 {profile?.role !== 'viewer' && (
-                  <>
-                    <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" />
+                    <>
+                    <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" icon={Users}/>
                     <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות וזמינות" icon={Clock} />
-                    <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" />
-                  </>
+                    <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" icon={ClipboardList}/>
+                    </>
                 )}
-                <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label="דוחות" />
+                <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label="דוחות" icon={FileText}/>
                 {isAdmin && (
-                  <>
-                    <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="דו״ח נוכחות" icon={FileText} />
+                    <>
+                    <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="דו״ח נוכחות" icon={Clock} />
                     <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
                     {profile?.email === 'idanzeman@gmail.com' && (
                       <TopNavLink active={currentView === 'logs'} onClick={() => setView('logs')} label="לוגים" icon={Shield} />
                     )}
-                  </>
+                    </>
                 )}
               </nav>
             )}
