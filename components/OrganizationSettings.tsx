@@ -527,31 +527,31 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
     };
 
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={isActive}
-                            onChange={handleToggleActive}
-                            disabled={loading}
-                        />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        <span className="mr-3 text-sm font-medium text-slate-700">
-                            {isActive ? 'קישור פעיל' : 'קישור לא פעיל'}
-                        </span>
-                    </label>
-                </div>
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                {/* Toggle Switch */}
+                <label className="relative inline-flex items-center cursor-pointer group" dir="ltr">
+                    <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={isActive}
+                        onChange={handleToggleActive}
+                        disabled={loading}
+                    />
+                    <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                    <span className="ml-3 text-base font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+                        {isActive ? 'קישור פעיל' : 'קישור לא פעיל'}
+                    </span>
+                </label>
 
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-600">הרשאה למצטרפים:</span>
+                {/* Role Selector */}
+                <div className="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                    <span className="text-sm font-medium text-slate-600 whitespace-nowrap">הרשאה למצטרפים:</span>
                     <select
                         value={defaultRole}
                         onChange={(e) => handleRoleChange(e.target.value as UserRole)}
                         disabled={loading}
-                        className="text-sm border-slate-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                        className="bg-transparent border-none text-sm font-bold text-slate-800 focus:ring-0 cursor-pointer py-0 pl-8 pr-2"
                     >
                         <option value="viewer">צופה</option>
                         <option value="editor">עורך</option>
@@ -562,33 +562,43 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
             </div>
 
             {isActive && inviteToken && (
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="flex-1 flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 overflow-hidden">
-                        <div className="flex-1 truncate text-slate-600 text-sm ltr font-mono">
-                            {`${window.location.origin}/join/${inviteToken}`}
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex flex-col md:flex-row gap-3">
+                        {/* URL Display */}
+                        <div className="flex-1 flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border-2 border-slate-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-50 transition-all">
+                            <div
+                                className="flex-1 px-3 py-2 text-slate-600 text-sm font-mono truncate select-all"
+                                dir="ltr"
+                            >
+                                {`${window.location.origin}/join/${inviteToken}`}
+                            </div>
+                            <div className="w-px h-8 bg-slate-200 mx-1"></div>
+                            <button
+                                onClick={copyToClipboard}
+                                className="p-2 hover:bg-white rounded-lg transition-all text-slate-500 hover:text-blue-600 hover:shadow-sm active:scale-95"
+                                title="העתק קישור"
+                            >
+                                {copied ? <CheckCircle size={20} className="text-green-500" /> : <Copy size={20} />}
+                            </button>
                         </div>
+
+                        {/* Regenerate Button */}
                         <button
-                            onClick={copyToClipboard}
-                            className="p-1.5 hover:bg-white rounded-md transition-colors text-slate-500 hover:text-blue-600"
-                            title="העתק קישור"
+                            onClick={handleRegenerate}
+                            disabled={loading}
+                            className="px-5 py-3 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm hover:shadow-md active:scale-95"
                         >
-                            {copied ? <CheckCircle size={18} className="text-green-500" /> : <Copy size={18} />}
+                            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                            <span>צור קישור חדש</span>
                         </button>
                     </div>
-                    <button
-                        onClick={handleRegenerate}
-                        disabled={loading}
-                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
-                    >
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                        צור קישור חדש
-                    </button>
+
+                    <p className="text-xs text-slate-500 flex items-center gap-1.5 mr-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        משתמשים שיירשמו דרך הקישור יצורפו אוטומטית לארגון עם ההרשאה שנבחרה.
+                    </p>
                 </div>
             )}
-
-            <p className="text-xs text-slate-500">
-                משתמשים שיירשמו דרך הקישור יצורפו אוטומטית לארגון עם ההרשאה שנבחרה.
-            </p>
         </div>
     );
 };

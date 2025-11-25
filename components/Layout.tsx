@@ -94,24 +94,33 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             {/* Desktop Nav - Hidden in Public Mode */}
             {!isPublic && setView && (
               <nav className="hidden md:flex items-center gap-0.5 lg:gap-1">
-                <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" icon={Calendar}/>
-                {/* Hide personnel, attendance, and tasks from viewers */}
-                {profile?.role !== 'viewer' && (
-                    <>
-                    <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" icon={Users}/>
-                    <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות וזמינות" icon={Clock} />
-                    <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" icon={ClipboardList}/>
-                    </>
+                {/* Dashboard - Visible to everyone */}
+                <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" icon={Calendar} />
+
+                {/* Personnel & Tasks - Visible to Admin and Editor only */}
+                {(profile?.role === 'admin' || profile?.role === 'editor') && (
+                  <>
+                    <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" icon={Users} />
+                    <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" icon={ClipboardList} />
+                  </>
                 )}
-                <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label="דוחות" icon={FileText}/>
+
+                {/* Attendance - Visible to Admin, Editor, and Attendance Manager */}
+                {profile?.role !== 'viewer' && (
+                  <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות וזמינות" icon={Clock} />
+                )}
+
+                {/* Stats - Visible to everyone */}
+                <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label={(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'} icon={FileText} />
+
                 {isAdmin && (
-                    <>
+                  <>
                     <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="דו״ח נוכחות" icon={Clock} />
                     <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
                     {profile?.email === 'idanzeman@gmail.com' && (
                       <TopNavLink active={currentView === 'logs'} onClick={() => setView('logs')} label="לוגים" icon={Shield} />
                     )}
-                    </>
+                  </>
                 )}
               </nav>
             )}
@@ -142,18 +151,18 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       {!isPublic && isMobileMenuOpen && setView && (
         <>
           {/* Backdrop overlay */}
-          <div 
+          <div
             className="fixed inset-0 bg-slate-900/30 z-40 md:hidden backdrop-blur-sm"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          
+
           {/* Menu panel - full height from top */}
           <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white shadow-2xl z-50 md:hidden overflow-y-auto">
             {/* Header */}
             <div className="p-6 border-b border-slate-200 bg-white">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-lg font-bold text-slate-800">תפריט ניווט</h2>
-                <button 
+                <button
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="p-2 hover:bg-slate-100 rounded-full transition-colors"
                 >
@@ -163,7 +172,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 </button>
               </div>
               <p className="text-xs text-slate-500 mb-3">{user?.email || 'משתמש'}</p>
-              
+
               {/* Logout button */}
               <button
                 onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
@@ -176,50 +185,37 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {/* Menu Items */}
             <div className="p-4 flex flex-col gap-1">
-              <button 
-                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${
-                  currentView === 'dashboard' 
-                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow' 
+              {/* Dashboard - Visible to everyone */}
+              <button
+                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'dashboard'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
                     : 'hover:bg-slate-50 text-slate-700'
-                }`} 
+                  }`}
                 onClick={() => { setView('dashboard'); setIsMobileMenuOpen(false) }}
               >
                 <Calendar size={22} className={currentView === 'dashboard' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                 <span>לוח שיבוצים</span>
               </button>
-              
-              {profile?.role !== 'viewer' && (
+
+              {/* Personnel & Tasks - Visible to Admin and Editor only */}
+              {(profile?.role === 'admin' || profile?.role === 'editor') && (
                 <>
-                  <button 
-                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${
-                      currentView === 'personnel' 
-                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow' 
+                  <button
+                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'personnel'
+                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
                         : 'hover:bg-slate-50 text-slate-700'
-                    }`} 
+                      }`}
                     onClick={() => { setView('personnel'); setIsMobileMenuOpen(false) }}
                   >
                     <Users size={22} className={currentView === 'personnel' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                     <span>ניהול כוח אדם</span>
                   </button>
-                  
-                  <button 
-                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${
-                      currentView === 'attendance' 
-                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow' 
+
+                  <button
+                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'tasks'
+                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
                         : 'hover:bg-slate-50 text-slate-700'
-                    }`} 
-                    onClick={() => { setView('attendance'); setIsMobileMenuOpen(false) }}
-                  >
-                    <Clock size={22} className={currentView === 'attendance' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                    <span>נוכחות</span>
-                  </button>
-                  
-                  <button 
-                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${
-                      currentView === 'tasks' 
-                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow' 
-                        : 'hover:bg-slate-50 text-slate-700'
-                    }`} 
+                      }`}
                     onClick={() => { setView('tasks'); setIsMobileMenuOpen(false) }}
                   >
                     <ClipboardList size={22} className={currentView === 'tasks' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
@@ -227,52 +223,63 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   </button>
                 </>
               )}
-              
-              <button 
-                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${
-                  currentView === 'stats' 
-                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow' 
+
+              {/* Attendance - Visible to Admin, Editor, and Attendance Manager */}
+              {profile?.role !== 'viewer' && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'attendance'
+                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                      : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('attendance'); setIsMobileMenuOpen(false) }}
+                >
+                  <Clock size={22} className={currentView === 'attendance' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>נוכחות</span>
+                </button>
+              )}
+
+              {/* Stats - Visible to everyone */}
+              <button
+                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'stats'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
                     : 'hover:bg-slate-50 text-slate-700'
-                }`} 
+                  }`}
                 onClick={() => { setView('stats'); setIsMobileMenuOpen(false) }}
               >
                 <FileText size={22} className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                <span>דוחות</span>
+                <span>{(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'}</span>
               </button>
-              
+
               {isAdmin && (
                 <>
-                  <button 
-                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${
-                      currentView === 'reports' 
-                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow' 
+                  <button
+                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'reports'
+                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
                         : 'hover:bg-slate-50 text-slate-700'
-                    }`} 
+                      }`}
                     onClick={() => { setView('reports'); setIsMobileMenuOpen(false) }}
                   >
                     <Clock size={22} className={currentView === 'reports' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                     <span>ייצוא נתונים</span>
                   </button>
-                  
-                  <button 
-                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${
-                      currentView === 'settings' 
-                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow' 
+
+                  <button
+                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'settings'
+                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
                         : 'hover:bg-slate-50 text-slate-700'
-                    }`} 
+                      }`}
                     onClick={() => { setView('settings'); setIsMobileMenuOpen(false) }}
                   >
                     <Settings size={22} className={currentView === 'settings' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                     <span>הגדרות</span>
                   </button>
-                  
+
                   {profile?.email === 'idanzeman@gmail.com' && (
-                    <button 
-                      className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${
-                        currentView === 'logs' 
-                          ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow' 
+                    <button
+                      className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'logs'
+                          ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
                           : 'hover:bg-slate-50 text-slate-700'
-                      }`} 
+                        }`}
                       onClick={() => { setView('logs'); setIsMobileMenuOpen(false) }}
                     >
                       <Shield size={22} className={currentView === 'logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />

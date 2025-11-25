@@ -682,7 +682,7 @@ const MainApp: React.FC = () => {
                     shifts={state.shifts}
                     tasks={state.taskTemplates}
                     roles={state.roles}
-                    isViewer={profile?.role === 'viewer'}
+                    isViewer={profile?.role === 'viewer' || profile?.role === 'attendance_only'}
                     currentUserEmail={profile?.email || user?.email}
                     currentUserName={profile?.full_name}
                 />;
