@@ -12,6 +12,9 @@ export interface Organization {
   id: string;
   name: string;
   created_at: string;
+  invite_token?: string;
+  is_invite_link_active?: boolean;
+  invite_link_role?: UserRole;
 }
 
 export interface OrganizationSettings {

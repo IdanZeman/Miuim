@@ -1,17 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { OrganizationInvite, Profile, UserRole } from '../types';
-import { getRoleDisplayName, getRoleDescription, canManageOrganization } from '../utils/permissions';
-import { Users, Mail, Trash2, Shield, UserPlus, Clock, CheckCircle, XCircle, Moon, Save } from 'lucide-react';
+import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users } from 'lucide-react';
+import { UserRole, Profile, OrganizationInvite } from '../types';
+
+const canManageOrganization = (role: UserRole) => {
+    return role === 'admin';
+};
+
+const getRoleDisplayName = (role: UserRole) => {
+    switch (role) {
+        case 'admin': return 'מנהל';
+        case 'editor': return 'עורך';
+        case 'viewer': return 'צופה';
+        case 'attendance_only': return 'נוכחות בלבד';
+        default: return role;
+    }
+};
 
 const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId }) => {
-    const [start, setStart] = useState('22:00');
-    const [end, setEnd] = useState('06:00');
-    const [viewerDays, setViewerDays] = useState(2);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [start, setStart] = useState('22:00');
+    const [end, setEnd] = useState('06:00');
+    const [viewerDays, setViewerDays] = useState(2);
 
     useEffect(() => {
         fetchSettings();
@@ -268,6 +281,17 @@ export const OrganizationSettings: React.FC = () => {
                 </div>
             </div>
 
+            {/* Invite Link Settings */}
+            <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-blue-200">
+                <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
+                    <LinkIcon className="text-blue-600 flex-shrink-0" size={20} />
+                    <h2 className="text-lg md:text-2xl font-bold text-slate-800">קישור הצטרפות</h2>
+                </div>
+                <InviteLinkSettings organization={organization} onUpdate={fetchMembers} />
+            </div>
+
+
+
             {/* Night Shift Settings */}
             <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-indigo-200">
                 <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
@@ -408,6 +432,163 @@ export const OrganizationSettings: React.FC = () => {
                     ))}
                 </div>
             </div>
+        </div>
+    );
+};
+
+const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> = ({ organization, onUpdate }) => {
+    const [loading, setLoading] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [isActive, setIsActive] = useState(organization?.is_invite_link_active || false);
+    const [defaultRole, setDefaultRole] = useState<UserRole>(organization?.invite_link_role || 'member');
+    const [inviteToken, setInviteToken] = useState(organization?.invite_token || '');
+
+    useEffect(() => {
+        if (organization) {
+            setIsActive(organization.is_invite_link_active);
+            setDefaultRole(organization.invite_link_role || 'member');
+            setInviteToken(organization.invite_token);
+        }
+    }, [organization]);
+
+    const handleToggleActive = async () => {
+        setLoading(true);
+        try {
+            // If we are enabling and there is no token, generate one first
+            let token = inviteToken;
+            if (!isActive && !token) {
+                const { data, error: rpcError } = await supabase.rpc('generate_invite_token', { org_id: organization.id });
+                if (rpcError) throw rpcError;
+                token = data;
+                setInviteToken(token);
+            }
+
+            const { error } = await supabase
+                .from('organizations')
+                .update({
+                    is_invite_link_active: !isActive,
+                    invite_token: token // Ensure token is set
+                })
+                .eq('id', organization.id);
+
+            if (error) throw error;
+            setIsActive(!isActive);
+        } catch (error) {
+            console.error('Error toggling invite link:', error);
+            alert('שגיאה בעדכון סטטוס קישור');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRegenerate = async () => {
+        if (!confirm('האם אתה בטוח? הקישור הקודם יפסיק לעבוד.')) return;
+
+        setLoading(true);
+        try {
+            const { data, error } = await supabase.rpc('generate_invite_token', { org_id: organization.id });
+
+            if (error) throw error;
+
+            setInviteToken(data);
+            setIsActive(true); // Auto-enable on regenerate
+            alert('קישור חדש נוצר בהצלחה');
+        } catch (error) {
+            console.error('Error regenerating token:', error);
+            alert('שגיאה ביצירת קישור חדש');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRoleChange = async (newRole: UserRole) => {
+        setLoading(true);
+        try {
+            const { error } = await supabase
+                .from('organizations')
+                .update({ invite_link_role: newRole })
+                .eq('id', organization.id);
+
+            if (error) throw error;
+            setDefaultRole(newRole);
+        } catch (error) {
+            console.error('Error updating default role:', error);
+            alert('שגיאה בעדכון הרשאת ברירת מחדל');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const copyToClipboard = () => {
+        const link = `${window.location.origin}/join/${inviteToken}`;
+        navigator.clipboard.writeText(link);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={isActive}
+                            onChange={handleToggleActive}
+                            disabled={loading}
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        <span className="mr-3 text-sm font-medium text-slate-700">
+                            {isActive ? 'קישור פעיל' : 'קישור לא פעיל'}
+                        </span>
+                    </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-600">הרשאה למצטרפים:</span>
+                    <select
+                        value={defaultRole}
+                        onChange={(e) => handleRoleChange(e.target.value as UserRole)}
+                        disabled={loading}
+                        className="text-sm border-slate-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    >
+                        <option value="viewer">צופה</option>
+                        <option value="editor">עורך</option>
+                        <option value="attendance_only">נוכחות בלבד</option>
+                        <option value="member">חבר צוות</option>
+                    </select>
+                </div>
+            </div>
+
+            {isActive && inviteToken && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex-1 flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 overflow-hidden">
+                        <div className="flex-1 truncate text-slate-600 text-sm ltr font-mono">
+                            {`${window.location.origin}/join/${inviteToken}`}
+                        </div>
+                        <button
+                            onClick={copyToClipboard}
+                            className="p-1.5 hover:bg-white rounded-md transition-colors text-slate-500 hover:text-blue-600"
+                            title="העתק קישור"
+                        >
+                            {copied ? <CheckCircle size={18} className="text-green-500" /> : <Copy size={18} />}
+                        </button>
+                    </div>
+                    <button
+                        onClick={handleRegenerate}
+                        disabled={loading}
+                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+                    >
+                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                        צור קישור חדש
+                    </button>
+                </div>
+            )}
+
+            <p className="text-xs text-slate-500">
+                משתמשים שיירשמו דרך הקישור יצורפו אוטומטית לארגון עם ההרשאה שנבחרה.
+            </p>
         </div>
     );
 };

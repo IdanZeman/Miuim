@@ -27,6 +27,7 @@ import { OrganizationSettings } from './components/OrganizationSettings';
 import { ShiftReport } from './components/ShiftReport';
 import { logger } from './services/loggingService';
 import { AdminLogsViewer } from './components/AdminLogsViewer';
+import JoinPage from './components/JoinPage';
 import { initGA, trackPageView } from './services/analytics';
 import { usePageTracking } from './hooks/usePageTracking';
 
@@ -133,7 +134,7 @@ const MainApp: React.FC = () => {
             const { error } = await supabase.from('people').insert(mapPersonToDB(personWithOrg));
             if (error) throw error;
             setState(prev => ({ ...prev, people: [...prev.people, p] }));
-            
+
             // LOG
             await logger.logCreate('person', p.id, p.name, p);
         } catch (e) {
@@ -144,11 +145,11 @@ const MainApp: React.FC = () => {
 
     const handleUpdatePerson = async (p: Person) => {
         const oldPerson = state.people.find(person => person.id === p.id);
-        
+
         try {
             const { error } = await supabase.from('people').update(mapPersonToDB(p)).eq('id', p.id);
             if (error) throw error;
-            
+
             // LOG
             await logger.logUpdate('person', p.id, p.name, oldPerson, p);
         } catch (e) { console.warn("DB Update Failed", e); }
@@ -161,10 +162,10 @@ const MainApp: React.FC = () => {
 
     const handleDeletePerson = async (id: string) => {
         const person = state.people.find(p => p.id === id);
-        
+
         try {
             await supabase.from('people').delete().eq('id', id);
-            
+
             // LOG
             await logger.logDelete('person', id, person?.name || 'אדם', person);
         } catch (e) { console.warn("DB Delete Failed", e); }
@@ -351,7 +352,7 @@ const MainApp: React.FC = () => {
 
         try {
             await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
-            
+
             // LOG
             const person = state.people.find(p => p.id === personId);
             await logger.logAssign(shiftId, personId, person?.name || 'אדם');
@@ -645,6 +646,8 @@ const MainApp: React.FC = () => {
         }));
     };
 
+
+
     const renderContent = () => {
         if (isLoading) {
             return (
@@ -726,7 +729,7 @@ const MainApp: React.FC = () => {
                                                 <Sparkles className="w-3 h-3 absolute -top-1 -right-2 text-yellow-300 animate-ping" />
                                             </div>
                                         )}
-                                        
+
                                         <span className="font-bold text-base tracking-wide">
                                             {isScheduling ? 'מייצר שיבוץ...' : 'שיבוץ אוטומטי'}
                                         </span>
@@ -884,22 +887,87 @@ const MainApp: React.FC = () => {
 
 // --- App Wrapper with Auth Logic ---
 const AppContent: React.FC = () => {
-    const { user, profile, organization, loading } = useAuth();
+    const { user, profile, organization, loading, refreshProfile } = useAuth();
+    const [isProcessingInvite, setIsProcessingInvite] = useState(true);
 
-    if (loading) {
+    // Check for pending invite after login
+    useEffect(() => {
+        const checkPendingInvite = async () => {
+            const pendingToken = localStorage.getItem('pending_invite_token');
+            console.log('🔍 [App] Checking pending invite. User:', user?.id, 'Token:', pendingToken);
+
+            if (user && pendingToken) {
+                console.log('🚀 [App] Found pending invite token, executing join logic...');
+                try {
+                    console.log('📡 [App] Calling join_organization_by_token RPC...');
+                    const { data, error } = await supabase.rpc('join_organization_by_token', { token: pendingToken });
+
+                    console.log('✅ [App] RPC Result:', { data, error });
+
+                    if (error) throw error;
+
+                    if (data) {
+                        console.log('🎉 [App] Join successful! Clearing token and refreshing profile.');
+                        localStorage.removeItem('pending_invite_token');
+                        // Force reload to ensure fresh state and avoid race conditions
+                        window.location.reload();
+                        return;
+                    } else {
+                        console.warn('⚠️ [App] Join returned false (likely invalid token or already member).');
+                    }
+                } catch (error) {
+                    console.error('❌ [App] Error joining org from pending token:', error);
+                    localStorage.removeItem('pending_invite_token');
+                    console.log('🏁 [App] Finished processing invite.');
+                    setIsProcessingInvite(false);
+                }
+            } else {
+                console.log('ℹ️ [App] No pending invite or no user. Skipping.');
+                setIsProcessingInvite(false);
+            }
+        };
+
+        if (!loading) {
+            if (user) {
+                checkPendingInvite();
+            } else {
+                setIsProcessingInvite(false);
+            }
+        }
+    }, [user, loading]);
+
+    // Safety timeout for invite processing
+    useEffect(() => {
+        if (isProcessingInvite) {
+            const timer = setTimeout(() => {
+                console.warn('Invite processing timed out, forcing reset.');
+                setIsProcessingInvite(false);
+            }, 10000); // 10 seconds max
+            return () => clearTimeout(timer);
+        }
+    }, [isProcessingInvite]);
+
+    if (loading || isProcessingInvite) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50">
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-600 font-medium">טוען...</p>
+                    <p className="text-slate-600 font-medium">
+                        {isProcessingInvite ? 'מצטרף לארגון...' : 'טוען נתונים...'}
+                    </p>
                 </div>
             </div>
         );
     }
 
-    // NEW: If user exists but NO profile → Show Onboarding
+    // If user exists but NO profile → Show Onboarding
     if (user && !profile) {
         return <Onboarding />;
+    }
+
+    // Check for join link
+    if (window.location.pathname.startsWith('/join/')) {
+        return <JoinPage />;
     }
 
     // If not logged in → Show Landing Page
@@ -907,7 +975,21 @@ const AppContent: React.FC = () => {
         return <LandingPage />;
     }
 
-    // NEW: If profile exists but NO organization → Show Create Organization
+    // If profile has organization_id but organization is not loaded yet -> Show Loading
+    if (profile?.organization_id && !organization) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50">
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600 font-medium">
+                        טוען נתוני ארגון...
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // If profile exists but NO organization → Show Create Organization
     if (profile && !organization) {
         return <Onboarding />;
     }
@@ -925,3 +1007,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+
