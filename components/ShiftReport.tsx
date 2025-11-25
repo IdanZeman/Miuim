@@ -149,81 +149,81 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
             {/* Header */}
-            <div className="bg-white rounded-xl shadow-portal p-6">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                            <Calendar className="text-blue-600" size={28} />
-                            דוח משמרות מתקדם
-                        </h2>
-                        <p className="text-slate-500 mt-1">סינון וייצוא נתוני משמרות</p>
-                    </div>
-                    
-                    <div className="flex gap-2">
+            <div className="bg-white rounded-xl shadow-portal p-4 md:p-6">
+                <div className="flex flex-col gap-4 mb-4 md:mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
+                        <div>
+                            <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 md:gap-3">
+                                <Calendar className="text-blue-600" size={24} />
+                                דוח משמרות
+                            </h2>
+                            <p className="text-slate-500 text-sm md:text-base mt-1">סינון וייצוא נתונים</p>
+                        </div>
+                        
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                            className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all text-sm md:text-base ${
                                 showFilters ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                             }`}
                         >
-                            <Filter size={18} />
+                            <Filter size={16} />
                             סינונים {(selectedTasks.length + selectedTeams.length > 0) && `(${selectedTasks.length + selectedTeams.length})`}
                         </button>
                     </div>
                 </div>
 
                 {/* Date + Time Range Selector */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4">
                     <div>
-                        <label className="block text-slate-700 font-medium mb-2 text-right">מתאריך</label>
+                        <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">מתאריך</label>
                         <input
                             type="date"
                             value={startDate}
                             onChange={e => setStartDate(e.target.value)}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none"
+                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base"
                         />
                     </div>
                     <div>
-                        <label className="block text-slate-700 font-medium mb-2 text-right">משעה</label>
+                        <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">משעה</label>
                         <input
                             type="time"
                             value={startTime}
                             onChange={e => setStartTime(e.target.value)}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none"
+                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base"
                         />
                     </div>
                     <div>
-                        <label className="block text-slate-700 font-medium mb-2 text-right">עד תאריך</label>
+                        <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">עד תאריך</label>
                         <input
                             type="date"
                             value={endDate}
                             onChange={e => setEndDate(e.target.value)}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none"
+                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base"
                         />
                     </div>
                     <div>
-                        <label className="block text-slate-700 font-medium mb-2 text-right">עד שעה</label>
+                        <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">עד שעה</label>
                         <input
                             type="time"
                             value={endTime}
                             onChange={e => setEndTime(e.target.value)}
-                            className="w-full px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none"
+                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base"
                         />
                     </div>
                 </div>
 
                 {/* Filters Panel */}
                 {showFilters && (
-                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 animate-fadeIn">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 rounded-xl p-3 md:p-4 border border-slate-200 animate-fadeIn">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             {/* Task Filter */}
                             <div>
-                                <label className="block text-slate-700 font-medium mb-2 text-right">סינון לפי משימה</label>
-                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">סינון לפי משימה</label>
+                                <div className="space-y-1.5 md:space-y-2 max-h-48 overflow-y-auto">
                                     {tasks.map(task => (
-                                        <label key={task.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded">
+                                        <label key={task.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded text-sm md:text-base">
                                             <input
                                                 type="checkbox"
                                                 checked={selectedTasks.includes(task.id)}
@@ -244,10 +244,10 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
 
                             {/* Team Filter */}
                             <div>
-                                <label className="block text-slate-700 font-medium mb-2 text-right">סינון לפי צוות</label>
-                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">סינון לפי צוות</label>
+                                <div className="space-y-1.5 md:space-y-2 max-h-48 overflow-y-auto">
                                     {teams.map(team => (
-                                        <label key={team.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded">
+                                        <label key={team.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded text-sm md:text-base">
                                             <input
                                                 type="checkbox"
                                                 checked={selectedTeams.includes(team.id)}
@@ -274,7 +274,7 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
                                     setSelectedTasks([]);
                                     setSelectedTeams([]);
                                 }}
-                                className="mt-4 text-red-600 hover:text-red-800 text-sm font-medium flex items-center gap-1"
+                                className="mt-3 md:mt-4 text-red-600 hover:text-red-800 text-xs md:text-sm font-medium flex items-center gap-1"
                             >
                                 <X size={14} />
                                 נקה סינונים
@@ -284,19 +284,19 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
                 )}
 
                 {/* Export Actions */}
-                <div className="flex gap-3 mt-6">
+                <div className="flex flex-col sm:flex-row gap-2 md:gap-3 mt-4 md:mt-6">
                     <button
                         onClick={handleExportToExcel}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-colors shadow-sm"
+                        className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl font-bold transition-colors shadow-sm text-sm md:text-base"
                     >
-                        <Download size={20} />
+                        <Download size={18} />
                         ייצא ל-Excel
                     </button>
                     <button
                         onClick={handleCopyToClipboard}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-colors shadow-sm"
+                        className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl font-bold transition-colors shadow-sm text-sm md:text-base"
                     >
-                        <Copy size={20} />
+                        <Copy size={18} />
                         העתק ללוח
                     </button>
                 </div>
@@ -305,86 +305,134 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
             {/* Copy Success Toast */}
             {showCopySuccess && (
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
-                    <div className="bg-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 border-2 border-emerald-400">
-                        <div className="bg-emerald-50 rounded-full p-1.5">
-                            <Check size={16} className="text-emerald-600" />
+                    <div className="bg-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl shadow-lg flex items-center gap-2 md:gap-3 border-2 border-emerald-400">
+                        <div className="bg-emerald-50 rounded-full p-1 md:p-1.5">
+                            <Check size={14} className="text-emerald-600" />
                         </div>
-                        <span className="font-medium text-slate-700">הדוח הועתק בהצלחה</span>
+                        <span className="font-medium text-slate-700 text-sm md:text-base">הדוח הועתק בהצלחה</span>
                     </div>
                 </div>
             )}
 
             {/* Results Summary */}
-            <div className="bg-white rounded-xl shadow-portal p-6">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">
-                    תוצאות ({filteredShifts.length} משמרות) • טווח:
-                    <span className="text-slate-600 mr-2">
-                        {new Date(startDate).toLocaleDateString('he-IL')} {startTime} → {new Date(endDate).toLocaleDateString('he-IL')} {endTime}
+            <div className="bg-white rounded-xl shadow-portal p-4 md:p-6">
+                <h3 className="text-base md:text-lg font-bold text-slate-800 mb-3 md:mb-4">
+                    תוצאות ({filteredShifts.length} משמרות)
+                    <span className="block sm:inline text-xs md:text-sm text-slate-600 mt-1 sm:mt-0 sm:mr-2 font-normal">
+                        טווח: {new Date(startDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })} {startTime} → {new Date(endDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })} {endTime}
                     </span>
                 </h3>
                 
                 {filteredShifts.length === 0 ? (
-                    <div className="text-center py-12">
-                        <p className="text-slate-400 text-lg">לא נמצאו משמרות בטווח התאריכים שנבחר</p>
+                    <div className="text-center py-8 md:py-12">
+                        <p className="text-slate-400 text-base md:text-lg">לא נמצאו משמרות בטווח שנבחר</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-slate-200">
-                                    <th className="text-right py-3 px-4 font-bold text-slate-700">תאריך</th>
-                                    <th className="text-right py-3 px-4 font-bold text-slate-700">שעות</th>
-                                    <th className="text-right py-3 px-4 font-bold text-slate-700">משימה</th>
-                                    <th className="text-right py-3 px-4 font-bold text-slate-700">משובצים</th>
-                                    <th className="text-right py-3 px-4 font-bold text-slate-700">סטטוס</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredShifts.map(shift => {
-                                    const task = tasks.find(t => t.id === shift.taskId);
-                                    const start = new Date(shift.startTime);
-                                    const end = new Date(shift.endTime);
-                                    const isFull = task && shift.assignedPersonIds.length >= task.requiredPeople;
+                    <>
+                        {/* Mobile Card View */}
+                        <div className="block md:hidden space-y-3">
+                            {filteredShifts.map(shift => {
+                                const task = tasks.find(t => t.id === shift.taskId);
+                                const start = new Date(shift.startTime);
+                                const end = new Date(shift.endTime);
+                                const isFull = task && shift.assignedPersonIds.length >= task.requiredPeople;
 
-                                    return (
-                                        <tr key={shift.id} className="border-b border-slate-100 hover:bg-slate-50">
-                                            <td className="py-3 px-4 text-slate-700">
-                                                {start.toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })}
-                                            </td>
-                                            <td className="py-3 px-4 text-slate-700" dir="ltr">
-                                                {start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                <span className="font-medium text-slate-800">{task?.name}</span>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                <div className="flex flex-wrap gap-1">
-                                                    {shift.assignedPersonIds.map(pid => {
-                                                        const person = people.find(p => p.id === pid);
-                                                        return person ? (
-                                                            <span key={pid} className="text-xs bg-slate-100 px-2 py-1 rounded">
-                                                                {person.name}
-                                                            </span>
-                                                        ) : null;
-                                                    })}
-                                                    {shift.assignedPersonIds.length === 0 && (
-                                                        <span className="text-xs text-slate-400 italic">לא שובץ</span>
-                                                    )}
+                                return (
+                                    <div key={shift.id} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex-1">
+                                                <div className="font-bold text-slate-800 text-sm mb-1">{task?.name}</div>
+                                                <div className="text-xs text-slate-500 flex items-center gap-2">
+                                                    <span>{start.toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })}</span>
+                                                    <span className="text-slate-300">•</span>
+                                                    <span dir="ltr">
+                                                        {start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
                                                 </div>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                {isFull ? (
-                                                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">מלא</span>
-                                                ) : (
-                                                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-medium">חסר</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                                            </div>
+                                            {isFull ? (
+                                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-medium">מלא</span>
+                                            ) : (
+                                                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium">חסר</span>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5 mt-2">
+                                            {shift.assignedPersonIds.map(pid => {
+                                                const person = people.find(p => p.id === pid);
+                                                return person ? (
+                                                    <span key={pid} className="text-xs bg-white border border-slate-200 px-2 py-1 rounded">
+                                                        {person.name}
+                                                    </span>
+                                                ) : null;
+                                            })}
+                                            {shift.assignedPersonIds.length === 0 && (
+                                                <span className="text-xs text-slate-400 italic">לא שובץ</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-slate-200">
+                                        <th className="text-right py-3 px-4 font-bold text-slate-700">תאריך</th>
+                                        <th className="text-right py-3 px-4 font-bold text-slate-700">שעות</th>
+                                        <th className="text-right py-3 px-4 font-bold text-slate-700">משימה</th>
+                                        <th className="text-right py-3 px-4 font-bold text-slate-700">משובצים</th>
+                                        <th className="text-right py-3 px-4 font-bold text-slate-700">סטטוס</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredShifts.map(shift => {
+                                        const task = tasks.find(t => t.id === shift.taskId);
+                                        const start = new Date(shift.startTime);
+                                        const end = new Date(shift.endTime);
+                                        const isFull = task && shift.assignedPersonIds.length >= task.requiredPeople;
+
+                                        return (
+                                            <tr key={shift.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                                <td className="py-3 px-4 text-slate-700">
+                                                    {start.toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })}
+                                                </td>
+                                                <td className="py-3 px-4 text-slate-700" dir="ltr">
+                                                    {start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <span className="font-medium text-slate-800">{task?.name}</span>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {shift.assignedPersonIds.map(pid => {
+                                                            const person = people.find(p => p.id === pid);
+                                                            return person ? (
+                                                                <span key={pid} className="text-xs bg-slate-100 px-2 py-1 rounded">
+                                                                    {person.name}
+                                                                </span>
+                                                            ) : null;
+                                                        })}
+                                                        {shift.assignedPersonIds.length === 0 && (
+                                                            <span className="text-xs text-slate-400 italic">לא שובץ</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    {isFull ? (
+                                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">מלא</span>
+                                                    ) : (
+                                                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-medium">חסר</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
                 )}
             </div>
         </div>

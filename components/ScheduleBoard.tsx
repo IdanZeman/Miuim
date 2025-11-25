@@ -435,10 +435,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                     {new Date(upcoming.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(upcoming.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                                <MapPin size={16} className="flex-shrink-0" />
-                                <span>מחנה נחשונים</span>
-                            </div>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-3">
                             <button
@@ -446,9 +442,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                 className="bg-idf-yellow hover:bg-idf-yellow-hover text-slate-900 px-4 md:px-6 py-2 md:py-2.5 rounded-full font-bold shadow-sm transition-colors text-sm md:text-base"
                             >
                                 נהל משמרת
-                            </button>
-                            <button className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 md:px-6 py-2 md:py-2.5 rounded-full font-bold transition-colors text-sm md:text-base">
-                                בקשות מיוחדות
                             </button>
                         </div>
                     </div>
