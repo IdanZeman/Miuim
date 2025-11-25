@@ -5,7 +5,7 @@ import { Building2, Mail, CheckCircle, Sparkles, Shield } from 'lucide-react';
 import { analytics } from '../services/analytics';
 
 export const Onboarding: React.FC = () => {
-    const { user, refreshProfile } = useAuth();
+    const { user, refreshProfile, signOut } = useAuth();
     const [orgName, setOrgName] = useState('');
     const [loading, setLoading] = useState(false);
     const [checkingInvite, setCheckingInvite] = useState(true);
@@ -89,9 +89,10 @@ export const Onboarding: React.FC = () => {
         analytics.trackFormFieldEdit('create_organization', 'org_name');
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
         analytics.trackFormStart('create_organization');
-        
+
         if (!orgName.trim()) {
             analytics.trackValidationError('create_organization', 'org_name', 'empty');
             setError('נא להזין שם ארגון');
@@ -106,26 +107,6 @@ export const Onboarding: React.FC = () => {
             const { data: org, error: orgError } = await supabase
                 .from('organizations')
                 .insert({ name: orgName.trim() })
-                .select()
-                .single();
-
-            if (orgError) throw orgError;
-
-            // Update user profile with organization_id and set as admin
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({
-                    organization_id: org.id,
-                    role: 'admin' // First user becomes admin
-                })
-                .eq('id', user.id);
-
-            if (profileError) throw profileError;
-
-            // Refresh profile to get the new organization
-            await refreshProfile();
-
-            analytics.trackFormSubmit('create_organization', true);
             analytics.trackEvent('organization_created', 'Onboarding', orgName);
         } catch (error) {
             analytics.trackFormSubmit('create_organization', false);
@@ -133,6 +114,15 @@ export const Onboarding: React.FC = () => {
             setError('שגיאה ביצירת הארגון');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await signOut();
+            window.location.reload();
+        } catch (error) {
+            console.error('Error signing out:', error);
         }
     };
 
@@ -175,7 +165,7 @@ export const Onboarding: React.FC = () => {
                                 <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
                                 <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
                             </div>
-                            
+
                             <div className="relative z-10">
                                 <div className="flex justify-center mb-4">
                                     <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl">
@@ -199,7 +189,7 @@ export const Onboarding: React.FC = () => {
                                     <p className="text-2xl md:text-3xl font-bold text-slate-900 mb-6">
                                         {pendingInvite.organizations?.name || 'ארגון'}
                                     </p>
-                                    
+
                                     <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 inline-block">
                                         <p className="text-sm text-slate-600 mb-1 font-medium">תפקיד:</p>
                                         <div className="flex items-center justify-center gap-2">
@@ -254,13 +244,22 @@ export const Onboarding: React.FC = () => {
         <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 overflow-y-auto">
             {/* Header with Logo */}
             <div className="bg-white border-b border-slate-200 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
-                        <svg className="w-6 h-6 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                        </svg>
+                <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
+                            <svg className="w-6 h-6 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                            </svg>
+                        </div>
+                        <span className="text-xl font-bold text-slate-800">Miuim</span>
                     </div>
-                    <span className="text-xl font-bold text-slate-800">Miuim</span>
+                    <button
+                        onClick={handleLogout}
+                        className="text-slate-500 hover:text-red-600 font-medium text-sm transition-colors flex items-center gap-2"
+                    >
+                        <span className="hidden md:inline">התנתק</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
+                    </button>
                 </div>
             </div>
 
@@ -272,7 +271,7 @@ export const Onboarding: React.FC = () => {
                             <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
                             <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
                         </div>
-                        
+
                         <div className="relative z-10">
                             <div className="flex justify-center mb-4">
                                 <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl">
@@ -338,6 +337,15 @@ export const Onboarding: React.FC = () => {
                                     תוכל להוסיף חברי צוות, להגדיר תפקידים וליצור משמרות מיד לאחר היצירה
                                 </p>
                             </div>
+                        </div>
+
+                        <div className="mt-8 text-center md:hidden">
+                            <button
+                                onClick={handleLogout}
+                                className="text-slate-400 hover:text-red-500 text-sm font-medium transition-colors"
+                            >
+                                התנתק ויצא
+                            </button>
                         </div>
                     </div>
                 </div>

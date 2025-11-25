@@ -4,6 +4,7 @@ import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
 import { analytics } from '../services/analytics';
+import { logger } from '../services/loggingService';
 
 interface LayoutProps {
   currentView?: ViewMode;
@@ -25,6 +26,7 @@ const TopNavLink = ({
 }) => {
   const handleClick = () => {
     analytics.trackButtonClick(label, 'top_nav');
+    logger.logClick(label, 'top_nav');
     onClick();
   };
 
@@ -188,8 +190,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {/* Dashboard - Visible to everyone */}
               <button
                 className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'dashboard'
-                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                    : 'hover:bg-slate-50 text-slate-700'
+                  ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                  : 'hover:bg-slate-50 text-slate-700'
                   }`}
                 onClick={() => { setView('dashboard'); setIsMobileMenuOpen(false) }}
               >
@@ -202,8 +204,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 <>
                   <button
                     className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'personnel'
-                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                        : 'hover:bg-slate-50 text-slate-700'
+                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                      : 'hover:bg-slate-50 text-slate-700'
                       }`}
                     onClick={() => { setView('personnel'); setIsMobileMenuOpen(false) }}
                   >
@@ -213,8 +215,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
                   <button
                     className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'tasks'
-                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                        : 'hover:bg-slate-50 text-slate-700'
+                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                      : 'hover:bg-slate-50 text-slate-700'
                       }`}
                     onClick={() => { setView('tasks'); setIsMobileMenuOpen(false) }}
                   >
@@ -228,8 +230,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {profile?.role !== 'viewer' && (
                 <button
                   className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'attendance'
-                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                      : 'hover:bg-slate-50 text-slate-700'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
                     }`}
                   onClick={() => { setView('attendance'); setIsMobileMenuOpen(false) }}
                 >
@@ -241,8 +243,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {/* Stats - Visible to everyone */}
               <button
                 className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'stats'
-                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                    : 'hover:bg-slate-50 text-slate-700'
+                  ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                  : 'hover:bg-slate-50 text-slate-700'
                   }`}
                 onClick={() => { setView('stats'); setIsMobileMenuOpen(false) }}
               >
@@ -254,8 +256,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 <>
                   <button
                     className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'reports'
-                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                        : 'hover:bg-slate-50 text-slate-700'
+                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                      : 'hover:bg-slate-50 text-slate-700'
                       }`}
                     onClick={() => { setView('reports'); setIsMobileMenuOpen(false) }}
                   >
@@ -265,8 +267,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
                   <button
                     className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'settings'
-                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                        : 'hover:bg-slate-50 text-slate-700'
+                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                      : 'hover:bg-slate-50 text-slate-700'
                       }`}
                     onClick={() => { setView('settings'); setIsMobileMenuOpen(false) }}
                   >
@@ -277,8 +279,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   {profile?.email === 'idanzeman@gmail.com' && (
                     <button
                       className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'logs'
-                          ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                          : 'hover:bg-slate-50 text-slate-700'
+                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                        : 'hover:bg-slate-50 text-slate-700'
                         }`}
                       onClick={() => { setView('logs'); setIsMobileMenuOpen(false) }}
                     >

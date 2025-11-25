@@ -69,7 +69,7 @@ export const AdminLogsViewer: React.FC = () => {
     const exportLogs = async () => {
         const csv = [
             'תאריך,משתמש,פעולה,תיאור,סוג,שם פריט,קטגוריה',
-            ...logs.map(log => 
+            ...logs.map(log =>
                 `${new Date(log.created_at).toLocaleString('he-IL')},${log.user_name || log.user_email || 'אורח'},${log.event_type},${log.action_description},${log.entity_type || '-'},${log.entity_name || '-'},${log.event_category}`
             )
         ].join('\n');
@@ -183,6 +183,8 @@ export const AdminLogsViewer: React.FC = () => {
             case 'auth': return <Info className="text-blue-600" size={16} />;
             case 'data': return <AlertTriangle className="text-green-600" size={16} />;
             case 'scheduling': return <AlertCircle className="text-purple-600" size={16} />;
+            case 'navigation': return <ChevronDown className="text-orange-600" size={16} />;
+            case 'ui': return <ChevronUp className="text-pink-600" size={16} />;
             default: return <Info className="text-slate-600" size={16} />;
         }
     };
@@ -192,6 +194,8 @@ export const AdminLogsViewer: React.FC = () => {
             case 'auth': return 'bg-blue-50 border-blue-200 text-blue-900';
             case 'data': return 'bg-green-50 border-green-200 text-green-900';
             case 'scheduling': return 'bg-purple-50 border-purple-200 text-purple-900';
+            case 'navigation': return 'bg-orange-50 border-orange-200 text-orange-900';
+            case 'ui': return 'bg-pink-50 border-pink-200 text-pink-900';
             default: return 'bg-slate-50 border-slate-200 text-slate-900';
         }
     };
@@ -270,6 +274,8 @@ export const AdminLogsViewer: React.FC = () => {
                         <option value="AUTO_SCHEDULE">שיבוץ אוטומטי</option>
                         <option value="ASSIGN">שיבוץ</option>
                         <option value="UNASSIGN">ביטול שיבוץ</option>
+                        <option value="VIEW">צפייה</option>
+                        <option value="CLICK">לחיצה</option>
                     </select>
 
                     <select
@@ -283,6 +289,8 @@ export const AdminLogsViewer: React.FC = () => {
                         <option value="scheduling">שיבוץ</option>
                         <option value="settings">הגדרות</option>
                         <option value="system">מערכת</option>
+                        <option value="navigation">ניווט</option>
+                        <option value="ui">ממשק</option>
                     </select>
 
                     <button
@@ -332,8 +340,8 @@ export const AdminLogsViewer: React.FC = () => {
                                         <tr className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => toggleRow(log.id)}>
                                             <td className="py-3 px-4">
                                                 {(log.before_data || log.after_data) && (
-                                                    expandedRows.has(log.id) ? 
-                                                        <ChevronUp size={16} className="text-slate-400" /> : 
+                                                    expandedRows.has(log.id) ?
+                                                        <ChevronUp size={16} className="text-slate-400" /> :
                                                         <ChevronDown size={16} className="text-slate-400" />
                                                 )}
                                             </td>

@@ -31,22 +31,19 @@ import JoinPage from './components/JoinPage';
 import { initGA, trackPageView } from './services/analytics';
 import { usePageTracking } from './hooks/usePageTracking';
 
+import { ClaimProfile } from './components/ClaimProfile';
+
 // --- Main App Content (Authenticated) ---
 const MainApp: React.FC = () => {
     const { organization, user, profile } = useAuth();
     const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs'>('dashboard');
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-    const [aiHealthMsg, setAiHealthMsg] = useState<string | null>(null);
-    const [showScheduleModal, setShowScheduleModal] = useState(false);
-    const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
-    const [scheduleStartDate, setScheduleStartDate] = useState<Date>(new Date());
-    const [scheduleEndDate, setScheduleEndDate] = useState<Date>(() => {
-        const end = new Date();
-        end.setDate(end.getDate() + 6); // Default: 7 days
-        return end;
-    });
     const [isScheduling, setIsScheduling] = useState(false);
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [scheduleStartDate, setScheduleStartDate] = useState<Date>(new Date());
+    const [scheduleEndDate, setScheduleEndDate] = useState<Date>(new Date(new Date().setDate(new Date().getDate() + 7)));
+    const [selectedDateKey, setSelectedDateKey] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
     const [state, setState] = useState<{
         people: Person[];
@@ -61,6 +58,22 @@ const MainApp: React.FC = () => {
         roles: [],
         teams: []
     });
+
+    // Check if user is linked to a person
+    const isLinkedToPerson = React.useMemo(() => {
+        if (!user || state.people.length === 0) return true; // Assume true while loading or if empty
+
+        // If user is admin/editor, they might not need to be linked to a person record?
+        // But the requirement is for "viewers" to see their stats.
+        // Let's enforce it for everyone except maybe the creator?
+        // Actually, even admins might want to see their own stats.
+
+        // Check if ANY person has this user_id
+        return state.people.some(p => p.userId === user.id);
+    }, [user, state.people]);
+
+    // ... (rest of useEffects)
+
 
     useEffect(() => {
         if (!organization) return;
@@ -645,9 +658,6 @@ const MainApp: React.FC = () => {
             shifts: prev.shifts.map(s => ids.includes(s.id) ? { ...s, assignedPersonIds: [] } : s)
         }));
     };
-
-
-
     const renderContent = () => {
         if (isLoading) {
             return (
@@ -872,11 +882,20 @@ const MainApp: React.FC = () => {
     useEffect(() => {
         if (view) {
             trackPageView(`/${view}`);
+            logger.logView(view);
         }
     }, [view]);
 
     // Track page time and scroll
     usePageTracking(view);
+
+    // If user is in an organization but not linked to a person record, show Claim Profile screen
+    // Only show if we actually have people loaded (to avoid showing it on empty orgs)
+    // AND if the user hasn't explicitly skipped this step
+    const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';
+    if (!isLinkedToPerson && state.people.length > 0 && !hasSkippedLinking) {
+        return <ClaimProfile />;
+    }
 
     return (
         <Layout currentView={view} setView={setView}>

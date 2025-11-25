@@ -74,6 +74,8 @@ export interface Person {
   color: string; // Avatar color
   dailyAvailability?: DailyAvailability; // New field
   organization_id?: string;
+  email?: string;
+  userId?: string;
 }
 
 export type SchedulingType = 'continuous' | 'one-time';

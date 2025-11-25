@@ -23,7 +23,9 @@ export const mapPersonFromDB = (dbPerson: any): Person => ({
     preferences: dbPerson.preferences || { preferNight: false, avoidWeekends: false },
     color: dbPerson.color,
     dailyAvailability: dbPerson.daily_availability || {},
-    organization_id: dbPerson.organization_id
+    organization_id: dbPerson.organization_id,
+    email: dbPerson.email,
+    userId: dbPerson.user_id
 });
 
 export const mapPersonToDB = (person: Person) => ({
@@ -36,7 +38,9 @@ export const mapPersonToDB = (person: Person) => ({
     preferences: person.preferences,
     color: person.color,
     daily_availability: person.dailyAvailability,
-    organization_id: person.organization_id
+    organization_id: person.organization_id,
+    email: person.email,
+    user_id: person.userId
 });
 
 // Teams

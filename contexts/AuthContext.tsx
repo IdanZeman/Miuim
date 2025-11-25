@@ -22,15 +22,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false); // NEW: Prevent duplicate fetches
 
-  const fetchProfile = async (userId: string) => {
-    // Prevent concurrent fetches
-    if (isFetchingProfile) {
+  const fetchProfile = async (userId: string, force = false) => {
+    // Prevent concurrent fetches unless forced
+    if (isFetchingProfile && !force) {
       console.log('⏭️ Profile fetch already in progress, skipping...');
       return;
     }
 
     setIsFetchingProfile(true);
-    
+
     try {
       // Increase timeout to 15 seconds (more generous)
       const timeoutPromise = new Promise((_, reject) =>
@@ -62,13 +62,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userData?.user?.user_metadata?.name ||
           email.split('@')[0];
 
+        // Try to find existing person with this email to link organization
+        const { data: existingPerson } = await supabase
+          .from('people')
+          .select('organization_id, id')
+          .eq('email', email)
+          .maybeSingle();
+
         const { data: newProfile, error: insertError } = await supabase
           .from('profiles')
           .upsert({
             id: userId,
             email: email,
             full_name: fullName,
-            role: 'admin',
+            role: existingPerson ? 'viewer' : 'admin', // Default to viewer if joining existing org
+            organization_id: existingPerson?.organization_id || null,
             created_at: new Date().toISOString()
           }, {
             onConflict: 'id'
@@ -82,12 +90,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
+        // If we found a person, link the user_id to that person record
+        if (existingPerson) {
+          await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
+        }
+
         console.log('✅ Profile created successfully');
         setProfile(newProfile);
         return;
       }
 
       console.log('✅ Profile loaded successfully');
+
+      // Check if we need to link to a person (if organization_id is missing or just to be safe)
+      if (!profileData.organization_id) {
+        const { data: existingPerson } = await supabase
+          .from('people')
+          .select('organization_id, id')
+          .eq('email', profileData.email)
+          .maybeSingle();
+
+        if (existingPerson) {
+          console.log('🔗 Found matching person, linking profile to organization...');
+          const { data: updatedProfile, error: updateError } = await supabase
+            .from('profiles')
+            .update({ organization_id: existingPerson.organization_id })
+            .eq('id', userId)
+            .select()
+            .single();
+
+          if (!updateError) {
+            setProfile(updatedProfile);
+            // Also link the person record to this user
+            await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
+
+            // Fetch organization immediately
+            const { data: orgData } = await supabase
+              .from('organizations')
+              .select('*')
+              .eq('id', existingPerson.organization_id)
+              .single();
+            setOrganization(orgData);
+            return;
+          }
+        }
+      }
+
       setProfile(profileData);
 
       if (profileData.organization_id) {
@@ -116,7 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('❌ Unexpected error in fetchProfile:', error);
       // Don't clear profile on timeout - keep existing data
       console.log('⚠️ Keeping existing profile data due to fetch error');
-      
+
       // Track error in analytics if available
       if (analytics && typeof analytics.trackError === 'function') {
         analytics.trackError((error as Error).message, 'FetchProfile');
@@ -128,7 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = async () => {
     if (user) {
-      await fetchProfile(user.id);
+      await fetchProfile(user.id, true);
     }
   };
 
@@ -216,7 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       authChangeTimeout = setTimeout(async () => {
         const currentUser = session?.user ?? null;
-        
+
         // Only update if user actually changed
         if (currentUser?.id !== user?.id) {
           console.log('👤 User changed, updating...');
@@ -249,7 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) throw error;
-      
+
       analytics.trackLogin('email');
       return { data, error: null };
     } catch (error) {
@@ -271,7 +319,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) throw error;
-      
+
       analytics.trackSignup('email');
       return { data, error: null };
     } catch (error) {

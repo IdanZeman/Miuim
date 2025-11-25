@@ -5,13 +5,13 @@ export type LogAction =
     | 'CREATE' | 'UPDATE' | 'DELETE'
     | 'ASSIGN' | 'UNASSIGN'
     | 'AUTO_SCHEDULE' | 'CLEAR_DAY'
-    | 'VIEW' | 'EXPORT';
+    | 'VIEW' | 'EXPORT' | 'CLICK';
 
 export type EntityType = 
     | 'person' | 'shift' | 'task' | 'role' | 'team' 
-    | 'organization' | 'profile' | 'attendance';
+    | 'organization' | 'profile' | 'attendance' | 'button' | 'page';
 
-export type EventCategory = 'auth' | 'data' | 'scheduling' | 'settings' | 'system';
+export type EventCategory = 'auth' | 'data' | 'scheduling' | 'settings' | 'system' | 'navigation' | 'ui';
 
 interface LogEntry {
     action: LogAction;
@@ -81,6 +81,10 @@ class LoggingService {
             case 'UPDATE':
             case 'DELETE':
                 return 'data';
+            case 'VIEW':
+                return 'navigation';
+            case 'CLICK':
+                return 'ui';
             default:
                 return 'system';
         }
@@ -98,6 +102,8 @@ class LoggingService {
             case 'CLEAR_DAY': return `נוקה יום`;
             case 'LOGIN': return `התחבר למערכת`;
             case 'LOGOUT': return `התנתק מהמערכת`;
+            case 'VIEW': return `צפה בעמוד ${entityName}`;
+            case 'CLICK': return `לחץ על ${entityName}`;
             default: return entry.action;
         }
     }
@@ -168,6 +174,25 @@ class LoggingService {
         await this.log({
             action: 'LOGOUT',
             category: 'auth'
+        });
+    }
+
+    async logView(viewName: string) {
+        await this.log({
+            action: 'VIEW',
+            entityType: 'page', // Using 'page' as a generic entity type for views
+            entityName: viewName,
+            category: 'navigation'
+        });
+    }
+
+    async logClick(buttonName: string, location?: string) {
+        await this.log({
+            action: 'CLICK',
+            entityType: 'button', // Using 'button' as a generic entity type
+            entityName: buttonName,
+            metadata: { location },
+            category: 'ui'
         });
     }
 }
