@@ -20,12 +20,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isFetchingProfile, setIsFetchingProfile] = useState(false); // NEW: Prevent duplicate fetches
 
   const fetchProfile = async (userId: string) => {
+    // Prevent concurrent fetches
+    if (isFetchingProfile) {
+      console.log('⏭️ Profile fetch already in progress, skipping...');
+      return;
+    }
+
+    setIsFetchingProfile(true);
+    
     try {
-      // Increase timeout to 10 seconds for slower connections
+      // Increase timeout to 15 seconds (more generous)
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile fetch timeout - check your connection')), 10000)
+        setTimeout(() => reject(new Error('Profile fetch timeout - check your connection')), 15000)
       );
 
       const dbPromise = supabase
@@ -40,9 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ]) as any;
 
       if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error fetching profile:', profileError);
-        // Don't throw - set profile as null and continue
-        setProfile(null);
+        console.error('⚠️ Error fetching profile:', profileError);
+        // Don't clear profile on error - keep existing
         return;
       }
 
@@ -106,14 +114,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('❌ Unexpected error in fetchProfile:', error);
-      // Set profile to null but don't crash the app
-      setProfile(null);
-      setOrganization(null);
+      // Don't clear profile on timeout - keep existing data
+      console.log('⚠️ Keeping existing profile data due to fetch error');
       
       // Track error in analytics if available
       if (analytics && typeof analytics.trackError === 'function') {
         analytics.trackError((error as Error).message, 'FetchProfile');
       }
+    } finally {
+      setIsFetchingProfile(false);
     }
   };
 
@@ -193,26 +202,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Listen for auth changes - with debounce
+    let authChangeTimeout: NodeJS.Timeout | null = null;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
+      console.log('🔄 Auth state changed:', event);
 
-      if (currentUser) {
-        await fetchProfile(currentUser.id);
-      } else {
-        setProfile(null);
-        setOrganization(null);
+      // Debounce to prevent multiple rapid calls
+      if (authChangeTimeout) {
+        clearTimeout(authChangeTimeout);
       }
+
+      authChangeTimeout = setTimeout(async () => {
+        const currentUser = session?.user ?? null;
+        
+        // Only update if user actually changed
+        if (currentUser?.id !== user?.id) {
+          console.log('👤 User changed, updating...');
+          setUser(currentUser);
+
+          if (currentUser) {
+            await fetchProfile(currentUser.id);
+          } else {
+            setProfile(null);
+            setOrganization(null);
+          }
+        } else {
+          console.log('✅ User unchanged, skipping profile fetch');
+        }
+      }, 300); // Wait 300ms before processing
     });
 
     return () => {
       mounted = false;
+      if (authChangeTimeout) clearTimeout(authChangeTimeout);
       subscription.unsubscribe();
     };
-  }, []); // ✅ Empty dependency array - only run once
+  }, [user?.id]); // NEW: Add user?.id as dependency
 
   const signIn = async (email: string, password: string) => {
     try {
