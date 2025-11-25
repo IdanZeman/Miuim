@@ -1,25 +1,25 @@
 import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { Loader2, ArrowRight, Building2, CheckCircle, AlertCircle } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
+import { Loader2, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 
 const JoinPage: React.FC = () => {
-    const { user, profile, loading: authLoading } = useAuth();
-    const [orgName, setOrgName] = useState<string | null>(null);
+    const { token } = useParams<{ token: string }>();
+    const navigate = useNavigate();
+    const { user, loading: authLoading } = useAuth();
+    const { showToast } = useToast();
+
+    const [orgName, setOrgName] = useState('');
+    const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
     const [joining, setJoining] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
-
-    // Extract token from URL manually since we don't have react-router hooks in this context
-    const token = window.location.pathname.split('/join/')[1];
 
     useEffect(() => {
         if (token) {
             fetchOrgName();
-        } else {
-            setError('קישור לא תקין');
-            setLoading(false);
         }
     }, [token]);
 
@@ -39,9 +39,9 @@ const JoinPage: React.FC = () => {
     const handleJoin = async () => {
         if (!user) {
             // Store token for post-login processing
-            localStorage.setItem('pending_invite_token', token);
-            alert('אנא התחבר למערכת כדי להצטרף לארגון');
-            window.location.href = '/'; // Redirect to home/login
+            localStorage.setItem('pending_invite_token', token || '');
+            showToast('אנא התחבר למערכת כדי להצטרף לארגון', 'info');
+            navigate('/'); // Redirect to home/login
             return;
         }
 
@@ -51,8 +51,9 @@ const JoinPage: React.FC = () => {
             if (error) throw error;
 
             setSuccess(true);
+            showToast('הצטרפת לארגון בהצלחה!', 'success');
             setTimeout(() => {
-                window.location.href = '/'; // Redirect to dashboard
+                navigate('/'); // Redirect to dashboard
             }, 2000);
         } catch (err: any) {
             console.error('Error joining org:', err);
@@ -187,6 +188,8 @@ const JoinPage: React.FC = () => {
             </div>
         </div>
     );
+
+
 };
 
 export default JoinPage;

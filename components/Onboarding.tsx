@@ -4,8 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { Building2, Mail, CheckCircle, Sparkles, Shield } from 'lucide-react';
 import { analytics } from '../services/analytics';
 
+import { useToast } from '../contexts/ToastContext';
+
 export const Onboarding: React.FC = () => {
     const { user, refreshProfile, signOut } = useAuth();
+    const { showToast } = useToast();
     const [orgName, setOrgName] = useState('');
     const [loading, setLoading] = useState(false);
     const [checkingInvite, setCheckingInvite] = useState(true);
@@ -78,7 +81,7 @@ export const Onboarding: React.FC = () => {
             await refreshProfile();
         } catch (error) {
             console.error('Error accepting invite:', error);
-            alert('שגיאה בקבלת ההזמנה. אנא נסה שוב.');
+            showToast('שגיאה בקבלת ההזמנה. אנא נסה שוב.', 'error');
         } finally {
             setLoading(false);
         }

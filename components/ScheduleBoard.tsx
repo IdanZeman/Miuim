@@ -4,6 +4,8 @@ import { getPersonInitials } from '../utils/nameUtils';
 import { Sparkles } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirmation } from '../hooks/useConfirmation';
 import { analytics } from '../services/analytics';
 
 import { supabase } from '../services/supabaseClient';
@@ -183,6 +185,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     const [viewerDaysLimit, setViewerDaysLimit] = useState(2);
     const [showCopySuccess, setShowCopySuccess] = useState(false);
 
+    const { showToast } = useToast();
+    const { confirm, ConfirmationModal } = useConfirmation();
+
     // NEW: Only load warnings for non-viewers
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(!isViewer); // Viewers skip loading
     const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
@@ -274,7 +279,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
 
         // Build output for each task
         taskGroups.forEach((shifts, taskId) => {
-            const task = tasks.find(t => t.id === taskId);
+            const task = taskTemplates.find(t => t.id === taskId);
             if (!task) return;
 
             output += `🔹 ${task.name}\n`;
@@ -315,7 +320,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         // Summary
         const totalShifts = dayShifts.length;
         const fullyAssigned = dayShifts.filter(s => {
-            const task = tasks.find(t => t.id === s.taskId);
+            const task = taskTemplates.find(t => t.id === s.taskId);
             return task && s.assignedPersonIds.length >= task.requiredPeople;
         }).length;
 
@@ -329,12 +334,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         try {
             await navigator.clipboard.writeText(output);
             analytics.trackScheduleExported(selectedDate.toISOString());
-            setShowCopySuccess(true);
-            setTimeout(() => setShowCopySuccess(false), 2000);
+            showToast('הלוח הועתק ללוח ההדבקה', 'success');
         } catch (err) {
             analytics.trackError('Failed to copy schedule', 'Export');
             console.error('Failed to copy:', err);
-            alert('❌ שגיאה בהעתקה ללוח ההדבקה');
+            showToast('שגיאה בהעתקה ללוח ההדבקה', 'error');
         }
     };
 
@@ -543,7 +547,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                             </div>
                             <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                                 {!isViewer && (
-                                    <button onClick={() => { onDeleteShift(selectedShift.id); setSelectedShiftId(null); }} className="p-1.5 md:p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors" title="מחק משמרת">
+                                    <button onClick={() => { handleDeleteShift(selectedShift.id); setSelectedShiftId(null); }} className="p-1.5 md:p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors" title="מחק משמרת">
                                         <Trash2 size={16} />
                                     </button>
                                 )}
@@ -557,68 +561,68 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                     <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
                         {/* Assigned People Section */}
                         {/* Content Area */}
-                    {/* שינוי 1: העברנו את ה-overflow-y-auto לכאן כדי שכל המודל יגלל במידת הצורך */}
-                    <div className="flex-1 overflow-y-auto flex flex-col md:flex-row">
-                        
-                        {/* Assigned People Section */}
-                        {/* שינוי 2: הורדנו overflow-y-auto, הוספנו h-fit כדי שיהיה צמוד לתוכן */}
-                        <div className="md:flex-1 p-3 md:p-6 h-fit border-b md:border-b-0 md:border-l border-slate-100">
-                            <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">משובצים ({assignedPeople.length}/{task.requiredPeople})</h4>
-                            <div className="space-y-2 md:space-y-3">
-                                {assignedPeople.map(p => (
-                                    <div key={p.id} className="flex items-center justify-between p-2 md:p-3 bg-green-50 border border-green-100 rounded-lg md:rounded-xl">
-                                        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                            <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
-                                            <div className="flex flex-col min-w-0 flex-1">
-                                                <span className="font-bold text-slate-800 text-xs md:text-sm truncate">{p.name}</span>
-                                                {task.roleComposition && task.roleComposition.length > 0 && (
-                                                    <span className="text-[9px] md:text-[10px] text-slate-500 truncate">
-                                                        {roles.find(r => task.roleComposition.some(rc => rc.roleId === r.id) && p.roleIds.includes(r.id))?.name || ''}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        {!isViewer && (
-                                            <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-red-500 p-1 md:p-1.5 hover:bg-red-100 rounded-lg flex-shrink-0">
-                                                <X size={14} />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                                {assignedPeople.length === 0 && <p className="text-slate-400 text-xs md:text-sm text-center py-4">לא שובצו לוחמים</p>}
-                            </div>
-                        </div>
+                        {/* שינוי 1: העברנו את ה-overflow-y-auto לכאן כדי שכל המודל יגלל במידת הצורך */}
+                        <div className="flex-1 overflow-y-auto flex flex-col md:flex-row">
 
-                        {/* Available People Section */}
-                        {!isViewer && (
-                            // שינוי 3: גם כאן הורדנו גלילה פנימית והוספנו h-fit
-                            <div className="flex-1 p-3 md:p-6 h-fit bg-slate-50/50">
-                                <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">מאגר זמין</h4>
-                                <div className="space-y-1.5 md:space-y-2">
-                                    {availablePeople.map(p => {
-                                        const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => p.roleIds.includes(rc.roleId));
-                                        const isFull = assignedPeople.length >= task.requiredPeople;
-                                        const canAssign = hasRole && !isFull;
-
-                                        return (
-                                            <div key={p.id} className={`flex items-center justify-between p-2 md:p-3 rounded-lg md:rounded-xl border transition-all ${canAssign ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
-                                                <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                                    <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
-                                                    <div className="flex flex-col min-w-0 flex-1">
-                                                        <span className="font-bold text-slate-700 text-xs md:text-sm truncate">{p.name}</span>
-                                                        {!hasRole && <span className="text-[9px] md:text-[10px] text-red-500">אין התאמה</span>}
-                                                        {isFull && hasRole && <span className="text-[9px] md:text-[10px] text-amber-500">משמרת מלאה</span>}
-                                                    </div>
+                            {/* Assigned People Section */}
+                            {/* שינוי 2: הורדנו overflow-y-auto, הוספנו h-fit כדי שיהיה צמוד לתוכן */}
+                            <div className="md:flex-1 p-3 md:p-6 h-fit border-b md:border-b-0 md:border-l border-slate-100">
+                                <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">משובצים ({assignedPeople.length}/{task.requiredPeople})</h4>
+                                <div className="space-y-2 md:space-y-3">
+                                    {assignedPeople.map(p => (
+                                        <div key={p.id} className="flex items-center justify-between p-2 md:p-3 bg-green-50 border border-green-100 rounded-lg md:rounded-xl">
+                                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                                                <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
+                                                <div className="flex flex-col min-w-0 flex-1">
+                                                    <span className="font-bold text-slate-800 text-xs md:text-sm truncate">{p.name}</span>
+                                                    {task.roleComposition && task.roleComposition.length > 0 && (
+                                                        <span className="text-[9px] md:text-[10px] text-slate-500 truncate">
+                                                            {roles.find(r => task.roleComposition.some(rc => rc.roleId === r.id) && p.roleIds.includes(r.id))?.name || ''}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!canAssign} className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0 ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
                                             </div>
-                                        );
-                                    })}
+                                            {!isViewer && (
+                                                <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-red-500 p-1 md:p-1.5 hover:bg-red-100 rounded-lg flex-shrink-0">
+                                                    <X size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {assignedPeople.length === 0 && <p className="text-slate-400 text-xs md:text-sm text-center py-4">לא שובצו לוחמים</p>}
                                 </div>
                             </div>
-                        )}
-                    </div>
-                        
+
+                            {/* Available People Section */}
+                            {!isViewer && (
+                                // שינוי 3: גם כאן הורדנו גלילה פנימית והוספנו h-fit
+                                <div className="flex-1 p-3 md:p-6 h-fit bg-slate-50/50">
+                                    <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">מאגר זמין</h4>
+                                    <div className="space-y-1.5 md:space-y-2">
+                                        {availablePeople.map(p => {
+                                            const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => p.roleIds.includes(rc.roleId));
+                                            const isFull = assignedPeople.length >= task.requiredPeople;
+                                            const canAssign = hasRole && !isFull;
+
+                                            return (
+                                                <div key={p.id} className={`flex items-center justify-between p-2 md:p-3 rounded-lg md:rounded-xl border transition-all ${canAssign ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
+                                                    <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                                                        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
+                                                        <div className="flex flex-col min-w-0 flex-1">
+                                                            <span className="font-bold text-slate-700 text-xs md:text-sm truncate">{p.name}</span>
+                                                            {!hasRole && <span className="text-[9px] md:text-[10px] text-red-500">אין התאמה</span>}
+                                                            {isFull && hasRole && <span className="text-[9px] md:text-[10px] text-amber-500">משמרת מלאה</span>}
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!canAssign} className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0 ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -743,7 +747,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         const person = people.find(p => p.id === personId);
         const shift = shifts.find(s => s.id === shiftId);
         const task = shift ? taskTemplates.find(t => t.id === shift.taskId) : null;
-        
+
         if (person && task) {
             analytics.trackPersonAssigned(person.name, task.name);
         }
@@ -755,7 +759,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         const person = people.find(p => p.id === personId);
         const shift = shifts.find(s => s.id === shiftId);
         const task = shift ? taskTemplates.find(t => t.id === shift.taskId) : null;
-        
+
         if (person && task) {
             analytics.trackPersonUnassigned(person.name, task.name);
         }
@@ -766,11 +770,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     const handleDeleteShift = (shiftId: string) => {
         const shift = shifts.find(s => s.id === shiftId);
         const task = shift ? taskTemplates.find(t => t.id === shift.taskId) : null;
-        
-        if (task) {
-            analytics.trackShiftDeleted(task.name);
-        }
-        onDeleteShift(shiftId);
+
+        confirm({
+            title: 'מחיקת משמרת',
+            message: `האם אתה בטוח שברצונך למחוק את המשמרת${task ? ` "${task.name}"` : ''}?`,
+            confirmText: 'מחק',
+            type: 'danger',
+            onConfirm: () => {
+                if (task) {
+                    analytics.trackShiftDeleted(task.name);
+                }
+                onDeleteShift(shiftId);
+                showToast('המשמרת נמחקה בהצלחה', 'success');
+            }
+        });
     };
 
     // Track modal open
@@ -790,9 +803,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
 
     const handleClearDayClick = () => {
         analytics.trackButtonClick('clear_day', 'schedule_board');
-        if (confirm('האם אתה בטוח שברצונך לנקות את כל המשמרות של היום?')) {
-            onClearDay();
-        }
+        confirm({
+            title: 'ניקוי יום',
+            message: 'האם אתה בטוח שברצונך למחוק את כל המשמרות של היום? פעולה זו אינה הפיכה.',
+            confirmText: 'נקה יום',
+            type: 'danger',
+            onConfirm: () => {
+                onClearDay();
+                showToast('היום נוקה בהצלחה', 'success');
+            }
+        });
     };
 
     // Track filter changes
@@ -805,18 +825,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         <div className="flex flex-col gap-8">
             {renderFeaturedCard()}
             {selectedShift && <Modal />}
-
-            {/* Copy Success Toast */}
-            {showCopySuccess && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
-                    <div className="bg-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 border-2 border-emerald-400">
-                        <div className="bg-emerald-50 rounded-full p-1.5">
-                            <Check size={16} className="text-emerald-600" />
-                        </div>
-                        <span className="font-medium text-slate-700">הלוח הועתק בהצלחה</span>
-                    </div>
-                </div>
-            )}
+            <ConfirmationModal />
 
             {/* Global Mismatch Warnings Panel */}
             {!isViewer && !isLoadingWarnings && mismatchWarnings.length > 0 && (
@@ -929,43 +938,58 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
 
                 <div className="overflow-x-auto pb-4 -mx-3 md:mx-0 px-3 md:px-0">
                     <div className="flex gap-2 md:gap-4 min-w-max md:min-w-[1000px]">
-                        {visibleTasks.length > 0 ? visibleTasks.map(task => {
-                            const dateKey = selectedDate.toLocaleDateString('en-CA');
-                            const taskShifts = shifts.filter(s => {
-                                if (s.taskId !== task.id) return false;
-                                const shiftDate = new Date(s.startTime).toLocaleDateString('en-CA');
-                                return shiftDate === dateKey;
-                            }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+                        {visibleTasks.length > 0 ? (
+                            visibleTasks.map(task => {
+                                const dateKey = selectedDate.toLocaleDateString('en-CA');
+                                const taskShifts = shifts.filter(s => {
+                                    if (s.taskId !== task.id) return false;
+                                    const shiftDate = new Date(s.startTime).toLocaleDateString('en-CA');
+                                    return shiftDate === dateKey;
+                                }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
-                            return (
-                                <div key={task.id} className="flex-1 min-w-[200px] md:min-w-[250px] bg-slate-50 rounded-xl p-2 md:p-3">
-                                    <div className={`border-b-2 pb-1.5 md:pb-2 mb-2 md:mb-3 ${task.color.replace('border-l-', 'border-')}`}>
-                                        <h4 className="font-bold text-slate-800 text-sm md:text-base truncate">{task.name}</h4>
-                                        <div className="flex justify-between text-[10px] md:text-xs text-slate-500 mt-0.5 md:mt-1">
-                                            <span>{task.schedulingType === 'continuous' ? 'רציף' : 'בודדת'}</span>
-                                            <span>{taskShifts.length} משמרות</span>
+                                return (
+                                    <div key={task.id} className="flex-1 min-w-[200px] md:min-w-[250px] bg-slate-50 rounded-xl p-2 md:p-3">
+                                        <div className={`border-b-2 pb-1.5 md:pb-2 mb-2 md:mb-3 ${task.color.replace('border-l-', 'border-')}`}>
+                                            <h4 className="font-bold text-slate-800 text-sm md:text-base truncate">{task.name}</h4>
+                                            <div className="flex justify-between text-[10px] md:text-xs text-slate-500 mt-0.5 md:mt-1">
+                                                <span>{task.schedulingType === 'continuous' ? 'רציף' : 'בודדת'}</span>
+                                                <span>{taskShifts.length} משמרות</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        {taskShifts.map(shift => (
-                                            <div key={shift.id} id={`shift-card-${shift.id}`}>
+
+                                        <div className="space-y-2">
+                                            {taskShifts.map(shift => (
                                                 <ShiftCard
+                                                    key={shift.id}
                                                     shift={shift}
                                                     taskTemplates={taskTemplates}
                                                     people={people}
                                                     roles={roles}
-                                                    onSelect={(s) => setSelectedShiftId(s.id)}
-                                                    onDelete={onDeleteShift}
+                                                    onSelect={handleShiftSelect}
+                                                    onDelete={handleDeleteShift}
                                                     isViewer={isViewer}
-                                                    acknowledgedWarnings={isViewer ? new Set() : acknowledgedWarnings}
+                                                    acknowledgedWarnings={acknowledgedWarnings}
                                                 />
-                                            </div>
-                                        ))}
-                                        {taskShifts.length === 0 && <div className="text-center py-10 text-slate-400 text-sm italic">אין משמרות ליום זה</div>}
+                                            ))}
+
+                                            {!isViewer && (
+                                                <button
+                                                    onClick={() => onAddShift(task, selectedDate)}
+                                                    className="w-full py-2 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-sm font-bold"
+                                                >
+                                                    <Plus size={16} />
+                                                    <span>הוסף משמרת</span>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        }) : <div className="w-full text-center py-12 md:py-20 text-slate-400 font-medium text-sm md:text-base">אין משימות המוגדרות לתאריך זה</div>}
+                                );
+                            })
+                        ) : (
+                            <div className="w-full text-center py-12 md:py-20 text-slate-400 font-medium text-sm md:text-base">
+                                אין משימות המוגדרות לתאריך זה
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

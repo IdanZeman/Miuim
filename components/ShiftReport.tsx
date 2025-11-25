@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Shift, TaskTemplate, Role, Team } from '../types';
 import { Calendar, Download, Copy, Filter, X, Check } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 interface ShiftReportProps {
     shifts: Shift[];
@@ -11,9 +12,10 @@ interface ShiftReportProps {
 }
 
 export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks, roles, teams }) => {
+    const { showToast } = useToast();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const [startDate, setStartDate] = useState(today.toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState((() => {
         const end = new Date(today);
@@ -22,11 +24,10 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
     })());
     const [startTime, setStartTime] = useState('07:00'); // חדש ברירת מחדל 07:00
     const [endTime, setEndTime] = useState('23:59');
-    
+
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
     const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
     const [showFilters, setShowFilters] = useState(false);
-    const [showCopySuccess, setShowCopySuccess] = useState(false);
 
     // Filtered Shifts
     const filteredShifts = useMemo(() => {
@@ -61,17 +62,17 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
             const task = tasks.find(t => t.id === shift.taskId);
             const start = new Date(shift.startTime);
             const end = new Date(shift.endTime);
-            
+
             const date = start.toLocaleDateString('he-IL');
             const day = start.toLocaleDateString('he-IL', { weekday: 'long' });
             const startTimeStr = start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
             const endTimeStr = end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-            
+
             const assignedNames = shift.assignedPersonIds
                 .map(id => people.find(p => p.id === id)?.name)
                 .filter(Boolean)
                 .join(' | ');
-            
+
             const teamNames = [...new Set(
                 shift.assignedPersonIds
                     .map(id => {
@@ -119,7 +120,7 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
                 const task = tasks.find(t => t.id === shift.taskId);
                 const start = new Date(shift.startTime);
                 const end = new Date(shift.endTime);
-                
+
                 const assignedNames = shift.assignedPersonIds
                     .map(id => people.find(p => p.id === id)?.name)
                     .filter(Boolean)
@@ -140,11 +141,10 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
 
         try {
             await navigator.clipboard.writeText(output);
-            setShowCopySuccess(true);
-            setTimeout(() => setShowCopySuccess(false), 2000);
+            showToast('הדוח הועתק ללוח ההדבקה', 'success');
         } catch (err) {
             console.error('Failed to copy:', err);
-            alert('❌ שגיאה בהעתקה ללוח ההדבקה');
+            showToast('שגיאה בהעתקה ללוח ההדבקה', 'error');
         }
     };
 
@@ -161,12 +161,11 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
                             </h2>
                             <p className="text-slate-500 text-sm md:text-base mt-1">סינון וייצוא נתונים</p>
                         </div>
-                        
+
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all text-sm md:text-base ${
-                                showFilters ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                            }`}
+                            className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all text-sm md:text-base ${showFilters ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                }`}
                         >
                             <Filter size={16} />
                             סינונים {(selectedTasks.length + selectedTeams.length > 0) && `(${selectedTasks.length + selectedTeams.length})`}
@@ -302,17 +301,7 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
                 </div>
             </div>
 
-            {/* Copy Success Toast */}
-            {showCopySuccess && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] animate-fadeIn">
-                    <div className="bg-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl shadow-lg flex items-center gap-2 md:gap-3 border-2 border-emerald-400">
-                        <div className="bg-emerald-50 rounded-full p-1 md:p-1.5">
-                            <Check size={14} className="text-emerald-600" />
-                        </div>
-                        <span className="font-medium text-slate-700 text-sm md:text-base">הדוח הועתק בהצלחה</span>
-                    </div>
-                </div>
-            )}
+
 
             {/* Results Summary */}
             <div className="bg-white rounded-xl shadow-portal p-4 md:p-6">
@@ -322,7 +311,7 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
                         טווח: {new Date(startDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })} {startTime} → {new Date(endDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })} {endTime}
                     </span>
                 </h3>
-                
+
                 {filteredShifts.length === 0 ? (
                     <div className="text-center py-8 md:py-12">
                         <p className="text-slate-400 text-base md:text-lg">לא נמצאו משמרות בטווח שנבחר</p>

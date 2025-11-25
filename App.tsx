@@ -1018,10 +1018,14 @@ const AppContent: React.FC = () => {
     return <MainApp />;
 };
 
+import { ToastProvider } from './contexts/ToastContext';
+
 const App: React.FC = () => {
     return (
         <AuthProvider>
-            <AppContent />
+            <ToastProvider>
+                <AppContent />
+            </ToastProvider>
         </AuthProvider>
     );
 };

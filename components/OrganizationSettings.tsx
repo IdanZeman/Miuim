@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirmation } from '../hooks/useConfirmation';
 import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users } from 'lucide-react';
 import { UserRole, Profile, OrganizationInvite } from '../types';
 
@@ -19,6 +21,7 @@ const getRoleDisplayName = (role: UserRole) => {
 };
 
 const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId }) => {
+    const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
@@ -58,9 +61,10 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
 
         if (error) {
             console.error('Error saving settings:', error);
-            alert('שגיאה בשמירת ההגדרות');
+            showToast('שגיאה בשמירת ההגדרות', 'error');
         } else {
             setShowSuccess(true);
+            showToast('ההגדרות נשמרו בהצלחה', 'success');
             setTimeout(() => setShowSuccess(false), 3000);
         }
         setSaving(false);
@@ -136,6 +140,9 @@ export const OrganizationSettings: React.FC = () => {
     const [inviteRole, setInviteRole] = useState<UserRole>('viewer');
     const [sending, setSending] = useState(false);
 
+    const { showToast } = useToast();
+    const { confirm, ConfirmationModal } = useConfirmation();
+
     const isAdmin = profile?.role === 'admin';
 
     useEffect(() => {
@@ -196,16 +203,18 @@ export const OrganizationSettings: React.FC = () => {
 
             if (error) throw error;
 
-            alert(`הזמנה נשלחה ל-${inviteEmail}`);
+            if (error) throw error;
+
+            showToast(`הזמנה נשלחה ל-${inviteEmail}`, 'success');
             setInviteEmail('');
             setInviteRole('viewer');
             fetchInvites();
         } catch (error: any) {
             console.error('Error sending invite:', error);
             if (error.code === '23505') {
-                alert('משתמש זה כבר הוזמן או חבר בארגון');
+                showToast('משתמש זה כבר הוזמן או חבר בארגון', 'warning');
             } else {
-                alert('שגיאה בשליחת ההזמנה');
+                showToast('שגיאה בשליחת ההזמנה', 'error');
             }
         } finally {
             setSending(false);
@@ -213,35 +222,49 @@ export const OrganizationSettings: React.FC = () => {
     };
 
     const handleDeleteInvite = async (inviteId: string) => {
-        if (!confirm('האם למחוק הזמנה זו?')) return;
+        confirm({
+            title: 'מחיקת הזמנה',
+            message: 'האם אתה בטוח שברצונך למחוק הזמנה זו?',
+            confirmText: 'מחק',
+            type: 'danger',
+            onConfirm: async () => {
+                const { error } = await supabase
+                    .from('organization_invites')
+                    .delete()
+                    .eq('id', inviteId);
 
-        const { error } = await supabase
-            .from('organization_invites')
-            .delete()
-            .eq('id', inviteId);
-
-        if (error) {
-            console.error('Error deleting invite:', error);
-            alert('שגיאה במחיקת ההזמנה');
-        } else {
-            fetchInvites();
-        }
+                if (error) {
+                    console.error('Error deleting invite:', error);
+                    showToast('שגיאה במחיקת ההזמנה', 'error');
+                } else {
+                    showToast('ההזמנה נמחקה בהצלחה', 'success');
+                    fetchInvites();
+                }
+            }
+        });
     };
 
     const handleChangeRole = async (memberId: string, newRole: UserRole) => {
-        if (!confirm('האם לשנות את ההרשאה?')) return;
+        confirm({
+            title: 'שינוי הרשאה',
+            message: 'האם אתה בטוח שברצונך לשנות את ההרשאה?',
+            confirmText: 'עדכן',
+            type: 'warning',
+            onConfirm: async () => {
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ role: newRole })
+                    .eq('id', memberId);
 
-        const { error } = await supabase
-            .from('profiles')
-            .update({ role: newRole })
-            .eq('id', memberId);
-
-        if (error) {
-            console.error('Error updating role:', error);
-            alert('שגיאה בעדכון ההרשאה');
-        } else {
-            fetchMembers();
-        }
+                if (error) {
+                    console.error('Error updating role:', error);
+                    showToast('שגיאה בעדכון ההרשאה', 'error');
+                } else {
+                    showToast('ההרשאה עודכנה בהצלחה', 'success');
+                    fetchMembers();
+                }
+            }
+        });
     };
 
     if (!canManageOrganization(profile?.role || 'viewer')) {
@@ -437,6 +460,8 @@ export const OrganizationSettings: React.FC = () => {
 };
 
 const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> = ({ organization, onUpdate }) => {
+    const { showToast } = useToast();
+    const { confirm, ConfirmationModal } = useConfirmation();
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
     const [isActive, setIsActive] = useState(organization?.is_invite_link_active || false);
@@ -475,30 +500,36 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
             setIsActive(!isActive);
         } catch (error) {
             console.error('Error toggling invite link:', error);
-            alert('שגיאה בעדכון סטטוס קישור');
+            showToast('שגיאה בעדכון סטטוס קישור', 'error');
         } finally {
             setLoading(false);
         }
     };
 
     const handleRegenerate = async () => {
-        if (!confirm('האם אתה בטוח? הקישור הקודם יפסיק לעבוד.')) return;
+        confirm({
+            title: 'יצירת קישור חדש',
+            message: 'האם אתה בטוח? הקישור הקודם יפסיק לעבוד ומשתמשים לא יוכלו להצטרף באמצעותו.',
+            confirmText: 'צור קישור חדש',
+            type: 'warning',
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    const { data, error } = await supabase.rpc('generate_invite_token', { org_id: organization.id });
 
-        setLoading(true);
-        try {
-            const { data, error } = await supabase.rpc('generate_invite_token', { org_id: organization.id });
+                    if (error) throw error;
 
-            if (error) throw error;
-
-            setInviteToken(data);
-            setIsActive(true); // Auto-enable on regenerate
-            alert('קישור חדש נוצר בהצלחה');
-        } catch (error) {
-            console.error('Error regenerating token:', error);
-            alert('שגיאה ביצירת קישור חדש');
-        } finally {
-            setLoading(false);
-        }
+                    setInviteToken(data);
+                    setIsActive(true); // Auto-enable on regenerate
+                    showToast('קישור חדש נוצר בהצלחה', 'success');
+                } catch (error) {
+                    console.error('Error regenerating token:', error);
+                    showToast('שגיאה ביצירת קישור חדש', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
     };
 
     const handleRoleChange = async (newRole: UserRole) => {
@@ -513,7 +544,7 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
             setDefaultRole(newRole);
         } catch (error) {
             console.error('Error updating default role:', error);
-            alert('שגיאה בעדכון הרשאת ברירת מחדל');
+            showToast('שגיאה בעדכון הרשאת ברירת מחדל', 'error');
         } finally {
             setLoading(false);
         }
@@ -523,6 +554,7 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
         const link = `${window.location.origin}/join/${inviteToken}`;
         navigator.clipboard.writeText(link);
         setCopied(true);
+        showToast('הקישור הועתק ללוח', 'success');
         setTimeout(() => setCopied(false), 2000);
     };
 
@@ -599,6 +631,7 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                     </p>
                 </div>
             )}
+            <ConfirmationModal />
         </div>
     );
 };

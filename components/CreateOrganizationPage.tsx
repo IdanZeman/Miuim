@@ -2,15 +2,17 @@ import React, { useState } from 'react';
 import { Shield, Users, Sparkles } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 
 export const CreateOrganizationPage: React.FC = () => {
   const { user, refreshProfile } = useAuth();
+  const { showToast } = useToast();
   const [orgName, setOrgName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
   const handleCreateOrganization = async () => {
     if (!orgName.trim() || !user) {
-      alert('נא להזין שם ארגון תקין');
+      showToast('נא להזין שם ארגון תקין', 'warning');
       return;
     }
 
@@ -29,7 +31,7 @@ export const CreateOrganizationPage: React.FC = () => {
 
       if (orgError) {
         console.error('Error creating organization:', orgError);
-        alert('שגיאה ביצירת ארגון: ' + orgError.message);
+        showToast('שגיאה ביצירת ארגון: ' + orgError.message, 'error');
         setIsCreating(false);
         return;
       }
@@ -42,7 +44,7 @@ export const CreateOrganizationPage: React.FC = () => {
 
       if (profileError) {
         console.error('Error updating profile:', profileError);
-        alert('שגיאה בעדכון פרופיל: ' + profileError.message);
+        showToast('שגיאה בעדכון פרופיל: ' + profileError.message, 'error');
         setIsCreating(false);
         return;
       }
@@ -53,7 +55,7 @@ export const CreateOrganizationPage: React.FC = () => {
       // Success - App.tsx will automatically route to main app
     } catch (error) {
       console.error('Unexpected error:', error);
-      alert('שגיאה לא צפויה');
+      showToast('שגיאה לא צפויה', 'error');
       setIsCreating(false);
     }
   };
