@@ -28,6 +28,7 @@ import { ShiftReport } from './components/ShiftReport';
 import { logger } from './services/loggingService';
 import { AdminLogsViewer } from './components/AdminLogsViewer';
 import { initGA, trackPageView } from './services/analytics';
+import { usePageTracking } from './hooks/usePageTracking';
 
 // --- Main App Content (Authenticated) ---
 const MainApp: React.FC = () => {
@@ -870,6 +871,9 @@ const MainApp: React.FC = () => {
             trackPageView(`/${view}`);
         }
     }, [view]);
+
+    // Track page time and scroll
+    usePageTracking(view);
 
     return (
         <Layout currentView={view} setView={setView}>

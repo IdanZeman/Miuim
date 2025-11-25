@@ -3,6 +3,8 @@ import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Cl
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
+import { analytics } from '../services/analytics';
+
 interface LayoutProps {
   currentView?: ViewMode;
   setView?: (view: ViewMode) => void;
@@ -20,36 +22,44 @@ const TopNavLink = ({
   onClick: () => void;
   label: string;
   icon?: React.ElementType;
-}) => (
-  <button
-    onClick={onClick}
-    className={`px-3 md:px-4 py-2 text-sm font-medium transition-all relative flex items-center gap-2 group ${active
-      ? 'text-slate-900 font-bold'
-      : 'text-slate-500 hover:text-slate-800'
-      }`}
-    title={label}
-  >
-    {Icon && <Icon size={16} className={active ? 'text-idf-yellow-hover' : 'text-slate-400'} />}
-    {/* Show text for active link always, hide for others on md-lg screens */}
-    <span className={active ? '' : 'hidden lg:inline'}>{label}</span>
-    {/* Tooltip for inactive links when text is hidden */}
-    {!active && (
-      <span className="lg:hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 max-w-[150px]">
-        {label}
-        <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></span>
-      </span>
-    )}
-    {active && (
-      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-idf-yellow mx-2 rounded-full"></span>
-    )}
-  </button>
-);
+}) => {
+  const handleClick = () => {
+    analytics.trackButtonClick(label, 'top_nav');
+    onClick();
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className={`px-3 md:px-4 py-2 text-sm font-medium transition-all relative flex items-center gap-2 group ${active
+        ? 'text-slate-900 font-bold'
+        : 'text-slate-500 hover:text-slate-800'
+        }`}
+      title={label}
+    >
+      {Icon && <Icon size={16} className={active ? 'text-idf-yellow-hover' : 'text-slate-400'} />}
+      {/* Show text for active link always, hide for others on md-lg screens */}
+      <span className={active ? '' : 'hidden lg:inline'}>{label}</span>
+      {/* Tooltip for inactive links when text is hidden */}
+      {!active && (
+        <span className="lg:hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 max-w-[150px]">
+          {label}
+          <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></span>
+        </span>
+      )}
+      {active && (
+        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-idf-yellow mx-2 rounded-full"></span>
+      )}
+    </button>
+  );
+};
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, isPublic = false }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const { user, profile, organization, signOut } = useAuth();
 
   const handleLogout = async () => {
+    analytics.trackButtonClick('logout', 'header');
     console.log('Logout clicked');
     try {
       await signOut();

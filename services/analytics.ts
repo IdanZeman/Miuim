@@ -42,7 +42,7 @@ export const trackEvent = (
   }
 };
 
-// Track specific user actions
+// Enhanced tracking for UI interactions
 export const analytics = {
   // Authentication events
   trackLogin: (method: string) => {
@@ -130,14 +130,54 @@ export const analytics = {
     trackEvent('performance', 'Performance', metric, value);
   },
 
+  // Button clicks
+  trackButtonClick: (buttonName: string, location: string) => {
+    trackEvent('button_click', 'UI', `${location}:${buttonName}`);
+  },
+
+  // Form interactions
+  trackFormStart: (formName: string) => {
+    trackEvent('form_start', 'Forms', formName);
+  },
+  trackFormSubmit: (formName: string, success: boolean) => {
+    trackEvent('form_submit', 'Forms', formName, success ? 1 : 0);
+  },
+  trackFormFieldEdit: (formName: string, fieldName: string) => {
+    trackEvent('form_field_edit', 'Forms', `${formName}:${fieldName}`);
+  },
+
+  // Navigation
+  trackTabChange: (tabName: string) => {
+    trackEvent('tab_change', 'Navigation', tabName);
+  },
+  trackModalOpen: (modalName: string) => {
+    trackEvent('modal_open', 'Modals', modalName);
+  },
+  trackModalClose: (modalName: string, action?: string) => {
+    trackEvent('modal_close', 'Modals', `${modalName}${action ? `:${action}` : ''}`);
+  },
+
+  // Search & Filters
+  trackSearch: (searchTerm: string, resultsCount: number) => {
+    trackEvent('search', 'Search', searchTerm, resultsCount);
+  },
+  trackFilterApplied: (filterType: string, filterValue: string) => {
+    trackEvent('filter_applied', 'Filters', `${filterType}:${filterValue}`);
+  },
+
   // User engagement
-  trackModalOpened: (modalName: string) => {
-    trackEvent('modal_opened', 'Engagement', modalName);
+  trackTimeOnPage: (pageName: string, seconds: number) => {
+    trackEvent('time_on_page', 'Engagement', pageName, seconds);
   },
-  trackModalClosed: (modalName: string) => {
-    trackEvent('modal_closed', 'Engagement', modalName);
+  trackScrollDepth: (pageName: string, depthPercent: number) => {
+    trackEvent('scroll_depth', 'Engagement', pageName, depthPercent);
   },
-  trackFeatureUsed: (featureName: string) => {
-    trackEvent('feature_used', 'Engagement', featureName);
+
+  // Errors & Issues
+  trackValidationError: (formName: string, fieldName: string, errorType: string) => {
+    trackEvent('validation_error', 'Errors', `${formName}:${fieldName}:${errorType}`);
+  },
+  trackAPIError: (endpoint: string, statusCode: number) => {
+    trackEvent('api_error', 'Errors', endpoint, statusCode);
   },
 };

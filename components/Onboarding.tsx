@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { Building2, Mail, CheckCircle, Sparkles, Shield } from 'lucide-react';
+import { analytics } from '../services/analytics';
 
 export const Onboarding: React.FC = () => {
     const { user, refreshProfile } = useAuth();
@@ -9,6 +10,7 @@ export const Onboarding: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [checkingInvite, setCheckingInvite] = useState(true);
     const [pendingInvite, setPendingInvite] = useState<any>(null);
+    const [error, setError] = useState('');
 
     // Check for pending invites when component mounts
     useEffect(() => {
@@ -82,11 +84,23 @@ export const Onboarding: React.FC = () => {
         }
     };
 
-    const handleCreateOrg = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!orgName.trim() || !user) return;
+    const handleOrgNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setOrgName(e.target.value);
+        analytics.trackFormFieldEdit('create_organization', 'org_name');
+    };
+
+    const handleSubmit = async () => {
+        analytics.trackFormStart('create_organization');
+        
+        if (!orgName.trim()) {
+            analytics.trackValidationError('create_organization', 'org_name', 'empty');
+            setError('נא להזין שם ארגון');
+            return;
+        }
 
         setLoading(true);
+        setError('');
+
         try {
             // Create organization
             const { data: org, error: orgError } = await supabase
@@ -110,9 +124,13 @@ export const Onboarding: React.FC = () => {
 
             // Refresh profile to get the new organization
             await refreshProfile();
+
+            analytics.trackFormSubmit('create_organization', true);
+            analytics.trackEvent('organization_created', 'Onboarding', orgName);
         } catch (error) {
-            console.error('Error creating organization:', error);
-            alert('שגיאה ביצירת הארגון. אנא נסה שוב.');
+            analytics.trackFormSubmit('create_organization', false);
+            analytics.trackError((error as Error).message, 'CreateOrganization');
+            setError('שגיאה ביצירת הארגון');
         } finally {
             setLoading(false);
         }
@@ -268,7 +286,7 @@ export const Onboarding: React.FC = () => {
 
                     {/* Form Section */}
                     <div className="p-8 md:p-12">
-                        <form onSubmit={handleCreateOrg} className="space-y-6">
+                        <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
                                 <label className="block text-slate-700 font-bold mb-3 text-right text-lg flex items-center gap-2">
                                     <Building2 size={20} className="text-green-600" />
@@ -277,13 +295,19 @@ export const Onboarding: React.FC = () => {
                                 <input
                                     type="text"
                                     value={orgName}
-                                    onChange={(e) => setOrgName(e.target.value)}
+                                    onChange={handleOrgNameChange}
                                     placeholder="לדוגמה: פלוגה א׳, צוות..."
                                     className="w-full px-4 py-4 rounded-xl bg-white border-2 border-slate-200 focus:border-green-500 focus:outline-none text-slate-800 placeholder-slate-400 text-right text-lg transition-colors shadow-sm"
                                     required
                                     disabled={loading}
                                 />
                             </div>
+
+                            {error && (
+                                <p className="text-red-500 text-sm text-center">
+                                    {error}
+                                </p>
+                            )}
 
                             <button
                                 type="submit"

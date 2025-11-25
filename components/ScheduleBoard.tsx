@@ -773,6 +773,34 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         onDeleteShift(shiftId);
     };
 
+    // Track modal open
+    const handleShiftSelect = (shift: Shift) => {
+        const task = taskTemplates.find(t => t.id === shift.taskId);
+        if (task) {
+            analytics.trackModalOpen(`shift_management:${task.name}`);
+        }
+        setSelectedShiftId(shift.id);
+    };
+
+    // Track button clicks
+    const handleExportClick = async () => {
+        analytics.trackButtonClick('export_schedule', 'schedule_board');
+        await handleExportToClipboard();
+    };
+
+    const handleClearDayClick = () => {
+        analytics.trackButtonClick('clear_day', 'schedule_board');
+        if (confirm('האם אתה בטוח שברצונך לנקות את כל המשמרות של היום?')) {
+            onClearDay();
+        }
+    };
+
+    // Track filter changes
+    useEffect(() => {
+        const dateKey = selectedDate.toLocaleDateString('en-CA');
+        analytics.trackFilterApplied('date', dateKey);
+    }, [selectedDate]);
+
     return (
         <div className="flex flex-col gap-8">
             {renderFeaturedCard()}
@@ -868,13 +896,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                     <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 md:gap-3">
                         {/* Action Buttons */}
                         <div className="flex gap-2 order-2 sm:order-1">
-                            <button onClick={handleExportToClipboard} className="flex items-center justify-center gap-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors">
+                            <button onClick={handleExportClick} className="flex items-center justify-center gap-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors">
                                 <Copy size={14} />
                                 <span className="hidden sm:inline">העתק ללוח</span>
                                 <span className="sm:hidden">העתק</span>
                             </button>
                             {!isViewer && (
-                                <button onClick={onClearDay} className="flex items-center justify-center gap-1.5 text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors">
+                                <button onClick={handleClearDayClick} className="flex items-center justify-center gap-1.5 text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors">
                                     <Trash2 size={14} />
                                     <span className="hidden sm:inline">נקה יום</span>
                                     <span className="sm:hidden">נקה</span>
