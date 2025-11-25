@@ -23,9 +23,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
-      // Create a promise that rejects after 5 seconds
+      // Increase timeout to 10 seconds for slower connections
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+        setTimeout(() => reject(new Error('Profile fetch timeout - check your connection')), 10000)
       );
 
       const dbPromise = supabase
@@ -41,10 +41,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError && profileError.code !== 'PGRST116') {
         console.error('Error fetching profile:', profileError);
+        // Don't throw - set profile as null and continue
+        setProfile(null);
         return;
       }
 
       if (!profileData) {
+        console.log('📝 No profile found, creating new profile...');
         const { data: userData } = await supabase.auth.getUser();
         const email = userData?.user?.email || '';
         const fullName = userData?.user?.user_metadata?.full_name ||
@@ -66,33 +69,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
 
         if (insertError) {
-          console.error('❌ Error creating profile (fallback):', insertError);
+          console.error('❌ Error creating profile:', insertError);
+          setProfile(null);
           return;
         }
 
+        console.log('✅ Profile created successfully');
         setProfile(newProfile);
         return;
       }
 
+      console.log('✅ Profile loaded successfully');
       setProfile(profileData);
 
       if (profileData.organization_id) {
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', profileData.organization_id)
-          .single();
+        try {
+          const { data: orgData, error: orgError } = await supabase
+            .from('organizations')
+            .select('*')
+            .eq('id', profileData.organization_id)
+            .single();
 
-        if (orgError) {
-          console.error('Error fetching organization:', orgError);
-        } else {
-          setOrganization(orgData);
+          if (orgError) {
+            console.error('⚠️ Error fetching organization:', orgError);
+            setOrganization(null);
+          } else {
+            console.log('✅ Organization loaded successfully');
+            setOrganization(orgData);
+          }
+        } catch (orgErr) {
+          console.error('⚠️ Unexpected error fetching organization:', orgErr);
+          setOrganization(null);
         }
       } else {
         setOrganization(null);
       }
     } catch (error) {
-      console.error('Unexpected error in fetchProfile:', error);
+      console.error('❌ Unexpected error in fetchProfile:', error);
+      // Set profile to null but don't crash the app
+      setProfile(null);
+      setOrganization(null);
+      
+      // Track error in analytics if available
+      if (analytics && typeof analytics.trackError === 'function') {
+        analytics.trackError((error as Error).message, 'FetchProfile');
+      }
     }
   };
 
