@@ -7,6 +7,7 @@ import { Login } from './components/Login';
 import { LandingPage } from './components/LandingPage';
 import { Onboarding } from './components/Onboarding';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { useToast } from './contexts/ToastContext';
 import { Person, Shift, TaskTemplate, Role, Team } from './types';
 import { supabase } from './services/supabaseClient';
 import {
@@ -36,6 +37,7 @@ import { ClaimProfile } from './components/ClaimProfile';
 // --- Main App Content (Authenticated) ---
 const MainApp: React.FC = () => {
     const { organization, user, profile } = useAuth();
+    const { showToast } = useToast();
     const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs'>('dashboard');
     const [isLoading, setIsLoading] = useState(true);
     const [isScheduling, setIsScheduling] = useState(false);
@@ -133,7 +135,7 @@ const MainApp: React.FC = () => {
             });
         } catch (error) {
             console.error("❌ Error fetching data:", error);
-            alert("שגיאה בטעינת הנתונים. אנא רענן את העמוד.");
+            showToast("שגיאה בטעינת הנתונים. אנא רענן את העמוד.", 'error');
         } finally {
             setIsLoading(false);
         }
@@ -494,7 +496,7 @@ const MainApp: React.FC = () => {
                 // LOG
                 await logger.logAutoSchedule(1, solvedShifts.length, 'single');
 
-                alert(`✅ שיבוץ הושלם ליום ${selectedDate.toLocaleDateString('he-IL')}!`);
+                showToast(`✅ שיבוץ הושלם ליום ${selectedDate.toLocaleDateString('he-IL')}!`, 'success');
             } else {
                 // Range scheduling with CUMULATIVE state tracking
                 const start = new Date(scheduleStartDate);
@@ -616,13 +618,13 @@ const MainApp: React.FC = () => {
                 // LOG
                 await logger.logAutoSchedule(daysToSchedule.length, allSolvedShifts.length, 'range');
 
-                alert(`✅ שיבוץ הושלם!\n📅 ${daysToSchedule.length} ימים\n📋 ${allSolvedShifts.length} משמרות`);
+                showToast(`✅ שיבוץ הושלם!\n📅 ${daysToSchedule.length} ימים\n📋 ${allSolvedShifts.length} משמרות`, 'success');
             }
 
             setShowScheduleModal(false);
         } catch (error) {
             console.error('Scheduling error:', error);
-            alert('❌ אירעה שגיאה בשיבוץ');
+            showToast('❌ אירעה שגיאה בשיבוץ', 'error');
         } finally {
             setIsScheduling(false);
         }
