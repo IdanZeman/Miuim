@@ -44,6 +44,7 @@ const MainApp: React.FC = () => {
     const [scheduleEndDate, setScheduleEndDate] = useState<Date>(new Date(new Date().setDate(new Date().getDate() + 7)));
     const [selectedDateKey, setSelectedDateKey] = useState<string>(new Date().toISOString().split('T')[0]);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
 
     const [state, setState] = useState<{
         people: Person[];
