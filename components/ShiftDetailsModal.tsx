@@ -1,3 +1,4 @@
+import React from 'react';
 import { X, Users, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Person, Shift, TaskTemplate, Role } from "../types";
@@ -51,11 +52,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 return (
                   <div
                     key={pid}
-                    className={`p-3 rounded-lg border-2 flex items-start justify-between transition-all ${
-                      isQualified
+                    className={`p-3 rounded-lg border-2 flex items-start justify-between transition-all ${isQualified
                         ? 'bg-blue-50 border-blue-200'
                         : 'bg-red-50 border-red-500 shadow-red-100 shadow-md'
-                    }`}
+                      }`}
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
@@ -87,11 +87,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                     {userRole !== 'viewer' && (
                       <button
                         onClick={() => onUnassign(shift.id, pid)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          isQualified
+                        className={`p-2 rounded-lg transition-colors ${isQualified
                             ? 'hover:bg-red-100 text-slate-400 hover:text-red-600'
                             : 'bg-red-100 text-red-600 hover:bg-red-200'
-                        }`}
+                          }`}
                         title="הסר שיבוץ"
                       >
                         <X size={18} />

@@ -100,21 +100,6 @@ export const MOCK_TASKS = [
   {
     id: 't3',
     name: 'מארב לילה',
-    durationHours: 6,
-    requiredPeople: 3,
-    requiredRoleIds: ['r3', 'r2'], // Medic and Commander
-    minRestHoursBefore: 12,
-    difficulty: 5,
-    color: 'border-l-slate-800',
-    schedulingType: 'one-time' as const, // Ad-hoc
-    defaultStartTime: '22:00'
-  },
-];
-
-export const INITIAL_STATE: AppState = {
-  roles: MOCK_ROLES,
-  teams: MOCK_TEAMS,
-  people: MOCK_PEOPLE,
   taskTemplates: MOCK_TASKS,
   shifts: [],
 };

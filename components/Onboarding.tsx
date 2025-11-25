@@ -110,7 +110,7 @@ export const Onboarding: React.FC = () => {
             const { data: org, error: orgError } = await supabase
                 .from('organizations')
                 .insert({ name: orgName.trim() })
-            analytics.trackEvent('organization_created', 'Onboarding', orgName);
+            analytics.trackSignup(orgName);
         } catch (error) {
             analytics.trackFormSubmit('create_organization', false);
             analytics.trackError((error as Error).message, 'CreateOrganization');
