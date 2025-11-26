@@ -37,18 +37,17 @@ export const useConfirmation = () => {
         close();
     }, [state.options, close]);
 
-    const ModalComponent = () => (
-        <ConfirmationModal
-            isOpen={state.isOpen}
-            title={state.options?.title || ''}
-            message={state.options?.message || ''}
-            confirmText={state.options?.confirmText}
-            cancelText={state.options?.cancelText}
-            type={state.options?.type}
-            onConfirm={handleConfirm}
-            onCancel={close}
-        />
-    );
-
-    return { confirm, ConfirmationModal: ModalComponent };
+    return {
+        confirm,
+        modalProps: {
+            isOpen: state.isOpen,
+            title: state.options?.title || '',
+            message: state.options?.message || '',
+            confirmText: state.options?.confirmText,
+            cancelText: state.options?.cancelText,
+            type: state.options?.type,
+            onConfirm: handleConfirm,
+            onCancel: close,
+        }
+    };
 };

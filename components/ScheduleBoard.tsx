@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, 
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../hooks/useConfirmation';
+import { ConfirmationModal } from './ConfirmationModal';
 import { analytics } from '../services/analytics';
 
 import { supabase } from '../services/supabaseClient';
@@ -186,7 +187,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     const [showCopySuccess, setShowCopySuccess] = useState(false);
 
     const { showToast } = useToast();
-    const { confirm, ConfirmationModal } = useConfirmation();
+    const { confirm, modalProps } = useConfirmation();
 
     // NEW: Only load warnings for non-viewers
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(!isViewer); // Viewers skip loading
@@ -825,7 +826,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         <div className="flex flex-col gap-8">
             {renderFeaturedCard()}
             {selectedShift && <Modal />}
-            <ConfirmationModal />
+            <ConfirmationModal {...modalProps} />
 
             {/* Global Mismatch Warnings Panel */}
             {!isViewer && !isLoadingWarnings && mismatchWarnings.length > 0 && (

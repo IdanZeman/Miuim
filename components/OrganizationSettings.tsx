@@ -3,6 +3,8 @@ import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../hooks/useConfirmation';
+import { ConfirmationModal } from './ConfirmationModal';
+import { logger } from '../services/loggingService';
 import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users } from 'lucide-react';
 import { UserRole, Profile, OrganizationInvite } from '../types';
 
@@ -141,7 +143,7 @@ export const OrganizationSettings: React.FC = () => {
     const [sending, setSending] = useState(false);
 
     const { showToast } = useToast();
-    const { confirm, ConfirmationModal } = useConfirmation();
+    const { confirm, modalProps } = useConfirmation();
 
     const isAdmin = profile?.role === 'admin';
 
@@ -245,21 +247,34 @@ export const OrganizationSettings: React.FC = () => {
     };
 
     const handleChangeRole = async (memberId: string, newRole: UserRole) => {
+        console.log(`[OrganizationSettings] Requesting role change for ${memberId} to ${newRole}`);
         confirm({
+            cancelText: 'ביטול',
             title: 'שינוי הרשאה',
             message: 'האם אתה בטוח שברצונך לשנות את ההרשאה?',
             confirmText: 'עדכן',
             type: 'warning',
             onConfirm: async () => {
-                const { error } = await supabase
+                console.log(`[OrganizationSettings] Confirmed role change for ${memberId} to ${newRole}`);
+                const { error, data } = await supabase
                     .from('profiles')
                     .update({ role: newRole })
-                    .eq('id', memberId);
+                    .eq('id', memberId)
+                    .select();
+
+                console.log(`[OrganizationSettings] Update result:`, { error, data });
 
                 if (error) {
                     console.error('Error updating role:', error);
                     showToast('שגיאה בעדכון ההרשאה', 'error');
                 } else {
+                    // LOG
+                    const member = members.find(m => m.id === memberId);
+                    await logger.logUpdate('profile', memberId, member?.full_name || member?.email || 'משתמש',
+                        { role: member?.role },
+                        { role: newRole }
+                    );
+
                     showToast('ההרשאה עודכנה בהצלחה', 'success');
                     fetchMembers();
                 }
@@ -312,8 +327,6 @@ export const OrganizationSettings: React.FC = () => {
                 </div>
                 <InviteLinkSettings organization={organization} onUpdate={fetchMembers} />
             </div>
-
-
 
             {/* Night Shift Settings */}
             <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-indigo-200">
@@ -455,13 +468,14 @@ export const OrganizationSettings: React.FC = () => {
                     ))}
                 </div>
             </div>
+            <ConfirmationModal {...modalProps} />
         </div>
     );
 };
 
 const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> = ({ organization, onUpdate }) => {
     const { showToast } = useToast();
-    const { confirm, ConfirmationModal } = useConfirmation();
+    const { confirm, modalProps } = useConfirmation();
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
     const [isActive, setIsActive] = useState(organization?.is_invite_link_active || false);
@@ -631,7 +645,7 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                     </p>
                 </div>
             )}
-            <ConfirmationModal />
+            <ConfirmationModal {...modalProps} />
         </div>
     );
 };

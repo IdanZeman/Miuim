@@ -88,9 +88,12 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     </div>
                 </div>
 
-                <div className="bg-slate-50 px-6 py-4 flex flex-row-reverse gap-3">
+                <div className="bg-slate-50 px-6 py-4 flex gap-3">
                     <button
-                        onClick={onConfirm}
+                        onClick={() => {
+                            console.log('[ConfirmationModal] Confirm button clicked');
+                            onConfirm();
+                        }}
                         className={`flex-1 px-4 py-2 rounded-xl text-white font-medium shadow-sm transition-all transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 ${colors.buttonBg} ${colors.buttonRing}`}
                     >
                         {confirmText}
