@@ -307,10 +307,8 @@ export const OrganizationSettings: React.FC = () => {
             {/* Organization Info */}
             <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-yellow-200">
                 <div className="flex items-center gap-3 md:gap-4 mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-yellow-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <svg className="w-6 h-6 md:w-7 md:h-7 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                        </svg>
+                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <img src="/images/app_icon.png" alt="Organization Logo" className="w-full h-full object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
                         <h1 className="text-xl md:text-3xl font-bold text-slate-800 truncate">{organization?.name}</h1>

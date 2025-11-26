@@ -67,7 +67,7 @@ export const CreateOrganizationPage: React.FC = () => {
           <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <Shield size={32} className="text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">ברוכים הבאים ל-Miuim!</h1>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">ברוכים הבאים למערכת שיבוץ משימות!</h1>
           <p className="text-slate-600">הגדר את הארגון שלך כדי להתחיל</p>
         </div>
 

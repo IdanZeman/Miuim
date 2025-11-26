@@ -43,17 +43,15 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
 
                     {/* Logo */}
                     <div className="flex justify-center mb-8">
-                        <div className="w-16 h-16 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg">
-                            <svg className="w-10 h-10 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                            </svg>
+                        <div className="w-24 h-24 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+                            <img src="/images/app_icon.png" alt="Miuim Logo" className="w-full h-full object-cover" />
                         </div>
                     </div>
 
                     {/* Title */}
                     <div className="text-center mb-8">
                         <h1 className="text-4xl font-bold text-slate-800 mb-3">התחברות</h1>
-                        <p className="text-slate-600">התחבר כדי להמשיך ל-Miuim</p>
+                        <p className="text-slate-600">התחבר כדי להמשיך למערכת שיבוץ משימות</p>
                     </div>
 
                     {/* Google Sign In Button */}

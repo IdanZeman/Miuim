@@ -63,7 +63,7 @@ export const Onboarding: React.FC = () => {
                 .from('profiles')
                 .update({
                     organization_id: pendingInvite.organization_id,
-                    role: pendingInvite.invited_role || 'viewer'
+                    role: pendingInvite.role || 'viewer'
                 })
                 .eq('id', user.id);
 
@@ -157,10 +157,8 @@ export const Onboarding: React.FC = () => {
         return (
             <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center shadow-lg mb-4 mx-auto animate-pulse">
-                        <svg className="w-10 h-10 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                        </svg>
+                    <div className="w-24 h-24 rounded-2xl flex items-center justify-center shadow-lg mb-4 mx-auto animate-pulse overflow-hidden">
+                        <img src="/images/app_icon.png" alt="Miuim Logo" className="w-full h-full object-cover" />
                     </div>
                     <p className="text-slate-600 font-medium">בודק הזמנות...</p>
                 </div>
@@ -171,16 +169,14 @@ export const Onboarding: React.FC = () => {
     // If user has a pending invite, show accept invite screen
     if (pendingInvite) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 overflow-y-auto">
+            <div className="h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 overflow-y-auto">
                 {/* Header with Logo */}
                 <div className="bg-white border-b border-slate-200 shadow-sm">
                     <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
-                            <svg className="w-6 h-6 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                            </svg>
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
+                            <img src="/images/app_icon.png" alt="Miuim Logo" className="w-full h-full object-cover" />
                         </div>
-                        <span className="text-xl font-bold text-slate-800">Miuim</span>
+                        <span className="text-xl font-bold text-slate-800">מערכת שיבוץ משימות </span>
                     </div>
                 </div>
 
@@ -222,9 +218,12 @@ export const Onboarding: React.FC = () => {
                                         <div className="flex items-center justify-center gap-2">
                                             <Shield size={18} className="text-green-600" />
                                             <p className="text-lg font-bold text-green-700">
-                                                {pendingInvite.invited_role === 'admin' && 'מנהל מערכת'}
-                                                {pendingInvite.invited_role === 'shift_manager' && 'אחראי שמירות'}
-                                                {pendingInvite.invited_role === 'viewer' && 'צופה'}
+                                                {pendingInvite.role === 'admin' && 'מנהל מערכת'}
+                                                {pendingInvite.role === 'editor' && 'עורך'}
+                                                {pendingInvite.role === 'shift_manager' && 'מנהל משמרות'}
+                                                {pendingInvite.role === 'viewer' && 'צופה'}
+                                                {pendingInvite.role === 'attendance_only' && 'נוכחות בלבד'}
+                                                {!['admin', 'editor', 'shift_manager', 'viewer', 'attendance_only'].includes(pendingInvite.role) && (pendingInvite.role || 'צופה')}
                                             </p>
                                         </div>
                                     </div>
@@ -268,15 +267,13 @@ export const Onboarding: React.FC = () => {
 
     // Default: Create new organization
     return (
-        <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 overflow-y-auto">
+        <div className="h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 overflow-y-auto">
             {/* Header with Logo */}
             <div className="bg-white border-b border-slate-200 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
-                            <svg className="w-6 h-6 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                            </svg>
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
+                            <img src="/images/app_icon.png" alt="Miuim Logo" className="w-full h-full object-cover" />
                         </div>
                         <span className="text-xl font-bold text-slate-800">Miuim</span>
                     </div>

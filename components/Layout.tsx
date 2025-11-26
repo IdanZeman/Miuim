@@ -81,12 +81,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
           {/* Right: Logo & Nav */}
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
               {/* IDF Logo Placeholder */}
-              <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
-                <svg className="w-5 h-5 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
+              {/* App Logo */}
+              <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
+                <img src="/images/app_icon.png" alt="App Logo" className="w-full h-full object-cover" />
               </div>
               <span className="text-lg font-bold text-slate-800 tracking-tight">
                 {isPublic ? 'Miuim' : (organization?.name || 'Miuim')}

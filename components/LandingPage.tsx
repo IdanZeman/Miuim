@@ -160,17 +160,15 @@ export const LandingPage: React.FC = () => {
 
                         {/* Logo */}
                         <div className="flex justify-center mb-4 md:mb-6">
-                            <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-2xl flex items-center justify-center shadow-lg">
-                                <svg className="w-8 h-8 md:w-10 md:h-10 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                                </svg>
+                            <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden">
+                                <img src="/images/app_icon.png" alt="Shibuz Logo" className="w-full h-full object-cover" />
                             </div>
                         </div>
 
                         {/* Title */}
                         <div className="text-center mb-6 md:mb-8">
                             <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">התחברות</h2>
-                            <p className="text-slate-500 text-xs md:text-sm">התחבר כדי להמשיך ל-Miuim</p>
+                            <p className="text-slate-500 text-xs md:text-sm">התחבר כדי להמשיך למערכת שיבוץ משימות</p>
                         </div>
 
                         {/* Google Login Button */}

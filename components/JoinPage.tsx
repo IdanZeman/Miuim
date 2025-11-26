@@ -103,8 +103,8 @@ const JoinPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 p-4">
-            <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 md:p-10 text-center border border-white/50 relative overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+        <div className="h-screen flex flex-col bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 p-4 overflow-y-auto">
+            <div className="m-auto max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 md:p-10 text-center border border-white/50 relative overflow-hidden animate-in fade-in zoom-in-95 duration-500">
 
                 {/* Decorative Background Elements */}
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-500 via-teal-500 to-blue-500"></div>
@@ -113,10 +113,8 @@ const JoinPage: React.FC = () => {
 
                 {/* IDF Style Logo */}
                 <div className="relative mb-8">
-                    <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg transform rotate-3 hover:rotate-0 transition-transform duration-300">
-                        <svg className="w-10 h-10 text-yellow-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                        </svg>
+                    <div className="w-28 h-28 rounded-2xl flex items-center justify-center mx-auto shadow-lg transform rotate-3 hover:rotate-0 transition-transform duration-300 overflow-hidden">
+                        <img src="/images/app_icon.png" alt="Miuim Logo" className="w-full h-full object-cover" />
                     </div>
                 </div>
 
