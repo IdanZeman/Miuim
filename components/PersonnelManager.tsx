@@ -16,26 +16,25 @@ interface PersonnelManagerProps {
     onAddRole: (r: Role) => void;
     onDeleteRole: (id: string) => void;
     onUpdateRole?: (r: Role) => void;
+    initialTab?: 'people' | 'teams' | 'roles';
 }
 
 type Tab = 'people' | 'teams' | 'roles';
 
 const TEAM_COLORS = [
-    'border-slate-500', 'border-red-500', 'border-orange-500',
-    'border-amber-500', 'border-green-500', 'border-emerald-500',
-    'border-teal-500', 'border-cyan-500', 'border-blue-500',
-    'border-indigo-500', 'border-violet-500', 'border-purple-500',
-    'border-fuchsia-500', 'border-pink-500', 'border-rose-500'
+    'border-blue-500', 'border-green-500', 'border-purple-500', 'border-orange-500', 'border-pink-500',
+    'border-teal-500', 'border-indigo-500', 'border-cyan-500', 'border-rose-500', 'border-amber-500'
 ];
 
 const ROLE_COLORS = [
-    'bg-slate-100 text-slate-800', 'bg-red-100 text-red-800', 'bg-orange-100 text-orange-800',
-    'bg-green-100 text-green-800', 'bg-blue-100 text-blue-800', 'bg-indigo-100 text-indigo-800',
-    'bg-purple-100 text-purple-800', 'bg-pink-100 text-pink-800', 'bg-teal-100 text-teal-800'
+    'bg-blue-100 text-blue-700', 'bg-green-100 text-green-700', 'bg-purple-100 text-purple-700',
+    'bg-orange-100 text-orange-700', 'bg-pink-100 text-pink-700', 'bg-teal-100 text-teal-700',
+    'bg-indigo-100 text-indigo-700', 'bg-cyan-100 text-cyan-700', 'bg-rose-100 text-rose-700',
+    'bg-amber-100 text-amber-700'
 ];
 
-const ROLE_ICONS: Record<string, React.ElementType> = {
-    Shield, Star, Heart, Truck, Syringe, Zap, Anchor, Target, Eye, Cpu, Cross
+const ROLE_ICONS: Record<string, any> = {
+    Shield, Users, Check, Pencil, Star, Heart, Truck, Syringe, Zap, Anchor, Target, Eye, Cpu, Cross
 };
 
 export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
@@ -50,10 +49,20 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     onDeleteTeam,
     onAddRole,
     onDeleteRole,
-    onUpdateRole
+    onUpdateRole,
+    initialTab = 'people'
 }) => {
-    const [activeTab, setActiveTab] = useState<Tab>('people');
+    const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+
+    // Update active tab when initialTab prop changes
+    React.useEffect(() => {
+        if (initialTab) {
+            setActiveTab(initialTab);
+        }
+    }, [initialTab]);
+
     const [isAdding, setIsAdding] = useState(false);
+
 
     // Edit States
     const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
@@ -238,7 +247,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                     <div className="flex flex-wrap gap-2">
                                         {ROLE_COLORS.map(colorClass => (
                                             <button key={colorClass} onClick={() => setSelectedColor(colorClass)} className={`w-6 h-6 rounded-full ${colorClass.split(' ')[0]} ${selectedColor === colorClass ? 'ring-2 ring-offset-2 ring-slate-800' : 'opacity-70'}`} />
-                                    ))}
+                                        ))}
                                     </div>
                                 </div>
                                 <div>
@@ -269,12 +278,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             {/* Tabs Header */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 pb-4 border-b border-slate-100 gap-4">
                 <div className="flex p-1 bg-slate-100 rounded-full w-full md:w-auto">
-                    <button onClick={() => { setActiveTab('people'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'people' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>לוחמים</button>
+                    <button onClick={() => { setActiveTab('people'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'people' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>חיילים</button>
                     <button onClick={() => { setActiveTab('teams'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'teams' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>צוותים</button>
                     <button onClick={() => { setActiveTab('roles'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'roles' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>תפקידים</button>
                 </div>
                 <button onClick={() => { setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); }} className="w-full md:w-auto bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2">
-                    <Plus size={16} /> הוסף חדש
+                    הוסף חדש <Plus size={16} />
                 </button>
             </div>
 

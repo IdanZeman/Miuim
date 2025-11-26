@@ -9,6 +9,7 @@ import { useConfirmation } from '../hooks/useConfirmation';
 import { ConfirmationModal } from './ConfirmationModal';
 import { analytics } from '../services/analytics';
 import { supabase } from '../services/supabaseClient';
+import { EmptyStateGuide } from './EmptyStateGuide';
 
 interface ScheduleBoardProps {
     shifts: Shift[];
@@ -18,13 +19,12 @@ interface ScheduleBoardProps {
     teams: Team[];
     selectedDate: Date;
     onDateChange: (date: Date) => void;
-    onAssign: (shiftId: string, personId: string) => void;
-    onUnassign: (shiftId: string, personId: string) => void;
-    onAddShift: (task: TaskTemplate, start: Date) => void;
-    onUpdateShift: (shift: Shift) => void;
-    onDeleteShift: (shiftId: string) => void;
+    onSelect: (shift: Shift) => void;
+    onDelete: (shiftId: string) => void;
+    isViewer: boolean;
+    acknowledgedWarnings: Set<string>;
     onClearDay: () => void;
-    onNavigate: (view: 'personnel' | 'tasks') => void;
+    onNavigate: (view: 'personnel' | 'tasks', tab?: 'people' | 'teams' | 'roles') => void;
 }
 
 // Helper component for Shift Card
@@ -177,6 +177,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     } = props;
     const { profile, organization } = useAuth();
     const isViewer = profile?.role === 'viewer';
+
+    // NEW: Check for empty state
+    const isEmptyState = taskTemplates.length === 0 || people.length === 0 || roles.length === 0;
+
+    if (isEmptyState && !isViewer) {
+        return (
+            <EmptyStateGuide
+                hasTasks={taskTemplates.length > 0}
+                hasPeople={people.length > 0}
+                hasRoles={roles.length > 0}
+                onNavigate={onNavigate}
+            />
+        );
+    }
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
     const [viewerDaysLimit, setViewerDaysLimit] = useState(2);
     const [showCopySuccess, setShowCopySuccess] = useState(false);
