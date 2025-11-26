@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TaskTemplate, Role, SchedulingType } from '../types';
 import { Clock, Users, AlertCircle, CheckSquare, Plus, Pencil, Trash2, X, Check, Repeat, Calendar } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 interface TaskManagerProps {
     tasks: TaskTemplate[];
@@ -25,6 +26,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 }) => {
     const [isAdding, setIsAdding] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
+    const { showToast } = useToast();
 
     // Form State
     const [name, setName] = useState('');
@@ -225,8 +227,14 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     בנק משימות
                 </h2>
                 {!isAdding && !editId && (
-                    <button onClick={() => setIsAdding(true)} className="w-full md:w-auto bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2">
-                        <Plus size={16} /> הוסף משימה
+                    <button onClick={() => {
+                        if (roles.length === 0) {
+                            showToast('יש להגדיר תפקידים לפני יצירת משימות', 'error');
+                            return;
+                        }
+                        setIsAdding(true);
+                    }} className="w-full md:w-auto bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2">
+                        הוסף משימה<Plus size={16} />
                     </button>
                 )}
             </div>

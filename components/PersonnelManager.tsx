@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Person, Team, Role } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { Plus, Trash2, Shield, Users, Check, Pencil, Star, Heart, Truck, Syringe, Zap, Anchor, Target, Eye, Cpu, Cross } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -53,13 +54,19 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     initialTab = 'people'
 }) => {
     const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+    const { showToast } = useToast();
 
     // Update active tab when initialTab prop changes
     React.useEffect(() => {
         if (initialTab) {
-            setActiveTab(initialTab);
+            if (initialTab === 'people' && teams.length === 0) {
+                showToast('יש להגדיר צוותים לפני צפייה בחיילים', 'error');
+                setActiveTab('teams');
+            } else {
+                setActiveTab(initialTab);
+            }
         }
-    }, [initialTab]);
+    }, [initialTab, teams.length, showToast]);
 
     const [isAdding, setIsAdding] = useState(false);
 
@@ -278,11 +285,24 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             {/* Tabs Header */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 pb-4 border-b border-slate-100 gap-4">
                 <div className="flex p-1 bg-slate-100 rounded-full w-full md:w-auto">
-                    <button onClick={() => { setActiveTab('people'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'people' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>חיילים</button>
+                    <button onClick={() => {
+                        if (teams.length === 0) {
+                            showToast('יש להגדיר צוותים לפני צפייה בחיילים', 'error');
+                            return;
+                        }
+                        setActiveTab('people'); closeForm();
+                    }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'people' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>חיילים</button>
                     <button onClick={() => { setActiveTab('teams'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'teams' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>צוותים</button>
                     <button onClick={() => { setActiveTab('roles'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'roles' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>תפקידים</button>
                 </div>
-                <button onClick={() => { setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); }} className="w-full md:w-auto bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2">
+                <button onClick={() => {
+                    if (activeTab === 'people' && teams.length === 0) {
+                        showToast('יש להגדיר צוותים לפני הוספת לוחמים', 'error');
+                        setActiveTab('teams');
+                        return;
+                    }
+                    setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName('');
+                }} className="w-full md:w-auto bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2">
                     הוסף חדש <Plus size={16} />
                 </button>
             </div>
@@ -365,6 +385,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 </div>
             )}
 
+            {/* Content Lists */}
             {/* Content Lists */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {activeTab === 'people' && people.map(person => {
