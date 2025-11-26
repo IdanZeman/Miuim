@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ScheduleBoard } from './components/ScheduleBoard';
 import { TaskManager } from './components/TaskManager';
@@ -909,7 +910,7 @@ const MainApp: React.FC = () => {
 
 // --- App Wrapper with Auth Logic ---
 const AppContent: React.FC = () => {
-    const { user, profile, organization, loading, refreshProfile } = useAuth();
+    const { user, profile, organization, loading } = useAuth();
     const [isProcessingInvite, setIsProcessingInvite] = useState(true);
 
     // Check for pending invite after login
@@ -982,14 +983,19 @@ const AppContent: React.FC = () => {
         );
     }
 
+    return (
+        <Routes>
+            <Route path="/join/:token" element={<JoinPage />} />
+            <Route path="*" element={<MainRoute user={user} profile={profile} organization={organization} />} />
+        </Routes>
+    );
+};
+
+// Helper component for main route logic
+const MainRoute: React.FC<{ user: any, profile: any, organization: any }> = ({ user, profile, organization }) => {
     // If user exists but NO profile → Show Onboarding
     if (user && !profile) {
         return <Onboarding />;
-    }
-
-    // Check for join link
-    if (window.location.pathname.startsWith('/join/')) {
-        return <JoinPage />;
     }
 
     // If not logged in → Show Landing Page
@@ -1024,11 +1030,13 @@ import { ToastProvider } from './contexts/ToastContext';
 
 const App: React.FC = () => {
     return (
-        <AuthProvider>
-            <ToastProvider>
-                <AppContent />
-            </ToastProvider>
-        </AuthProvider>
+        <Router>
+            <AuthProvider>
+                <ToastProvider>
+                    <AppContent />
+                </ToastProvider>
+            </AuthProvider>
+        </Router>
     );
 };
 
