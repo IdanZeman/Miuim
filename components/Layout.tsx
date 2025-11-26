@@ -74,6 +74,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
   const isAdmin = profile?.role === 'admin';
 
+  const mainRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTo(0, 0);
+    }
+  }, [currentView]);
+
   return (
     <div className="flex flex-col h-screen bg-idf-bg overflow-hidden font-sans">
       {/* White Header */}
@@ -295,7 +303,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       )}
 
       {/* Main Content - Scrollable */}
-      <main className="flex-1 overflow-y-auto relative bg-idf-bg">
+      <main ref={mainRef} className="flex-1 overflow-y-auto relative bg-idf-bg">
         {/* Green Hero Section - Responsive height */}
         <div className="bg-hero-pattern h-40 md:h-64 w-full absolute top-0 left-0 z-0">
           <div className="max-w-7xl mx-auto px-4 pt-4 md:pt-8 lg:pt-10">
