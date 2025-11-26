@@ -83,8 +83,8 @@ export const ClaimProfile: React.FC = () => {
     );
 
     return (
-        <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center p-4 font-sans" dir="rtl">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-white/50">
+        <div className="h-screen bg-[#f0f4f8] flex flex-col p-4 font-sans overflow-y-auto" dir="rtl">
+            <div className="m-auto bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-white/50">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-[#82d682] to-[#6cc16c] p-8 text-center text-white relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-full bg-white/10 backdrop-blur-[1px]"></div>
