@@ -197,13 +197,6 @@ export const LandingPage: React.FC = () => {
                             )}
                         </button>
 
-                        <button
-                            onClick={() => setShouldError(true)}
-                            className="w-full mt-4 text-xs text-red-400 hover:text-red-600 underline text-center"
-                        >
-                            בדיקת שגיאה (זמני)
-                        </button>
-
                         {/* Privacy Notice */}
                         <p className="text-[10px] md:text-xs text-slate-400 text-center mt-4 md:mt-6 leading-relaxed">
                             בכניסה למערכת אתה מסכים לתנאי השימוש ולמדיניות הפרטיות

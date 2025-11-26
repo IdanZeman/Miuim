@@ -106,12 +106,36 @@ export const Onboarding: React.FC = () => {
         setError('');
 
         try {
-            // Create organization
+            // 1. Create organization
             const { data: org, error: orgError } = await supabase
                 .from('organizations')
                 .insert({ name: orgName.trim() })
+                .select()
+                .single();
+
+            if (orgError) throw orgError;
+            if (!org) throw new Error('Failed to create organization');
+
             analytics.trackSignup(orgName);
+
+            // 2. Update user profile with new organization and admin role
+            if (user) {
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .update({
+                        organization_id: org.id,
+                        role: 'admin'
+                    })
+                    .eq('id', user.id);
+
+                if (profileError) throw profileError;
+
+                // 3. Refresh profile to update global state and redirect
+                await refreshProfile();
+            }
+
         } catch (error) {
+            console.error('Error creating organization:', error);
             analytics.trackFormSubmit('create_organization', false);
             analytics.trackError((error as Error).message, 'CreateOrganization');
             setError('שגיאה ביצירת הארגון');

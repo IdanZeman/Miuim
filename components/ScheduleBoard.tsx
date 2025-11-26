@@ -8,7 +8,6 @@ import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { ConfirmationModal } from './ConfirmationModal';
 import { analytics } from '../services/analytics';
-
 import { supabase } from '../services/supabaseClient';
 
 interface ScheduleBoardProps {
@@ -25,6 +24,7 @@ interface ScheduleBoardProps {
     onUpdateShift: (shift: Shift) => void;
     onDeleteShift: (shiftId: string) => void;
     onClearDay: () => void;
+    onNavigate: (view: 'personnel' | 'tasks') => void;
 }
 
 // Helper component for Shift Card
@@ -37,7 +37,7 @@ const ShiftCard: React.FC<{
     onSelect: (shift: Shift) => void;
     onDelete: (shiftId: string) => void;
     isViewer: boolean;
-    acknowledgedWarnings: Set<string>; // NEW: Pass acknowledged warnings
+    acknowledgedWarnings: Set<string>;
 }> = ({ shift, compact = false, taskTemplates, people, roles, onSelect, onDelete, isViewer, acknowledgedWarnings }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
@@ -47,7 +47,6 @@ const ShiftCard: React.FC<{
         .map(id => people.find(p => p.id === id))
         .filter(Boolean) as Person[];
 
-    // NEW: Check if ANY assigned person lacks the required role (and is NOT acknowledged)
     const requiredRoleIds = task.roleComposition.map(rc => rc.roleId);
     const hasMismatch = isViewer ? false : shift.assignedPersonIds.some(pid => {
         const person = people.find(p => p.id === pid);
@@ -98,9 +97,7 @@ const ShiftCard: React.FC<{
                 <div className="flex flex-col items-end gap-1">
                     {isFull
                         ? <div className="bg-green-50 text-green-600 p-1 rounded-full"><Check size={12} /></div>
-                        : <div className="text-[10px] font-bold bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md">
-                            {shift.assignedPersonIds.length}/{task.requiredPeople}
-                        </div>
+                        : <div className="bg-slate-100 text-slate-400 p-1 rounded-full text-[10px] font-bold">{shift.assignedPersonIds.length}/{task.requiredPeople}</div>
                     }
                     {/* NEW: Force Assign Badge - MOVED HERE (below the status) */}
                     {hasMismatch && (
@@ -120,7 +117,6 @@ const ShiftCard: React.FC<{
                     </div>
                 ) : (
                     assigned.map(p => {
-                        // NEW: For viewers, always show as qualified
                         const isQualified = isViewer ? true : p.roleIds.some(rid => requiredRoleIds.includes(rid));
                         const warningId = `${shift.id}-${p.id}`;
                         const isAcknowledged = isViewer ? true : acknowledgedWarnings.has(warningId);
@@ -141,7 +137,6 @@ const ShiftCard: React.FC<{
                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-bold shadow-sm ${p.color}`}>
                                     {getPersonInitials(p.name)}
                                 </div>
-                                {/* FIX: Use showAsQualified for text color too */}
                                 <span className={`text-xs font-bold truncate ${showAsQualified ? 'text-slate-700' : 'text-red-900'}`}>
                                     {p.name}
                                 </span>
@@ -152,7 +147,6 @@ const ShiftCard: React.FC<{
                         );
                     })
                 )}
-                {/* Warning if understaffed and has assignments but not enough */}
                 {(!isFull && assigned.length > 0) && (
                     <div className="text-[10px] text-amber-500 flex items-center gap-1 mt-1">
                         <Sparkles size={10} />
@@ -178,7 +172,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         onAddShift,
         onUpdateShift,
         onDeleteShift,
-        onClearDay
+        onClearDay,
+        onNavigate
     } = props;
     const { profile, organization } = useAuth();
     const isViewer = profile?.role === 'viewer';
