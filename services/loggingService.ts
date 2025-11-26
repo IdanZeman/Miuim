@@ -5,7 +5,7 @@ export type LogAction =
     | 'CREATE' | 'UPDATE' | 'DELETE'
     | 'ASSIGN' | 'UNASSIGN'
     | 'AUTO_SCHEDULE' | 'CLEAR_DAY'
-    | 'VIEW' | 'EXPORT' | 'CLICK';
+    | 'VIEW' | 'EXPORT' | 'CLICK' | 'ERROR';
 
 export type EntityType = 
     | 'person' | 'shift' | 'task' | 'role' | 'team' 
@@ -104,6 +104,7 @@ class LoggingService {
             case 'LOGOUT': return `התנתק מהמערכת`;
             case 'VIEW': return `צפה בעמוד ${entityName}`;
             case 'CLICK': return `לחץ על ${entityName}`;
+            case 'ERROR': return `שגיאת מערכת: ${entry.metadata?.message || 'שגיאה לא ידועה'}`;
             default: return entry.action;
         }
     }
@@ -193,6 +194,19 @@ class LoggingService {
             entityName: buttonName,
             metadata: { location },
             category: 'ui'
+        });
+    }
+
+    async logError(error: Error, componentStack?: string) {
+        await this.log({
+            action: 'ERROR',
+            category: 'system',
+            metadata: {
+                message: error.message,
+                stack: error.stack,
+                componentStack,
+                url: window.location.href
+            }
         });
     }
 }

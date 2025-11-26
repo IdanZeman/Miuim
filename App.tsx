@@ -34,6 +34,7 @@ import { initGA, trackPageView } from './services/analytics';
 import { usePageTracking } from './hooks/usePageTracking';
 
 import { ClaimProfile } from './components/ClaimProfile';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // --- Main App Content (Authenticated) ---
 const MainApp: React.FC = () => {
@@ -984,10 +985,12 @@ const AppContent: React.FC = () => {
     }
 
     return (
-        <Routes>
-            <Route path="/join/:token" element={<JoinPage />} />
-            <Route path="*" element={<MainRoute user={user} profile={profile} organization={organization} />} />
-        </Routes>
+        <ErrorBoundary>
+            <Routes>
+                <Route path="/join/:token" element={<JoinPage />} />
+                <Route path="*" element={<MainRoute user={user} profile={profile} organization={organization} />} />
+            </Routes>
+        </ErrorBoundary>
     );
 };
 

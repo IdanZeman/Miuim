@@ -178,6 +178,38 @@ export const AdminLogsViewer: React.FC = () => {
         );
     };
 
+    const renderMetadata = (metadata: any) => {
+        if (!metadata) return null;
+
+        return (
+            <div className="bg-red-50 p-3 rounded-lg border border-red-200 mt-2">
+                <h4 className="font-bold text-red-800 mb-2 flex items-center gap-2">
+                    <span className="text-xs bg-red-200 px-2 py-0.5 rounded">פרטי שגיאה</span>
+                </h4>
+                <div className="space-y-1 text-sm dir-ltr text-left">
+                    {metadata.message && (
+                        <div className="font-mono text-red-900 font-bold">{metadata.message}</div>
+                    )}
+                    {metadata.url && (
+                        <div className="text-slate-600 text-xs">URL: {metadata.url}</div>
+                    )}
+                    {metadata.componentStack && (
+                        <div className="mt-2">
+                            <div className="font-semibold text-xs text-slate-500">Component Stack:</div>
+                            <pre className="text-xs text-slate-700 overflow-x-auto whitespace-pre-wrap">{metadata.componentStack}</pre>
+                        </div>
+                    )}
+                    {metadata.stack && (
+                        <div className="mt-2">
+                            <div className="font-semibold text-xs text-slate-500">Stack Trace:</div>
+                            <pre className="text-xs text-slate-700 overflow-x-auto whitespace-pre-wrap">{metadata.stack}</pre>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const getCategoryIcon = (category: string) => {
         switch (category) {
             case 'auth': return <Info className="text-blue-600" size={16} />;
@@ -276,6 +308,7 @@ export const AdminLogsViewer: React.FC = () => {
                         <option value="UNASSIGN">ביטול שיבוץ</option>
                         <option value="VIEW">צפייה</option>
                         <option value="CLICK">לחיצה</option>
+                        <option value="ERROR">שגיאה</option>
                     </select>
 
                     <select
@@ -339,7 +372,7 @@ export const AdminLogsViewer: React.FC = () => {
                                     <React.Fragment key={log.id}>
                                         <tr className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => toggleRow(log.id)}>
                                             <td className="py-3 px-4">
-                                                {(log.before_data || log.after_data) && (
+                                                {(log.before_data || log.after_data || log.metadata) && (
                                                     expandedRows.has(log.id) ?
                                                         <ChevronUp size={16} className="text-slate-400" /> :
                                                         <ChevronDown size={16} className="text-slate-400" />
@@ -371,10 +404,11 @@ export const AdminLogsViewer: React.FC = () => {
                                                 </span>
                                             </td>
                                         </tr>
-                                        {expandedRows.has(log.id) && (log.before_data || log.after_data) && (
+                                        {expandedRows.has(log.id) && (log.before_data || log.after_data || log.metadata) && (
                                             <tr className="bg-slate-50">
                                                 <td colSpan={7} className="p-4">
                                                     {renderDiff(log.before_data, log.after_data)}
+                                                    {renderMetadata(log.metadata)}
                                                 </td>
                                             </tr>
                                         )}

@@ -7,6 +7,11 @@ export const LandingPage: React.FC = () => {
     const { showToast } = useToast();
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const [shouldError, setShouldError] = useState(false);
+
+    if (shouldError) {
+        throw new Error("בדיקת מנגנון שגיאות!");
+    }
 
     const handleGoogleLogin = async () => {
         setIsLoggingIn(true);
@@ -190,6 +195,13 @@ export const LandingPage: React.FC = () => {
                                     המשך עם Google
                                 </>
                             )}
+                        </button>
+
+                        <button
+                            onClick={() => setShouldError(true)}
+                            className="w-full mt-4 text-xs text-red-400 hover:text-red-600 underline text-center"
+                        >
+                            בדיקת שגיאה (זמני)
                         </button>
 
                         {/* Privacy Notice */}
