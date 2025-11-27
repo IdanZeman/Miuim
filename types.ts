@@ -104,6 +104,7 @@ export interface Shift {
   assignedPersonIds: string[];
   isLocked: boolean;
   organization_id?: string;
+  isCancelled?: boolean;
 }
 
 export type ViewMode = 'dashboard' | 'personnel' | 'tasks' | 'schedule' | 'stats' | 'attendance' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints';

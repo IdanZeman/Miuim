@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { Sparkles } from 'lucide-react';
-import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../hooks/useConfirmation';
@@ -17,7 +17,7 @@ interface ScheduleBoardProps {
     taskTemplates: TaskTemplate[];
     roles: Role[];
     teams: Team[];
-    constraints: import('../types').SchedulingConstraint[]; // Add constraints prop
+    constraints: import('../types').SchedulingConstraint[];
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     onSelect: (shift: Shift) => void;
@@ -30,7 +30,7 @@ interface ScheduleBoardProps {
     onUnassign: (shiftId: string, personId: string) => void;
     onAddShift: (task: TaskTemplate, date: Date) => void;
     onUpdateShift: (shift: Shift) => void;
-    onDeleteShift: (shiftId: string) => void;
+    onToggleCancelShift: (shiftId: string) => void;
 }
 
 // Helper to calculate position based on time
@@ -58,11 +58,11 @@ const ShiftCard: React.FC<{
     people: Person[];
     roles: Role[];
     onSelect: (shift: Shift) => void;
-    onDelete: (shiftId: string) => void;
+    onToggleCancel: (shiftId: string) => void;
     isViewer: boolean;
     acknowledgedWarnings: Set<string>;
     style?: React.CSSProperties;
-}> = ({ shift, compact = false, taskTemplates, people, roles, onSelect, onDelete, isViewer, acknowledgedWarnings, style }) => {
+}> = ({ shift, compact = false, taskTemplates, people, roles, onSelect, onToggleCancel, isViewer, acknowledgedWarnings, style }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const isFull = shift.assignedPersonIds.length >= task.requiredPeople;
@@ -87,28 +87,41 @@ const ShiftCard: React.FC<{
             id={`shift-card-${shift.id}`}
             onClick={() => onSelect(shift)}
             style={style}
-            className={`absolute w-full p-2 rounded-lg shadow-sm border-2 cursor-pointer hover:shadow-md transition-all group overflow-hidden flex flex-col ${hasMismatch
-                ? 'bg-red-50 border-red-500 animate-pulse'
-                : 'bg-white border-slate-100'
+            className={`absolute w-full p-2 rounded-lg shadow-sm border-2 cursor-pointer hover:shadow-md transition-all group overflow-hidden flex flex-col ${shift.isCancelled
+                ? 'bg-slate-100 border-slate-300 opacity-75 grayscale'
+                : hasMismatch
+                    ? 'bg-red-50 border-red-500 animate-pulse'
+                    : 'bg-white border-slate-100'
                 }`}
         >
+            {/* Cancelled Overlay Line */}
+            {shift.isCancelled && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                    <div className="w-full h-0.5 bg-red-500 rotate-12 transform origin-center"></div>
+                </div>
+            )}
+
             {/* Color Indicator Strip */}
             <div className={`absolute top-0 right-0 w-1 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
 
-            {/* Delete Action (Visible on Hover) - NO CONFIRM - Hidden for Viewers */}
+            {/* Cancel/Undo Action (Visible on Hover) - NO CONFIRM - Hidden for Viewers */}
             {!isViewer && (
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
-                        onDelete(shift.id);
+                        onToggleCancel(shift.id);
                     }}
-                    className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 p-0.5 rounded-full bg-white/80 transition-all z-20"
+                    className={`absolute top-1 left-1 opacity-0 group-hover:opacity-100 p-0.5 rounded-full transition-all z-20 ${shift.isCancelled
+                        ? 'text-green-600 hover:text-green-700 bg-green-50'
+                        : 'text-slate-400 hover:text-red-500 bg-white/80'
+                        }`}
+                    title={shift.isCancelled ? "שחזר משמרת" : "בטל משמרת"}
                 >
-                    <Trash2 size={12} />
+                    {shift.isCancelled ? <Undo2 size={14} /> : <Ban size={14} />}
                 </button>
             )}
 
-            <div className="flex justify-between items-start mb-1 pr-2 relative z-0">
+            <div className={`flex justify-between items-start mb-1 pr-2 relative z-0 ${shift.isCancelled ? 'line-through decoration-red-500 decoration-2' : ''}`}>
                 <div className="flex-1 min-w-0">
                     <div className="font-bold text-xs text-slate-800 leading-tight truncate">{task.name}</div>
                     <div className="text-[9px] font-bold text-slate-400 flex items-center gap-1">
@@ -179,7 +192,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         onUnassign,
         onAddShift,
         onUpdateShift,
-        onDeleteShift,
+        onToggleCancelShift,
         onClearDay,
         onNavigate
     } = props;
@@ -208,18 +221,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(!isViewer);
     const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
 
-    const handleDeleteShift = (shiftId: string) => {
-        confirm({
-            title: 'מחיקת משמרת',
-            message: 'האם אתה בטוח שברצונך למחוק את המשמרת?',
-            confirmText: 'מחק',
-            type: 'danger',
-            onConfirm: () => {
-                onDeleteShift(shiftId);
-                showToast('המשמרת נמחקה בהצלחה', 'success');
-            }
-        });
-    };
+
 
     // Time tracking for Global Time Line
     const [now, setNow] = useState(new Date());
@@ -671,8 +673,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                             </div>
                             <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                                 {!isViewer && (
-                                    <button onClick={() => { handleDeleteShift(selectedShift.id); setSelectedShiftId(null); }} className="p-1.5 md:p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors" title="מחק משמרת">
-                                        <Trash2 size={16} />
+                                    <button onClick={() => { onToggleCancelShift(selectedShift.id); setSelectedShiftId(null); }} className={`p-1.5 md:p-2 rounded-full transition-colors ${selectedShift.isCancelled ? 'text-green-600 hover:bg-green-50' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}`} title={selectedShift.isCancelled ? "שחזר משמרת" : "בטל משמרת"}>
+                                        {selectedShift.isCancelled ? <Undo2 size={16} /> : <Ban size={16} />}
                                     </button>
                                 )}
                                 <button onClick={() => setSelectedShiftId(null)} className="p-1.5 md:p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
@@ -1110,8 +1112,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                                 taskTemplates={taskTemplates}
                                                 people={people}
                                                 roles={roles}
-                                                onSelect={handleShiftSelect}
-                                                onDelete={handleDeleteShift}
+                                                onSelect={setSelectedShiftId}
+                                                onToggleCancel={onToggleCancelShift}
                                                 isViewer={isViewer}
                                                 acknowledgedWarnings={acknowledgedWarnings}
                                                 style={{

@@ -272,6 +272,13 @@ const MainApp: React.FC = () => {
 
         const originalAssignments = shift.assignedPersonIds;
 
+        // --- Validation: Check Capacity ---
+        const task = state.taskTemplates.find(t => t.id === shift.taskId);
+        if (task && shift.assignedPersonIds.length >= task.requiredPeople) {
+            showToast('לא ניתן לשבץ: המשמרת מלאה', 'error');
+            return;
+        }
+
         // --- Validation: Check Constraints ---
         const userConstraints = state.constraints.filter(c => c.personId === personId);
         const shiftStart = new Date(shift.startTime).getTime();
@@ -336,9 +343,28 @@ const MainApp: React.FC = () => {
         setState(prev => ({ ...prev, shifts: prev.shifts.map(s => s.id === updatedShift.id ? updatedShift : s) }));
     };
 
-    const handleDeleteShift = async (shiftId: string) => {
-        try { await supabase.from('shifts').delete().eq('id', shiftId); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, shifts: prev.shifts.filter(s => s.id !== shiftId) }));
+    const handleToggleCancelShift = async (shiftId: string) => {
+        const shift = state.shifts.find(s => s.id === shiftId);
+        if (!shift) return;
+
+        const newCancelledState = !shift.isCancelled;
+
+        // Optimistic update
+        setState(prev => ({
+            ...prev,
+            shifts: prev.shifts.map(s => s.id === shiftId ? { ...s, isCancelled: newCancelledState } : s)
+        }));
+
+        try {
+            await supabase.from('shifts').update({ is_cancelled: newCancelledState }).eq('id', shiftId);
+        } catch (e) {
+            console.warn("Error toggling cancel state:", e);
+            // Revert
+            setState(prev => ({
+                ...prev,
+                shifts: prev.shifts.map(s => s.id === shiftId ? { ...s, isCancelled: !newCancelledState } : s)
+            }));
+        }
     };
 
     const handleAddShift = async (task: TaskTemplate, date: Date) => {
@@ -500,7 +526,7 @@ const MainApp: React.FC = () => {
                         initialDate={selectedDate}
                         isScheduling={isScheduling}
                     />
-                    <ScheduleBoard shifts={state.shifts} people={state.people} selectedDate={selectedDate} onDateChange={setSelectedDate} onAssign={handleAssign} onUnassign={handleUnassign} onAddShift={handleAddShift} onUpdateShift={handleUpdateShift} onDeleteShift={handleDeleteShift} onClearDay={handleClearDay} teams={state.teams} roles={state.roles} taskTemplates={state.taskTemplates} constraints={state.constraints} onNavigate={handleNavigate} />
+                    <ScheduleBoard shifts={state.shifts} people={state.people} selectedDate={selectedDate} onDateChange={setSelectedDate} onAssign={handleAssign} onUnassign={handleUnassign} onAddShift={handleAddShift} onUpdateShift={handleUpdateShift} onToggleCancelShift={handleToggleCancelShift} onClearDay={handleClearDay} teams={state.teams} roles={state.roles} taskTemplates={state.taskTemplates} constraints={state.constraints} onNavigate={handleNavigate} />
                 </div>
             );
         }
