@@ -129,7 +129,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
                 {isAdmin && (
                   <>
-                    <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="דו״ח נוכחות" icon={Clock} />
+                    <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="דו״ח משמרות" icon={Clock} />
                     <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
                     {isAdmin && user?.email === 'idanzeman@gmail.com' && (
                       <TopNavLink active={currentView === 'logs'} onClick={() => setView('logs')} label="לוגים" icon={Shield} />

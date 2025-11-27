@@ -62,17 +62,36 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
 
         if (mode === 'single') {
             // Wheel Logic
-            const spinDuration = 5000; // 5 seconds
-            const randomSpins = 5 + Math.random() * 5; // 5-10 full rotations
-            const randomDegree = Math.floor(Math.random() * 360);
-            const totalRotation = rotation + (randomSpins * 360) + randomDegree;
+            const spinDuration = 8000; // 8 seconds for suspense
+            const winnerIndex = Math.floor(Math.random() * candidates.length);
+            const winner = candidates[winnerIndex];
+
+            // Calculate angle to land on the winner
+            const segmentSize = 360 / candidates.length;
+            // The center angle of the winner's segment
+            const winnerAngle = (winnerIndex * segmentSize) + (segmentSize / 2);
+
+            // We want (winnerAngle + rotation) % 360 = 0 (top)
+            // So rotation = -winnerAngle
+            // Add random jitter within the segment (keep it safe, 40% of segment width each way)
+            const jitter = (Math.random() - 0.5) * (segmentSize * 0.8);
+
+            // Target rotation (0-360)
+            let targetRotation = (360 - winnerAngle + jitter) % 360;
+            if (targetRotation < 0) targetRotation += 360;
+
+            // Calculate total rotation needed
+            const currentRotationMod = rotation % 360;
+            let rotationDiff = targetRotation - currentRotationMod;
+            if (rotationDiff < 0) rotationDiff += 360;
+
+            const randomSpins = 8 + Math.floor(Math.random() * 5); // 8-13 full rotations
+            const totalRotation = rotation + (randomSpins * 360) + rotationDiff;
 
             setRotation(totalRotation);
 
             setTimeout(() => {
                 setIsSpinning(false);
-                const winnerIndex = Math.floor(Math.random() * candidates.length);
-                const winner = candidates[winnerIndex];
                 setWinners([winner]);
                 setShowConfetti(true);
             }, spinDuration);
@@ -307,18 +326,19 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
 
                         {/* The Wheel */}
                         <div
-                            className="w-80 h-80 md:w-96 md:h-96 rounded-full border-8 border-white shadow-2xl relative transition-transform cubic-bezier(0.2, 0.8, 0.2, 1)"
+                            className="w-80 h-80 md:w-96 md:h-96 rounded-full border-8 border-white shadow-2xl relative transition-transform"
                             style={{
                                 transform: `rotate(${rotation}deg)`,
-                                transitionDuration: isSpinning ? '5s' : '0s',
+                                transitionDuration: isSpinning ? '8s' : '0s',
+                                transitionTimingFunction: 'cubic-bezier(0.1, 0.7, 0.1, 1)',
                                 background: `conic-gradient(
-                                    ${candidates.map((_, i) => {
+                                ${candidates.map((_, i) => {
                                     const start = (i / candidates.length) * 100;
                                     const end = ((i + 1) / candidates.length) * 100;
                                     const color = wheelColors[i % wheelColors.length];
                                     return `${color} ${start}% ${end}%`;
                                 }).join(', ')}
-                                )`
+                            )`
                             }}
                         >
                             {/* Wheel Segments Text */}
@@ -471,6 +491,6 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                     animation: fade-in 0.3s ease-out forwards;
                 }
             `}</style>
-        </div>
+        </div >
     );
 };

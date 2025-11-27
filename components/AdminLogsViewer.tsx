@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, Filter, Download, Search, AlertCircle, Info, AlertTriangle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, Filter, Download, Search, AlertCircle, Info, AlertTriangle, XCircle, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
 
 interface Log {
     id: string;
@@ -26,6 +26,7 @@ export const AdminLogsViewer: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterAction, setFilterAction] = useState('');
     const [filterSeverity, setFilterSeverity] = useState('');
+    const [hideAdminLogs, setHideAdminLogs] = useState(false);
     const [page, setPage] = useState(0);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const LIMIT = 50;
@@ -36,7 +37,7 @@ export const AdminLogsViewer: React.FC = () => {
         if (isSuperAdmin) {
             fetchLogs();
         }
-    }, [isSuperAdmin, page, filterAction, filterSeverity]);
+    }, [isSuperAdmin, page, filterAction, filterSeverity, hideAdminLogs]);
 
     const fetchLogs = async () => {
         setLoading(true);
@@ -53,6 +54,10 @@ export const AdminLogsViewer: React.FC = () => {
 
             if (filterSeverity) {
                 query = query.eq('event_category', filterSeverity);
+            }
+
+            if (hideAdminLogs) {
+                query = query.neq('user_email', 'idanzeman@gmail.com');
             }
 
             const { data, error } = await query;
@@ -331,10 +336,22 @@ export const AdminLogsViewer: React.FC = () => {
                             setSearchTerm('');
                             setFilterAction('');
                             setFilterSeverity('');
+                            setHideAdminLogs(false);
                         }}
                         className="px-4 py-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                     >
                         נקה פילטרים
+                    </button>
+
+                    <button
+                        onClick={() => setHideAdminLogs(!hideAdminLogs)}
+                        className={`px-4 py-2 border-2 rounded-lg transition-colors flex items-center gap-2 ${hideAdminLogs
+                            ? 'bg-slate-800 text-white border-slate-800'
+                            : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                            }`}
+                    >
+                        {hideAdminLogs ? <EyeOff size={18} /> : <Eye size={18} />}
+                        {hideAdminLogs ? 'הצג לוגים שלי' : 'הסתר לוגים שלי'}
                     </button>
                 </div>
             </div>
