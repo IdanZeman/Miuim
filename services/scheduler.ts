@@ -1,4 +1,4 @@
-import { AppState, Person, Shift, TaskTemplate } from "../types";
+import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint } from "../types";
 
 // --- Internal Types for the Algorithm ---
 interface TimelineSegment {
@@ -74,11 +74,40 @@ const findBestCandidates = (
   task: AlgoTask,
   roleId: string,
   count: number,
-  relaxationLevel: 1 | 2 | 3 | 4 // NEW: Added Level 4
+  relaxationLevel: 1 | 2 | 3 | 4, // NEW: Added Level 4
+  constraints: SchedulingConstraint[] = []
 ): AlgoUser[] => {
   const restDurationMs = task.minRest * 60 * 60 * 1000;
 
   let candidates = algoUsers.filter(u => {
+    // 0. Check Constraints
+    const userConstraints = constraints.filter(c => c.personId === u.person.id);
+    
+    // NEVER_ASSIGN: If user has a "never assign" constraint for this task
+    if (userConstraints.some(c => c.type === 'never_assign' && c.taskId === task.taskId)) {
+        return false;
+    }
+
+    // TIME_BLOCK: Check if the task overlaps with any time block constraint
+    const hasTimeBlock = userConstraints.some(c => {
+        if (c.type === 'time_block' && c.startTime && c.endTime) {
+            const blockStart = new Date(c.startTime).getTime();
+            const blockEnd = new Date(c.endTime).getTime();
+            // Check overlap: (StartA < EndB) and (EndA > StartB)
+            return task.startTime < blockEnd && task.endTime > blockStart;
+        }
+        return false;
+    });
+
+    if (hasTimeBlock) return false;
+
+    // ALWAYS_ASSIGN (Restriction): If user has "always assign to X", they CANNOT do Y (unless Y is X)
+    // "X תמיד ישובץ רק למשימה Y" -> X can only do Y.
+    const exclusiveTaskConstraint = userConstraints.find(c => c.type === 'always_assign');
+    if (exclusiveTaskConstraint && exclusiveTaskConstraint.taskId !== task.taskId) {
+        return false;
+    }
+
     // 1. Already assigned to this task? (Always check)
     if (task.currentAssignees.includes(u.person.id)) return false;
 
@@ -150,7 +179,8 @@ const initializeUsers = (
   futureAssignments: Shift[],
   taskTemplates: TaskTemplate[],
   allShifts: Shift[],
-  roleCounts: Map<string, number> // NEW: Pass roleCounts as parameter
+  roleCounts: Map<string, number>, // NEW: Pass roleCounts as parameter
+  constraints: SchedulingConstraint[] = []
 ): AlgoUser[] => {
   const dateKey = targetDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
@@ -163,6 +193,23 @@ const initializeUsers = (
       shiftsCount: history.shiftsCount,
       criticalShiftCount: history.criticalShiftCount // NEW: start with historical count
     };
+
+    // 0. Apply Time Block Constraints
+    const userConstraints = constraints.filter(c => c.personId === p.id && c.type === 'time_block');
+    userConstraints.forEach(c => {
+        if (c.startTime && c.endTime) {
+            const cStart = new Date(c.startTime).getTime();
+            const cEnd = new Date(c.endTime).getTime();
+            
+            // Check if overlaps with target day
+            const dayStart = new Date(targetDate); dayStart.setHours(0,0,0,0);
+            const dayEnd = new Date(targetDate); dayEnd.setHours(23,59,59,999);
+            
+            if (cStart < dayEnd.getTime() && cEnd > dayStart.getTime()) {
+                addToTimeline(algoUser, cStart, cEnd, 'EXTERNAL_CONSTRAINT');
+            }
+        }
+    });
 
     // 1. Check Availability (Attendance Manager)
     const avail = p.dailyAvailability?.[dateKey];
@@ -289,7 +336,7 @@ export const solveSchedule = (
   futureAssignments: Shift[] = [], // Shifts already assigned in the next 48h
   selectedTaskIds?: string[] // NEW: Optional filter for partial scheduling
 ): Shift[] => {
-  const { people, taskTemplates, shifts } = currentState;
+  const { people, taskTemplates, shifts, constraints } = currentState;
 
   // 1. Prepare Data
   const targetDateKey = startDate.toLocaleDateString('en-CA');
@@ -324,7 +371,7 @@ export const solveSchedule = (
   // NEW: Add fixedShiftsOnDay to futureAssignments so they are treated as constraints
   const effectiveConstraints = [...futureAssignments, ...fixedShiftsOnDay];
   
-  const algoUsers = initializeUsers(people, startDate, historyScores, effectiveConstraints, taskTemplates, shifts, roleCounts);
+  const algoUsers = initializeUsers(people, startDate, historyScores, effectiveConstraints, taskTemplates, shifts, roleCounts, constraints || []);
 
   // Map Shifts to AlgoTasks with DYNAMIC DIFFICULTY
   const algoTasks: AlgoTask[] = shiftsToSolve.map(s => {
@@ -380,27 +427,27 @@ export const solveSchedule = (
         let usedLevel: 1 | 2 | 3 | 4 = 1;
 
         // Try Level 1: Strict (Ideal)
-        selected = findBestCandidates(algoUsers, task, roleId, count, 1);
+        selected = findBestCandidates(algoUsers, task, roleId, count, 1, constraints || []);
 
         if (selected.length < count) {
           console.warn(`   ⚠️ Level 1 (Strict) insufficient: Found ${selected.length}/${count}. Trying Level 2 (Flexible)...`);
           
           // Try Level 2: Flexible
-          selected = findBestCandidates(algoUsers, task, roleId, count, 2);
+          selected = findBestCandidates(algoUsers, task, roleId, count, 2, constraints || []);
           usedLevel = 2;
 
           if (selected.length < count) {
             console.warn(`   ⚠️ Level 2 (Flexible) insufficient: Found ${selected.length}/${count}. Trying Level 3 (Emergency)...`);
             
             // Try Level 3: Emergency
-            selected = findBestCandidates(algoUsers, task, roleId, count, 3);
+            selected = findBestCandidates(algoUsers, task, roleId, count, 3, constraints || []);
             usedLevel = 3;
 
             if (selected.length < count) {
               console.warn(`   🛑 Level 3 (Emergency) insufficient: Found ${selected.length}/${count}. Trying Level 4 (Force Assign - Role Mismatch)...`);
               
               // NEW: Try Level 4: Force Assign (Ignore Role)
-              const forceCandidates = findBestCandidates(algoUsers, task, roleId, count, 4);
+              const forceCandidates = findBestCandidates(algoUsers, task, roleId, count, 4, constraints || []);
               usedLevel = 4;
               
               // Take only the missing count

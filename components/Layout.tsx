@@ -112,6 +112,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   <>
                     <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" icon={Users} />
                     <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" icon={ClipboardList} />
+                    <TopNavLink active={currentView === 'constraints'} onClick={() => setView('constraints')} label="אילוצים" icon={Shield} />
                   </>
                 )}
 
@@ -234,6 +235,17 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   >
                     <ClipboardList size={22} className={currentView === 'tasks' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                     <span>משימות</span>
+                  </button>
+
+                  <button
+                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'constraints'
+                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                      : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    onClick={() => { setView('constraints'); setIsMobileMenuOpen(false) }}
+                  >
+                    <Shield size={22} className={currentView === 'constraints' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                    <span>אילוצים</span>
                   </button>
                 </>
               )}
@@ -406,6 +418,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'reports' && 'ייצוא נתונים'}
               {currentView === 'logs' && 'לוגים'}
               {currentView === 'lottery' && 'הגרלות ופרסים'}
+              {currentView === 'constraints' && 'ניהול אילוצים'}
             </h1>
             <div className="w-12 md:w-16 h-1 md:h-1.5 bg-white/40 rounded-full mt-2 md:mt-3"></div>
           </div>

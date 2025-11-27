@@ -106,12 +106,25 @@ export interface Shift {
   organization_id?: string;
 }
 
+export type ViewMode = 'dashboard' | 'personnel' | 'tasks' | 'schedule' | 'stats' | 'attendance' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints';
+
+export type ConstraintType = 'always_assign' | 'never_assign' | 'time_block';
+
+export interface SchedulingConstraint {
+  id: string;
+  personId: string;
+  type: ConstraintType;
+  taskId?: string;
+  startTime?: string; // ISO string
+  endTime?: string; // ISO string
+  organization_id: string;
+}
+
 export interface AppState {
   people: Person[];
   roles: Role[];
   teams: Team[];
   taskTemplates: TaskTemplate[];
   shifts: Shift[];
+  constraints: SchedulingConstraint[];
 }
-
-export type ViewMode = 'dashboard' | 'personnel' | 'tasks' | 'schedule' | 'stats' | 'attendance' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact';

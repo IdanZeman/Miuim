@@ -129,3 +129,24 @@ export const mapShiftToDB = (shift: Shift) => ({
     is_locked: shift.isLocked,
     organization_id: shift.organization_id
 });
+
+// Constraints
+export const mapConstraintFromDB = (dbConstraint: any): import('../types').SchedulingConstraint => ({
+    id: dbConstraint.id,
+    personId: dbConstraint.person_id,
+    type: dbConstraint.type,
+    taskId: dbConstraint.task_id,
+    startTime: dbConstraint.start_time,
+    endTime: dbConstraint.end_time,
+    organization_id: dbConstraint.organization_id
+});
+
+export const mapConstraintToDB = (constraint: import('../types').SchedulingConstraint) => ({
+    id: constraint.id,
+    person_id: constraint.personId,
+    type: constraint.type,
+    task_id: constraint.taskId,
+    start_time: constraint.startTime,
+    end_time: constraint.endTime,
+    organization_id: constraint.organization_id
+});

@@ -9,14 +9,15 @@ import { LandingPage } from './components/LandingPage';
 import { Onboarding } from './components/Onboarding';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useToast } from './contexts/ToastContext';
-import { Person, Shift, TaskTemplate, Role, Team } from './types';
+import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint } from './types';
 import { supabase } from './services/supabaseClient';
 import {
     mapShiftFromDB, mapShiftToDB,
     mapPersonFromDB, mapPersonToDB,
     mapTeamFromDB, mapTeamToDB,
     mapRoleFromDB, mapRoleToDB,
-    mapTaskFromDB, mapTaskToDB
+    mapTaskFromDB, mapTaskToDB,
+    mapConstraintFromDB, mapConstraintToDB
 } from './services/supabaseClient';
 import { solveSchedule } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
@@ -39,13 +40,14 @@ import { AutoScheduleModal } from './components/AutoScheduleModal';
 import { Lottery } from './components/Lottery';
 import { ToastProvider } from './contexts/ToastContext';
 import { ContactPage } from './pages/ContactPage';
+import { ConstraintsManager } from './components/ConstraintsManager';
 
 // --- Main App Content (Authenticated) ---
 // Track view changes
 const MainApp: React.FC = () => {
     const { organization, user, profile } = useAuth();
     const { showToast } = useToast();
-    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact'>('dashboard');
+    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints'>('dashboard');
     const [personnelTab, setPersonnelTab] = useState<'people' | 'teams' | 'roles'>('people');
     const [isLoading, setIsLoading] = useState(true);
     const [isScheduling, setIsScheduling] = useState(false);
@@ -62,12 +64,14 @@ const MainApp: React.FC = () => {
         taskTemplates: TaskTemplate[];
         roles: Role[];
         teams: Team[];
+        constraints: SchedulingConstraint[];
     }>({
         people: [],
         shifts: [],
         taskTemplates: [],
         roles: [],
-        teams: []
+        teams: [],
+        constraints: []
     });
 
     const isLinkedToPerson = React.useMemo(() => {
@@ -84,7 +88,9 @@ const MainApp: React.FC = () => {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'task_templates', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduling_constraints', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
@@ -108,13 +114,15 @@ const MainApp: React.FC = () => {
             const { data: tasksData } = await supabase.from('task_templates').select('*').eq('organization_id', organization.id);
             const { data: rolesData } = await supabase.from('roles').select('*').eq('organization_id', organization.id);
             const { data: teamsData } = await supabase.from('teams').select('*').eq('organization_id', organization.id);
+            const { data: constraintsData } = await supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id);
 
             setState({
                 people: (peopleData || []).map(mapPersonFromDB),
                 shifts: (shiftsData || []).map(mapShiftFromDB),
                 taskTemplates: (tasksData || []).map(mapTaskFromDB),
                 roles: (rolesData || []).map(mapRoleFromDB),
-                teams: (teamsData || []).map(mapTeamFromDB)
+                teams: (teamsData || []).map(mapTeamFromDB),
+                constraints: (constraintsData || []).map(mapConstraintFromDB)
             });
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -240,11 +248,59 @@ const MainApp: React.FC = () => {
         setState(prev => ({ ...prev, taskTemplates: prev.taskTemplates.filter(t => t.id !== id), shifts: prev.shifts.filter(s => s.taskId !== id) }));
     };
 
+    const handleAddConstraint = async (c: SchedulingConstraint) => {
+        if (!organization) return;
+        try {
+            await supabase.from('scheduling_constraints').insert(mapConstraintToDB({ ...c, organization_id: organization.id }));
+            setState(prev => ({ ...prev, constraints: [...prev.constraints, c] }));
+        } catch (e) { console.warn(e); }
+    };
+
+    const handleDeleteConstraint = async (id: string) => {
+        try { await supabase.from('scheduling_constraints').delete().eq('id', id); } catch (e) { console.warn(e); }
+        setState(prev => ({ ...prev, constraints: prev.constraints.filter(c => c.id !== id) }));
+    };
+
     const handleAssign = async (shiftId: string, personId: string) => {
         const shift = state.shifts.find(s => s.id === shiftId);
         if (!shift) return;
 
         const originalAssignments = shift.assignedPersonIds;
+
+        // --- Validation: Check Constraints ---
+        const userConstraints = state.constraints.filter(c => c.personId === personId);
+        const shiftStart = new Date(shift.startTime).getTime();
+        const shiftEnd = new Date(shift.endTime).getTime();
+
+        // 1. Never Assign
+        if (userConstraints.some(c => c.type === 'never_assign' && c.taskId === shift.taskId)) {
+            showToast('לא ניתן לשבץ: קיים אילוץ "לעולם לא לשבץ" למשימה זו', 'error');
+            return;
+        }
+
+        // 2. Time Block
+        const hasTimeBlock = userConstraints.some(c => {
+            if (c.type === 'time_block' && c.startTime && c.endTime) {
+                const blockStart = new Date(c.startTime).getTime();
+                const blockEnd = new Date(c.endTime).getTime();
+                return shiftStart < blockEnd && shiftEnd > blockStart;
+            }
+            return false;
+        });
+
+        if (hasTimeBlock) {
+            showToast('לא ניתן לשבץ: החייל חסום בשעות אלו', 'error');
+            return;
+        }
+
+        // 3. Always Assign (Exclusivity)
+        const exclusiveConstraint = userConstraints.find(c => c.type === 'always_assign');
+        if (exclusiveConstraint && exclusiveConstraint.taskId !== shift.taskId) {
+            showToast('לא ניתן לשבץ: החייל מוגדר כבלעדי למשימה אחרת', 'error');
+            return;
+        }
+        // --- End Validation ---
+
         const newAssignments = [...originalAssignments, personId];
 
         // Optimistic Update
@@ -419,6 +475,7 @@ const MainApp: React.FC = () => {
             case 'reports': return <ShiftReport shifts={state.shifts} people={state.people} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} />;
             case 'logs': return <AdminLogsViewer />;
             case 'lottery': return <Lottery people={state.people} teams={state.teams} roles={state.roles} />;
+            case 'constraints': return <ConstraintsManager people={state.people} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} />;
             case 'contact': return <ContactPage />;
             default: return (
                 <div className="space-y-6">
@@ -438,7 +495,7 @@ const MainApp: React.FC = () => {
                         initialDate={selectedDate}
                         isScheduling={isScheduling}
                     />
-                    <ScheduleBoard shifts={state.shifts} people={state.people} selectedDate={selectedDate} onDateChange={setSelectedDate} onAssign={handleAssign} onUnassign={handleUnassign} onAddShift={handleAddShift} onUpdateShift={handleUpdateShift} onDeleteShift={handleDeleteShift} onClearDay={handleClearDay} teams={state.teams} roles={state.roles} taskTemplates={state.taskTemplates} onNavigate={handleNavigate} />
+                    <ScheduleBoard shifts={state.shifts} people={state.people} selectedDate={selectedDate} onDateChange={setSelectedDate} onAssign={handleAssign} onUnassign={handleUnassign} onAddShift={handleAddShift} onUpdateShift={handleUpdateShift} onDeleteShift={handleDeleteShift} onClearDay={handleClearDay} teams={state.teams} roles={state.roles} taskTemplates={state.taskTemplates} constraints={state.constraints} onNavigate={handleNavigate} />
                 </div>
             );
         }

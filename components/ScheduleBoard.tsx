@@ -17,6 +17,7 @@ interface ScheduleBoardProps {
     taskTemplates: TaskTemplate[];
     roles: Role[];
     teams: Team[];
+    constraints: import('../types').SchedulingConstraint[]; // Add constraints prop
     selectedDate: Date;
     onDateChange: (date: Date) => void;
     onSelect: (shift: Shift) => void;
@@ -164,7 +165,6 @@ const ShiftCard: React.FC<{
         </div>
     );
 };
-
 export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     const {
         shifts,
@@ -172,6 +172,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         taskTemplates,
         roles,
         teams,
+        constraints, // Destructure constraints
         selectedDate,
         onDateChange,
         onAssign,
@@ -182,6 +183,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         onClearDay,
         onNavigate
     } = props;
+
     const { profile, organization } = useAuth();
     const isViewer = profile?.role === 'viewer';
 
@@ -512,10 +514,37 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         const [suggestionIndex, setSuggestionIndex] = useState(0);
 
         const handleSuggestBest = () => {
-            // 1. Filter by Role
+            // 1. Filter by Role & Constraints
             const qualifiedPeople = availablePeople.filter(p => {
-                if (!task.roleComposition || task.roleComposition.length === 0) return true;
-                return task.roleComposition.some(rc => p.roleIds.includes(rc.roleId));
+                // Role Check
+                if (task.roleComposition && task.roleComposition.length > 0) {
+                    if (!task.roleComposition.some(rc => p.roleIds.includes(rc.roleId))) return false;
+                }
+
+                // Constraint Check
+                const userConstraints = constraints.filter(c => c.personId === p.id);
+
+                // Never Assign
+                if (userConstraints.some(c => c.type === 'never_assign' && c.taskId === task.id)) return false;
+
+                // Always Assign (Exclusivity)
+                const exclusive = userConstraints.find(c => c.type === 'always_assign');
+                if (exclusive && exclusive.taskId !== task.id) return false;
+
+                // Time Block
+                const shiftStart = new Date(selectedShift.startTime).getTime();
+                const shiftEnd = new Date(selectedShift.endTime).getTime();
+                const hasTimeBlock = userConstraints.some(c => {
+                    if (c.type === 'time_block' && c.startTime && c.endTime) {
+                        const blockStart = new Date(c.startTime).getTime();
+                        const blockEnd = new Date(c.endTime).getTime();
+                        return shiftStart < blockEnd && shiftEnd > blockStart;
+                    }
+                    return false;
+                });
+                if (hasTimeBlock) return false;
+
+                return true;
             });
 
             // 2. Calculate Scores
