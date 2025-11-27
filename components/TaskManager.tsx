@@ -206,7 +206,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             </div>
                         ))}
                         <button onClick={addRoleRow} className="text-blue-600 text-xs font-bold hover:underline flex items-center gap-1">
-                            <Plus size={12} /> הוסף תפקיד
+                            הוסף תפקיד <Plus size={12} />
                         </button>
                     </div>
                 </div>
@@ -333,8 +333,8 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                     </button>
                                 </div>
                             ))}
-                            <button onClick={addRoleRow} className="text-blue-600 text-xs font-bold hover:underline flex items-center gap-1">
-                                <Plus size={12} /> הוסף תפקיד
+                            <button onClick={addRoleRow} className="w-full py-2 border-2 border-dashed border-blue-300 rounded-lg text-blue-600 font-bold text-sm hover:bg-blue-50 hover:border-blue-400 transition-all flex items-center justify-center gap-2">
+                                הוסף תפקיד <Plus size={16} />
                             </button>
                         </div>
                     </div>
