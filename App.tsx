@@ -38,13 +38,14 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { AutoScheduleModal } from './components/AutoScheduleModal';
 import { Lottery } from './components/Lottery';
 import { ToastProvider } from './contexts/ToastContext';
+import { ContactPage } from './pages/ContactPage';
 
 // --- Main App Content (Authenticated) ---
 // Track view changes
 const MainApp: React.FC = () => {
     const { organization, user, profile } = useAuth();
     const { showToast } = useToast();
-    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs'>('dashboard');
+    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact'>('dashboard');
     const [personnelTab, setPersonnelTab] = useState<'people' | 'teams' | 'roles'>('people');
     const [isLoading, setIsLoading] = useState(true);
     const [isScheduling, setIsScheduling] = useState(false);
@@ -242,12 +243,23 @@ const MainApp: React.FC = () => {
     const handleAssign = async (shiftId: string, personId: string) => {
         const shift = state.shifts.find(s => s.id === shiftId);
         if (!shift) return;
-        const newAssignments = [...shift.assignedPersonIds, personId];
-        try {
-            await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
-            await logger.logAssign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם');
-        } catch (e) { console.warn(e); }
+
+        const originalAssignments = shift.assignedPersonIds;
+        const newAssignments = [...originalAssignments, personId];
+
+        // Optimistic Update
         setState(prev => ({ ...prev, shifts: prev.shifts.map(s => s.id === shiftId ? { ...s, assignedPersonIds: newAssignments } : s) }));
+
+        try {
+            const { error } = await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
+            if (error) throw error;
+            await logger.logAssign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם');
+        } catch (e) {
+            console.warn("Assignment failed, reverting:", e);
+            showToast('שגיאה בשיבוץ, אנא נסה שוב', 'error');
+            // Revert
+            setState(prev => ({ ...prev, shifts: prev.shifts.map(s => s.id === shiftId ? { ...s, assignedPersonIds: originalAssignments } : s) }));
+        }
     };
 
     const handleUnassign = async (shiftId: string, personId: string) => {
@@ -407,6 +419,7 @@ const MainApp: React.FC = () => {
             case 'reports': return <ShiftReport shifts={state.shifts} people={state.people} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} />;
             case 'logs': return <AdminLogsViewer />;
             case 'lottery': return <Lottery people={state.people} teams={state.teams} roles={state.roles} />;
+            case 'contact': return <ContactPage />;
             default: return (
                 <div className="space-y-6">
                     {profile?.role !== 'viewer' && (

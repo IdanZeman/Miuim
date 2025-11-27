@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices } from 'lucide-react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
@@ -40,15 +40,10 @@ const TopNavLink = ({
       title={label}
     >
       {Icon && <Icon size={16} className={active ? 'text-idf-yellow-hover' : 'text-slate-400'} />}
-      {/* Show text for active link always, hide for others on md-lg screens */}
-      <span className={active ? '' : 'hidden lg:inline'}>{label}</span>
-      {/* Tooltip for inactive links when text is hidden */}
-      {!active && (
-        <span className="lg:hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 max-w-[150px]">
-          {label}
-          <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></span>
-        </span>
-      )}
+      {/* Show text for active link always, expand on hover for others */}
+      <span className={`${active ? '' : 'hidden 2xl:inline 2xl:group-hover:inline'} whitespace-nowrap transition-all duration-200 ${!active && 'group-hover:inline'}`}>
+        {label}
+      </span>
       {active && (
         <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-idf-yellow mx-2 rounded-full"></span>
       )}
@@ -124,6 +119,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
                 {/* Lottery - Visible to everyone */}
                 <TopNavLink active={currentView === 'lottery'} onClick={() => setView('lottery')} label="הגרלה" icon={Dices} />
+                <TopNavLink active={currentView === 'contact'} onClick={() => setView('contact')} label="צור קשר" icon={Mail} />
 
                 {isAdmin && (
                   <>

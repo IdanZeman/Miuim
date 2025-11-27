@@ -508,6 +508,79 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         const assignedPeople = selectedShift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
         const availablePeople = people.filter(p => !selectedShift.assignedPersonIds.includes(p.id));
 
+        const [suggestedCandidates, setSuggestedCandidates] = useState<{ person: Person, reason: string }[]>([]);
+        const [suggestionIndex, setSuggestionIndex] = useState(0);
+
+        const handleSuggestBest = () => {
+            // 1. Filter by Role
+            const qualifiedPeople = availablePeople.filter(p => {
+                if (!task.roleComposition || task.roleComposition.length === 0) return true;
+                return task.roleComposition.some(rc => p.roleIds.includes(rc.roleId));
+            });
+
+            // 2. Calculate Scores
+            const candidates = qualifiedPeople.map(p => {
+                let score = 0;
+                let reasons: string[] = [];
+
+                // Load Balancing (fewer shifts is better)
+                const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id));
+                score -= personShifts.length * 10; // Penalize for existing load
+
+                // Rest Time Check
+                const shiftStart = new Date(selectedShift.startTime);
+                const minRest = task.minRestHoursBefore || 8;
+                const hasRestViolation = personShifts.some(s => {
+                    const sEnd = new Date(s.endTime);
+                    const diffHours = (shiftStart.getTime() - sEnd.getTime()) / (1000 * 60 * 60);
+                    return diffHours > 0 && diffHours < minRest;
+                });
+
+                if (hasRestViolation) {
+                    score -= 1000; // Heavy penalty for rest violation
+                    reasons.push('מנוחה לא מספקת');
+                }
+
+                // Conflict Check (Overlapping)
+                const hasOverlap = personShifts.some(s => {
+                    const sStart = new Date(s.startTime);
+                    const sEnd = new Date(s.endTime);
+                    const thisStart = new Date(selectedShift.startTime);
+                    const thisEnd = new Date(selectedShift.endTime);
+                    return sStart < thisEnd && sEnd > thisStart;
+                });
+
+                if (hasOverlap) {
+                    score -= 5000; // Disqualify
+                    reasons.push('חפיפה עם משמרת אחרת');
+                }
+
+                return { person: p, score, reasons };
+            });
+
+            // 3. Sort and Filter
+            const validCandidates = candidates
+                .filter(c => c.score > -4000) // Filter out hard conflicts
+                .sort((a, b) => b.score - a.score)
+                .map(c => ({
+                    person: c.person,
+                    reason: c.reasons.length > 0 ? c.reasons.join(', ') : 'זמינות וניקוד אופטימליים'
+                }));
+
+            if (validCandidates.length > 0) {
+                setSuggestedCandidates(validCandidates);
+                setSuggestionIndex(0);
+            } else {
+                showToast('לא נמצאו מועמדים מתאימים', 'error');
+            }
+        };
+
+        const handleNextSuggestion = () => {
+            setSuggestionIndex(prev => (prev + 1) % suggestedCandidates.length);
+        };
+
+        const currentSuggestion = suggestedCandidates[suggestionIndex];
+
         const handleSaveTime = () => {
             const [sh, sm] = newStart.split(':').map(Number);
             const [eh, em] = newEnd.split(':').map(Number);
@@ -584,6 +657,49 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                         <div className="flex-1 overflow-y-auto flex flex-col md:flex-row">
                             <div className="md:flex-1 p-3 md:p-6 h-fit border-b md:border-b-0 md:border-l border-slate-100">
                                 <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">משובצים ({assignedPeople.length}/{task.requiredPeople})</h4>
+
+                                {currentSuggestion && (
+                                    <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 animate-fadeIn">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-bold text-blue-800 flex items-center gap-1">
+                                                <Sparkles size={12} />
+                                                המלצה חכמה
+                                            </span>
+                                            <button onClick={() => setSuggestedCandidates([])} className="text-blue-400 hover:text-blue-600"><X size={12} /></button>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${currentSuggestion.person.color}`}>
+                                                    {getPersonInitials(currentSuggestion.person.name)}
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-bold text-slate-800">{currentSuggestion.person.name}</div>
+                                                    <div className="text-[10px] text-slate-500">{currentSuggestion.reason}</div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {suggestedCandidates.length > 1 && (
+                                                    <button
+                                                        onClick={handleNextSuggestion}
+                                                        className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1"
+                                                    >
+                                                        <ChevronRight size={14} />
+                                                        <span>הצעה הבאה</span>
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => {
+                                                        onAssign(selectedShift.id, currentSuggestion.person.id);
+                                                        setSuggestedCandidates([]);
+                                                    }}
+                                                    className="bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-blue-700 transition-colors"
+                                                >
+                                                    שבץ
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="space-y-2 md:space-y-3">
                                     {assignedPeople.map(p => (
                                         <div key={p.id} className="flex items-center justify-between p-2 md:p-3 bg-green-50 border border-green-100 rounded-lg md:rounded-xl">
@@ -611,7 +727,15 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
 
                             {!isViewer && (
                                 <div className="flex-1 p-3 md:p-6 h-fit bg-slate-50/50">
-                                    <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">מאגר זמין</h4>
+                                    <div className="flex items-center justify-between mb-3 md:mb-4">
+                                        <h4 className="font-bold text-slate-800 text-xs md:text-sm uppercase tracking-wider">מאגר זמין</h4>
+                                        <button
+                                            onClick={handleSuggestBest}
+                                            className="flex items-center gap-1 text-[10px] md:text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-full transition-colors"
+                                        >
+                                            <Sparkles size={12} />
+                                            תציע לי חייל זמין                                        </button>
+                                    </div>
                                     <div className="space-y-1.5 md:space-y-2">
                                         {availablePeople.map(p => {
                                             const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => p.roleIds.includes(rc.roleId));
