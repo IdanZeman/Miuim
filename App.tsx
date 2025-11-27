@@ -35,6 +35,7 @@ import { usePageTracking } from './hooks/usePageTracking';
 
 import { ClaimProfile } from './components/ClaimProfile';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AutoScheduleModal } from './components/AutoScheduleModal';
 
 // --- Main App Content (Authenticated) ---
 // Track view changes
@@ -279,37 +280,98 @@ const MainApp: React.FC = () => {
         setState(prev => ({ ...prev, shifts: [...prev.shifts, newShift] }));
     };
 
-    const handleAutoSchedule = async () => {
+    const handleAutoSchedule = async (params: { startDate: Date; endDate: Date; selectedTaskIds: string[] }) => {
         setIsScheduling(true);
-        // ... (simplified auto schedule logic for brevity, assuming it was working before)
-        // I will just put a placeholder here because the full logic is huge and I don't want to break it again.
-        // Wait, I should probably put the full logic back if I can.
-        // For now, let's just restore the basic structure and if the user needs auto-schedule I'll fix it.
-        // Actually, I'll try to include the full logic from my memory/previous view.
+        const { startDate, endDate, selectedTaskIds } = params;
+
         try {
-            if (scheduleMode === 'single') {
-                const startDate = new Date(selectedDate);
-                startDate.setHours(0, 0, 0, 0);
-                const endDate = new Date(selectedDate);
-                endDate.setHours(23, 59, 59, 999);
-                const historyShifts = await fetchUserHistory(startDate, 30);
-                const historyScores = calculateHistoricalLoad(historyShifts, state.taskTemplates, state.people.map(p => p.id));
-                const futureStart = new Date(endDate);
-                const futureEnd = new Date(futureStart);
-                futureEnd.setHours(futureEnd.getHours() + 48);
-                const { data: futureData } = await supabase.from('shifts').select('*').gte('start_time', futureStart.toISOString()).lte('start_time', futureEnd.toISOString()).eq('organization_id', organization!.id);
-                const futureAssignments = (futureData || []).map(mapShiftFromDB);
-                const solvedShifts = solveSchedule(state, startDate, endDate, historyScores, futureAssignments);
-                const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: organization!.id }));
-                try { await supabase.from('shifts').upsert(shiftsToSave.map(mapShiftToDB)); } catch (e) { console.warn(e); }
-                const solvedIds = shiftsToSave.map(s => s.id);
-                setState(prev => ({ ...prev, shifts: prev.shifts.map(s => solvedIds.includes(s.id) ? shiftsToSave.find(sol => sol.id === s.id)! : s) }));
-                showToast(`✅ שיבוץ הושלם!`, 'success');
-            } else {
-                showToast("שיבוץ טווח ימים עדיין בפיתוח", 'info');
+            // Loop through each day in the range
+            const currentDate = new Date(startDate);
+            const end = new Date(endDate);
+
+            // Ensure we don't go into infinite loop
+            if (currentDate > end) {
+                showToast('תאריך התחלה חייב להיות לפני תאריך סיום', 'error');
+                setIsScheduling(false);
+                return;
             }
+
+            let successCount = 0;
+            let failCount = 0;
+
+            while (currentDate <= end) {
+                const dateStart = new Date(currentDate);
+                dateStart.setHours(0, 0, 0, 0);
+                const dateEnd = new Date(currentDate);
+                dateEnd.setHours(23, 59, 59, 999);
+
+                try {
+                    // 1. Fetch history for load calculation
+                    const historyShifts = await fetchUserHistory(dateStart, 30);
+                    const historyScores = calculateHistoricalLoad(historyShifts, state.taskTemplates, state.people.map(p => p.id));
+
+                    // 2. Fetch future assignments (to avoid conflicts)
+                    const futureStart = new Date(dateEnd);
+                    const futureEndLimit = new Date(futureStart);
+                    futureEndLimit.setHours(futureEndLimit.getHours() + 48);
+
+                    const { data: futureData } = await supabase
+                        .from('shifts')
+                        .select('*')
+                        .gte('start_time', futureStart.toISOString())
+                        .lte('start_time', futureEndLimit.toISOString())
+                        .eq('organization_id', organization!.id);
+
+                    const futureAssignments = (futureData || []).map(mapShiftFromDB);
+
+                    // 3. Filter tasks to schedule (Now handled inside solveSchedule)
+                    // We pass the FULL state so the solver knows about all tasks for constraints
+
+                    // 4. Solve schedule for this day
+                    const solvedShifts = solveSchedule(state, dateStart, dateEnd, historyScores, futureAssignments, selectedTaskIds);
+
+                    if (solvedShifts.length > 0) {
+                        const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: organization!.id }));
+
+                        // Save to DB
+                        const { error } = await supabase.from('shifts').upsert(shiftsToSave.map(mapShiftToDB));
+                        if (error) throw error;
+
+                        // Update local state
+                        const solvedIds = shiftsToSave.map(s => s.id);
+                        setState(prev => ({
+                            ...prev,
+                            shifts: [
+                                ...prev.shifts.filter(s => !solvedIds.includes(s.id)), // Remove old versions if any
+                                ...shiftsToSave
+                            ]
+                        }));
+                        successCount++;
+                    }
+                } catch (err) {
+                    console.error(`Error scheduling for ${currentDate.toISOString()}:`, err);
+                    failCount++;
+                }
+
+                // Move to next day
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            if (successCount > 0) {
+                showToast(`✅ שיבוץ הושלם עבור ${successCount} ימים`, 'success');
+            } else if (failCount > 0) {
+                showToast('שגיאה בשיבוץ', 'error');
+            } else {
+                showToast('לא נמצאו שיבוצים אפשריים', 'info');
+            }
+
             setShowScheduleModal(false);
-        } catch (e) { console.error(e); showToast('שגיאה בשיבוץ', 'error'); } finally { setIsScheduling(false); }
+        } catch (e) {
+            console.error(e);
+            showToast('שגיאה כללית בשיבוץ', 'error');
+        } finally {
+            setIsScheduling(false);
+        }
     };
 
     const handleClearDay = async () => {
@@ -348,23 +410,14 @@ const MainApp: React.FC = () => {
                             </button>
                         </div>
                     )}
-                    {showScheduleModal && (
-                        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-                                <h2 className="text-2xl font-bold mb-4">שיבוץ אוטומטי</h2>
-                                <div className="mb-4">
-                                    <label className="block mb-2">תאריך</label>
-                                    <input type="date" value={selectedDate.toISOString().split('T')[0]} onChange={e => setSelectedDate(new Date(e.target.value))} className="w-full p-2 border rounded" />
-                                </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => setShowScheduleModal(false)} className="flex-1 bg-slate-200 p-2 rounded">ביטול</button>
-                                    <button onClick={handleAutoSchedule} disabled={isScheduling} className="flex-1 bg-blue-600 text-white p-2 rounded flex justify-center items-center gap-2">
-                                        {isScheduling ? <Loader2 className="animate-spin" /> : <Wand2 />} התחל
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    <AutoScheduleModal
+                        isOpen={showScheduleModal}
+                        onClose={() => setShowScheduleModal(false)}
+                        onSchedule={handleAutoSchedule}
+                        tasks={state.taskTemplates}
+                        initialDate={selectedDate}
+                        isScheduling={isScheduling}
+                    />
                     <ScheduleBoard shifts={state.shifts} people={state.people} selectedDate={selectedDate} onDateChange={setSelectedDate} onAssign={handleAssign} onUnassign={handleUnassign} onAddShift={handleAddShift} onUpdateShift={handleUpdateShift} onDeleteShift={handleDeleteShift} onClearDay={handleClearDay} teams={state.teams} roles={state.roles} taskTemplates={state.taskTemplates} onNavigate={handleNavigate} />
                 </div>
             );

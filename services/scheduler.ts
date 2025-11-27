@@ -286,7 +286,8 @@ export const solveSchedule = (
   startDate: Date,
   endDate: Date,
   historyScores: Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> = {},
-  futureAssignments: Shift[] = [] // Shifts already assigned in the next 48h
+  futureAssignments: Shift[] = [], // Shifts already assigned in the next 48h
+  selectedTaskIds?: string[] // NEW: Optional filter for partial scheduling
 ): Shift[] => {
   const { people, taskTemplates, shifts } = currentState;
 
@@ -294,10 +295,19 @@ export const solveSchedule = (
   const targetDateKey = startDate.toLocaleDateString('en-CA');
 
   // Filter shifts relevant to this specific day (to be solved)
-  const shiftsToSolve = shifts.filter(s => {
+  const allShiftsOnDay = shifts.filter(s => {
     const sDate = new Date(s.startTime).toLocaleDateString('en-CA');
     return sDate === targetDateKey && !s.isLocked;
   });
+
+  let shiftsToSolve = allShiftsOnDay;
+  let fixedShiftsOnDay: Shift[] = [];
+
+  // NEW: If selectedTaskIds is provided, filter shifts to solve and treat others as fixed
+  if (selectedTaskIds && selectedTaskIds.length > 0) {
+    shiftsToSolve = allShiftsOnDay.filter(s => selectedTaskIds.includes(s.taskId));
+    fixedShiftsOnDay = allShiftsOnDay.filter(s => !selectedTaskIds.includes(s.taskId));
+  }
 
   // If no shifts to solve, return empty array
   if (shiftsToSolve.length === 0) return [];
@@ -311,7 +321,10 @@ export const solveSchedule = (
   });
 
   // Initialize Algorithm Users
-  const algoUsers = initializeUsers(people, startDate, historyScores, futureAssignments, taskTemplates, shifts, roleCounts);
+  // NEW: Add fixedShiftsOnDay to futureAssignments so they are treated as constraints
+  const effectiveConstraints = [...futureAssignments, ...fixedShiftsOnDay];
+  
+  const algoUsers = initializeUsers(people, startDate, historyScores, effectiveConstraints, taskTemplates, shifts, roleCounts);
 
   // Map Shifts to AlgoTasks with DYNAMIC DIFFICULTY
   const algoTasks: AlgoTask[] = shiftsToSolve.map(s => {
