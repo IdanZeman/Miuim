@@ -148,7 +148,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               >
                 <LogOut size={20} />
               </button>
-              <button className="md:hidden p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+              <button className="hidden md:hidden p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
                 <Menu size={24} />
               </button>
             </div>
@@ -302,8 +302,60 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         </>
       )}
 
+      {/* Mobile Bottom Navigation */}
+      {!isPublic && setView && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 pb-safe">
+          <div className="flex justify-around items-center h-16">
+            <button
+              onClick={() => setView('dashboard')}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <Calendar size={20} className={currentView === 'dashboard' ? 'fill-blue-100' : ''} />
+              <span className="text-[10px] font-medium">שיבוצים</span>
+            </button>
+
+            {(profile?.role === 'admin' || profile?.role === 'editor') && (
+              <>
+                <button
+                  onClick={() => setView('personnel')}
+                  className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'personnel' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  <Users size={20} className={currentView === 'personnel' ? 'fill-blue-100' : ''} />
+                  <span className="text-[10px] font-medium">כוח אדם</span>
+                </button>
+                <button
+                  onClick={() => setView('tasks')}
+                  className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'tasks' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  <ClipboardList size={20} className={currentView === 'tasks' ? 'fill-blue-100' : ''} />
+                  <span className="text-[10px] font-medium">משימות</span>
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={() => setView('stats')}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'stats' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <BarChart2 size={20} className={currentView === 'stats' ? 'fill-blue-100' : ''} />
+              <span className="text-[10px] font-medium">דוחות</span>
+            </button>
+
+            {profile?.role !== 'viewer' && (
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <Menu size={20} />
+                <span className="text-[10px] font-medium">תפריט</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Content - Scrollable */}
-      <main ref={mainRef} className="flex-1 overflow-y-auto relative bg-idf-bg">
+      <main ref={mainRef} className="flex-1 overflow-y-auto relative bg-idf-bg pb-20 md:pb-0">
         {/* Green Hero Section - Responsive height */}
         <div className="bg-hero-pattern h-40 md:h-64 w-full absolute top-0 left-0 z-0">
           <div className="max-w-7xl mx-auto px-4 pt-4 md:pt-8 lg:pt-10">
@@ -315,6 +367,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'stats' && 'מרכז נתונים'}
               {currentView === 'settings' && 'הגדרות ארגון'}
               {currentView === 'reports' && 'ייצוא נתונים'}
+              {currentView === 'logs' && 'לוגים'}
             </h1>
             <div className="w-12 md:w-16 h-1 md:h-1.5 bg-white/40 rounded-full mt-2 md:mt-3"></div>
           </div>
