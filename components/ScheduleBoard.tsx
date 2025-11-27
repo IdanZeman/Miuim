@@ -60,6 +60,7 @@ const ShiftCard: React.FC<{
 
     return (
         <div
+            id={`shift-card-${shift.id}`}
             onClick={() => onSelect(shift)}
             className={`p-3 rounded-xl shadow-sm border-2 cursor-pointer hover:shadow-md transition-all mb-3 group relative overflow-hidden ${hasMismatch
                 ? 'bg-red-50 border-red-500 animate-pulse'
