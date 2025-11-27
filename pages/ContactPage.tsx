@@ -124,7 +124,7 @@ export const ContactPage: React.FC = () => {
                                     type="tel"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
-                                    className="w-full pr-10 pl-4 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                                    className="w-full pr-10 pl-4 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none text-right"
                                     placeholder="מספר נייד לחזרה"
                                 />
                             </div>

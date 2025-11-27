@@ -270,6 +270,18 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 <span>הגרלה</span>
               </button>
 
+              {/* Contact - Visible to everyone */}
+              <button
+                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'contact'
+                  ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                  : 'hover:bg-slate-50 text-slate-700'
+                  }`}
+                onClick={() => { setView('contact'); setIsMobileMenuOpen(false) }}
+              >
+                <Mail size={22} className={currentView === 'contact' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                <span>צור קשר</span>
+              </button>
+
               {isAdmin && (
                 <>
                   <button
