@@ -36,6 +36,8 @@ import { usePageTracking } from './hooks/usePageTracking';
 import { ClaimProfile } from './components/ClaimProfile';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AutoScheduleModal } from './components/AutoScheduleModal';
+import { Lottery } from './components/Lottery';
+import { ToastProvider } from './contexts/ToastContext';
 
 // --- Main App Content (Authenticated) ---
 // Track view changes
@@ -399,8 +401,12 @@ const MainApp: React.FC = () => {
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} isViewer={profile?.role === 'viewer'} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
             case 'settings': return <OrganizationSettings />;
+
+
+
             case 'reports': return <ShiftReport shifts={state.shifts} people={state.people} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} />;
             case 'logs': return <AdminLogsViewer />;
+            case 'lottery': return <Lottery people={state.people} teams={state.teams} roles={state.roles} />;
             default: return (
                 <div className="space-y-6">
                     {profile?.role !== 'viewer' && (
@@ -558,7 +564,7 @@ const MainRoute: React.FC<{ user: any, profile: any, organization: any }> = ({ u
     return <MainApp />;
 };
 
-import { ToastProvider } from './contexts/ToastContext';
+
 
 const App: React.FC = () => {
     return (
