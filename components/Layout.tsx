@@ -41,7 +41,10 @@ const TopNavLink = ({
     >
       {Icon && <Icon size={16} className={active ? 'text-idf-yellow-hover' : 'text-slate-400'} />}
       {/* Show text for active link always, expand on hover for others */}
-      <span className={`${active ? '' : 'hidden 2xl:inline 2xl:group-hover:inline'} whitespace-nowrap transition-all duration-200 ${!active && 'group-hover:inline'}`}>
+      <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${active
+          ? 'max-w-[200px] opacity-100'
+          : 'max-w-0 opacity-0 2xl:max-w-[200px] 2xl:opacity-100 group-hover:max-w-[200px] group-hover:opacity-100 delay-300 group-hover:delay-0'
+        }`}>
         {label}
       </span>
       {active && (
