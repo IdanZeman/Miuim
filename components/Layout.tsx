@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail } from 'lucide-react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
@@ -112,7 +112,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   <>
                     <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" icon={Users} />
                     <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" icon={ClipboardList} />
-                    <TopNavLink active={currentView === 'constraints'} onClick={() => setView('constraints')} label="אילוצים" icon={Shield} />
+                    <TopNavLink active={currentView === 'constraints'} onClick={() => setView('constraints')} label="אילוצים" icon={Anchor} />
                   </>
                 )}
 
@@ -244,7 +244,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                       }`}
                     onClick={() => { setView('constraints'); setIsMobileMenuOpen(false) }}
                   >
-                    <Shield size={22} className={currentView === 'constraints' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                    <Anchor size={22} className={currentView === 'constraints' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                     <span>אילוצים</span>
                   </button>
                 </>
