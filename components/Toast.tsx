@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle, XCircle, Info, AlertTriangle, X } from 'lucide-react';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
@@ -51,9 +52,9 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
 
     const style = styles[type];
 
-    return (
+    return createPortal(
         <div
-            className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg transition-all duration-300 transform ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
+            className={`fixed top-4 left-1/2 -translate-x-1/2 z-[10000] flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg transition-all duration-300 transform ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
                 } ${style.bg} ${style.border} min-w-[300px] max-w-md`}
             role="alert"
         >
@@ -65,6 +66,7 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
             >
                 <X size={16} />
             </button>
-        </div>
+        </div>,
+        document.body
     );
 };
