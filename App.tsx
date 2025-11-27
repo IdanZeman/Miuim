@@ -404,7 +404,7 @@ const MainApp: React.FC = () => {
             default: return (
                 <div className="space-y-6">
                     {profile?.role !== 'viewer' && (
-                        <div className="fixed bottom-8 left-8 z-50">
+                        <div className="fixed bottom-24 md:bottom-8 left-8 z-50">
                             <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white px-5 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold hover:scale-105 transition-all">
                                 <Sparkles size={20} /> שיבוץ אוטומטי
                             </button>
