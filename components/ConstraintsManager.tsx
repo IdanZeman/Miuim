@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Person, TaskTemplate, SchedulingConstraint, ConstraintType } from '../types';
-import { Trash2, Plus, Calendar, Clock, AlertTriangle, CheckCircle, Ban, User, Shield, ChevronDown } from 'lucide-react';
+import { Trash2, Plus, Calendar, Clock, AlertTriangle, CheckCircle, Ban, User, Shield, ChevronDown, Pencil, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Select } from './ui/Select';
 
@@ -10,6 +10,7 @@ interface ConstraintsManagerProps {
     constraints: SchedulingConstraint[];
     onAddConstraint: (c: SchedulingConstraint) => void;
     onDeleteConstraint: (id: string) => void;
+    onUpdateConstraint: (c: SchedulingConstraint) => void;
 }
 
 // Custom Date Input to enforce DD/MM/YYYY format while allowing picker
@@ -68,7 +69,7 @@ const IsraeliDateInput: React.FC<{ value: string, onChange: (val: string) => voi
     );
 };
 
-export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, tasks, constraints, onAddConstraint, onDeleteConstraint }) => {
+export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, tasks, constraints, onAddConstraint, onDeleteConstraint, onUpdateConstraint }) => {
     const [selectedPersonId, setSelectedPersonId] = useState<string>('');
     const [selectedType, setSelectedType] = useState<ConstraintType>('never_assign');
     const [selectedTaskId, setSelectedTaskId] = useState<string>('');
@@ -76,12 +77,13 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
     const [startTime, setStartTime] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [endTime, setEndTime] = useState<string>('');
+    const [editingId, setEditingId] = useState<string | null>(null);
 
-    const handleAdd = () => {
+    const handleSave = () => {
         if (!selectedPersonId) return;
 
-        const newConstraint: SchedulingConstraint = {
-            id: uuidv4(),
+        const constraintData: SchedulingConstraint = {
+            id: editingId || uuidv4(),
             personId: selectedPersonId,
             type: selectedType,
             organization_id: '', // Will be set by parent or DB mapper
@@ -89,16 +91,23 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
 
         if (selectedType === 'time_block') {
             if (!startDate || !startTime || !endDate || !endTime) return;
-            newConstraint.startTime = new Date(`${startDate}T${startTime}`).toISOString();
-            newConstraint.endTime = new Date(`${endDate}T${endTime}`).toISOString();
+            constraintData.startTime = new Date(`${startDate}T${startTime}`).toISOString();
+            constraintData.endTime = new Date(`${endDate}T${endTime}`).toISOString();
         } else {
             if (!selectedTaskId) return;
-            newConstraint.taskId = selectedTaskId;
+            constraintData.taskId = selectedTaskId;
         }
 
-        onAddConstraint(newConstraint);
+        if (editingId) {
+            onUpdateConstraint(constraintData);
+        } else {
+            onAddConstraint(constraintData);
+        }
 
-        // Reset form
+        resetForm();
+    };
+
+    const resetForm = () => {
         setSelectedPersonId('');
         setSelectedType('never_assign');
         setSelectedTaskId('');
@@ -106,6 +115,27 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
         setStartTime('');
         setEndDate('');
         setEndTime('');
+        setEditingId(null);
+    };
+
+    const handleEdit = (c: SchedulingConstraint) => {
+        setEditingId(c.id);
+        setSelectedPersonId(c.personId);
+        setSelectedType(c.type);
+
+        if (c.type === 'time_block' && c.startTime && c.endTime) {
+            const start = new Date(c.startTime);
+            const end = new Date(c.endTime);
+            setStartDate(start.toISOString().split('T')[0]);
+            setStartTime(start.toTimeString().slice(0, 5));
+            setEndDate(end.toISOString().split('T')[0]);
+            setEndTime(end.toTimeString().slice(0, 5));
+        } else if (c.taskId) {
+            setSelectedTaskId(c.taskId);
+        }
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const getConstraintLabel = (type: ConstraintType) => {
@@ -126,15 +156,25 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
 
     return (
         <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
-            {/* Add New Constraint Form */}
-            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-slate-100">
-                <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
-                    <div className="bg-blue-50 p-2 rounded-xl">
-                        <Plus size={24} className="text-blue-600" />
+            {/* Add/Edit Constraint Form */}
+            <div className={`bg-white p-6 md:p-8 rounded-3xl shadow-lg border ${editingId ? 'border-blue-200 ring-2 ring-blue-100' : 'border-slate-100'}`}>
+                <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-xl ${editingId ? 'bg-blue-100' : 'bg-blue-50'}`}>
+                            {editingId ? <Pencil size={24} className="text-blue-700" /> : <Plus size={24} className="text-blue-600" />}
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-800">
+                            {editingId ? 'עריכת אילוץ' : 'הוסף אילוץ חדש'}
+                        </h2>
                     </div>
-                    <h2 className="text-xl font-bold text-slate-800">
-                        הוסף אילוץ חדש
-                    </h2>
+                    {editingId && (
+                        <button
+                            onClick={resetForm}
+                            className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
@@ -213,15 +253,29 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
                         )}
                     </div>
 
-                    {/* Add Button - Full Width on Mobile, Auto on Desktop */}
-                    <div className="md:col-span-12 flex justify-end mt-4">
+                    {/* Add/Update Button */}
+                    <div className="md:col-span-12 flex justify-end mt-4 gap-3">
+                        {editingId && (
+                            <button
+                                onClick={resetForm}
+                                className="px-6 py-3 text-slate-500 hover:bg-slate-100 rounded-xl font-bold transition-colors"
+                            >
+                                ביטול
+                            </button>
+                        )}
                         <button
-                            onClick={handleAdd}
+                            onClick={handleSave}
                             disabled={!selectedPersonId || (selectedType === 'time_block' ? (!startDate || !startTime) : !selectedTaskId)}
-                            className="w-full md:w-auto px-8 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 hover:shadow-blue-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all flex items-center justify-center gap-2"
+                            className={`w-full md:w-auto px-8 py-3 text-white rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2
+                                ${editingId
+                                    ? 'bg-blue-700 shadow-blue-200 hover:bg-blue-800'
+                                    : 'bg-blue-600 shadow-blue-200 hover:bg-blue-700 hover:-translate-y-0.5'
+                                }
+                                disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
+                            `}
                         >
-                            <Plus size={20} />
-                            הוסף אילוץ
+                            {editingId ? <Pencil size={20} /> : <Plus size={20} />}
+                            {editingId ? 'עדכן אילוץ' : 'הוסף אילוץ'}
                         </button>
                     </div>
                 </div>
@@ -232,9 +286,10 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
                 {constraints.map(c => {
                     const person = people.find(p => p.id === c.personId);
                     const task = tasks.find(t => t.id === c.taskId);
+                    const isEditing = editingId === c.id;
 
                     return (
-                        <div key={c.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between group hover:shadow-md transition-shadow">
+                        <div key={c.id} className={`bg-white p-4 rounded-xl shadow-sm border flex items-start justify-between group hover:shadow-md transition-all ${isEditing ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50' : 'border-slate-100'}`}>
                             <div className="flex items-start gap-3">
                                 <div className="mt-1">{getConstraintIcon(c.type)}</div>
                                 <div>
@@ -254,12 +309,22 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
                                     )}
                                 </div>
                             </div>
-                            <button
-                                onClick={() => onDeleteConstraint(c.id)}
-                                className="text-slate-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                            >
-                                <Trash2 size={18} />
-                            </button>
+                            <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={() => handleEdit(c)}
+                                    className="text-slate-400 hover:text-blue-500 p-2 rounded-full hover:bg-blue-50 transition-colors"
+                                    title="ערוך"
+                                >
+                                    <Pencil size={18} />
+                                </button>
+                                <button
+                                    onClick={() => onDeleteConstraint(c.id)}
+                                    className="text-slate-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-colors"
+                                    title="מחק"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
                         </div>
                     );
                 })}

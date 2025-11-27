@@ -261,6 +261,11 @@ const MainApp: React.FC = () => {
         setState(prev => ({ ...prev, constraints: prev.constraints.filter(c => c.id !== id) }));
     };
 
+    const handleUpdateConstraint = async (c: SchedulingConstraint) => {
+        try { await supabase.from('scheduling_constraints').update(mapConstraintToDB(c)).eq('id', c.id); } catch (e) { console.warn(e); }
+        setState(prev => ({ ...prev, constraints: prev.constraints.map(constraint => constraint.id === c.id ? c : constraint) }));
+    };
+
     const handleAssign = async (shiftId: string, personId: string) => {
         const shift = state.shifts.find(s => s.id === shiftId);
         if (!shift) return;
@@ -475,7 +480,7 @@ const MainApp: React.FC = () => {
             case 'reports': return <ShiftReport shifts={state.shifts} people={state.people} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} />;
             case 'logs': return <AdminLogsViewer />;
             case 'lottery': return <Lottery people={state.people} teams={state.teams} roles={state.roles} />;
-            case 'constraints': return <ConstraintsManager people={state.people} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} />;
+            case 'constraints': return <ConstraintsManager people={state.people} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} onUpdateConstraint={handleUpdateConstraint} />;
             case 'contact': return <ContactPage />;
             default: return (
                 <div className="space-y-6">
