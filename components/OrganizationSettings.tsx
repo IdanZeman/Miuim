@@ -7,6 +7,7 @@ import { ConfirmationModal } from './ConfirmationModal';
 import { logger } from '../services/loggingService';
 import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users } from 'lucide-react';
 import { UserRole, Profile, OrganizationInvite } from '../types';
+import { Select } from './ui/Select';
 
 const canManageOrganization = (role: UserRole) => {
     return role === 'admin';
@@ -363,17 +364,18 @@ export const OrganizationSettings: React.FC = () => {
                             <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">
                                 הרשאה
                             </label>
-                            <select
+                            <Select
                                 value={inviteRole}
-                                onChange={(e) => setInviteRole(e.target.value as UserRole)}
-                                className="w-full px-3 md:px-4 py-2 md:py-3 rounded-lg md:rounded-xl border-2 border-slate-200 focus:border-emerald-400 focus:outline-none text-right text-sm md:text-base"
+                                onChange={(val) => setInviteRole(val as UserRole)}
+                                options={[
+                                    { value: 'admin', label: 'מנהל - גישה מלאה' },
+                                    { value: 'editor', label: 'עורך - עריכת שיבוצים' },
+                                    { value: 'viewer', label: 'צופה - צפייה בלבד' },
+                                    { value: 'attendance_only', label: 'נוכחות בלבד' }
+                                ]}
                                 disabled={sending}
-                            >
-                                <option value="admin">מנהל - גישה מלאה</option>
-                                <option value="editor">עורך - עריכת שיבוצים</option>
-                                <option value="viewer">צופה - צפייה בלבד</option>
-                                <option value="attendance_only">נוכחות בלבד</option>
-                            </select>
+                                placeholder="בחר הרשאה"
+                            />
                         </div>
                     </div>
 
@@ -450,16 +452,19 @@ export const OrganizationSettings: React.FC = () => {
                                         {getRoleDisplayName(member.role)}
                                     </span>
                                 ) : (
-                                    <select
-                                        value={member.role}
-                                        onChange={(e) => handleChangeRole(member.id, e.target.value as UserRole)}
-                                        className="w-full sm:w-auto px-3 md:px-4 py-1.5 md:py-2 rounded-lg border-2 border-slate-200 focus:border-emerald-400 focus:outline-none font-medium text-xs md:text-sm"
-                                    >
-                                        <option value="admin">מנהל</option>
-                                        <option value="editor">עורך</option>
-                                        <option value="viewer">צופה</option>
-                                        <option value="attendance_only">נוכחות בלבד</option>
-                                    </select>
+                                    <div className="w-32">
+                                        <Select
+                                            value={member.role}
+                                            onChange={(val) => handleChangeRole(member.id, val as UserRole)}
+                                            options={[
+                                                { value: 'admin', label: 'מנהל' },
+                                                { value: 'editor', label: 'עורך' },
+                                                { value: 'viewer', label: 'צופה' },
+                                                { value: 'attendance_only', label: 'נוכחות בלבד' }
+                                            ]}
+                                            placeholder="בחר הרשאה"
+                                        />
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -591,17 +596,20 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                 {/* Role Selector */}
                 <div className="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
                     <span className="text-sm font-medium text-slate-600 whitespace-nowrap">הרשאה למצטרפים:</span>
-                    <select
-                        value={defaultRole}
-                        onChange={(e) => handleRoleChange(e.target.value as UserRole)}
-                        disabled={loading}
-                        className="bg-transparent border-none text-sm font-bold text-slate-800 focus:ring-0 cursor-pointer py-0 pl-8 pr-2"
-                    >
-                        <option value="viewer">צופה</option>
-                        <option value="editor">עורך</option>
-                        <option value="attendance_only">נוכחות בלבד</option>
-                        <option value="member">חבר צוות</option>
-                    </select>
+                    <div className="w-40">
+                        <Select
+                            value={defaultRole}
+                            onChange={(val) => handleRoleChange(val as UserRole)}
+                            options={[
+                                { value: 'viewer', label: 'צופה' },
+                                { value: 'editor', label: 'עורך' },
+                                { value: 'attendance_only', label: 'נוכחות בלבד' },
+                                { value: 'member', label: 'חבר צוות' }
+                            ]}
+                            disabled={loading}
+                            placeholder="בחר הרשאה"
+                        />
+                    </div>
                 </div>
             </div>
 

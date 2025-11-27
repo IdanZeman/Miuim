@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { FileText, Filter, Download, Search, AlertCircle, Info, AlertTriangle, XCircle, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { Select } from './ui/Select';
 
 interface Log {
     id: string;
@@ -297,39 +298,43 @@ export const AdminLogsViewer: React.FC = () => {
                         />
                     </div>
 
-                    <select
+                    <Select
                         value={filterAction}
-                        onChange={e => setFilterAction(e.target.value)}
-                        className="px-4 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
-                    >
-                        <option value="">כל הפעולות</option>
-                        <option value="CREATE">יצירה</option>
-                        <option value="UPDATE">עדכון</option>
-                        <option value="DELETE">מחיקה</option>
-                        <option value="LOGIN">כניסה</option>
-                        <option value="LOGOUT">יציאה</option>
-                        <option value="AUTO_SCHEDULE">שיבוץ אוטומטי</option>
-                        <option value="ASSIGN">שיבוץ</option>
-                        <option value="UNASSIGN">ביטול שיבוץ</option>
-                        <option value="VIEW">צפייה</option>
-                        <option value="CLICK">לחיצה</option>
-                        <option value="ERROR">שגיאה</option>
-                    </select>
+                        onChange={setFilterAction}
+                        options={[
+                            { value: '', label: 'כל הפעולות' },
+                            { value: 'CREATE', label: 'יצירה' },
+                            { value: 'UPDATE', label: 'עדכון' },
+                            { value: 'DELETE', label: 'מחיקה' },
+                            { value: 'LOGIN', label: 'כניסה' },
+                            { value: 'LOGOUT', label: 'יציאה' },
+                            { value: 'AUTO_SCHEDULE', label: 'שיבוץ אוטומטי' },
+                            { value: 'ASSIGN', label: 'שיבוץ' },
+                            { value: 'UNASSIGN', label: 'ביטול שיבוץ' },
+                            { value: 'VIEW', label: 'צפייה' },
+                            { value: 'CLICK', label: 'לחיצה' },
+                            { value: 'ERROR', label: 'שגיאה' }
+                        ]}
+                        placeholder="סינון לפי פעולה"
+                        className="w-full"
+                    />
 
-                    <select
+                    <Select
                         value={filterSeverity}
-                        onChange={e => setFilterSeverity(e.target.value)}
-                        className="px-4 py-2 border-2 border-slate-200 rounded-lg focus:border-indigo-500 outline-none"
-                    >
-                        <option value="">כל הקטגוריות</option>
-                        <option value="auth">אימות</option>
-                        <option value="data">נתונים</option>
-                        <option value="scheduling">שיבוץ</option>
-                        <option value="settings">הגדרות</option>
-                        <option value="system">מערכת</option>
-                        <option value="navigation">ניווט</option>
-                        <option value="ui">ממשק</option>
-                    </select>
+                        onChange={setFilterSeverity}
+                        options={[
+                            { value: '', label: 'כל הקטגוריות' },
+                            { value: 'auth', label: 'אימות' },
+                            { value: 'data', label: 'נתונים' },
+                            { value: 'scheduling', label: 'שיבוץ' },
+                            { value: 'settings', label: 'הגדרות' },
+                            { value: 'system', label: 'מערכת' },
+                            { value: 'navigation', label: 'ניווט' },
+                            { value: 'ui', label: 'ממשק' }
+                        ]}
+                        placeholder="סינון לפי קטגוריה"
+                        className="w-full"
+                    />
 
                     <button
                         onClick={() => {

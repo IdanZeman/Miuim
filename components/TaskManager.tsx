@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TaskTemplate, Role, SchedulingType } from '../types';
 import { Clock, Users, AlertCircle, CheckSquare, Plus, Pencil, Trash2, X, Check, Repeat, Calendar } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { Select } from './ui/Select';
 
 interface TaskManagerProps {
     tasks: TaskTemplate[];
@@ -196,9 +197,13 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     <div className="space-y-2">
                         {roleComposition.map((rc, idx) => (
                             <div key={idx} className="flex items-center gap-2">
-                                <select value={rc.roleId} onChange={e => updateRoleRow(idx, 'roleId', e.target.value)} className="p-2 rounded-lg border border-slate-300 flex-1 text-sm">
-                                    {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                </select>
+                                <Select
+                                    value={rc.roleId}
+                                    onChange={(val) => updateRoleRow(idx, 'roleId', val)}
+                                    options={roles.map(r => ({ value: r.id, label: r.name }))}
+                                    placeholder="בחר תפקיד"
+                                    className="flex-1"
+                                />
                                 <input type="number" min="1" value={rc.count} onChange={e => updateRoleRow(idx, 'count', e.target.value)} className="w-16 md:w-20 p-2 rounded-lg border border-slate-300 text-sm" />
                                 <button onClick={() => removeRoleRow(idx)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-full">
                                     <Trash2 size={14} />
@@ -324,9 +329,13 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                         <div className="space-y-2">
                             {roleComposition.map((rc, idx) => (
                                 <div key={idx} className="flex items-center gap-2">
-                                    <select value={rc.roleId} onChange={e => updateRoleRow(idx, 'roleId', e.target.value)} className="p-2 rounded-lg border border-slate-300 flex-1 text-sm">
-                                        {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                    </select>
+                                    <Select
+                                        value={rc.roleId}
+                                        onChange={(val) => updateRoleRow(idx, 'roleId', val)}
+                                        options={roles.map(r => ({ value: r.id, label: r.name }))}
+                                        placeholder="בחר תפקיד"
+                                        className="flex-1"
+                                    />
                                     <input type="number" min="1" value={rc.count} onChange={e => updateRoleRow(idx, 'count', e.target.value)} className="w-16 md:w-20 p-2 rounded-lg border border-slate-300 text-sm" />
                                     <button onClick={() => removeRoleRow(idx)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-full">
                                         <Trash2 size={14} />

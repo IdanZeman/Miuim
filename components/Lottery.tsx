@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Person, Team, Role } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { Trophy, Users, RefreshCw, Sparkles, Shuffle, Dices } from 'lucide-react';
+import { Select } from './ui/Select';
 
 interface LotteryProps {
     people: Person[];
@@ -191,42 +192,39 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                     {/* Pool Type */}
                     <div className="space-y-4">
                         <label className="block text-sm font-bold text-slate-700">מתוך מי בוחרים?</label>
-                        <select
+                        <Select
                             value={poolType}
-                            onChange={(e) => {
-                                setPoolType(e.target.value as PoolType);
+                            onChange={(val) => {
+                                setPoolType(val as PoolType);
                                 setSelectedPoolId('');
                                 setCustomSelection([]);
                                 setSearchTerm('');
                             }}
-                            className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none"
-                        >
-                            <option value="all">כל היחידה ({people.length})</option>
-                            <option value="team">צוות מסוים</option>
-                            <option value="role">תפקיד מסוים</option>
-                            <option value="custom">בחירה ידנית</option>
-                        </select>
+                            options={[
+                                { value: 'all', label: `כל היחידה (${people.length})` },
+                                { value: 'team', label: 'צוות מסוים' },
+                                { value: 'role', label: 'תפקיד מסוים' },
+                                { value: 'custom', label: 'בחירה ידנית' }
+                            ]}
+                            placeholder="מתוך מי בוחרים?"
+                        />
 
                         {poolType === 'team' && (
-                            <select
+                            <Select
                                 value={selectedPoolId}
-                                onChange={(e) => setSelectedPoolId(e.target.value)}
-                                className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50"
-                            >
-                                <option value="">בחר צוות...</option>
-                                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                            </select>
+                                onChange={setSelectedPoolId}
+                                options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                placeholder="בחר צוות..."
+                            />
                         )}
 
                         {poolType === 'role' && (
-                            <select
+                            <Select
                                 value={selectedPoolId}
-                                onChange={(e) => setSelectedPoolId(e.target.value)}
-                                className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50"
-                            >
-                                <option value="">בחר תפקיד...</option>
-                                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                            </select>
+                                onChange={setSelectedPoolId}
+                                options={roles.map(r => ({ value: r.id, label: r.name }))}
+                                placeholder="בחר תפקיד..."
+                            />
                         )}
 
                         {poolType === 'custom' && (

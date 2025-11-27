@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Person, TaskTemplate, SchedulingConstraint, ConstraintType } from '../types';
-import { Trash2, Plus, Calendar, Clock, AlertTriangle, CheckCircle, Ban, User, Shield } from 'lucide-react';
+import { Trash2, Plus, Calendar, Clock, AlertTriangle, CheckCircle, Ban, User, Shield, ChevronDown } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { Select } from './ui/Select';
 
 interface ConstraintsManagerProps {
     people: Person[];
@@ -140,34 +141,29 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
                     {/* Person Select */}
                     <div className="md:col-span-4">
                         <label className="block text-sm font-bold text-slate-700 mb-2">מי?</label>
-                        <div className="relative">
-                            <select
-                                value={selectedPersonId}
-                                onChange={e => setSelectedPersonId(e.target.value)}
-                                className="w-full p-3 pr-10 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all appearance-none"
-                            >
-                                <option value="">בחר אדם...</option>
-                                {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                        </div>
+                        <Select
+                            value={selectedPersonId}
+                            onChange={setSelectedPersonId}
+                            options={people.map(p => ({ value: p.id, label: p.name }))}
+                            placeholder="בחר אדם..."
+                            icon={<User size={18} />}
+                        />
                     </div>
 
                     {/* Type Select */}
                     <div className="md:col-span-4">
                         <label className="block text-sm font-bold text-slate-700 mb-2">סוג אילוץ</label>
-                        <div className="relative">
-                            <select
-                                value={selectedType}
-                                onChange={e => setSelectedType(e.target.value as ConstraintType)}
-                                className="w-full p-3 pr-10 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all appearance-none"
-                            >
-                                <option value="never_assign">⛔ לעולם לא לשבץ ל...</option>
-                                <option value="always_assign">✅ תמיד לשבץ ל... (בלעדיות)</option>
-                                <option value="time_block">⏳ חסימת שעות ספציפית</option>
-                            </select>
-                            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                        </div>
+                        <Select
+                            value={selectedType}
+                            onChange={(val) => setSelectedType(val as ConstraintType)}
+                            options={[
+                                { value: 'never_assign', label: '⛔ לעולם לא לשבץ ל...' },
+                                { value: 'always_assign', label: '✅ תמיד לשבץ ל... (בלעדיות)' },
+                                { value: 'time_block', label: '⏳ חסימת שעות ספציפית' }
+                            ]}
+                            placeholder="בחר סוג..."
+                            icon={<Shield size={18} />}
+                        />
                     </div>
 
                     {/* Dynamic Fields */}
@@ -184,7 +180,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
                                             type="time"
                                             value={startTime}
                                             onChange={e => setStartTime(e.target.value)}
-                                            className="w-32 p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                            className="w-32 p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm shadow-sm"
                                         />
                                     </div>
                                 </div>
@@ -198,7 +194,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
                                             type="time"
                                             value={endTime}
                                             onChange={e => setEndTime(e.target.value)}
-                                            className="w-32 p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                            className="w-32 p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm shadow-sm"
                                         />
                                     </div>
                                 </div>
@@ -206,17 +202,13 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
                         ) : (
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">משימה</label>
-                                <div className="relative">
-                                    <select
-                                        value={selectedTaskId}
-                                        onChange={e => setSelectedTaskId(e.target.value)}
-                                        className="w-full p-3 pr-10 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all appearance-none"
-                                    >
-                                        <option value="">בחר משימה...</option>
-                                        {tasks.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                    </select>
-                                    <CheckCircle className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                                </div>
+                                <Select
+                                    value={selectedTaskId}
+                                    onChange={setSelectedTaskId}
+                                    options={tasks.map(t => ({ value: t.id, label: t.name }))}
+                                    placeholder="בחר משימה..."
+                                    icon={<CheckCircle size={18} />}
+                                />
                             </div>
                         )}
                     </div>

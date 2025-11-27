@@ -3,6 +3,7 @@ import { Person, Team, Role } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { Plus, Trash2, Shield, Users, Check, Pencil, Star, Heart, Truck, Syringe, Zap, Anchor, Target, Eye, Cpu, Cross } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { Select } from './ui/Select';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -212,10 +213,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     <div className="space-y-3 md:space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="שם מלא" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
-                            <select value={selectedTeamId} onChange={e => setSelectedTeamId(e.target.value)} className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base bg-white">
-                                <option value="">בחר צוות...</option>
-                                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                            </select>
+                            <Select
+                                value={selectedTeamId}
+                                onChange={setSelectedTeamId}
+                                options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                placeholder="בחר צוות..."
+                                className="bg-white"
+                            />
                         </div>
                         <div>
                             <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">תפקידים:</label>
@@ -318,10 +322,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         <div className="space-y-3 md:space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                 <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="שם מלא" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
-                                <select value={selectedTeamId} onChange={e => setSelectedTeamId(e.target.value)} className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base bg-white">
-                                    <option value="">בחר צוות...</option>
-                                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </select>
+                                <Select
+                                    value={selectedTeamId}
+                                    onChange={setSelectedTeamId}
+                                    options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                    placeholder="בחר צוות..."
+                                    className="bg-white"
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">תפקידים:</label>
