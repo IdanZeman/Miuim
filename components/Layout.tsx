@@ -192,7 +192,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             </div>
 
             {/* Menu Items */}
-            <div className="p-4 flex flex-col gap-1">
+            <div className="p-4 pb-24 flex flex-col gap-1">
               {/* Dashboard - Visible to everyone */}
               <button
                 className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'dashboard'
