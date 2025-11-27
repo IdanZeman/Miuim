@@ -25,9 +25,31 @@ interface ScheduleBoardProps {
     acknowledgedWarnings: Set<string>;
     onClearDay: () => void;
     onNavigate: (view: 'personnel' | 'tasks', tab?: 'people' | 'teams' | 'roles') => void;
+    onAssign: (shiftId: string, personId: string) => void;
+    onUnassign: (shiftId: string, personId: string) => void;
+    onAddShift: (task: TaskTemplate, date: Date) => void;
+    onUpdateShift: (shift: Shift) => void;
+    onDeleteShift: (shiftId: string) => void;
 }
 
-// Helper component for Shift Card
+// Helper to calculate position based on time
+const PIXELS_PER_HOUR = 60;
+const START_HOUR = 0;
+const HEADER_HEIGHT = 40;
+
+const getPositionFromTime = (date: Date) => {
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const totalHours = hours + minutes / 60;
+    return (totalHours - START_HOUR) * PIXELS_PER_HOUR;
+};
+
+const getHeightFromDuration = (start: Date, end: Date) => {
+    const durationMs = end.getTime() - start.getTime();
+    const durationHours = durationMs / (1000 * 60 * 60);
+    return durationHours * PIXELS_PER_HOUR;
+};
+
 const ShiftCard: React.FC<{
     shift: Shift;
     compact?: boolean;
@@ -38,7 +60,8 @@ const ShiftCard: React.FC<{
     onDelete: (shiftId: string) => void;
     isViewer: boolean;
     acknowledgedWarnings: Set<string>;
-}> = ({ shift, compact = false, taskTemplates, people, roles, onSelect, onDelete, isViewer, acknowledgedWarnings }) => {
+    style?: React.CSSProperties;
+}> = ({ shift, compact = false, taskTemplates, people, roles, onSelect, onDelete, isViewer, acknowledgedWarnings, style }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const isFull = shift.assignedPersonIds.length >= task.requiredPeople;
@@ -62,7 +85,8 @@ const ShiftCard: React.FC<{
         <div
             id={`shift-card-${shift.id}`}
             onClick={() => onSelect(shift)}
-            className={`p-3 rounded-xl shadow-sm border-2 cursor-pointer hover:shadow-md transition-all mb-3 group relative overflow-hidden ${hasMismatch
+            style={style}
+            className={`absolute w-full p-2 rounded-lg shadow-sm border-2 cursor-pointer hover:shadow-md transition-all group overflow-hidden flex flex-col ${hasMismatch
                 ? 'bg-red-50 border-red-500 animate-pulse'
                 : 'bg-white border-slate-100'
                 }`}
@@ -77,17 +101,16 @@ const ShiftCard: React.FC<{
                         e.stopPropagation();
                         onDelete(shift.id);
                     }}
-                    className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 p-1 rounded-full bg-white/80 transition-all z-20"
+                    className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 p-0.5 rounded-full bg-white/80 transition-all z-20"
                 >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
                 </button>
             )}
 
-            <div className="flex justify-between items-start mb-2 pr-2">
-                <div className="flex-1">
-                    <div className="font-bold text-sm text-slate-800 leading-tight">{task.name}</div>
-                    <div className="text-[10px] font-bold text-slate-400 mt-0.5 flex items-center gap-1">
-                        <Clock size={10} />
+            <div className="flex justify-between items-start mb-1 pr-2 relative z-0">
+                <div className="flex-1 min-w-0">
+                    <div className="font-bold text-xs text-slate-800 leading-tight truncate">{task.name}</div>
+                    <div className="text-[9px] font-bold text-slate-400 flex items-center gap-1">
                         <span dir="ltr" className="flex items-center gap-1">
                             {new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                             <span>-</span>
@@ -95,25 +118,21 @@ const ShiftCard: React.FC<{
                         </span>
                     </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-col items-end gap-0.5">
                     {isFull
-                        ? <div className="bg-green-50 text-green-600 p-1 rounded-full"><Check size={12} /></div>
-                        : <div className="bg-slate-100 text-slate-400 p-1 rounded-full text-[10px] font-bold">{shift.assignedPersonIds.length}/{task.requiredPeople}</div>
+                        ? <div className="text-green-600"><Check size={10} /></div>
+                        : <div className="bg-slate-100 text-slate-400 px-1 rounded text-[9px] font-bold">{shift.assignedPersonIds.length}/{task.requiredPeople}</div>
                     }
-                    {/* NEW: Force Assign Badge - MOVED HERE (below the status) */}
                     {hasMismatch && (
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-600 text-white text-[10px] font-bold">
-                            <AlertTriangle size={10} />
-                            שיבוץ כפוי
-                        </div>
+                        <AlertTriangle size={10} className="text-red-500" />
                     )}
                 </div>
             </div>
 
-            <div className="space-y-1.5 pr-2">
+            <div className="space-y-1 pr-2 relative z-0 overflow-y-auto custom-scrollbar">
                 {assigned.length === 0 ? (
-                    <div className="flex items-center gap-2 text-slate-400 text-xs bg-slate-50 p-1.5 rounded-lg border border-slate-100 border-dashed">
-                        <User size={12} />
+                    <div className="flex items-center gap-1 text-slate-400 text-[10px] bg-slate-50 p-1 rounded border border-slate-100 border-dashed">
+                        <User size={10} />
                         <span>טרם שובצו</span>
                     </div>
                 ) : (
@@ -121,38 +140,25 @@ const ShiftCard: React.FC<{
                         const isQualified = isViewer ? true : p.roleIds.some(rid => requiredRoleIds.includes(rid));
                         const warningId = `${shift.id}-${p.id}`;
                         const isAcknowledged = isViewer ? true : acknowledgedWarnings.has(warningId);
-
                         const showAsQualified = isQualified || isAcknowledged;
 
                         return (
                             <div
                                 key={p.id}
-                                className={`flex items-center gap-2 p-1.5 rounded-lg border ${showAsQualified
+                                className={`flex items-center gap-1.5 p-1 rounded border ${showAsQualified
                                     ? 'bg-slate-50 border-slate-100'
-                                    : 'bg-red-100 border-red-500 animate-pulse'
+                                    : 'bg-red-100 border-red-500'
                                     }`}
                             >
-                                {!showAsQualified && (
-                                    <AlertTriangle size={14} className="text-red-700 flex-shrink-0" />
-                                )}
-                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-bold shadow-sm ${p.color}`}>
+                                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] text-white font-bold shadow-sm ${p.color}`}>
                                     {getPersonInitials(p.name)}
                                 </div>
-                                <span className={`text-xs font-bold truncate ${showAsQualified ? 'text-slate-700' : 'text-red-900'}`}>
+                                <span className={`text-[10px] font-bold truncate ${showAsQualified ? 'text-slate-700' : 'text-red-900'}`}>
                                     {p.name}
                                 </span>
-                                {!showAsQualified && (
-                                    <span className="text-red-700 text-xs font-bold">לא מוסמך</span>
-                                )}
                             </div>
                         );
                     })
-                )}
-                {(!isFull && assigned.length > 0) && (
-                    <div className="text-[10px] text-amber-500 flex items-center gap-1 mt-1">
-                        <Sparkles size={10} />
-                        <span>חסרים {task.requiredPeople - assigned.length}</span>
-                    </div>
                 )}
             </div>
         </div>
@@ -179,7 +185,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     const { profile, organization } = useAuth();
     const isViewer = profile?.role === 'viewer';
 
-    // NEW: Check for empty state
     const isEmptyState = taskTemplates.length === 0 || people.length === 0 || roles.length === 0;
 
     if (isEmptyState && !isViewer) {
@@ -194,19 +199,36 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     }
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
     const [viewerDaysLimit, setViewerDaysLimit] = useState(2);
-    const [showCopySuccess, setShowCopySuccess] = useState(false);
 
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
 
-    // NEW: Only load warnings for non-viewers
-    const [isLoadingWarnings, setIsLoadingWarnings] = useState(!isViewer); // Viewers skip loading
+    const [isLoadingWarnings, setIsLoadingWarnings] = useState(!isViewer);
     const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
 
-    // Load acknowledged warnings ONLY if NOT a viewer
+    const handleDeleteShift = (shiftId: string) => {
+        confirm({
+            title: 'מחיקת משמרת',
+            message: 'האם אתה בטוח שברצונך למחוק את המשמרת?',
+            confirmText: 'מחק',
+            type: 'danger',
+            onConfirm: () => {
+                onDeleteShift(shiftId);
+                showToast('המשמרת נמחקה בהצלחה', 'success');
+            }
+        });
+    };
+
+    // Time tracking for Global Time Line
+    const [now, setNow] = useState(new Date());
+    useEffect(() => {
+        const interval = setInterval(() => setNow(new Date()), 60000);
+        return () => clearInterval(interval);
+    }, []);
+
     useEffect(() => {
         if (isViewer) {
-            setIsLoadingWarnings(false); // Skip for viewers
+            setIsLoadingWarnings(false);
             return;
         }
 
@@ -236,7 +258,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         };
 
         loadAcknowledgedWarnings();
-    }, [organization?.id, isViewer]); // NEW: Add isViewer dependency
+    }, [organization?.id, isViewer]);
 
     useEffect(() => {
         if (organization?.id) {
@@ -260,9 +282,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         shifts.find(s => s.id === selectedShiftId) || null
         , [shifts, selectedShiftId]);
 
-
-
-    // Export schedule to clipboard
     const handleExportToClipboard = async () => {
         const dateKey = selectedDate.toLocaleDateString('en-CA');
         const dateDisplay = selectedDate.toLocaleDateString('he-IL', {
@@ -275,20 +294,17 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         let output = `📅 לוח שיבוצים - ${dateDisplay}\n`;
         output += `${'='.repeat(50)}\n\n`;
 
-        // Get all shifts for this day
         const dayShifts = shifts.filter(s => {
             const shiftDate = new Date(s.startTime).toLocaleDateString('en-CA');
             return shiftDate === dateKey;
         }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
-        // Group by task
         const taskGroups = new Map<string, Shift[]>();
         dayShifts.forEach(shift => {
             const existing = taskGroups.get(shift.taskId) || [];
             taskGroups.set(shift.taskId, [...existing, shift]);
         });
 
-        // Build output for each task
         taskGroups.forEach((shifts, taskId) => {
             const task = taskTemplates.find(t => t.id === taskId);
             if (!task) return;
@@ -328,7 +344,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
             output += `\n`;
         });
 
-        // Summary
         const totalShifts = dayShifts.length;
         const fullyAssigned = dayShifts.filter(s => {
             const task = taskTemplates.find(t => t.id === s.taskId);
@@ -341,7 +356,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         output += `   • מאוישות במלואן: ${fullyAssigned}\n`;
         output += `   • דורשות השלמה: ${totalShifts - fullyAssigned}\n`;
 
-        // Copy to clipboard
         try {
             await navigator.clipboard.writeText(output);
             analytics.trackScheduleExported(selectedDate.toISOString());
@@ -353,12 +367,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         }
     };
 
-    // Portal Style Card for "Current/Next" Shift
     const renderFeaturedCard = () => {
         const now = new Date();
 
         if (isViewer) {
-            // --- Viewer Personalized View ---
             const currentPerson = people.find(p => p.name === profile?.full_name || (p as any).email === profile?.email);
             const nextPersonalShift = currentPerson
                 ? shifts
@@ -418,7 +430,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
             );
         }
 
-        // --- Admin/Manager General View ---
         const upcoming = shifts.find(s => new Date(s.startTime) > now);
         if (!upcoming) return null;
         const task = taskTemplates.find(t => t.id === upcoming.taskId);
@@ -570,13 +581,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                     </div>
 
                     <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
-                        {/* Assigned People Section */}
-                        {/* Content Area */}
-                        {/* שינוי 1: העברנו את ה-overflow-y-auto לכאן כדי שכל המודל יגלל במידת הצורך */}
                         <div className="flex-1 overflow-y-auto flex flex-col md:flex-row">
-
-                            {/* Assigned People Section */}
-                            {/* שינוי 2: הורדנו overflow-y-auto, הוספנו h-fit כדי שיהיה צמוד לתוכן */}
                             <div className="md:flex-1 p-3 md:p-6 h-fit border-b md:border-b-0 md:border-l border-slate-100">
                                 <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">משובצים ({assignedPeople.length}/{task.requiredPeople})</h4>
                                 <div className="space-y-2 md:space-y-3">
@@ -604,9 +609,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                 </div>
                             </div>
 
-                            {/* Available People Section */}
                             {!isViewer && (
-                                // שינוי 3: גם כאן הורדנו גלילה פנימית והוספנו h-fit
                                 <div className="flex-1 p-3 md:p-6 h-fit bg-slate-50/50">
                                     <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">מאגר זמין</h4>
                                     <div className="space-y-1.5 md:space-y-2">
@@ -640,9 +643,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         );
     };
 
-    // NEW: Build mismatch warnings list (filtered by acknowledged ones)
     const mismatchWarnings = useMemo(() => {
-        if (isViewer) return []; // NEW: Empty array for viewers
+        if (isViewer) return [];
 
         return shifts.flatMap(shift => {
             const task = taskTemplates.find(t => t.id === shift.taskId);
@@ -653,10 +655,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                     const person = people.find(p => p.id === pid);
                     if (!person) return false;
 
-                    // NEW: Create unique warning ID
                     const warningId = `${shift.id}-${pid}`;
 
-                    // Skip if already acknowledged
                     if (acknowledgedWarnings.has(warningId)) return false;
 
                     return !person.roleIds.some(rid => requiredRoleIds.includes(rid));
@@ -664,9 +664,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                 .map(pid => {
                     const person = people.find(p => p.id === pid)!;
                     return {
-                        warningId: `${shift.id}-${pid}`, // NEW: Unique ID
+                        warningId: `${shift.id}-${pid}`,
                         shiftId: shift.id,
-                        personId: pid, // NEW: Track person ID
+                        personId: pid,
                         taskName: task.name,
                         start: new Date(shift.startTime),
                         end: new Date(shift.endTime),
@@ -677,14 +677,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                     };
                 });
         });
-    }, [shifts, taskTemplates, people, roles, acknowledgedWarnings, isViewer]); // NEW: Add isViewer
+    }, [shifts, taskTemplates, people, roles, acknowledgedWarnings, isViewer]);
 
-    // NEW: Handler to acknowledge (dismiss) a warning with DB save
     const handleAcknowledgeWarning = async (warningId: string) => {
-        // Update local state immediately
         setAcknowledgedWarnings(prev => new Set([...prev, warningId]));
 
-        // Save to database
         if (organization?.id) {
             const { error } = await supabase
                 .from('acknowledged_warnings')
@@ -702,7 +699,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         }
     };
 
-    // Helper to filter visible tasks for the daily view
     const visibleTasks = useMemo(() => {
         const dateKey = selectedDate.toLocaleDateString('en-CA');
         return taskTemplates.filter(task => {
@@ -713,32 +709,26 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         });
     }, [taskTemplates, selectedDate]);
 
-    // Date Navigation Logic for Viewers
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Calculate max date for viewers
     const maxViewerDate = new Date(today);
     maxViewerDate.setDate(today.getDate() + (viewerDaysLimit - 1));
 
     const isAtViewerLimit = selectedDate >= maxViewerDate;
 
     const canGoNext = !isViewer || !isAtViewerLimit;
-    const canGoPrev = true; // Allow viewing history
+    const canGoPrev = true;
 
-    // NEW: Handler to jump to a specific shift's date (WITHOUT opening modal)
     const handleJumpToShift = (shiftId: string, shiftStart: Date) => {
-        // 1. Change to the shift's date
         const shiftDate = new Date(shiftStart);
         shiftDate.setHours(0, 0, 0, 0);
         onDateChange(shiftDate);
 
-        // 2. Scroll to the shift card after a brief delay (to ensure date change renders)
         setTimeout(() => {
             const shiftElement = document.getElementById(`shift-card-${shiftId}`);
             if (shiftElement) {
                 shiftElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Add a temporary highlight effect
                 shiftElement.classList.add('ring-4', 'ring-red-500', 'ring-offset-2');
                 setTimeout(() => {
                     shiftElement.classList.remove('ring-4', 'ring-red-500', 'ring-offset-2');
@@ -747,57 +737,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         }, 300);
     };
 
-    // Track date changes
     const handleDateChange = (newDate: Date) => {
         onDateChange(newDate);
         analytics.trackDateChanged(newDate.toISOString());
     };
 
-    // Track shift assignment
-    const handleAssign = (shiftId: string, personId: string) => {
-        const person = people.find(p => p.id === personId);
-        const shift = shifts.find(s => s.id === shiftId);
-        const task = shift ? taskTemplates.find(t => t.id === shift.taskId) : null;
-
-        if (person && task) {
-            analytics.trackPersonAssigned(person.name, task.name);
-        }
-        onAssign(shiftId, personId);
-    };
-
-    // Track shift unassignment
-    const handleUnassign = (shiftId: string, personId: string) => {
-        const person = people.find(p => p.id === personId);
-        const shift = shifts.find(s => s.id === shiftId);
-        const task = shift ? taskTemplates.find(t => t.id === shift.taskId) : null;
-
-        if (person && task) {
-            analytics.trackPersonUnassigned(person.name, task.name);
-        }
-        onUnassign(shiftId, personId);
-    };
-
-    // Track shift deletion
-    const handleDeleteShift = (shiftId: string) => {
-        const shift = shifts.find(s => s.id === shiftId);
-        const task = shift ? taskTemplates.find(t => t.id === shift.taskId) : null;
-
-        confirm({
-            title: 'מחיקת משמרת',
-            message: `האם אתה בטוח שברצונך למחוק את המשמרת${task ? ` "${task.name}"` : ''}?`,
-            confirmText: 'מחק',
-            type: 'danger',
-            onConfirm: () => {
-                if (task) {
-                    analytics.trackShiftDeleted(task.name);
-                }
-                onDeleteShift(shiftId);
-                showToast('המשמרת נמחקה בהצלחה', 'success');
-            }
-        });
-    };
-
-    // Track modal open
     const handleShiftSelect = (shift: Shift) => {
         const task = taskTemplates.find(t => t.id === shift.taskId);
         if (task) {
@@ -806,7 +750,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         setSelectedShiftId(shift.id);
     };
 
-    // Track button clicks
     const handleExportClick = async () => {
         analytics.trackButtonClick('export_schedule', 'schedule_board');
         await handleExportToClipboard();
@@ -826,21 +769,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         });
     };
 
-    // Track filter changes
     useEffect(() => {
         const dateKey = selectedDate.toLocaleDateString('en-CA');
         analytics.trackFilterApplied('date', dateKey);
     }, [selectedDate]);
 
     return (
-        <div className="flex flex-col gap-8">
-            {renderFeaturedCard()}
+        <div className="flex flex-col gap-2 h-full">
+            {isViewer && renderFeaturedCard()}
             {selectedShift && <Modal />}
             <ConfirmationModal {...modalProps} />
 
             {/* Global Mismatch Warnings Panel */}
             {!isViewer && !isLoadingWarnings && mismatchWarnings.length > 0 && (
-                <div className="rounded-xl border-2 border-red-500 bg-red-50 p-3 md:p-4 space-y-2 md:space-y-3 animate-fadeIn">
+                <div className="rounded-xl border-2 border-red-500 bg-red-50 p-2 space-y-2 animate-fadeIn flex-shrink-0">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
                         <div className="flex items-center gap-2">
                             <AlertTriangle className="text-red-600 flex-shrink-0" size={18} />
@@ -858,7 +800,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                             אשר הכל
                         </button>
                     </div>
-                    <ul className="space-y-2">
+                    <ul className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
                         {mismatchWarnings.map((w) => (
                             <li key={w.warningId} className="text-xs md:text-sm flex flex-col gap-2 bg-white/60 rounded-md p-2 md:px-3 md:py-2 border border-red-300">
                                 <div onClick={() => handleJumpToShift(w.shiftId, w.start)} className="flex-1 flex flex-col gap-1 cursor-pointer hover:bg-white/80">
@@ -885,11 +827,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                 </div>
             )}
 
-            {/* Calendar Board Container */}
-            <div className="bg-white rounded-xl shadow-portal p-3 md:p-6">
+            {/* Time Grid Board Container */}
+            <div className="bg-white rounded-xl shadow-portal p-2 overflow-hidden flex flex-col flex-1 min-h-0">
                 {/* Controls Header */}
-                <div className="flex flex-col gap-3 md:gap-4 mb-4 md:mb-6">
-                    {/* Top Row */}
+                <div className="flex flex-col gap-2 mb-2 flex-shrink-0">
                     <div className="flex flex-wrap items-center gap-2 md:gap-3">
                         <h3 className="text-lg md:text-xl font-bold text-slate-800">מבט יומי</h3>
                         {!isViewer && (() => {
@@ -912,9 +853,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                         })()}
                     </div>
 
-                    {/* Bottom Row */}
                     <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 md:gap-3">
-                        {/* Action Buttons */}
                         <div className="flex gap-2 order-2 sm:order-1">
                             <button onClick={handleExportClick} className="flex items-center justify-center gap-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors">
                                 <Copy size={14} />
@@ -930,7 +869,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                             )}
                         </div>
 
-                        {/* Date Navigation */}
                         <div className="flex items-center justify-center bg-slate-100 rounded-full p-0.5 md:p-1 order-1 sm:order-2">
                             <button onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); handleDateChange(d); } }} disabled={!canGoNext} className={`p-1.5 md:p-2 rounded-full transition-all ${canGoNext ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}>
                                 <ChevronRight size={16} />
@@ -947,58 +885,127 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto pb-4 -mx-3 md:mx-0 px-3 md:px-0">
-                    <div className="flex gap-2 md:gap-4 min-w-max md:min-w-[1000px]">
-                        {visibleTasks.length > 0 ? (
-                            visibleTasks.map(task => {
-                                const dateKey = selectedDate.toLocaleDateString('en-CA');
-                                const taskShifts = shifts.filter(s => {
-                                    if (s.taskId !== task.id) return false;
-                                    const shiftDate = new Date(s.startTime).toLocaleDateString('en-CA');
-                                    return shiftDate === dateKey;
-                                }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+                {/* Scrollable Grid Area */}
+                <div className="flex-1 overflow-auto relative border-t border-slate-200">
+                    <div className="flex min-w-max relative">
 
+
+                        {/* Time Axis Column */}
+                        <div className="w-10 md:w-16 flex-shrink-0 border-l border-slate-100 bg-slate-50 sticky right-0 z-40">
+                            <div style={{ height: HEADER_HEIGHT }} className="border-b border-slate-200 bg-slate-50 sticky top-0 z-50"></div>
+                            {Array.from({ length: 25 }).map((_, i) => (
+                                <div key={i} className="h-[60px] border-t border-dashed border-slate-300 text-[9px] md:text-xs text-slate-400 font-bold flex justify-center pt-1 relative">
+                                    <span className="bg-slate-50 px-0.5 md:px-1">{i.toString().padStart(2, '0')}:00</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Task Columns */}
+                        {visibleTasks.map(task => {
+                            const dateKey = selectedDate.toLocaleDateString('en-CA');
+                            const taskShifts = shifts.filter(s => {
+                                if (s.taskId !== task.id) return false;
+                                const shiftStart = new Date(s.startTime);
+                                const shiftEnd = new Date(s.endTime);
+
+                                const dayStart = new Date(selectedDate);
+                                dayStart.setHours(0, 0, 0, 0);
+                                const dayEnd = new Date(selectedDate);
+                                dayEnd.setHours(24, 0, 0, 0);
+
+                                return shiftStart < dayEnd && shiftEnd > dayStart;
+                            });
+
+                            return (
+                                <div key={task.id} className="w-[130px] md:w-[260px] flex-shrink-0 border-l border-slate-100 relative bg-slate-50/30 h-[1540px]">
+                                    {/* Column Header */}
+                                    <div style={{ height: HEADER_HEIGHT }} className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200 p-1.5 md:p-2 shadow-sm text-center flex items-center justify-center">
+                                        <h4 className="font-bold text-slate-800 text-xs md:text-sm truncate w-full">{task.name}</h4>
+                                    </div>
+
+                                    {/* Grid Lines */}
+                                    <div className="absolute inset-0 pointer-events-none" style={{ top: HEADER_HEIGHT }}>
+                                        {Array.from({ length: 25 }).map((_, i) => (
+                                            <div key={i} className="h-[60px] border-t border-dashed border-slate-300/50"></div>
+                                        ))}
+                                    </div>
+
+                                    {/* Shifts */}
+                                    {taskShifts.map(shift => {
+                                        const shiftStart = new Date(shift.startTime);
+                                        const shiftEnd = new Date(shift.endTime);
+
+                                        // Calculate effective start/end for the current day
+                                        const dayStart = new Date(selectedDate);
+                                        dayStart.setHours(0, 0, 0, 0);
+                                        const dayEnd = new Date(selectedDate);
+                                        dayEnd.setHours(24, 0, 0, 0);
+
+                                        const effectiveStart = shiftStart < dayStart ? dayStart : shiftStart;
+                                        const effectiveEnd = shiftEnd > dayEnd ? dayEnd : shiftEnd;
+
+                                        const top = getPositionFromTime(effectiveStart) + HEADER_HEIGHT;
+                                        const height = getHeightFromDuration(effectiveStart, effectiveEnd);
+
+                                        const isContinuedFromPrev = shiftStart < dayStart;
+                                        const isContinuedToNext = shiftEnd > dayEnd;
+
+                                        return (
+                                            <ShiftCard
+                                                key={shift.id}
+                                                shift={shift}
+                                                taskTemplates={taskTemplates}
+                                                people={people}
+                                                roles={roles}
+                                                onSelect={handleShiftSelect}
+                                                onDelete={handleDeleteShift}
+                                                isViewer={isViewer}
+                                                acknowledgedWarnings={acknowledgedWarnings}
+                                                style={{
+                                                    top: `${top}px`,
+                                                    height: `${Math.max(height, 30)}px`,
+                                                    left: '2px',
+                                                    right: '2px',
+                                                    width: 'auto',
+                                                    borderTopLeftRadius: isContinuedFromPrev ? 0 : undefined,
+                                                    borderTopRightRadius: isContinuedFromPrev ? 0 : undefined,
+                                                    borderBottomLeftRadius: isContinuedToNext ? 0 : undefined,
+                                                    borderBottomRightRadius: isContinuedToNext ? 0 : undefined,
+                                                    borderTop: isContinuedFromPrev ? '2px dashed rgba(0,0,0,0.1)' : undefined,
+                                                    borderBottom: isContinuedToNext ? '2px dashed rgba(0,0,0,0.1)' : undefined,
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
+
+                        {/* Global Time Line (Moved to end for z-index safety) */}
+                        {(() => {
+                            const currentDayKey = now.toLocaleDateString('en-CA');
+                            const selectedDayKey = selectedDate.toLocaleDateString('en-CA');
+                            if (currentDayKey === selectedDayKey) {
+                                const top = getPositionFromTime(now) + HEADER_HEIGHT;
                                 return (
-                                    <div key={task.id} className="flex-1 min-w-[200px] md:min-w-[250px] bg-slate-50 rounded-xl p-2 md:p-3">
-                                        <div className={`border-b-2 pb-1.5 md:pb-2 mb-2 md:mb-3 ${task.color.replace('border-l-', 'border-')}`}>
-                                            <h4 className="font-bold text-slate-800 text-sm md:text-base truncate">{task.name}</h4>
-                                            <div className="flex justify-between text-[10px] md:text-xs text-slate-500 mt-0.5 md:mt-1">
-                                                <span>{task.schedulingType === 'continuous' ? 'רציף' : 'בודדת'}</span>
-                                                <span>{taskShifts.length} משמרות</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            {taskShifts.map(shift => (
-                                                <ShiftCard
-                                                    key={shift.id}
-                                                    shift={shift}
-                                                    taskTemplates={taskTemplates}
-                                                    people={people}
-                                                    roles={roles}
-                                                    onSelect={handleShiftSelect}
-                                                    onDelete={handleDeleteShift}
-                                                    isViewer={isViewer}
-                                                    acknowledgedWarnings={acknowledgedWarnings}
-                                                />
-                                            ))}
-
-                                            {!isViewer && (
-                                                <button
-                                                    onClick={() => onAddShift(task, selectedDate)}
-                                                    className="w-full py-2 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-sm font-bold"
-                                                >
-                                                    <Plus size={16} />
-                                                    <span>הוסף משמרת</span>
-                                                </button>
-                                            )}
+                                    <div
+                                        className="absolute left-0 right-0 z-[60] flex items-center pointer-events-none"
+                                        style={{ top: `${top}px` }}
+                                    >
+                                        <div className="w-full h-[2px] bg-red-500 shadow-sm"></div>
+                                        <div className="absolute right-0 translate-x-1/2 w-3 h-3 bg-red-600 rounded-full shadow-md"></div>
+                                        <div className="absolute left-10 -translate-y-[120%] bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                                            {now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </div>
                                 );
-                            })
-                        ) : (
-                            <div className="w-full text-center py-12 md:py-20 text-slate-400 font-medium text-sm md:text-base">
-                                אין משימות המוגדרות לתאריך זה
+                            }
+                            return null;
+                        })()}
+
+                        {visibleTasks.length === 0 && (
+                            <div className="flex-1 flex items-center justify-center text-slate-400 p-10">
+                                אין משימות להצגה
                             </div>
                         )}
                     </div>

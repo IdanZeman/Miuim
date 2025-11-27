@@ -410,9 +410,10 @@ const MainApp: React.FC = () => {
             default: return (
                 <div className="space-y-6">
                     {profile?.role !== 'viewer' && (
-                        <div className="fixed bottom-24 md:bottom-8 left-8 z-50">
-                            <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white px-5 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold hover:scale-105 transition-all">
-                                <Sparkles size={20} /> שיבוץ אוטומטי
+                        <div className="fixed bottom-20 md:bottom-8 left-4 md:left-8 z-50">
+                            <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-3 md:px-5 md:py-3 rounded-full shadow-xl flex items-center justify-center gap-0 md:gap-2 font-bold hover:scale-105 transition-all">
+                                <Sparkles size={20} className="md:w-5 md:h-5" />
+                                <span className="hidden md:inline whitespace-nowrap text-base">שיבוץ אוטומטי</span>
                             </button>
                         </div>
                     )}
