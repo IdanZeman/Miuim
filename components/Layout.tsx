@@ -42,8 +42,8 @@ const TopNavLink = ({
       {Icon && <Icon size={16} className={active ? 'text-idf-yellow-hover' : 'text-slate-400'} />}
       {/* Show text for active link always, expand on hover for others */}
       <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${active
-          ? 'max-w-[200px] opacity-100'
-          : 'max-w-0 opacity-0 2xl:max-w-[200px] 2xl:opacity-100 group-hover:max-w-[200px] group-hover:opacity-100 delay-300 group-hover:delay-0'
+        ? 'max-w-[200px] opacity-100'
+        : 'max-w-0 opacity-0 2xl:max-w-[200px] 2xl:opacity-100 group-hover:max-w-[200px] group-hover:opacity-100 delay-300 group-hover:delay-0'
         }`}>
         {label}
       </span>
@@ -87,7 +87,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
           {/* Right: Logo & Nav */}
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-1">
+            <button
+              onClick={() => setView && setView('dashboard')}
+              className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+            >
               {/* IDF Logo Placeholder */}
               {/* App Logo */}
               <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
@@ -96,7 +99,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               <span className="text-lg font-bold text-slate-800 tracking-tight">
                 {isPublic ? 'Miuim' : (organization?.name || 'Miuim')}
               </span>
-            </div>
+            </button>
 
             {/* Desktop Nav - Hidden in Public Mode */}
             {!isPublic && setView && (
