@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
-import { Sparkles } from 'lucide-react';
+import { RotateCcw, Sparkles } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -111,7 +112,7 @@ const ShiftCard: React.FC<{
                         e.stopPropagation();
                         onToggleCancel(shift.id);
                     }}
-                    className={`absolute top-1 left-1 opacity-0 group-hover:opacity-100 p-0.5 rounded-full transition-all z-20 ${shift.isCancelled
+                    className={`absolute top-1 left-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 p-0.5 rounded-full transition-all z-20 ${shift.isCancelled
                         ? 'text-green-600 hover:text-green-700 bg-green-50'
                         : 'text-slate-400 hover:text-red-500 bg-white/80'
                         }`}
@@ -637,9 +638,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
             setIsEditingTime(false);
         };
 
-        return (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 md:p-6 animate-fadeIn pt-20 md:pt-24">
-                <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[calc(100vh-10rem)] md:max-h-[calc(100vh-12rem)]">
+        return createPortal(
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 md:p-6 animate-fadeIn pt-16 md:pt-24">
+                <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[calc(100vh-10rem)] md:max-h-[calc(100vh-12rem)] mb-16 md:mb-0">
                     <div className="p-3 md:p-6 border-b border-slate-100 bg-slate-50">
                         <div className="flex justify-between items-start gap-2">
                             <div className="flex-1 min-w-0">
@@ -714,8 +715,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                                         onClick={handleNextSuggestion}
                                                         className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1"
                                                     >
-                                                        <ChevronRight size={14} />
-                                                        <span>הצעה הבאה</span>
+                                                        <RotateCcw size={14} />
+                                                        <span>הצעה חדשה</span>
                                                     </button>
                                                 )}
                                                 <button
@@ -794,7 +795,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
 
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         );
     };
 
@@ -1112,7 +1114,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                                 taskTemplates={taskTemplates}
                                                 people={people}
                                                 roles={roles}
-                                                onSelect={setSelectedShiftId}
+                                                onSelect={handleShiftSelect}
                                                 onToggleCancel={onToggleCancelShift}
                                                 isViewer={isViewer}
                                                 acknowledgedWarnings={acknowledgedWarnings}

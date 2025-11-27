@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { TaskTemplate } from '../types';
 import { X, Calendar, CheckSquare, Wand2, Loader2, Sparkles } from 'lucide-react';
 
@@ -70,51 +71,50 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+    return createPortal(
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 md:p-6 animate-fadeIn pt-16 md:pt-24">
+            <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[calc(100vh-10rem)] md:max-h-[90vh] mb-16 md:mb-0">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6 text-white relative overflow-hidden shrink-0">
-                    <div className="absolute top-0 left-0 w-full h-full bg-white/10 backdrop-blur-[1px]"></div>
-                    <div className="relative z-10 flex justify-between items-start">
+                <div className="p-3 md:p-6 border-b border-slate-100 bg-slate-50 shrink-0">
+                    <div className="flex justify-between items-start gap-2">
                         <div>
-                            <h2 className="text-2xl font-bold flex items-center gap-2">
-                                <Sparkles className="text-yellow-300" />
+                            <h2 className="text-base md:text-xl font-bold text-slate-900 flex items-center gap-2">
+                                <Sparkles className="text-idf-yellow" size={20} />
                                 שיבוץ אוטומטי
                             </h2>
-                            <p className="text-green-50 mt-1">הפעלת האלגוריתם החכם לשיבוץ משמרות</p>
+                            <p className="text-slate-500 text-xs md:text-sm mt-1">הפעלת האלגוריתם החכם לשיבוץ משמרות</p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="text-white/80 hover:text-white hover:bg-white/20 p-1 rounded-full transition-colors"
+                            className="p-1.5 md:p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500"
                         >
-                            <X size={24} />
+                            <X size={20} />
                         </button>
                     </div>
                 </div>
 
                 {/* Content */}
-                <div className="p-6 overflow-y-auto flex-1">
+                <div className="p-4 md:p-6 overflow-y-auto flex-1">
                     {/* Mode Selection */}
                     <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
                         <button
                             onClick={() => setMode('single')}
                             className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${mode === 'single'
-                                ? 'bg-white text-green-600 shadow-sm'
+                                ? 'bg-white text-slate-900 shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
-                            <Calendar size={16} />
+                            <Calendar size={16} className={mode === 'single' ? 'text-idf-yellow' : ''} />
                             יום בודד
                         </button>
                         <button
                             onClick={() => setMode('range')}
                             className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${mode === 'range'
-                                ? 'bg-white text-green-600 shadow-sm'
+                                ? 'bg-white text-slate-900 shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
-                            <Calendar size={16} />
+                            <Calendar size={16} className={mode === 'range' ? 'text-idf-yellow' : ''} />
                             טווח תאריכים
                         </button>
                     </div>
@@ -129,7 +129,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all font-medium"
+                                className="w-full p-2 md:p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-idf-yellow focus:ring-2 focus:ring-yellow-100 outline-none transition-all font-medium text-sm"
                             />
                         </div>
                         {mode === 'range' && (
@@ -140,7 +140,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                     value={endDate}
                                     min={startDate}
                                     onChange={(e) => setEndDate(e.target.value)}
-                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition-all font-medium"
+                                    className="w-full p-2 md:p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-idf-yellow focus:ring-2 focus:ring-yellow-100 outline-none transition-all font-medium text-sm"
                                 />
                             </div>
                         )}
@@ -152,7 +152,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                             <label className="text-sm font-bold text-slate-700">בחר משימות לשיבוץ</label>
                             <button
                                 onClick={handleSelectAllTasks}
-                                className="text-xs text-green-600 font-medium hover:underline"
+                                className="text-xs text-slate-600 font-medium hover:text-idf-yellow hover:underline transition-colors"
                             >
                                 {selectedTaskIds.size === tasks.length ? 'בטל בחירה' : 'בחר הכל'}
                             </button>
@@ -170,7 +170,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                             className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer transition-colors"
                                         >
                                             <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedTaskIds.has(task.id)
-                                                ? 'bg-green-600 border-green-600 text-white'
+                                                ? 'bg-idf-yellow border-idf-yellow text-slate-900'
                                                 : 'border-slate-300 bg-white'
                                                 }`}>
                                                 {selectedTaskIds.has(task.id) && <CheckSquare size={14} />}
@@ -182,7 +182,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                                 onChange={() => handleToggleTask(task.id)}
                                             />
                                             <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-slate-700 truncate">{task.name}</div>
+                                                <div className="font-medium text-slate-700 truncate text-sm">{task.name}</div>
                                                 <div className="text-xs text-slate-400 flex gap-2">
                                                     <span>{task.requiredPeople} לוחמים</span>
                                                     <span>•</span>
@@ -199,32 +199,33 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-slate-100 bg-slate-50 shrink-0 flex gap-3">
+                <div className="p-4 md:p-6 border-t border-slate-100 bg-slate-50 shrink-0 flex gap-3">
                     <button
                         onClick={handleSubmit}
                         disabled={isScheduling || !startDate || (mode === 'range' && !endDate) || selectedTaskIds.size === 0}
-                        className="flex-[2] py-3 px-4 rounded-xl font-bold text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 disabled:from-slate-300 disabled:to-slate-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                        className="flex-[2] py-2.5 md:py-3 px-4 rounded-xl font-bold text-slate-900 bg-idf-yellow hover:bg-idf-yellow-hover disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 text-sm md:text-base"
                     >
                         {isScheduling ? (
                             <>
-                                <Loader2 className="animate-spin" />
+                                <Loader2 className="animate-spin" size={18} />
                                 <span>משבץ...</span>
                             </>
                         ) : (
                             <>
-                                <Wand2 size={20} />
-                                <span>התחל שיבוץ אוטומטי</span>
+                                <Wand2 size={18} />
+                                <span>התחל שיבוץ</span>
                             </>
                         )}
                     </button>
                     <button
                         onClick={onClose}
-                        className="flex-1 py-3 px-4 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+                        className="flex-1 py-2.5 md:py-3 px-4 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors text-sm md:text-base"
                     >
                         ביטול
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
