@@ -315,6 +315,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                 <div className="flex gap-2 w-full md:w-auto">
                     {activeTab === 'people' && (
+                        /* Import Button */
                         <button onClick={() => setIsImportWizardOpen(true)} className="flex-1 md:flex-none bg-green-100 text-green-800 hover:bg-green-200 px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2 transition-colors">
                             ייבוא <FileSpreadsheet size={18} />
                         </button>
