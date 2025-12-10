@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Person, Team, Role } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
-import { Plus, Trash2, Shield, Users, Check, Pencil, Star, Heart, Truck, Syringe, Zap, Anchor, Target, Eye, Cpu, Cross } from 'lucide-react';
+import { Plus, Trash2, Shield, Users, Check, Pencil, Star, Heart, Truck, Syringe, Zap, Anchor, Target, Eye, Cpu, Cross, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Select } from './ui/Select';
+import { ExcelImportWizard } from './ExcelImportWizard';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -56,6 +57,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState<Tab>(initialTab);
     const { showToast } = useToast();
+    const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
     // Update active tab when initialTab prop changes
     React.useEffect(() => {
@@ -79,6 +81,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
     // Form State
     const [newName, setNewName] = useState('');
+    const [newEmail, setNewEmail] = useState('');
     const [selectedTeamId, setSelectedTeamId] = useState('');
     const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
 
@@ -97,6 +100,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         const personData: Person = {
             id: editingPersonId || Math.random().toString(36).substr(2, 9),
             name: newName,
+            email: newEmail,
             teamId: selectedTeamId,
             roleIds: selectedRoleIds,
             maxHoursPerWeek: 40,
@@ -118,6 +122,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
     const handleEditPersonClick = (p: Person) => {
         setNewName(p.name);
+        setNewEmail(p.email || '');
         setSelectedTeamId(p.teamId);
         setSelectedRoleIds(p.roleIds);
         setEditingPersonId(p.id);
@@ -190,12 +195,19 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setEditingPersonId(null);
         setEditingRoleId(null);
         setNewItemName('');
+        setNewItemName('');
         setNewName('');
+        setNewEmail('');
         setSelectedTeamId('');
         setSelectedRoleIds([]);
         setSelectedColor('');
         setSelectedIcon('Shield');
     }
+
+    const handleBulkImport = (newPeople: Person[]) => {
+        newPeople.forEach(p => onAddPerson(p));
+        showToast(`נוספו ${newPeople.length} חיילים בהצלחה`, 'success');
+    };
 
     // Render inline form component
     const renderEditForm = (type: 'person' | 'team' | 'role', itemId: string) => {
@@ -206,19 +218,20 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         return (
             <div className="col-span-full mb-4 bg-slate-50 p-4 md:p-6 rounded-xl border-2 border-idf-yellow animate-fadeIn">
                 <h3 className="font-bold text-slate-800 mb-4 text-base md:text-lg">
-                    {type === 'person' ? 'עריכת לוחם' : type === 'team' ? 'עריכת צוות' : 'עריכת תפקיד'}
+                    {type === 'person' ? 'עריכת חייל' : type === 'team' ? 'עריכת צוות' : 'עריכת תפקיד'}
                 </h3>
 
                 {type === 'person' ? (
                     <div className="space-y-3 md:space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                             <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="שם מלא" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
+                            <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="אימייל (אופציונלי)" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
                             <Select
                                 value={selectedTeamId}
                                 onChange={setSelectedTeamId}
                                 options={teams.map(t => ({ value: t.id, label: t.name }))}
                                 placeholder="בחר צוות..."
-                                className="bg-white"
+                                className="bg-white md:col-span-2"
                             />
                         </div>
                         <div>
@@ -299,16 +312,24 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     <button onClick={() => { setActiveTab('teams'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'teams' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>צוותים</button>
                     <button onClick={() => { setActiveTab('roles'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'roles' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>תפקידים</button>
                 </div>
-                <button onClick={() => {
-                    if (activeTab === 'people' && teams.length === 0) {
-                        showToast('יש להגדיר צוותים לפני הוספת לוחמים', 'error');
-                        setActiveTab('teams');
-                        return;
-                    }
-                    setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName('');
-                }} className="w-full md:w-auto bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2">
-                    הוסף חדש <Plus size={16} />
-                </button>
+
+                <div className="flex gap-2 w-full md:w-auto">
+                    {activeTab === 'people' && (
+                        <button onClick={() => setIsImportWizardOpen(true)} className="flex-1 md:flex-none bg-green-100 text-green-800 hover:bg-green-200 px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2 transition-colors">
+                            ייבוא <FileSpreadsheet size={18} />
+                        </button>
+                    )}
+                    <button onClick={() => {
+                        if (activeTab === 'people' && teams.length === 0) {
+                            showToast('יש להגדיר צוותים לפני הוספת לוחמים', 'error');
+                            setActiveTab('teams');
+                            return;
+                        }
+                        setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
+                    }} className="flex-1 md:flex-none bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2">
+                        הוסף חדש <Plus size={16} />
+                    </button>
+                </div>
             </div>
 
             {/* Top Form - Only for "Add New" */}
@@ -322,12 +343,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         <div className="space-y-3 md:space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                 <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="שם מלא" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
+                                <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="אימייל (אופציונלי)" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
                                 <Select
                                     value={selectedTeamId}
                                     onChange={setSelectedTeamId}
                                     options={teams.map(t => ({ value: t.id, label: t.name }))}
                                     placeholder="בחר צוות..."
-                                    className="bg-white"
+                                    className="bg-white md:col-span-2"
                                 />
                             </div>
                             <div>
@@ -462,6 +484,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     );
                 })}
             </div>
+            <ExcelImportWizard
+                isOpen={isImportWizardOpen}
+                onClose={() => setIsImportWizardOpen(false)}
+                onImport={handleBulkImport}
+                teams={teams}
+                roles={roles}
+                onAddTeam={onAddTeam}
+                onAddRole={onAddRole}
+            />
         </div>
     );
 };
