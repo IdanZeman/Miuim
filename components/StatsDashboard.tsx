@@ -118,7 +118,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, 
                      <UserCircle size={48} className="text-slate-300 mb-4" />
                      <h3 className="text-lg font-bold text-slate-800 mb-2">לא נמצאו נתונים</h3>
                      <p className="text-slate-500 max-w-md">
-                        לא הצלחנו למצוא פרופיל לוחם המקושר למשתמש שלך ({currentUserName || currentUserEmail}).
+                        לא הצלחנו למצוא פרופיל חייל המקושר למשתמש שלך ({currentUserName || currentUserEmail}).
                         אנא פנה למנהל המערכת לוודא שהשם שלך במערכת זהה לשם המשתמש.
                      </p>
                   </div>

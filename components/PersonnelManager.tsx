@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Person, Team, Role } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
-import { Plus, Trash2, Shield, Users, Check, Pencil, Star, Heart, Truck, Syringe, Zap, Anchor, Target, Eye, Cpu, Cross, FileSpreadsheet } from 'lucide-react';
+import { Plus, Trash2, Shield, Users, Check, Pencil, Star, Heart, Truck, Syringe, Zap, Anchor, Target, Eye, Cpu, Cross, FileSpreadsheet, ChevronDown, ChevronLeft } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Select } from './ui/Select';
 import { ExcelImportWizard } from './ExcelImportWizard';
@@ -89,6 +89,16 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const [newItemName, setNewItemName] = useState('');
     const [selectedColor, setSelectedColor] = useState(''); // Shared for Team/Role
     const [selectedIcon, setSelectedIcon] = useState('Shield'); // Only for Roles
+    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+
+    const toggleTeamCollapse = (teamId: string) => {
+        setCollapsedTeams(prev => {
+            const next = new Set(prev);
+            if (next.has(teamId)) next.delete(teamId);
+            else next.add(teamId);
+            return next;
+        });
+    };
 
     const handleSavePerson = () => {
         if (!newName || !selectedTeamId) return;
@@ -322,7 +332,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     )}
                     <button onClick={() => {
                         if (activeTab === 'people' && teams.length === 0) {
-                            showToast('יש להגדיר צוותים לפני הוספת לוחמים', 'error');
+                            showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
                             setActiveTab('teams');
                             return;
                         }
@@ -418,35 +428,66 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             {/* Content Lists */}
             {/* Content Lists */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {activeTab === 'people' && people.map(person => {
-                    const team = teams.find(t => t.id === person.teamId);
-                    return (
-                        <React.Fragment key={person.id}>
-                            <div className="bg-white border border-idf-card-border rounded-xl p-3 md:p-4 hover:shadow-md transition-all group">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                        <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0 ${person.color}`}>{getPersonInitials(person.name)}</div>
-                                        <div className="min-w-0 flex-1">
-                                            <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">{person.name}</h4>
-                                            <span className="text-xs text-slate-500 truncate block">{team?.name || 'ללא צוות'}</span>
+                {activeTab === 'people' && (
+                    <div className="col-span-full space-y-6">
+                        {teams.concat([{ id: 'no-team', name: 'ללא צוות', color: 'border-slate-300' } as any]).map(team => {
+                            const teamMembers = people.filter(p => (team.id === 'no-team' ? !p.teamId : p.teamId === team.id));
+                            if (teamMembers.length === 0) return null;
+                            const isCollapsed = collapsedTeams.has(team.id);
+
+                            return (
+                                <div key={team.id} className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                                    <div
+                                        className="p-3 md:p-4 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+                                        onClick={() => toggleTeamCollapse(team.id)}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-1 h-6 rounded-full ${team.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
+                                            <h3 className="font-bold text-slate-800 text-base md:text-lg">{team.name}</h3>
+                                            <span className="bg-white px-2 py-0.5 rounded-full text-xs font-bold text-slate-500 border border-slate-200">
+                                                {teamMembers.length}
+                                            </span>
                                         </div>
+                                        <button className="text-slate-400">
+                                            {isCollapsed ? <ChevronLeft size={20} /> : <ChevronDown size={20} />}
+                                        </button>
                                     </div>
-                                    <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                        <button onClick={() => handleEditPersonClick(person)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={14} /></button>
-                                        <button onClick={() => onDeletePerson(person.id)} className="text-slate-300 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={14} /></button>
-                                    </div>
+
+                                    {!isCollapsed && (
+                                        <div className="p-3 md:p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-slate-200">
+                                            {teamMembers.map(person => (
+                                                <React.Fragment key={person.id}>
+                                                    <div className="bg-white border border-slate-100 rounded-xl p-3 md:p-4 hover:shadow-md transition-all group">
+                                                        <div className="flex justify-between items-start">
+                                                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                                                                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0 ${person.color}`}>{getPersonInitials(person.name)}</div>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">{person.name}</h4>
+                                                                    <span className="text-xs text-slate-500 truncate block">{person.email || 'אין אימייל'}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                                <button onClick={() => handleEditPersonClick(person)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={14} /></button>
+                                                                <button onClick={() => onDeletePerson(person.id)} className="text-slate-300 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={14} /></button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="mt-2 md:mt-3 flex flex-wrap gap-1">
+                                                            {person.roleIds.map(rid => {
+                                                                const r = roles.find(role => role.id === rid);
+                                                                return r ? <span key={rid} className="text-[10px] bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-100">{r.name}</span> : null;
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                    {renderEditForm('person', person.id)}
+                                                </React.Fragment>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="mt-2 md:mt-3 flex flex-wrap gap-1">
-                                    {person.roleIds.map(rid => {
-                                        const r = roles.find(role => role.id === rid);
-                                        return r ? <span key={rid} className="text-[10px] bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-100">{r.name}</span> : null;
-                                    })}
-                                </div>
-                            </div>
-                            {renderEditForm('person', person.id)}
-                        </React.Fragment>
-                    );
-                })}
+                            );
+                        })}
+                    </div>
+                )}
 
                 {activeTab === 'teams' && teams.map(team => (
                     <React.Fragment key={team.id}>

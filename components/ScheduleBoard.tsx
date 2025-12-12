@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { RotateCcw, Sparkles } from 'lucide-react';
-import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../hooks/useConfirmation';
@@ -222,6 +222,15 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(!isViewer);
     const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
     const dateInputRef = useRef<HTMLInputElement>(null);
+    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+    const toggleTeamCollapse = (teamId: string) => {
+        setCollapsedTeams(prev => {
+            const next = new Set(prev);
+            if (next.has(teamId)) next.delete(teamId);
+            else next.add(teamId);
+            return next;
+        });
+    };
 
 
 
@@ -493,7 +502,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                         {upcoming.assignedPersonIds.length < task.requiredPeople && (
                             <div className="mt-3 text-xs text-red-500 font-medium flex items-center gap-1">
                                 <Sparkles size={12} />
-                                חסרים {task.requiredPeople - upcoming.assignedPersonIds.length} לוחמים
+                                חסרים {task.requiredPeople - upcoming.assignedPersonIds.length} חיילים
                             </div>
                         )}
                     </div>
@@ -754,7 +763,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                             )}
                                         </div>
                                     ))}
-                                    {assignedPeople.length === 0 && <p className="text-slate-400 text-xs md:text-sm text-center py-4">לא שובצו לוחמים</p>}
+                                    {assignedPeople.length === 0 && <p className="text-slate-400 text-xs md:text-sm text-center py-4">לא שובצו חיילים</p>}
                                 </div>
                             </div>
 
@@ -769,26 +778,68 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                             <Sparkles size={12} />
                                             תציע לי חייל זמין                                        </button>
                                     </div>
-                                    <div className="space-y-1.5 md:space-y-2">
-                                        {availablePeople.map(p => {
-                                            const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => p.roleIds.includes(rc.roleId));
-                                            const isFull = assignedPeople.length >= task.requiredPeople;
-                                            const canAssign = hasRole && !isFull;
+                                    <div className="space-y-4">
+                                        {(() => {
+                                            const peopleByTeam = teams.map(team => ({
+                                                team,
+                                                members: availablePeople.filter(p => p.teamId === team.id)
+                                            }));
 
-                                            return (
-                                                <div key={p.id} className={`flex items-center justify-between p-2 md:p-3 rounded-lg md:rounded-xl border transition-all ${canAssign ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
-                                                    <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                                        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
-                                                        <div className="flex flex-col min-w-0 flex-1">
-                                                            <span className="font-bold text-slate-700 text-xs md:text-sm truncate">{p.name}</span>
-                                                            {!hasRole && <span className="text-[9px] md:text-[10px] text-red-500">אין התאמה</span>}
-                                                            {isFull && hasRole && <span className="text-[9px] md:text-[10px] text-amber-500">משמרת מלאה</span>}
+                                            const noTeamMembers = availablePeople.filter(p => !p.teamId || !teams.find(t => t.id === p.teamId));
+                                            if (noTeamMembers.length > 0) {
+                                                peopleByTeam.push({
+                                                    team: { id: 'no-team', name: 'ללא צוות', color: 'border-slate-300' } as any,
+                                                    members: noTeamMembers
+                                                });
+                                            }
+
+                                            return peopleByTeam.map(({ team, members }) => {
+                                                if (members.length === 0) return null;
+                                                const isCollapsed = collapsedTeams.has(team.id);
+
+                                                return (
+                                                    <div key={team.id} className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+                                                        <div
+                                                            className="px-2 py-1.5 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+                                                            onClick={() => toggleTeamCollapse(team.id)}
+                                                        >
+                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                <div className={`w-0.5 h-4 rounded-full ${team.color?.replace('border-', 'bg-') || 'bg-slate-400'}`}></div>
+                                                                <span className="font-bold text-xs text-slate-700 truncate">{team.name}</span>
+                                                                <span className="text-[10px] bg-white px-1.5 rounded-full border border-slate-200 text-slate-500 font-bold">{members.length}</span>
+                                                            </div>
+                                                            <button className="text-slate-400">
+                                                                {isCollapsed ? <ChevronLeft size={14} /> : <ChevronDown size={14} />}
+                                                            </button>
                                                         </div>
+
+                                                        {!isCollapsed && (
+                                                            <div className="space-y-1.5 p-2 pt-0 md:space-y-2 border-t border-slate-200/50 mt-1">
+                                                                {members.map(p => {
+                                                                    const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => p.roleIds.includes(rc.roleId));
+                                                                    const isFull = assignedPeople.length >= task.requiredPeople;
+                                                                    const canAssign = hasRole && !isFull;
+
+                                                                    return (
+                                                                        <div key={p.id} className={`flex items-center justify-between p-2 md:p-3 rounded-lg md:rounded-xl border transition-all ${canAssign ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
+                                                                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                                                                                <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
+                                                                                <div className="flex flex-col min-w-0 flex-1">
+                                                                                    <span className="font-bold text-slate-700 text-xs md:text-sm truncate">{p.name}</span>
+                                                                                    {!hasRole && <span className="text-[9px] md:text-[10px] text-red-500">אין התאמה</span>}
+                                                                                    {isFull && hasRole && <span className="text-[9px] md:text-[10px] text-amber-500">משמרת מלאה</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                            <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!canAssign} className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0 ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!canAssign} className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0 ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            });
+                                        })()}
                                     </div>
                                 </div>
                             )}

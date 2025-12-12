@@ -145,7 +145,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-full p-2 md:p-2.5 rounded-lg border border-slate-300 text-sm md:text-base" min="1" />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">סה"כ לוחמים</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">סה"כ חיילים</label>
                             <div className="w-full p-2 md:p-2.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 font-bold text-sm md:text-base">
                                 {totalPeople > 0 ? totalPeople : 1}
                             </div>
@@ -239,7 +239,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 pb-4 border-b border-slate-100 gap-4">
                 <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 md:gap-3">
                     <span className="bg-blue-50 p-2 rounded-lg text-blue-600"><CheckSquare size={20} /></span>
-                    בנק משימות
+                    ניהול משימות
                 </h2>
                 {!isAdding && !editId && (
                     <button onClick={() => {
@@ -272,7 +272,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                 <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-full p-2 md:p-2.5 rounded-lg border border-slate-300 text-sm md:text-base" min="1" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">סה"כ לוחמים</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">סה"כ חיילים</label>
                                 <div className="w-full p-2 md:p-2.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 font-bold text-sm md:text-base">
                                     {totalPeople > 0 ? totalPeople : 1}
                                 </div>
@@ -411,7 +411,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                 </div>
                                 <div className="flex items-center gap-1.5 md:gap-2">
                                     <Users size={14} className="text-slate-400 flex-shrink-0" />
-                                    <span className="font-medium">{task.requiredPeople} לוחמים</span>
+                                    <span className="font-medium">{task.requiredPeople} חיילים</span>
                                 </div>
                                 <div className="flex items-center gap-1.5 md:gap-2 col-span-2 text-slate-500">
                                     <AlertCircle size={14} className="flex-shrink-0" />
