@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TaskTemplate, Role, SchedulingType } from '../types';
-import { Clock, Users, AlertCircle, CheckSquare, Plus, Pencil, Trash2, X, Check, Repeat, Calendar } from 'lucide-react';
+import { Clock, Users, AlertCircle, CheckSquare, Plus, Pencil, Trash2, X, Check, Repeat, Calendar, Copy } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Select } from './ui/Select';
 
@@ -66,6 +66,16 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         setSpecificDate(task.specificDate || '');
         setEditId(task.id);
         setIsAdding(false); // Don't show top form
+    };
+
+    const handleDuplicateTask = (task: TaskTemplate) => {
+        const newTask: TaskTemplate = {
+            ...task,
+            id: `task-${Date.now()}`,
+            name: `${task.name} (עותק)`,
+        };
+        onAddTask(newTask);
+        showToast('המשימה שוכפלה בהצלחה', 'success');
     };
 
     const handleSubmit = () => {
@@ -362,6 +372,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             <div className={`absolute top-0 right-0 w-1 md:w-1.5 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
 
                             <div className="absolute top-3 md:top-4 left-3 md:left-4 flex gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleDuplicateTask(task)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-green-100 text-slate-500 hover:text-green-600 rounded-full" title="שכפל משימה">
+                                    <Copy size={14} />
+                                </button>
                                 <button onClick={() => handleEditClick(task)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-600 rounded-full">
                                     <Pencil size={14} />
                                 </button>
