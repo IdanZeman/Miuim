@@ -84,7 +84,8 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                         type="time"
                         value={start}
                         onChange={e => setStart(e.target.value)}
-                        className="w-full px-3 md:px-4 py-2 rounded-lg md:rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-sm md:text-base"
+                        className="w-full px-3 md:px-4 py-2 rounded-lg md:rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-sm md:text-base text-right"
+                        lang="he"
                     />
                 </div>
                 <div className="flex-1">
@@ -93,14 +94,15 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                         type="time"
                         value={end}
                         onChange={e => setEnd(e.target.value)}
-                        className="w-full px-3 md:px-4 py-2 rounded-lg md:rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-sm md:text-base"
+                        className="w-full px-3 md:px-4 py-2 rounded-lg md:rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-sm md:text-base text-right"
+                        lang="he"
                     />
                 </div>
             </div>
 
             <div className="border-t border-slate-100 pt-4 md:pt-6">
                 <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">חשיפת לו"ז לצופים (ימים קדימה)</label>
-                <div className="flex items-center gap-3 md:gap-4">
+                <div className="flex flex-wrap items-center gap-3 md:gap-4">
                     <input
                         type="number"
                         min="1"

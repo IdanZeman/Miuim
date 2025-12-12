@@ -63,6 +63,7 @@ const IsraeliDateInput: React.FC<{ value: string, onChange: (val: string) => voi
                     value={value}
                     onChange={handleDatePick}
                     className="opacity-0 cursor-pointer absolute inset-0 w-full h-full scale-150"
+                    lang="he"
                 />
             </div>
         </div>
@@ -220,7 +221,8 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
                                             type="time"
                                             value={startTime}
                                             onChange={e => setStartTime(e.target.value)}
-                                            className="w-32 p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm shadow-sm"
+                                            className="w-32 p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm shadow-sm text-right"
+                                            lang="he"
                                         />
                                     </div>
                                 </div>
@@ -234,7 +236,8 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
                                             type="time"
                                             value={endTime}
                                             onChange={e => setEndTime(e.target.value)}
-                                            className="w-32 p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm shadow-sm"
+                                            className="w-32 p-2.5 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 outline-none text-sm shadow-sm text-right"
+                                            lang="he"
                                         />
                                     </div>
                                 </div>

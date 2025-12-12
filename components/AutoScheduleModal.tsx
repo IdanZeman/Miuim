@@ -129,7 +129,8 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full p-2 md:p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-idf-yellow focus:ring-2 focus:ring-yellow-100 outline-none transition-all font-medium text-sm"
+                                className="w-full p-2 md:p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-idf-yellow focus:ring-2 focus:ring-yellow-100 outline-none transition-all font-medium text-sm text-right"
+                                lang="he"
                             />
                         </div>
                         {mode === 'range' && (
@@ -140,7 +141,8 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                     value={endDate}
                                     min={startDate}
                                     onChange={(e) => setEndDate(e.target.value)}
-                                    className="w-full p-2 md:p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-idf-yellow focus:ring-2 focus:ring-yellow-100 outline-none transition-all font-medium text-sm"
+                                    className="w-full p-2 md:p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-idf-yellow focus:ring-2 focus:ring-yellow-100 outline-none transition-all font-medium text-sm text-right"
+                                    lang="he"
                                 />
                             </div>
                         )}

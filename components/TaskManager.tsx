@@ -159,12 +159,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                     <label className="block text-xs font-bold text-slate-500 mb-1">
                                         {schedulingType === 'continuous' ? 'שעת התחלה' : 'שעת משימה'}
                                     </label>
-                                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="p-2 rounded-lg border border-slate-300 w-full text-sm" />
+                                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="p-2 rounded-lg border border-slate-300 w-full text-sm text-right" lang="he" />
                                 </div>
                                 {schedulingType === 'one-time' && (
                                     <div className="flex-1">
                                         <label className="block text-xs font-bold text-slate-500 mb-1">תאריך</label>
-                                        <input type="date" value={specificDate} onChange={e => setSpecificDate(e.target.value)} className="p-2 rounded-lg border border-slate-300 w-full text-sm" />
+                                        <input type="date" value={specificDate} onChange={e => setSpecificDate(e.target.value)} className="p-2 rounded-lg border border-slate-300 w-full text-sm text-right" lang="he" />
                                     </div>
                                 )}
                             </div>
@@ -286,12 +286,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                         <label className="block text-xs font-bold text-slate-500 mb-1">
                                             {schedulingType === 'continuous' ? 'שעת התחלה' : 'שעת משימה'}
                                         </label>
-                                        <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="p-2 rounded-lg border border-slate-300 w-full text-sm" />
+                                        <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="p-2 rounded-lg border border-slate-300 w-full text-sm text-right" lang="he" />
                                     </div>
                                     {schedulingType === 'one-time' && (
                                         <div className="flex-1">
                                             <label className="block text-xs font-bold text-slate-500 mb-1">תאריך</label>
-                                            <input type="date" value={specificDate} onChange={e => setSpecificDate(e.target.value)} className="p-2 rounded-lg border border-slate-300 w-full text-sm" />
+                                            <input type="date" value={specificDate} onChange={e => setSpecificDate(e.target.value)} className="p-2 rounded-lg border border-slate-300 w-full text-sm text-right" lang="he" />
                                         </div>
                                     )}
                                 </div>

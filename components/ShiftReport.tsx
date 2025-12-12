@@ -179,36 +179,40 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
                         <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">מתאריך</label>
                         <input
                             type="date"
+                            lang="he"
                             value={startDate}
                             onChange={e => setStartDate(e.target.value)}
-                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base"
+                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base text-right"
                         />
                     </div>
                     <div>
                         <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">משעה</label>
                         <input
                             type="time"
+                            lang="he"
                             value={startTime}
                             onChange={e => setStartTime(e.target.value)}
-                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base"
+                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base text-right"
                         />
                     </div>
                     <div>
                         <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">עד תאריך</label>
                         <input
                             type="date"
+                            lang="he"
                             value={endDate}
                             onChange={e => setEndDate(e.target.value)}
-                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base"
+                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base text-right"
                         />
                     </div>
                     <div>
                         <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">עד שעה</label>
                         <input
                             type="time"
+                            lang="he"
                             value={endTime}
                             onChange={e => setEndTime(e.target.value)}
-                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base"
+                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base text-right"
                         />
                     </div>
                 </div>
