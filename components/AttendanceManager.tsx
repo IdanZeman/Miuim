@@ -128,7 +128,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ people, te
                                         {/* Controls */}
                                         <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
                                             {avail.isAvailable ? (
-                                                <div className="flex items-center gap-2 animate-fadeIn">
+                                                <div className="flex items-center gap-2 animate-fadeIn flex-wrap">
                                                     <div className="flex flex-col">
                                                         <label className="text-[10px] text-slate-400 font-bold">התחלה</label>
                                                         <input

@@ -174,7 +174,7 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
                 </div>
 
                 {/* Date + Time Range Selector */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4 items-end">
                     <div>
                         <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">מתאריך</label>
                         <input
@@ -220,7 +220,7 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
                 {/* Filters Panel */}
                 {showFilters && (
                     <div className="bg-slate-50 rounded-xl p-3 md:p-4 border border-slate-200 animate-fadeIn">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                             {/* Task Filter */}
                             <div>
                                 <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">סינון לפי משימה</label>
