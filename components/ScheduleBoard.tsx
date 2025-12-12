@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { RotateCcw, Sparkles } from 'lucide-react';
-import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../hooks/useConfirmation';
@@ -520,8 +520,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         const [newStart, setNewStart] = useState(new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }));
         const [newEnd, setNewEnd] = useState(new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }));
 
+        const [searchTerm, setSearchTerm] = useState('');
         const assignedPeople = selectedShift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
-        const availablePeople = people.filter(p => !selectedShift.assignedPersonIds.includes(p.id));
+        const availablePeople = people.filter(p => !selectedShift.assignedPersonIds.includes(p.id) && p.name.includes(searchTerm));
 
         const [suggestedCandidates, setSuggestedCandidates] = useState<{ person: Person, reason: string }[]>([]);
         const [suggestionIndex, setSuggestionIndex] = useState(0);
@@ -777,6 +778,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                         >
                                             <Sparkles size={12} />
                                             תציע לי חייל זמין                                        </button>
+                                    </div>
+                                    <div className="relative mb-3">
+                                        <Search className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                        <input
+                                            type="text"
+                                            placeholder="חפש חייל פנוי..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full pl-3 pr-8 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                                        />
                                     </div>
                                     <div className="space-y-4">
                                         {(() => {

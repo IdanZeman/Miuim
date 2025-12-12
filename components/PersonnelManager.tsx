@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Person, Team, Role } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
-import { Plus, Trash2, Shield, Users, Check, Pencil, Star, Heart, Truck, Syringe, Zap, Anchor, Target, Eye, Cpu, Cross, FileSpreadsheet, ChevronDown, ChevronLeft } from 'lucide-react';
+import { Plus, Trash2, Shield, Users, Check, Pencil, Star, Heart, Truck, Syringe, Zap, Anchor, Target, Eye, Cpu, Cross, FileSpreadsheet, ChevronDown, ChevronLeft, Search } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Select } from './ui/Select';
 import { ExcelImportWizard } from './ExcelImportWizard';
@@ -90,6 +90,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const [selectedColor, setSelectedColor] = useState(''); // Shared for Team/Role
     const [selectedIcon, setSelectedIcon] = useState('Shield'); // Only for Roles
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+    const [searchTerm, setSearchTerm] = useState('');
 
     const toggleTeamCollapse = (teamId: string) => {
         setCollapsedTeams(prev => {
@@ -430,8 +431,20 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {activeTab === 'people' && (
                     <div className="col-span-full space-y-6">
+                        <div className="relative max-w-md mx-auto mb-6">
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input
+                                type="text"
+                                placeholder="חפש לוחם..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-4 pr-10 py-2 rounded-full border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-idf-green focus:border-transparent"
+                            />
+                        </div>
+
                         {teams.concat([{ id: 'no-team', name: 'ללא צוות', color: 'border-slate-300' } as any]).map(team => {
-                            const teamMembers = people.filter(p => (team.id === 'no-team' ? !p.teamId : p.teamId === team.id));
+                            const teamMembers = people.filter(p => (team.id === 'no-team' ? !p.teamId : p.teamId === team.id))
+                                .filter(p => p.name.includes(searchTerm));
                             if (teamMembers.length === 0) return null;
                             const isCollapsed = collapsedTeams.has(team.id);
 

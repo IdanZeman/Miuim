@@ -5,7 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { ConfirmationModal } from './ConfirmationModal';
 import { logger } from '../services/loggingService';
-import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users } from 'lucide-react';
+import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users, Search } from 'lucide-react';
 import { UserRole, Profile, OrganizationInvite } from '../types';
 import { Select } from './ui/Select';
 
@@ -144,6 +144,7 @@ export const OrganizationSettings: React.FC = () => {
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState<UserRole>('viewer');
     const [sending, setSending] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
@@ -425,13 +426,28 @@ export const OrganizationSettings: React.FC = () => {
 
             {/* Members List */}
             <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-emerald-200">
-                <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-                    <Users className="text-emerald-600 flex-shrink-0" size={20} />
-                    <h2 className="text-lg md:text-2xl font-bold text-slate-800">חברי צוות</h2>
+                <div className="flex items-center justify-between mb-4 md:mb-6">
+                    <div className="flex items-center gap-2 md:gap-3">
+                        <Users className="text-emerald-600 flex-shrink-0" size={20} />
+                        <h2 className="text-lg md:text-2xl font-bold text-slate-800">חברי צוות</h2>
+                    </div>
+                    <div className="relative w-full max-w-xs">
+                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                            type="text"
+                            placeholder="חפש חבר צוות..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-4 pr-10 py-2 rounded-full border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        />
+                    </div>
                 </div>
 
                 <div className="space-y-2 md:space-y-3">
-                    {members.map((member) => (
+                    {members.filter(m =>
+                    (m.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        m.email.toLowerCase().includes(searchTerm.toLowerCase()))
+                    ).map((member) => (
                         <div key={member.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 md:p-4 bg-slate-50 rounded-lg md:rounded-xl border border-slate-200 gap-3">
                             <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
                                 <div className="w-9 h-9 md:w-10 md:h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">

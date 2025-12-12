@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Person, Shift, TaskTemplate, Role } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Activity, Users, CalendarCheck, UserCircle, BarChart2, Moon } from 'lucide-react';
+import { Activity, Users, CalendarCheck, UserCircle, BarChart2, Moon, Search } from 'lucide-react';
 import { PersonalStats } from './PersonalStats';
 import { DetailedUserStats } from './DetailedUserStats';
 import { supabase } from '../services/supabaseClient';
@@ -22,6 +22,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, 
    const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
    const [nightShiftStart, setNightShiftStart] = useState('22:00');
    const [nightShiftEnd, setNightShiftEnd] = useState('06:00');
+   const [searchTerm, setSearchTerm] = useState('');
 
    useEffect(() => {
       const fetchSettings = async () => {
@@ -123,24 +124,37 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({ people, shifts, 
                      </p>
                   </div>
                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                     {people.map(person => (
-                        <PersonalStats
-                           key={person.id}
-                           person={person}
-                           shifts={shifts}
-                           tasks={tasks}
-                           onClick={() => setSelectedPersonId(person.id)}
-                           nightShiftStart={nightShiftStart}
-                           nightShiftEnd={nightShiftEnd}
+                  <div className="space-y-6">
+                     <div className="relative max-w-md mx-auto">
+                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                           type="text"
+                           placeholder="חפש חייל..."
+                           value={searchTerm}
+                           onChange={(e) => setSearchTerm(e.target.value)}
+                           className="w-full pl-4 pr-10 py-2 rounded-full border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
-                     ))}
-                     <div className="bg-white rounded-xl shadow-portal p-6 flex items-center justify-between border-b-4 border-purple-400">
-                        <div>
-                           <p className="text-slate-500 font-medium text-sm mb-1">משמרות פעילות</p>
-                           <h3 className="text-3xl font-bold text-slate-800">{shifts.length}</h3>
+                     </div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {people.filter(p => p.name.includes(searchTerm)).map(person => (
+                           <PersonalStats
+                              key={person.id}
+                              person={person}
+                              shifts={shifts}
+                              tasks={tasks}
+                              onClick={() => setSelectedPersonId(person.id)}
+                              nightShiftStart={nightShiftStart}
+                              nightShiftEnd={nightShiftEnd}
+                           />
+                        ))}
+                        <div className="bg-white rounded-xl shadow-portal p-6 flex items-center justify-between border-b-4 border-purple-400">
+                           <div>
+                              <p className="text-slate-500 font-medium text-sm mb-1">משמרות פעילות</p>
+                              <h3 className="text-3xl font-bold text-slate-800">{shifts.length}</h3>
+                           </div>
+                           <div className="bg-purple-50 p-3 rounded-full text-purple-500"><CalendarCheck size={24} /></div>
                         </div>
-                        <div className="bg-purple-50 p-3 rounded-full text-purple-500"><CalendarCheck size={24} /></div>
                      </div>
                   </div>
                )
