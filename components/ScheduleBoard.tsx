@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
@@ -221,6 +221,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
 
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(!isViewer);
     const [acknowledgedWarnings, setAcknowledgedWarnings] = useState<Set<string>>(new Set());
+    const dateInputRef = useRef<HTMLInputElement>(null);
 
 
 
@@ -1031,9 +1032,35 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
                                 <ChevronRight size={16} />
                             </button>
 
-                            <span className="px-2 md:px-4 text-xs md:text-sm font-bold text-slate-600 min-w-[120px] md:min-w-[140px] text-center">
-                                {selectedDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })}
-                            </span>
+                            <div
+                                className="relative group cursor-pointer px-2 md:px-4 min-w-[120px] md:min-w-[140px] text-center"
+                                onClick={() => {
+                                    if (dateInputRef.current) {
+                                        if ('showPicker' in dateInputRef.current) {
+                                            (dateInputRef.current as any).showPicker();
+                                        } else {
+                                            dateInputRef.current.focus();
+                                            dateInputRef.current.click();
+                                        }
+                                    }
+                                }}
+                            >
+                                <span className="text-xs md:text-sm font-bold text-slate-600 group-hover:text-blue-600 transition-colors flex items-center justify-center gap-1">
+                                    {selectedDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                    <CalendarIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity" />
+                                </span>
+                                <input
+                                    ref={dateInputRef}
+                                    type="date"
+                                    value={selectedDate.toLocaleDateString('en-CA')}
+                                    onChange={(e) => {
+                                        if (e.target.valueAsDate) handleDateChange(e.target.valueAsDate);
+                                    }}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    lang="he"
+                                    title="בחר תאריך"
+                                />
+                            </div>
 
                             <button onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); handleDateChange(d); } }} disabled={!canGoPrev} className={`p-1.5 md:p-2 rounded-full transition-all ${canGoPrev ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}>
                                 <ChevronLeft size={16} />
