@@ -38,9 +38,10 @@ import { ClaimProfile } from './components/ClaimProfile';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AutoScheduleModal } from './components/AutoScheduleModal';
 import { Lottery } from './components/Lottery';
+import { EmptyStateGuide } from './components/EmptyStateGuide';
+import { ConstraintsManager } from './components/ConstraintsManager';
 import { ToastProvider } from './contexts/ToastContext';
 import { ContactPage } from './pages/ContactPage';
-import { ConstraintsManager } from './components/ConstraintsManager';
 
 // --- Main App Content (Authenticated) ---
 // Track view changes
@@ -48,6 +49,16 @@ const MainApp: React.FC = () => {
     const { organization, user, profile, checkAccess } = useAuth();
     const { showToast } = useToast();
     const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints'>('dashboard');
+
+    // Check for import wizard flag from onboarding
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const shouldOpenImport = localStorage.getItem('open_import_wizard');
+            if (shouldOpenImport) {
+                setView('personnel');
+            }
+        }
+    }, []);
     const [personnelTab, setPersonnelTab] = useState<'people' | 'teams' | 'roles'>('people');
     const [isLoading, setIsLoading] = useState(true);
     const [isScheduling, setIsScheduling] = useState(false);
@@ -578,25 +589,61 @@ const MainApp: React.FC = () => {
             default: return (
                 <div className="space-y-6">
                     {checkAccess('dashboard', 'edit') && (
-                        <div className="fixed bottom-20 md:bottom-8 left-4 md:left-8 z-50">
-                            <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-3 md:px-5 md:py-3 rounded-full shadow-xl flex items-center justify-center gap-0 md:gap-2 font-bold hover:scale-105 transition-all">
-                                <Sparkles size={20} className="md:w-5 md:h-5" />
-                                <span className="hidden md:inline whitespace-nowrap text-base">שיבוץ אוטומטי</span>
-                            </button>
-                        </div>
+                        state.taskTemplates.length === 0 && state.people.length === 0 && state.roles.length === 0 ? (
+                            <EmptyStateGuide
+                                hasTasks={state.taskTemplates.length > 0}
+                                hasPeople={state.people.length > 0}
+                                hasRoles={state.roles.length > 0}
+                                onNavigate={handleNavigate}
+                                onImport={() => {
+                                    localStorage.setItem('open_import_wizard', 'true');
+                                    setView('personnel');
+                                }}
+                            />
+                        ) : (
+                            <>
+                                {state.taskTemplates.length > 0 && (
+                                    <div className="fixed bottom-20 md:bottom-8 left-4 md:left-8 z-50">
+                                        <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-3 md:px-5 md:py-3 rounded-full shadow-xl flex items-center justify-center gap-0 md:gap-2 font-bold hover:scale-105 transition-all">
+                                            <Sparkles size={20} className="md:w-5 md:h-5" />
+                                            <span className="hidden md:inline whitespace-nowrap text-base">שיבוץ אוטומטי</span>
+                                        </button>
+                                    </div>
+                                )}
+                                <ScheduleBoard
+                                    shifts={state.shifts}
+                                    people={state.people}
+                                    tasks={state.taskTemplates}
+                                    dateRange={{ start: scheduleStartDate, end: scheduleEndDate }}
+                                    onDateRangeChange={(start, end) => { setScheduleStartDate(start); setScheduleEndDate(end); }}
+                                    onShiftCreate={handleShiftCreate}
+                                    onShiftUpdate={handleShiftUpdate}
+                                    onShiftDelete={handleShiftDelete}
+                                    isLoading={isLoading}
+                                    roles={state.roles}
+                                    teams={state.teams}
+                                    selectedDate={selectedDate}
+                                    onDateSelect={setSelectedDate}
+                                    scheduleMode={scheduleMode}
+                                    onScheduleModeChange={setScheduleMode}
+                                />
+                            </>
+                        )
                     )}
                     <AutoScheduleModal
                         isOpen={showScheduleModal}
                         onClose={() => setShowScheduleModal(false)}
                         onSchedule={handleAutoSchedule}
                         tasks={state.taskTemplates}
-                        initialDate={selectedDate}
-                        isScheduling={isScheduling}
+                        people={state.people}
+                        roles={state.roles}
+                        startDate={scheduleStartDate}
+                        endDate={scheduleEndDate}
                     />
-                    <ScheduleBoard shifts={state.shifts} people={state.people} selectedDate={selectedDate} onDateChange={setSelectedDate} onAssign={handleAssign} onUnassign={handleUnassign} onAddShift={handleAddShift} onUpdateShift={handleUpdateShift} onToggleCancelShift={handleToggleCancelShift} onClearDay={handleClearDay} teams={state.teams} roles={state.roles} taskTemplates={state.taskTemplates} constraints={state.constraints} onNavigate={handleNavigate} />
                 </div>
             );
         }
+
     };
 
     useEffect(() => { initGA(); }, []);

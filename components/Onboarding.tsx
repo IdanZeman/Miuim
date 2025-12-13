@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Mail, CheckCircle, Sparkles, Shield } from 'lucide-react';
+import { Building2, Mail, CheckCircle, Sparkles, Shield, FileSpreadsheet, Upload } from 'lucide-react';
 import { analytics } from '../services/analytics';
 
 import { useToast } from '../contexts/ToastContext';
@@ -288,7 +288,7 @@ export const Onboarding: React.FC = () => {
             </div>
 
             <div className="min-h-[calc(100vh-80px)] flex items-center justify-center p-4 md:p-8">
-                <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden border border-slate-200">
+                <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full overflow-hidden border border-slate-200">
                     {/* Header Section */}
                     <div className="bg-gradient-to-r from-green-600 to-teal-600 p-8 md:p-12 text-center relative overflow-hidden">
                         <div className="absolute inset-0 opacity-10">
@@ -297,70 +297,88 @@ export const Onboarding: React.FC = () => {
                         </div>
 
                         <div className="relative z-10">
-                            <div className="flex justify-center mb-4">
-                                <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl">
-                                    <Building2 size={48} className="text-white" />
-                                </div>
-                            </div>
                             <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">ברוך הבא!</h1>
-                            <p className="text-green-50 text-lg">בוא ניצור את הארגון הראשון שלך</p>
+                            <p className="text-green-50 text-lg">בוא נתחיל בהקמת הארגון שלך. איך תרצה להתחיל?</p>
                         </div>
                     </div>
 
-                    {/* Form Section */}
+                    {/* Setup Options */}
                     <div className="p-8 md:p-12">
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div>
-                                <label className="block text-slate-700 font-bold mb-3 text-right text-lg flex items-center gap-2">
-                                    <Building2 size={20} className="text-green-600" />
-                                    שם הארגון / היחידה
-                                </label>
-                                <input
-                                    type="text"
-                                    value={orgName}
-                                    onChange={handleOrgNameChange}
-                                    placeholder="לדוגמה: פלוגה א׳, צוות..."
-                                    className="w-full px-4 py-4 rounded-xl bg-white border-2 border-slate-200 focus:border-green-500 focus:outline-none text-slate-800 placeholder-slate-400 text-right text-lg transition-colors shadow-sm"
-                                    required
-                                    disabled={loading}
-                                />
-                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
 
-                            {error && (
-                                <p className="text-red-500 text-sm text-center">
-                                    {error}
-                                </p>
-                            )}
-
-                            <button
-                                type="submit"
-                                disabled={loading || !orgName.trim()}
-                                className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed text-lg flex items-center justify-center gap-3"
-                            >
-                                {loading ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        יוצר ארגון...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Sparkles size={24} />
-                                        צור ארגון והמשך
-                                    </>
-                                )}
-                            </button>
-                        </form>
-
-                        {/* Info Card */}
-                        <div className="bg-gradient-to-br from-green-50 to-teal-50 border-2 border-green-200 rounded-xl p-6 mt-8">
-                            <div className="flex items-start gap-3">
-                                <div className="bg-green-100 p-2 rounded-lg flex-shrink-0">
-                                    <Sparkles size={20} className="text-green-600" />
+                            {/* Option 1: Manual Setup */}
+                            <div className="flex flex-col h-full bg-white border-2 border-slate-100 rounded-2xl p-6 hover:border-green-500 hover:shadow-lg transition-all group relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-slate-200 to-slate-300 group-hover:from-green-400 group-hover:to-teal-500 transition-all"></div>
+                                <div className="mb-6 bg-slate-100 w-16 h-16 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <Building2 size={32} className="text-slate-600 group-hover:text-green-600 transition-colors" />
                                 </div>
-                                <p className="text-sm text-slate-700 leading-relaxed">
-                                    תוכל להוסיף חברי צוות, להגדיר תפקידים וליצור משמרות מיד לאחר היצירה
+                                <h3 className="text-xl font-bold text-slate-800 mb-2">הקמה ידנית</h3>
+                                <p className="text-slate-500 text-sm mb-6 flex-1">
+                                    להתחיל מאפס. תן שם לארגון והתחל להוסיף צוותים, תפקידים ומשתמשים באופן ידני דרך הממשק.
                                 </p>
+
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    // Manual setup logic handles creating org and proceeding
+                                    handleSubmit(e);
+                                }} className="space-y-4">
+                                    <input
+                                        type="text"
+                                        value={orgName}
+                                        onChange={handleOrgNameChange}
+                                        placeholder="שם הארגון (לדוגמה: פלוגה א׳)"
+                                        className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:border-green-500 focus:bg-white focus:outline-none text-slate-800 text-sm transition-colors"
+                                        required
+                                        disabled={loading}
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={loading || !orgName.trim()}
+                                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 group-hover:bg-green-600 group-hover:text-white"
+                                    >
+                                        {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Sparkles size={18} />}
+                                        צור והתחל
+                                    </button>
+                                </form>
                             </div>
+
+                            {/* Option 2: Import Setup */}
+                            <div className="flex flex-col h-full bg-white border-2 border-slate-100 rounded-2xl p-6 hover:border-blue-500 hover:shadow-lg transition-all group relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-slate-200 to-slate-300 group-hover:from-blue-400 group-hover:to-indigo-500 transition-all"></div>
+                                <div className="mb-6 bg-slate-100 w-16 h-16 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <FileSpreadsheet size={32} className="text-slate-600 group-hover:text-blue-600 transition-colors" />
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-800 mb-2">ייבוא מאקסל</h3>
+                                <p className="text-slate-500 text-sm mb-6 flex-1">
+                                    יש לך כבר קובץ עם רשימת חיילים? ייבא אותם ישירות. אנחנו נקים את הצוותים והתפקידים אוטומטית.
+                                </p>
+
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    // Set flag for import flow
+                                    localStorage.setItem('open_import_wizard', 'true');
+                                    handleSubmit(e);
+                                }} className="space-y-4">
+                                    <input
+                                        type="text"
+                                        value={orgName}
+                                        onChange={handleOrgNameChange}
+                                        placeholder="שם הארגון (לדוגמה: גדוד 101)"
+                                        className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white focus:outline-none text-slate-800 text-sm transition-colors"
+                                        required
+                                        disabled={loading}
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={loading || !orgName.trim()}
+                                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:text-white"
+                                    >
+                                        {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Upload size={18} />}
+                                        צור וייבא נתונים
+                                    </button>
+                                </form>
+                            </div>
+
                         </div>
 
                         <div className="mt-8 text-center md:hidden">

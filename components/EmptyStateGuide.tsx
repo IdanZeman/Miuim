@@ -1,14 +1,15 @@
 import React from 'react';
-import { Users, ClipboardList, Shield, ArrowRight, Plus } from 'lucide-react';
+import { Users, ClipboardList, Shield, ArrowRight, Plus, FileSpreadsheet } from 'lucide-react';
 
 interface EmptyStateGuideProps {
     hasTasks: boolean;
     hasPeople: boolean;
     hasRoles: boolean;
-    onNavigate: (view: 'personnel' | 'tasks') => void;
+    onNavigate: (view: 'personnel' | 'tasks', tab?: 'people' | 'roles' | 'teams') => void;
+    onImport: () => void;
 }
 
-export const EmptyStateGuide: React.FC<EmptyStateGuideProps> = ({ hasTasks, hasPeople, hasRoles, onNavigate }) => {
+export const EmptyStateGuide: React.FC<EmptyStateGuideProps> = ({ hasTasks, hasPeople, hasRoles, onNavigate, onImport }) => {
     return (
         <div className="flex flex-col items-center justify-center py-48 px-4 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="mb-8 max-w-2xl">
@@ -102,6 +103,29 @@ export const EmptyStateGuide: React.FC<EmptyStateGuideProps> = ({ hasTasks, hasP
                     )}
                 </div>
             </div>
+
+            {/* Parallel Option: Import */}
+            {!hasRoles && !hasPeople && (
+                <div className="mt-12 w-full max-w-2xl bg-gradient-to-r from-green-50 to-teal-50 border border-green-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+                    <div className="flex items-start gap-4 text-right">
+                        <div className="bg-white p-3 rounded-xl shadow-sm border border-green-100 text-green-600">
+                            <FileSpreadsheet size={32} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-slate-800">יש לך כבר קובץ אקסל?</h3>
+                            <p className="text-slate-600 text-sm mt-1">
+                                דלג על השלבים הידניים וייבא את כל הנתונים (תפקידים, צוותים, וחיילים) במכה אחת.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={onImport}
+                        className="whitespace-nowrap px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                    >
+                        ייבוא מהיר מאקסל
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

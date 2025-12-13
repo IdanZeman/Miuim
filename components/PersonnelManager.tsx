@@ -1,6 +1,34 @@
-import { useAuth } from '../contexts/AuthContext'; // Added import
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, ChevronDown, ChevronLeft, User, Users, Shield, Pencil, Trash2, FileSpreadsheet, X, Check } from 'lucide-react';
+import { Person, Team, Role } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { Modal } from './ui/Modal';
+import { ExcelImportWizard } from './ExcelImportWizard';
 
-// ...
+interface PersonnelManagerProps {
+    people: Person[];
+    teams: Team[];
+    roles: Role[];
+    onAddPerson: (person: Person) => void;
+    onDeletePerson: (id: string) => void;
+    onUpdatePerson: (person: Person) => void;
+    onAddTeam: (team: Team) => void;
+    onUpdateTeam: (team: Team) => void;
+    onDeleteTeam: (id: string) => void;
+    onAddRole: (role: Role) => void;
+    onDeleteRole: (id: string) => void;
+    onUpdateRole: (role: Role) => void;
+    initialTab?: 'people' | 'teams' | 'roles';
+}
+
+type Tab = 'people' | 'teams' | 'roles';
+
+const ROLE_ICONS: Record<string, any> = {
+    shield: Shield,
+    users: Users,
+    user: User,
+};
 
 export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     people,
@@ -19,12 +47,227 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 }) => {
     const { checkAccess } = useAuth();
     const canEdit = checkAccess('personnel', 'edit');
-
-    const [activeTab, setActiveTab] = useState<Tab>(initialTab);
     const { showToast } = useToast();
+
+    // -- State --
+    const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
     const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
 
-    // ... (rest of logic)
+    // Form/Modal State
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
+
+    // Editing IDs
+    const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
+    const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+    const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+
+    // Form Fields
+    const [newName, setNewName] = useState('');
+    const [newEmail, setNewEmail] = useState('');
+    const [newTeamId, setNewTeamId] = useState('');
+    const [newRoleIds, setNewRoleIds] = useState<string[]>([]);
+
+    // Generic Items (Team/Role)
+    const [newItemName, setNewItemName] = useState('');
+    const [newItemColor, setNewItemColor] = useState('border-slate-500'); // Default for teams
+
+    // -- Effects --
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const shouldOpen = localStorage.getItem('open_import_wizard');
+            if (shouldOpen) {
+                setIsImportWizardOpen(true);
+                localStorage.removeItem('open_import_wizard');
+            }
+        }
+    }, []);
+
+    // -- Helpers --
+    const getPersonInitials = (name: string) => {
+        const parts = name.split(' ');
+        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+        return name.slice(0, 2).toUpperCase();
+    };
+
+    const toggleTeamCollapse = (teamId: string) => {
+        const newSet = new Set(collapsedTeams);
+        if (newSet.has(teamId)) newSet.delete(teamId);
+        else newSet.add(teamId);
+        setCollapsedTeams(newSet);
+    };
+
+    const closeForm = () => {
+        setIsModalOpen(false);
+        setIsAdding(false);
+        setEditingPersonId(null);
+        setEditingTeamId(null);
+        setEditingRoleId(null);
+        setNewName('');
+        setNewEmail('');
+        setNewTeamId('');
+        setNewRoleIds([]);
+        setNewItemName('');
+    };
+
+    // -- Handlers --
+    const handleEditPersonClick = (person: Person) => {
+        setEditingPersonId(person.id);
+        setNewName(person.name);
+        setNewEmail(person.email || '');
+        setNewTeamId(person.teamId);
+        setNewRoleIds(person.roleIds);
+        setIsModalOpen(true);
+    };
+
+    const handleEditTeamClick = (team: Team) => {
+        setEditingTeamId(team.id);
+        setNewItemName(team.name);
+        setNewItemColor(team.color);
+        setIsModalOpen(true);
+    };
+
+    const handleEditRoleClick = (role: Role) => {
+        setEditingRoleId(role.id);
+        setNewItemName(role.name);
+        setNewItemColor(role.color);
+        setIsModalOpen(true);
+    };
+
+    const handleBulkImport = (importedPeople: Person[]) => {
+        importedPeople.forEach(p => onAddPerson(p));
+        showToast(`גויסו בהצלחה ${importedPeople.length} חיילים`, 'success');
+    };
+
+    const handleSave = () => {
+        if (activeTab === 'people') {
+            if (!newName.trim()) { showToast('נא להזין שם', 'error'); return; }
+            if (!newTeamId && teams.length > 0) { showToast('נא לבחור צוות', 'error'); return; }
+
+            const personData: any = {
+                name: newName,
+                email: newEmail,
+                teamId: newTeamId,
+                roleIds: newRoleIds,
+                maxHoursPerWeek: 40,
+                unavailableDates: [],
+                preferences: { preferNight: false, avoidWeekends: false },
+                color: 'bg-blue-500' // Default
+            };
+
+            if (editingPersonId) {
+                const person = people.find(p => p.id === editingPersonId);
+                onUpdatePerson({ ...person, ...personData, id: editingPersonId } as Person);
+                showToast('החייל עודכן בהצלחה', 'success');
+            } else {
+                onAddPerson({ ...personData, id: `person-${Date.now()}` } as Person);
+                showToast('החייל נוסף בהצלחה', 'success');
+            }
+        }
+        else if (activeTab === 'teams') {
+            if (!newItemName.trim()) { showToast('נא להזין שם צוות', 'error'); return; }
+            const teamData = { name: newItemName, color: newItemColor };
+            if (editingTeamId) {
+                onUpdateTeam({ ...teamData, id: editingTeamId });
+                showToast('הצוות עודכן', 'success');
+            } else {
+                onAddTeam({ ...teamData, id: `team-${Date.now()}` });
+                showToast('הצוות נוצר', 'success');
+            }
+        }
+        else if (activeTab === 'roles') {
+            if (!newItemName.trim()) { showToast('נא להזין שם תפקיד', 'error'); return; }
+            const roleData = { name: newItemName, color: newItemColor };
+            if (editingRoleId) {
+                onUpdateRole({ ...roleData, id: editingRoleId });
+                showToast('התפקיד עודכן', 'success');
+            } else {
+                onAddRole({ ...roleData, id: `role-${Date.now()}` });
+                showToast('התפקיד נוצר', 'success');
+            }
+        }
+        closeForm();
+    };
+
+    const getModalTitle = () => {
+        if (activeTab === 'people') return editingPersonId ? 'עריכת חייל' : 'הוספת חייל חדש';
+        if (activeTab === 'teams') return editingTeamId ? 'עריכת צוות' : 'הוספת צוות חדש';
+        if (activeTab === 'roles') return editingRoleId ? 'עריכת תפקיד' : 'הוספת תפקיד חדש';
+        return '';
+    };
+
+    // Use effect to open modal when state changes if needed, 
+    // but we control it explicitly in click handlers
+    useEffect(() => {
+        if (isAdding) setIsModalOpen(true);
+    }, [isAdding]);
+
+
+    const renderModalContent = () => {
+        if (activeTab === 'people') {
+            return (
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">שם מלא</label>
+                        <input value={newName} onChange={e => setNewName(e.target.value)} className="w-full p-2 border rounded-lg" placeholder="ישראל ישראלי" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">אימייל</label>
+                        <input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="w-full p-2 border rounded-lg" placeholder="email@example.com" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">צוות</label>
+                        <select value={newTeamId} onChange={e => setNewTeamId(e.target.value)} className="w-full p-2 border rounded-lg">
+                            <option value="">בחר צוות...</option>
+                            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">תפקידים</label>
+                        <div className="flex flex-wrap gap-2">
+                            {roles.map(role => {
+                                const isSelected = newRoleIds.includes(role.id);
+                                return (
+                                    <button
+                                        key={role.id}
+                                        onClick={() => {
+                                            if (isSelected) setNewRoleIds(newRoleIds.filter(id => id !== role.id));
+                                            else setNewRoleIds([...newRoleIds, role.id]);
+                                        }}
+                                        className={`px-3 py-1 rounded-full text-sm border ${isSelected ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
+                                    >
+                                        {role.name}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <button onClick={closeForm} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">ביטול</button>
+                        <button onClick={handleSave} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800">שמור</button>
+                    </div>
+                </div>
+            );
+        }
+
+        // Teams and Roles use similar form
+        return (
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">שם {activeTab === 'teams' ? 'הצוות' : 'התפקיד'}</label>
+                    <input value={newItemName} onChange={e => setNewItemName(e.target.value)} className="w-full p-2 border rounded-lg" />
+                </div>
+                {/* Simplified color picker or similar could go here */}
+
+                <div className="flex justify-end gap-2 mt-6">
+                    <button onClick={closeForm} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">ביטול</button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800">שמור</button>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="bg-white rounded-xl shadow-portal p-4 md:p-6 min-h-[600px]">
