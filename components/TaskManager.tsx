@@ -5,6 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 import { Select } from './ui/Select';
 import { Modal } from './ui/Modal';
 import { Tooltip } from './ui/Tooltip';
+import { useAuth } from '../contexts/AuthContext';
 
 interface TaskManagerProps {
     tasks: TaskTemplate[];
@@ -27,6 +28,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     onUpdateTask,
     onDeleteTask
 }) => {
+    const { checkAccess } = useAuth();
+    const canEdit = checkAccess('tasks', 'edit');
+
     const [isAdding, setIsAdding] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
     const { showToast } = useToast();
@@ -34,80 +38,78 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     // Form State
     const [name, setName] = useState('');
     const [duration, setDuration] = useState(4);
+    const [roleComposition, setRoleComposition] = useState<{ roleId: string; count: number }[]>([]);
     const [minRest, setMinRest] = useState(8);
     const [difficulty, setDifficulty] = useState(3);
-    const [roleComposition, setRoleComposition] = useState<{ roleId: string; count: number }[]>([]);
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
     const [schedulingType, setSchedulingType] = useState<SchedulingType>('continuous');
-    const [startTime, setStartTime] = useState('08:00');
+    const [startTime, setStartTime] = useState('');
     const [specificDate, setSpecificDate] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [startDate, setStartDate] = useState(''); // Valid from
+    const [endDate, setEndDate] = useState(''); // Valid until
+
+    const totalPeople = roleComposition.reduce((sum, rc) => sum + rc.count, 0);
+    const isModalOpen = isAdding || !!editId;
 
     const resetForm = () => {
+        setIsAdding(false);
+        setEditId(null);
         setName('');
         setDuration(4);
+        setRoleComposition([]);
         setMinRest(8);
         setDifficulty(3);
-        setRoleComposition([]);
         setSelectedColor(COLORS[0]);
         setSchedulingType('continuous');
-        setStartTime('08:00');
+        setStartTime('');
         setSpecificDate('');
         setStartDate('');
         setEndDate('');
-        setIsAdding(false);
-        setEditId(null);
     };
 
     const handleEditClick = (task: TaskTemplate) => {
+        setEditId(task.id);
         setName(task.name);
         setDuration(task.durationHours);
+        setRoleComposition(task.roleComposition || []);
         setMinRest(task.minRestHoursBefore);
         setDifficulty(task.difficulty);
-        setRoleComposition(task.roleComposition || []);
         setSelectedColor(task.color);
         setSchedulingType(task.schedulingType);
-        setStartTime(task.defaultStartTime || '08:00');
+        setStartTime(task.defaultStartTime || '');
         setSpecificDate(task.specificDate || '');
         setStartDate(task.startDate || '');
         setEndDate(task.endDate || '');
-        setEditId(task.id);
-        // setIsAdding is not needed for modal to open if we check for editId too, 
-        // but let's keep it clean or just use editId. 
-        // Actually, let's use a derived helper for "isOpen"
+        setIsAdding(false);
     };
 
     const handleDuplicateTask = (task: TaskTemplate) => {
-        const newTask: TaskTemplate = {
-            ...task,
-            id: `task-${Date.now()}`,
-            name: `${task.name} (עותק)`,
-        };
+        const newTask = { ...task, id: crypto.randomUUID(), name: `${task.name} (עותק)` };
         onAddTask(newTask);
-        showToast('המשימה שוכפלה בהצלחה', 'success');
+        showToast('המשמרת שוכפלה בהצלחה', 'success');
     };
 
     const handleSubmit = () => {
-        if (!name) return;
-
-        const totalPeople = roleComposition.reduce((sum, rc) => sum + rc.count, 0);
+        if (!name) {
+            showToast('נא להזין שם משימה', 'error');
+            return;
+        }
 
         const taskData: TaskTemplate = {
-            id: editId || `task-${Date.now()}`,
+            id: editId || crypto.randomUUID(),
             name,
-            durationHours: Number(duration),
-            requiredPeople: totalPeople > 0 ? totalPeople : 1,
-            minRestHoursBefore: Number(minRest),
-            difficulty: Number(difficulty),
+            durationHours: duration,
+            requiredPeople: totalPeople > 0 ? totalPeople : 1, // Fallback
             roleComposition,
+            minRestHoursBefore: minRest,
+            difficulty,
             color: selectedColor,
             schedulingType,
-            is247: schedulingType === 'continuous',
-            defaultStartTime: startTime,
-            specificDate: (schedulingType === 'one-time' && specificDate) ? specificDate : undefined,
-            startDate: (schedulingType === 'continuous' && startDate) ? startDate : undefined,
-            endDate: (schedulingType === 'continuous' && endDate) ? endDate : undefined
+            defaultStartTime: startTime || undefined,
+            specificDate: specificDate || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+            is247: false
         };
 
         if (editId) {
@@ -115,29 +117,30 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             showToast('המשימה עודכנה בהצלחה', 'success');
         } else {
             onAddTask(taskData);
-            showToast('המשימה נוספה בהצלחה', 'success');
+            showToast('המשימה נוצרה בהצלחה', 'success');
         }
         resetForm();
     };
 
     const addRoleRow = () => {
-        if (roles.length === 0) return;
-        setRoleComposition([...roleComposition, { roleId: roles[0].id, count: 1 }]);
-    };
-
-    const updateRoleRow = (index: number, field: 'roleId' | 'count', value: string | number) => {
-        const newComp = [...roleComposition];
-        if (field === 'roleId') newComp[index].roleId = value as string;
-        if (field === 'count') newComp[index].count = Number(value);
-        setRoleComposition(newComp);
+        setRoleComposition([...roleComposition, { roleId: '', count: 1 }]);
     };
 
     const removeRoleRow = (index: number) => {
-        setRoleComposition(roleComposition.filter((_, i) => i !== index));
+        const newRows = [...roleComposition];
+        newRows.splice(index, 1);
+        setRoleComposition(newRows);
     };
 
-    const totalPeople = roleComposition.reduce((sum, rc) => sum + rc.count, 0);
-    const isModalOpen = isAdding || !!editId;
+    const updateRoleRow = (index: number, field: 'roleId' | 'count', value: any) => {
+        const newRows = [...roleComposition];
+        if (field === 'count') {
+            newRows[index].count = Number(value);
+        } else {
+            newRows[index].roleId = value;
+        }
+        setRoleComposition(newRows);
+    };
 
     return (
         <div className="bg-white rounded-xl shadow-portal p-4 md:p-6 min-h-[600px]">
@@ -146,18 +149,20 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     <span className="bg-blue-50 p-2 rounded-lg text-blue-600"><CheckSquare size={20} /></span>
                     ניהול משימות
                 </h2>
-                <button
-                    onClick={() => {
-                        if (roles.length === 0) {
-                            showToast('יש להגדיר תפקידים לפני יצירת משימות', 'error');
-                            return;
-                        }
-                        setIsAdding(true);
-                    }}
-                    className="w-full md:w-auto bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2"
-                >
-                    הוסף משימה<Plus size={16} />
-                </button>
+                {canEdit && (
+                    <button
+                        onClick={() => {
+                            if (roles.length === 0) {
+                                showToast('יש להגדיר תפקידים לפני יצירת משימות', 'error');
+                                return;
+                            }
+                            setIsAdding(true);
+                        }}
+                        className="w-full md:w-auto bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2"
+                    >
+                        הוסף משימה<Plus size={16} />
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
@@ -165,17 +170,19 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     <div key={task.id} className="bg-white rounded-xl p-4 md:p-6 border border-idf-card-border hover:shadow-md transition-all group relative overflow-hidden">
                         <div className={`absolute top-0 right-0 w-1 md:w-1.5 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
 
-                        <div className="absolute top-3 md:top-4 left-3 md:left-4 flex gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleDuplicateTask(task)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-green-100 text-slate-500 hover:text-green-600 rounded-full" title="שכפל משימה">
-                                <Copy size={14} />
-                            </button>
-                            <button onClick={() => handleEditClick(task)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-600 rounded-full">
-                                <Pencil size={14} />
-                            </button>
-                            <button onClick={() => onDeleteTask(task.id)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-600 rounded-full">
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
+                        {canEdit && (
+                            <div className="absolute top-3 md:top-4 left-3 md:left-4 flex gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleDuplicateTask(task)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-green-100 text-slate-500 hover:text-green-600 rounded-full" title="שכפל משימה">
+                                    <Copy size={14} />
+                                </button>
+                                <button onClick={() => handleEditClick(task)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-600 rounded-full">
+                                    <Pencil size={14} />
+                                </button>
+                                <button onClick={() => onDeleteTask(task.id)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-600 rounded-full">
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        )}
 
                         <div className="flex justify-between items-start mb-3 md:mb-4 pr-3 md:pr-4">
                             <div className="min-w-0 flex-1">

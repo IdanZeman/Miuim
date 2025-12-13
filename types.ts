@@ -1,12 +1,6 @@
 export type UserRole = 'admin' | 'editor' | 'viewer' | 'attendance_only';
 
-export interface Profile {
-  id: string;
-  email: string;
-  full_name?: string;
-  organization_id: string | null;
-  role: UserRole;
-}
+
 
 export interface Organization {
   id: string;
@@ -110,6 +104,26 @@ export interface Shift {
 }
 
 export type ViewMode = 'dashboard' | 'personnel' | 'tasks' | 'schedule' | 'stats' | 'attendance' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints';
+
+export type AccessLevel = 'view' | 'edit' | 'none';
+export type DataScope = 'organization' | 'team' | 'personal';
+
+export interface UserPermissions {
+  dataScope: DataScope;
+  allowedTeamIds?: string[]; // IDs of teams the user can access if scope is 'team'
+  screens: Partial<Record<ViewMode, AccessLevel>>; // Per-screen access overrides
+  canManageUsers: boolean; // Permission to add/edit/delete users overrides
+  canManageSettings: boolean; // Permission to access Organization Settings
+}
+
+export interface Profile {
+  id: string;
+  email: string;
+  full_name?: string;
+  organization_id: string | null;
+  role: UserRole;
+  permissions?: UserPermissions; // JSONB storage for custom permissions
+}
 
 export type ConstraintType = 'always_assign' | 'never_assign' | 'time_block';
 

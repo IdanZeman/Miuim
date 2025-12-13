@@ -5,9 +5,10 @@ import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { ConfirmationModal } from './ConfirmationModal';
 import { logger } from '../services/loggingService';
-import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users, Search } from 'lucide-react';
-import { UserRole, Profile, OrganizationInvite } from '../types';
+import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users, Search, Pencil } from 'lucide-react';
+import { UserRole, Profile, OrganizationInvite, UserPermissions } from '../types';
 import { Select } from './ui/Select';
+import { PermissionEditor } from './PermissionEditor';
 
 const canManageOrganization = (role: UserRole) => {
     return role === 'admin';
@@ -136,7 +137,9 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
     );
 };
 
-export const OrganizationSettings: React.FC = () => {
+import { Team } from '../types';
+
+export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }) => {
     const { user, profile, organization } = useAuth();
     const [members, setMembers] = useState<Profile[]>([]);
     const [invites, setInvites] = useState<OrganizationInvite[]>([]);
@@ -284,6 +287,29 @@ export const OrganizationSettings: React.FC = () => {
                 }
             }
         });
+    };
+
+    const [editingPermissionsFor, setEditingPermissionsFor] = useState<Profile | null>(null);
+
+    const handleOpenPermissionEditor = (member: Profile) => {
+        setEditingPermissionsFor(member);
+    };
+
+    const handleSavePermissions = async (userId: string, permissions: UserPermissions) => {
+        console.log(`Saving permissions for ${userId}`, permissions);
+        const { error } = await supabase
+            .from('profiles')
+            .update({ permissions } as any) // Type assertion until DB schema matches
+            .eq('id', userId);
+
+        if (error) {
+            console.error('Error saving permissions:', error);
+            showToast('שגיאה בשמירת הרשאות - ייתכן שהעמודה חסרה בבסיס הנתונים', 'error');
+        } else {
+            showToast('הרשאות עודכנו בהצלחה', 'success');
+            setMembers(prev => prev.map(m => m.id === userId ? { ...m, permissions } : m));
+        }
+        setEditingPermissionsFor(null);
     };
 
     if (!canManageOrganization(profile?.role || 'viewer')) {
@@ -470,18 +496,15 @@ export const OrganizationSettings: React.FC = () => {
                                         {getRoleDisplayName(member.role)}
                                     </span>
                                 ) : (
-                                    <div className="w-32">
-                                        <Select
-                                            value={member.role}
-                                            onChange={(val) => handleChangeRole(member.id, val as UserRole)}
-                                            options={[
-                                                { value: 'admin', label: 'מנהל' },
-                                                { value: 'editor', label: 'עורך' },
-                                                { value: 'viewer', label: 'צופה' },
-                                                { value: 'attendance_only', label: 'נוכחות בלבד' }
-                                            ]}
-                                            placeholder="בחר הרשאה"
-                                        />
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleOpenPermissionEditor(member)}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 rounded-lg transition-colors font-medium text-sm"
+                                            title="ערוך הרשאות ותפקיד"
+                                        >
+                                            <Pencil size={14} />
+                                            <span>ערוך הרשאות</span>
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -489,6 +512,15 @@ export const OrganizationSettings: React.FC = () => {
                     ))}
                 </div>
             </div>
+            {editingPermissionsFor && (
+                <PermissionEditor
+                    isOpen={true}
+                    onClose={() => setEditingPermissionsFor(null)}
+                    user={editingPermissionsFor}
+                    onSave={handleSavePermissions}
+                    teams={teams}
+                />
+            )}
             <ConfirmationModal {...modalProps} />
         </div>
     );

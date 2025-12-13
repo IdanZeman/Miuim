@@ -56,7 +56,7 @@ const TopNavLink = ({
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, isPublic = false }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-  const { user, profile, organization, signOut } = useAuth();
+  const { user, profile, organization, signOut, checkAccess } = useAuth();
 
   const handleLogout = async () => {
     analytics.trackButtonClick('logout', 'header');
@@ -105,37 +105,54 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             {!isPublic && setView && (
               <nav className="hidden md:flex items-center gap-0.5 lg:gap-1">
                 {/* Dashboard - Visible to everyone */}
-                <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" icon={Calendar} />
-
-                {/* Personnel & Tasks - Visible to Admin and Editor only */}
-                {(profile?.role === 'admin' || profile?.role === 'editor') && (
-                  <>
-                    <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" icon={Users} />
-                    <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" icon={ClipboardList} />
-                    <TopNavLink active={currentView === 'constraints'} onClick={() => setView('constraints')} label="אילוצים" icon={Anchor} />
-                  </>
+                {checkAccess('dashboard') && (
+                  <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" icon={Calendar} />
                 )}
 
-                {/* Attendance - Visible to Admin, Editor, and Attendance Manager */}
-                {profile?.role !== 'viewer' && (
+                {/* Personnel */}
+                {checkAccess('personnel') && (
+                  <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" icon={Users} />
+                )}
+
+                {/* Tasks */}
+                {checkAccess('tasks') && (
+                  <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" icon={ClipboardList} />
+                )}
+
+                {/* Constraints */}
+                {checkAccess('constraints') && (
+                  <TopNavLink active={currentView === 'constraints'} onClick={() => setView('constraints')} label="אילוצים" icon={Anchor} />
+                )}
+
+                {/* Attendance */}
+                {checkAccess('attendance') && (
                   <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות וזמינות" icon={Clock} />
                 )}
 
-                {/* Stats - Visible to everyone */}
-                <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label={(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'} icon={FileText} />
+                {/* Stats */}
+                {checkAccess('stats') && (
+                  <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label={(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'} icon={FileText} />
+                )}
 
-                {/* Lottery - Visible to everyone */}
-                <TopNavLink active={currentView === 'lottery'} onClick={() => setView('lottery')} label="הגרלה" icon={Dices} />
+                {/* Lottery */}
+                {checkAccess('lottery') && (
+                  <TopNavLink active={currentView === 'lottery'} onClick={() => setView('lottery')} label="הגרלה" icon={Dices} />
+                )}
+
+                {/* Contact - Visible to everyone */}
                 <TopNavLink active={currentView === 'contact'} onClick={() => setView('contact')} label="צור קשר" icon={Mail} />
 
-                {isAdmin && (
-                  <>
-                    <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="דו״ח משמרות" icon={Clock} />
-                    <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
-                    {isAdmin && user?.email === 'idanzeman@gmail.com' && (
-                      <TopNavLink active={currentView === 'logs'} onClick={() => setView('logs')} label="לוגים" icon={Shield} />
-                    )}
-                  </>
+                {/* Admin Only Screens */}
+                {checkAccess('reports') && (
+                  <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="דו״ח משמרות" icon={Clock} />
+                )}
+
+                {checkAccess('settings') && (
+                  <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
+                )}
+
+                {checkAccess('logs') && isAdmin && user?.email === 'idanzeman@gmail.com' && (
+                  <TopNavLink active={currentView === 'logs'} onClick={() => setView('logs')} label="לוגים" icon={Shield} />
                 )}
               </nav>
             )}
@@ -198,60 +215,65 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               </button>
             </div>
 
-            {/* Menu Items */}
             <div className="p-4 pb-24 flex flex-col gap-1">
               {/* Dashboard - Visible to everyone */}
-              <button
-                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'dashboard'
-                  ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                  : 'hover:bg-slate-50 text-slate-700'
-                  }`}
-                onClick={() => { setView('dashboard'); setIsMobileMenuOpen(false) }}
-              >
-                <Calendar size={22} className={currentView === 'dashboard' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                <span>לוח שיבוצים</span>
-              </button>
+              {checkAccess('dashboard') && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'dashboard'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('dashboard'); setIsMobileMenuOpen(false) }}
+                >
+                  <Calendar size={22} className={currentView === 'dashboard' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>לוח שיבוצים</span>
+                </button>
+              )}
 
-              {/* Personnel & Tasks - Visible to Admin and Editor only */}
-              {(profile?.role === 'admin' || profile?.role === 'editor') && (
-                <>
-                  <button
-                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'personnel'
-                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                      : 'hover:bg-slate-50 text-slate-700'
-                      }`}
-                    onClick={() => { setView('personnel'); setIsMobileMenuOpen(false) }}
-                  >
-                    <Users size={22} className={currentView === 'personnel' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                    <span>ניהול כוח אדם</span>
-                  </button>
+              {/* Personnel - Visible to Admin and Editor only */}
+              {checkAccess('personnel') && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'personnel'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('personnel'); setIsMobileMenuOpen(false) }}
+                >
+                  <Users size={22} className={currentView === 'personnel' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>ניהול כוח אדם</span>
+                </button>
+              )}
 
-                  <button
-                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'tasks'
-                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                      : 'hover:bg-slate-50 text-slate-700'
-                      }`}
-                    onClick={() => { setView('tasks'); setIsMobileMenuOpen(false) }}
-                  >
-                    <ClipboardList size={22} className={currentView === 'tasks' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                    <span>משימות</span>
-                  </button>
+              {/* Tasks */}
+              {checkAccess('tasks') && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'tasks'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('tasks'); setIsMobileMenuOpen(false) }}
+                >
+                  <ClipboardList size={22} className={currentView === 'tasks' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>משימות</span>
+                </button>
+              )}
 
-                  <button
-                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'constraints'
-                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                      : 'hover:bg-slate-50 text-slate-700'
-                      }`}
-                    onClick={() => { setView('constraints'); setIsMobileMenuOpen(false) }}
-                  >
-                    <Anchor size={22} className={currentView === 'constraints' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                    <span>אילוצים</span>
-                  </button>
-                </>
+              {/* Constraints */}
+              {checkAccess('constraints') && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'constraints'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('constraints'); setIsMobileMenuOpen(false) }}
+                >
+                  <Anchor size={22} className={currentView === 'constraints' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>אילוצים</span>
+                </button>
               )}
 
               {/* Attendance - Visible to Admin, Editor, and Attendance Manager */}
-              {profile?.role !== 'viewer' && (
+              {checkAccess('attendance') && (
                 <button
                   className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'attendance'
                     ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
@@ -265,28 +287,32 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               )}
 
               {/* Stats - Visible to everyone */}
-              <button
-                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'stats'
-                  ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                  : 'hover:bg-slate-50 text-slate-700'
-                  }`}
-                onClick={() => { setView('stats'); setIsMobileMenuOpen(false) }}
-              >
-                <FileText size={22} className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                <span>{(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'}</span>
-              </button>
+              {checkAccess('stats') && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'stats'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('stats'); setIsMobileMenuOpen(false) }}
+                >
+                  <FileText size={22} className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>{(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'}</span>
+                </button>
+              )}
 
               {/* Lottery - Visible to everyone */}
-              <button
-                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'lottery'
-                  ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                  : 'hover:bg-slate-50 text-slate-700'
-                  }`}
-                onClick={() => { setView('lottery'); setIsMobileMenuOpen(false) }}
-              >
-                <Dices size={22} className={currentView === 'lottery' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                <span>הגרלה</span>
-              </button>
+              {checkAccess('lottery') && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'lottery'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('lottery'); setIsMobileMenuOpen(false) }}
+                >
+                  <Dices size={22} className={currentView === 'lottery' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>הגרלה</span>
+                </button>
+              )}
 
               {/* Contact - Visible to everyone */}
               <button
@@ -300,43 +326,43 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 <span>צור קשר</span>
               </button>
 
-              {isAdmin && (
-                <>
-                  <button
-                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'reports'
-                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                      : 'hover:bg-slate-50 text-slate-700'
-                      }`}
-                    onClick={() => { setView('reports'); setIsMobileMenuOpen(false) }}
-                  >
-                    <Clock size={22} className={currentView === 'reports' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                    <span>ייצוא נתונים</span>
-                  </button>
+              {checkAccess('reports') && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'reports'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('reports'); setIsMobileMenuOpen(false) }}
+                >
+                  <Clock size={22} className={currentView === 'reports' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>ייצוא נתונים</span>
+                </button>
+              )}
 
-                  <button
-                    className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'settings'
-                      ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                      : 'hover:bg-slate-50 text-slate-700'
-                      }`}
-                    onClick={() => { setView('settings'); setIsMobileMenuOpen(false) }}
-                  >
-                    <Settings size={22} className={currentView === 'settings' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                    <span>הגדרות</span>
-                  </button>
+              {checkAccess('settings') && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'settings'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('settings'); setIsMobileMenuOpen(false) }}
+                >
+                  <Settings size={22} className={currentView === 'settings' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>הגדרות</span>
+                </button>
+              )}
 
-                  {isAdmin && user?.email === 'idanzeman@gmail.com' && (
-                    <button
-                      className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'logs'
-                        ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                        : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      onClick={() => { setView('logs'); setIsMobileMenuOpen(false) }}
-                    >
-                      <Shield size={22} className={currentView === 'logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                      <span>לוגים</span>
-                    </button>
-                  )}
-                </>
+              {isAdmin && user?.email === 'idanzeman@gmail.com' && checkAccess('logs') && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'logs'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('logs'); setIsMobileMenuOpen(false) }}
+                >
+                  <Shield size={22} className={currentView === 'logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>לוגים</span>
+                </button>
               )}
             </div>
           </div>
@@ -347,58 +373,63 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       {!isPublic && setView && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 pb-safe">
           <div className="flex justify-around items-center h-16">
-            <button
-              onClick={() => setView('dashboard')}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              <Calendar size={20} className={currentView === 'dashboard' ? 'fill-blue-100' : ''} />
-              <span className="text-[10px] font-medium">שיבוצים</span>
-            </button>
-
-            {(profile?.role === 'admin' || profile?.role === 'editor') && (
-              <>
-                <button
-                  onClick={() => setView('personnel')}
-                  className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'personnel' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  <Users size={20} className={currentView === 'personnel' ? 'fill-blue-100' : ''} />
-                  <span className="text-[10px] font-medium">כוח אדם</span>
-                </button>
-                <button
-                  onClick={() => setView('tasks')}
-                  className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'tasks' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  <ClipboardList size={20} className={currentView === 'tasks' ? 'fill-blue-100' : ''} />
-                  <span className="text-[10px] font-medium">משימות</span>
-                </button>
-              </>
-            )}
-
-            <button
-              onClick={() => setView('stats')}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'stats' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              <BarChart2 size={20} className={currentView === 'stats' ? 'fill-blue-100' : ''} />
-              <span className="text-[10px] font-medium">דוחות</span>
-            </button>
-
-            <button
-              onClick={() => setView('lottery')}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'lottery' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              <Dices size={20} className={currentView === 'lottery' ? 'fill-blue-100' : ''} />
-              <span className="text-[10px] font-medium">הגרלה</span>
-            </button>
-
-            {profile?.role !== 'viewer' && (
+            {checkAccess('dashboard') && (
               <button
-                onClick={() => setIsMobileMenuOpen(true)}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                onClick={() => setView('dashboard')}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                <Menu size={20} />
-                <span className="text-[10px] font-medium">תפריט</span>
+                <Calendar size={20} className={currentView === 'dashboard' ? 'fill-blue-100' : ''} />
+                <span className="text-[10px] font-medium">שיבוצים</span>
               </button>
             )}
+
+            {checkAccess('personnel') && (
+              <button
+                onClick={() => setView('personnel')}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'personnel' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <Users size={20} className={currentView === 'personnel' ? 'fill-blue-100' : ''} />
+                <span className="text-[10px] font-medium">כוח אדם</span>
+              </button>
+            )}
+
+            {checkAccess('tasks') && (
+              <button
+                onClick={() => setView('tasks')}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'tasks' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <ClipboardList size={20} className={currentView === 'tasks' ? 'fill-blue-100' : ''} />
+                <span className="text-[10px] font-medium">משימות</span>
+              </button>
+            )}
+
+            {checkAccess('stats') && (
+              <button
+                onClick={() => setView('stats')}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'stats' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <BarChart2 size={20} className={currentView === 'stats' ? 'fill-blue-100' : ''} />
+                <span className="text-[10px] font-medium">דוחות</span>
+              </button>
+            )}
+
+            {checkAccess('lottery') && (
+              <button
+                onClick={() => setView('lottery')}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'lottery' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <Dices size={20} className={currentView === 'lottery' ? 'fill-blue-100' : ''} />
+                <span className="text-[10px] font-medium">הגרלה</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <Menu size={20} />
+              <span className="text-[10px] font-medium">תפריט</span>
+            </button>
           </div>
         </div>
       )}

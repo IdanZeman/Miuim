@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
-import { Profile, Organization } from '../types';
+import { Profile, Organization, ViewMode, AccessLevel, UserPermissions } from '../types';
 import { analytics } from '../services/analytics';
 
 interface AuthContextType {
@@ -10,7 +10,8 @@ interface AuthContextType {
   organization: Organization | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  refreshProfile: () => Promise<void>; // NEW: Force refresh
+  refreshProfile: () => Promise<void>;
+  checkAccess: (screen: ViewMode, requiredLevel?: 'view' | 'edit') => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,7 +21,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isFetchingProfile, setIsFetchingProfile] = useState(false); // NEW: Prevent duplicate fetches
+  const [isFetchingProfile, setIsFetchingProfile] = useState(false);
+
+  const checkAccess = (screen: ViewMode, requiredLevel: 'view' | 'edit' = 'view'): boolean => {
+    if (!profile) return false;
+
+    // 1. Check Custom Permissions Override
+    if (profile.permissions && profile.permissions.screens) {
+      const access = profile.permissions.screens[screen] || 'view'; // Default to view if not specified but permissions object exists? 
+      // Actually, if permissions object exists, we should rely on it.
+      // But standard default is determined by Logic below.
+      // Let's refine: If specific screen permission IS set, use it.
+      if (profile.permissions.screens[screen]) {
+        const level = profile.permissions.screens[screen];
+        if (level === 'none') return false;
+        if (requiredLevel === 'edit' && level !== 'edit') return false;
+        return true;
+      }
+    }
+
+    // 2. Fallback to Role-Based Defaults
+    const role = profile.role;
+    if (role === 'admin') return true; // Admin can do everything by default
+
+    if (role === 'attendance_only') {
+      return screen === 'attendance';
+    }
+
+    if (role === 'viewer') {
+      if (requiredLevel === 'edit') return false; // Viewers can't edit anything by default
+      return true; // Can view everything
+    }
+
+    if (role === 'editor') {
+      // Editors restricted from Settings/Admin stuff usually?
+      if (screen === 'settings') return false;
+      return true;
+    }
+
+    return false;
+  };
 
   const fetchProfile = async (userId: string, force = false) => {
     // Prevent concurrent fetches unless forced
@@ -340,7 +380,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, organization, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, organization, loading, signOut, refreshProfile, checkAccess }}>
       {children}
     </AuthContext.Provider>
   );

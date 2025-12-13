@@ -21,7 +21,7 @@ import {
 } from './services/supabaseClient';
 import { solveSchedule } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
-import { Wand2, Loader2, Sparkles } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, Shield } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { generateShiftsForTask } from './utils/shiftUtils';
 import { PersonnelManager } from './components/PersonnelManager';
@@ -45,7 +45,7 @@ import { ConstraintsManager } from './components/ConstraintsManager';
 // --- Main App Content (Authenticated) ---
 // Track view changes
 const MainApp: React.FC = () => {
-    const { organization, user, profile } = useAuth();
+    const { organization, user, profile, checkAccess } = useAuth();
     const { showToast } = useToast();
     const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints'>('dashboard');
     const [personnelTab, setPersonnelTab] = useState<'people' | 'teams' | 'roles'>('people');
@@ -94,7 +94,7 @@ const MainApp: React.FC = () => {
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [organization]);
+    }, [organization, profile]);
 
     useEffect(() => {
         logger.setContext(
@@ -116,12 +116,53 @@ const MainApp: React.FC = () => {
             const { data: teamsData } = await supabase.from('teams').select('*').eq('organization_id', organization.id);
             const { data: constraintsData } = await supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id);
 
+            let mappedPeople = (peopleData || []).map(mapPersonFromDB);
+            let mappedShifts = (shiftsData || []).map(mapShiftFromDB);
+            let mappedTeams = (teamsData || []).map(mapTeamFromDB);
+
+            // --- Data Scoping Logic ---
+            const dataScope = profile?.permissions?.dataScope || 'organization';
+            const allowedTeamIds = profile?.permissions?.allowedTeamIds || [];
+
+            if (dataScope === 'team') {
+                // Filter people: only those in allowed teams + current user
+                mappedPeople = mappedPeople.filter(p =>
+                    (p.teamId && allowedTeamIds.includes(p.teamId)) ||
+                    p.userId === user?.id ||
+                    (p as any).email === user?.email
+                );
+
+                // Filter shifts: only those assigned to visible people (or unassigned/open shifts? maybe all for visibility)
+                // Stigmergy: typically you want to see your team's shifts.
+                const visiblePersonIds = mappedPeople.map(p => p.id);
+                mappedShifts = mappedShifts.filter(s =>
+                    s.assignedPersonIds.some(pid => visiblePersonIds.includes(pid)) ||
+                    s.assignedPersonIds.length === 0 // Show open shifts?
+                );
+            } else if (dataScope === 'personal') {
+                // Filter people: only current user
+                const myPerson = mappedPeople.find(p => p.userId === user?.id || (p as any).email === user?.email);
+                if (myPerson) {
+                    mappedPeople = [myPerson];
+                    // Filter shifts: only assigned to me
+                    mappedShifts = mappedShifts.filter(s => s.assignedPersonIds.includes(myPerson.id));
+                } else {
+                    // Not linked? Show all people temporarily so they can Claim Profile?
+                    // If we filter to empty, ClaimProfile might fail or not show list.
+                    // Let's keep all people if not linked, to allow linking.
+                    if (isLinkedToPerson) {
+                        mappedPeople = []; // Fallback if linked but not found (weird)
+                    }
+                }
+            }
+            // --------------------------
+
             setState({
-                people: (peopleData || []).map(mapPersonFromDB),
-                shifts: (shiftsData || []).map(mapShiftFromDB),
+                people: mappedPeople,
+                shifts: mappedShifts,
                 taskTemplates: (tasksData || []).map(mapTaskFromDB),
                 roles: (rolesData || []).map(mapRoleFromDB),
-                teams: (teamsData || []).map(mapTeamFromDB),
+                teams: mappedTeams,
                 constraints: (constraintsData || []).map(mapConstraintFromDB)
             });
         } catch (error) {
@@ -482,6 +523,10 @@ const MainApp: React.FC = () => {
 
     const handleClearDay = async () => {
         if (!organization) return;
+        if (!checkAccess('dashboard', 'edit')) {
+            showToast('אין לך הרשאה לבצע פעולה זו', 'error');
+            return;
+        }
         const selectedDateKey = selectedDate.toLocaleDateString('en-CA');
         const targetShifts = state.shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === selectedDateKey);
         if (targetShifts.length === 0) return;
@@ -499,13 +544,30 @@ const MainApp: React.FC = () => {
 
     const renderContent = () => {
         if (isLoading) return <div className="flex justify-center items-center h-[60vh]"><Loader2 className="animate-spin" /></div>;
+
+        // Permission Gate
+        if (view !== 'contact' && !checkAccess(view)) {
+            return (
+                <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+                    <Shield size={64} className="text-slate-300 mb-4" />
+                    <h2 className="text-2xl font-bold text-slate-800 mb-2">אין לך הרשאה לצפות בעמוד זה</h2>
+                    <p className="text-slate-500 mb-6">אנא פנה למנהל הארגון לקבלת הרשאות מתאימות.</p>
+                    <button
+                        onClick={() => setView('dashboard')}
+                        className="bg-blue-600 text-white px-6 py-2 rounded-full font-bold hover:bg-blue-700 transition-colors"
+                    >
+                        חזור ללוח השיבוצים
+                    </button>
+                </div>
+            );
+        }
+
         switch (view) {
             case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onUpdatePerson={handleUpdatePerson} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} />;
             case 'attendance': return <AttendanceManager people={state.people} teams={state.teams} onUpdatePerson={handleUpdatePerson} />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} />;
-            case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} isViewer={profile?.role === 'viewer'} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
-            case 'settings': return <OrganizationSettings />;
-
+            case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
+            case 'settings': return <OrganizationSettings teams={state.teams} />;
 
 
             case 'reports': return <ShiftReport shifts={state.shifts} people={state.people} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} />;
@@ -515,7 +577,7 @@ const MainApp: React.FC = () => {
             case 'contact': return <ContactPage />;
             default: return (
                 <div className="space-y-6">
-                    {profile?.role !== 'viewer' && (
+                    {checkAccess('dashboard', 'edit') && (
                         <div className="fixed bottom-20 md:bottom-8 left-4 md:left-8 z-50">
                             <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-3 md:px-5 md:py-3 rounded-full shadow-xl flex items-center justify-center gap-0 md:gap-2 font-bold hover:scale-105 transition-all">
                                 <Sparkles size={20} className="md:w-5 md:h-5" />

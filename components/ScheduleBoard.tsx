@@ -198,8 +198,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = (props) => {
         onNavigate
     } = props;
 
-    const { profile, organization } = useAuth();
-    const isViewer = profile?.role === 'viewer';
+    const { profile, organization, checkAccess } = useAuth();
+    const canEdit = checkAccess('dashboard', 'edit');
+    const isViewer = !canEdit;
 
     const isEmptyState = taskTemplates.length === 0 || people.length === 0 || roles.length === 0;
 
