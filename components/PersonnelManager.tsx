@@ -5,6 +5,7 @@ import { Plus, Trash2, Shield, Users, Check, Pencil, Star, Heart, Truck, Syringe
 import { useToast } from '../contexts/ToastContext';
 import { Select } from './ui/Select';
 import { ExcelImportWizard } from './ExcelImportWizard';
+import { Modal } from './ui/Modal';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -123,9 +124,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         if (editingPersonId && onUpdatePerson) {
             // Update existing person with new data (including potentially new color from team)
             onUpdatePerson(personData);
+            showToast('החייל עודכן בהצלחה', 'success');
         } else {
             // Add new person
             onAddPerson(personData);
+            showToast('החייל נוסף בהצלחה', 'success');
         }
 
         closeForm();
@@ -137,8 +140,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setSelectedTeamId(p.teamId);
         setSelectedRoleIds(p.roleIds);
         setEditingPersonId(p.id);
-        setActiveTab('people');
-        setIsAdding(false); // Don't show top form
+        setActiveTab('people'); // Ensure we stay on people view but irrelevant for modal content
+        setIsAdding(false);
     };
 
     const handleSaveTeam = () => {
@@ -150,12 +153,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 name: newItemName,
                 color: selectedColor || TEAM_COLORS[0]
             });
+            showToast('הצוות עודכן בהצלחה', 'success');
         } else {
             onAddTeam({
                 id: `team-${Date.now()}`,
                 name: newItemName,
                 color: selectedColor || TEAM_COLORS[0]
             });
+            showToast('הצוות נוסף בהצלחה', 'success');
         }
         closeForm();
     };
@@ -165,7 +170,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setSelectedColor(t.color || TEAM_COLORS[0]);
         setEditingTeamId(t.id);
         setActiveTab('teams');
-        setIsAdding(false); // Don't show top form
+        setIsAdding(false);
     };
 
     const handleSaveRole = () => {
@@ -180,8 +185,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
         if (editingRoleId && onUpdateRole) {
             onUpdateRole(roleData);
+            showToast('התפקיד עודכן בהצלחה', 'success');
         } else {
             onAddRole(roleData);
+            showToast('התפקיד נוסף בהצלחה', 'success');
         }
         closeForm();
     };
@@ -192,7 +199,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setSelectedIcon(r.icon || 'Shield');
         setEditingRoleId(r.id);
         setActiveTab('roles');
-        setIsAdding(false); // Don't show top form
+        setIsAdding(false);
     };
 
     const toggleRole = (id: string) => {
@@ -205,7 +212,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setEditingTeamId(null);
         setEditingPersonId(null);
         setEditingRoleId(null);
-        setNewItemName('');
         setNewItemName('');
         setNewName('');
         setNewEmail('');
@@ -220,93 +226,107 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         showToast(`נוספו ${newPeople.length} חיילים בהצלחה`, 'success');
     };
 
-    // Render inline form component
-    const renderEditForm = (type: 'person' | 'team' | 'role', itemId: string) => {
-        if (type === 'person' && editingPersonId !== itemId) return null;
-        if (type === 'team' && editingTeamId !== itemId) return null;
-        if (type === 'role' && editingRoleId !== itemId) return null;
+    const isModalOpen = isAdding || !!editingPersonId || !!editingTeamId || !!editingRoleId;
 
-        return (
-            <div className="col-span-full mb-4 bg-slate-50 p-4 md:p-6 rounded-xl border-2 border-idf-yellow animate-fadeIn">
-                <h3 className="font-bold text-slate-800 mb-4 text-base md:text-lg">
-                    {type === 'person' ? 'עריכת חייל' : type === 'team' ? 'עריכת צוות' : 'עריכת תפקיד'}
-                </h3>
+    // Determine title and content based on what we are editing/adding
+    const getModalTitle = () => {
+        if (editingPersonId) return 'עריכת חייל';
+        if (editingTeamId) return 'עריכת צוות';
+        if (editingRoleId) return 'עריכת תפקיד';
 
-                {type === 'person' ? (
-                    <div className="space-y-3 md:space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="שם מלא" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
-                            <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="אימייל (אופציונלי)" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
-                            <Select
-                                value={selectedTeamId}
-                                onChange={setSelectedTeamId}
-                                options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                placeholder="בחר צוות..."
-                                className="bg-white md:col-span-2"
-                            />
+        // Adding
+        if (activeTab === 'people') return 'הוספת לוחם';
+        if (activeTab === 'teams') return 'הוספת צוות';
+        if (activeTab === 'roles') return 'הוספת תפקיד';
+        return '';
+    };
+
+    const renderModalContent = () => {
+        const isPerson = editingPersonId || (isAdding && activeTab === 'people');
+        const isTeam = editingTeamId || (isAdding && activeTab === 'teams');
+        const isRole = editingRoleId || (isAdding && activeTab === 'roles');
+
+        if (isPerson) {
+            return (
+                <div className="space-y-3 md:space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                        <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="שם מלא" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
+                        <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="אימייל (אופציונלי)" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
+                        <Select
+                            value={selectedTeamId}
+                            onChange={setSelectedTeamId}
+                            options={teams.map(t => ({ value: t.id, label: t.name }))}
+                            placeholder="בחר צוות..."
+                            className="bg-white md:col-span-2"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">תפקידים:</label>
+                        <div className="flex flex-wrap gap-2">
+                            {roles.map(r => (
+                                <button key={r.id} onClick={() => toggleRole(r.id)} className={`px-2 md:px-3 py-1 rounded-full text-xs border ${selectedRoleIds.includes(r.id) ? 'bg-slate-800 text-white' : 'bg-white text-slate-600'}`}>
+                                    {r.name} {selectedRoleIds.includes(r.id) && <Check size={12} className="inline" />}
+                                </button>
+                            ))}
                         </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                        <button onClick={closeForm} className="px-3 md:px-4 py-1.5 md:py-2 text-slate-500 hover:bg-slate-100 rounded-full text-sm font-medium">ביטול</button>
+                        <button onClick={handleSavePerson} className="px-4 md:px-6 py-1.5 md:py-2 bg-idf-yellow text-slate-900 rounded-full font-bold text-sm md:text-base">שמור</button>
+                    </div>
+                </div>
+            );
+        }
+
+        if (isTeam || isRole) {
+            return (
+                <div className="space-y-3 md:space-y-4">
+                    <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder={`שם ה${isTeam ? 'צוות' : 'תפקיד'}`} className="w-full p-2 md:p-3 rounded-lg border border-slate-300 text-sm md:text-base" />
+
+                    {isTeam && (
                         <div>
-                            <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">תפקידים:</label>
+                            <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">צבע צוות:</label>
                             <div className="flex flex-wrap gap-2">
-                                {roles.map(r => (
-                                    <button key={r.id} onClick={() => toggleRole(r.id)} className={`px-2 md:px-3 py-1 rounded-full text-xs border ${selectedRoleIds.includes(r.id) ? 'bg-slate-800 text-white' : 'bg-white text-slate-600'}`}>
-                                        {r.name} {selectedRoleIds.includes(r.id) && <Check size={12} className="inline" />}
-                                    </button>
+                                {TEAM_COLORS.map(colorClass => (
+                                    <button key={colorClass} onClick={() => setSelectedColor(colorClass)} className={`w-6 h-6 rounded-full ${colorClass.replace('border-', 'bg-')} ${(selectedColor || TEAM_COLORS[0]) === colorClass ? 'ring-2 ring-offset-2 ring-slate-800' : 'opacity-70'}`} />
                                 ))}
                             </div>
                         </div>
-                        <div className="flex justify-end gap-2">
-                            <button onClick={handleSavePerson} className="px-4 md:px-6 py-1.5 md:py-2 bg-idf-yellow text-slate-900 rounded-full font-bold text-sm md:text-base">עדכן</button>
-                            <button onClick={closeForm} className="px-3 md:px-4 py-1.5 md:py-2 text-slate-500 hover:bg-slate-200 rounded-full text-sm">ביטול</button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-3 md:space-y-4">
-                        <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder={`שם ה${type === 'team' ? 'צוות' : 'תפקיד'}`} className="w-full p-2 md:p-3 rounded-lg border border-slate-300 text-sm md:text-base" />
+                    )}
 
-                        {type === 'team' && (
+                    {isRole && (
+                        <>
                             <div>
-                                <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">צבע צוות:</label>
+                                <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">צבע תפקיד:</label>
                                 <div className="flex flex-wrap gap-2">
-                                    {TEAM_COLORS.map(colorClass => (
-                                        <button key={colorClass} onClick={() => setSelectedColor(colorClass)} className={`w-6 h-6 rounded-full ${colorClass.replace('border-', 'bg-')} ${selectedColor === colorClass ? 'ring-2 ring-offset-2 ring-slate-800' : 'opacity-70'}`} />
+                                    {ROLE_COLORS.map(colorClass => (
+                                        <button key={colorClass} onClick={() => setSelectedColor(colorClass)} className={`w-6 h-6 rounded-full ${colorClass.split(' ')[0]} ${(selectedColor || ROLE_COLORS[0]) === colorClass ? 'ring-2 ring-offset-2 ring-slate-800' : 'opacity-70'}`} />
                                     ))}
                                 </div>
                             </div>
-                        )}
-
-                        {type === 'role' && (
-                            <>
-                                <div>
-                                    <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">צבע תפקיד:</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {ROLE_COLORS.map(colorClass => (
-                                            <button key={colorClass} onClick={() => setSelectedColor(colorClass)} className={`w-6 h-6 rounded-full ${colorClass.split(' ')[0]} ${selectedColor === colorClass ? 'ring-2 ring-offset-2 ring-slate-800' : 'opacity-70'}`} />
-                                        ))}
-                                    </div>
+                            <div>
+                                <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">סמל:</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(ROLE_ICONS).map(([name, Icon]) => (
+                                        <button key={name} onClick={() => setSelectedIcon(name)} className={`p-2 rounded-lg ${selectedIcon === name ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
+                                            <Icon size={16} />
+                                        </button>
+                                    ))}
                                 </div>
-                                <div>
-                                    <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">סמל:</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {Object.entries(ROLE_ICONS).map(([name, Icon]) => (
-                                            <button key={name} onClick={() => setSelectedIcon(name)} className={`p-2 rounded-lg ${selectedIcon === name ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
-                                                <Icon size={16} />
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </>
-                        )}
+                            </div>
+                        </>
+                    )}
 
-                        <div className="flex justify-end gap-2">
-                            <button onClick={type === 'team' ? handleSaveTeam : handleSaveRole} className="px-4 md:px-6 py-1.5 md:py-2 bg-idf-yellow text-slate-900 rounded-full font-bold text-sm md:text-base">עדכן</button>
-                            <button onClick={closeForm} className="px-3 md:px-4 py-1.5 md:py-2 text-slate-500 hover:bg-slate-200 rounded-full text-sm">ביטול</button>
-                        </div>
+                    <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                        <button onClick={closeForm} className="px-3 md:px-4 py-1.5 md:py-2 text-slate-500 hover:bg-slate-100 rounded-full text-sm font-medium">ביטול</button>
+                        <button onClick={isTeam ? handleSaveTeam : handleSaveRole} className="px-4 md:px-6 py-1.5 md:py-2 bg-idf-yellow text-slate-900 rounded-full font-bold text-sm md:text-base">שמור</button>
                     </div>
-                )}
-            </div>
-        );
+                </div>
+            );
+        }
+        return null;
     };
+
 
     return (
         <div className="bg-white rounded-xl shadow-portal p-4 md:p-6 min-h-[600px]">
@@ -344,89 +364,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 </div>
             </div>
 
-            {/* Top Form - Only for "Add New" */}
-            {isAdding && !editingPersonId && !editingTeamId && !editingRoleId && (
-                <div className="mb-6 md:mb-8 bg-slate-50 p-4 md:p-6 rounded-xl border border-slate-200 animate-fadeIn">
-                    <h3 className="font-bold text-slate-800 mb-4 text-base md:text-lg">
-                        {`הוספת ${activeTab === 'people' ? 'לוחם' : activeTab === 'teams' ? 'צוות' : 'תפקיד'}`}
-                    </h3>
-
-                    {activeTab === 'people' ? (
-                        <div className="space-y-3 md:space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                                <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="שם מלא" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
-                                <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="אימייל (אופציונלי)" className="p-2 md:p-3 rounded-lg border border-slate-300 w-full text-sm md:text-base" />
-                                <Select
-                                    value={selectedTeamId}
-                                    onChange={setSelectedTeamId}
-                                    options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                    placeholder="בחר צוות..."
-                                    className="bg-white md:col-span-2"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">תפקידים:</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {roles.map(r => (
-                                        <button key={r.id} onClick={() => toggleRole(r.id)} className={`px-2 md:px-3 py-1 rounded-full text-xs border ${selectedRoleIds.includes(r.id) ? 'bg-slate-800 text-white' : 'bg-white text-slate-600'}`}>
-                                            {r.name} {selectedRoleIds.includes(r.id) && <Check size={12} className="inline" />}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                <button onClick={handleSavePerson} className="px-4 md:px-6 py-1.5 md:py-2 bg-idf-yellow text-slate-900 rounded-full font-bold text-sm md:text-base">שמור</button>
-                                <button onClick={closeForm} className="px-3 md:px-4 py-1.5 md:py-2 text-slate-500 hover:bg-slate-200 rounded-full text-sm">ביטול</button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-3 md:space-y-4">
-                            <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder={`שם ה${activeTab === 'teams' ? 'צוות' : 'תפקיד'}`} className="w-full p-2 md:p-3 rounded-lg border border-slate-300 text-sm md:text-base" />
-
-                            {activeTab === 'teams' && (
-                                <div>
-                                    <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">צבע צוות:</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {TEAM_COLORS.map(colorClass => (
-                                            <button key={colorClass} onClick={() => setSelectedColor(colorClass)} className={`w-6 h-6 rounded-full ${colorClass.replace('border-', 'bg-')} ${(selectedColor || TEAM_COLORS[0]) === colorClass ? 'ring-2 ring-offset-2 ring-slate-800' : 'opacity-70'}`} />
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'roles' && (
-                                <>
-                                    <div>
-                                        <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">צבע תפקיד:</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {ROLE_COLORS.map(colorClass => (
-                                                <button key={colorClass} onClick={() => setSelectedColor(colorClass)} className={`w-6 h-6 rounded-full ${colorClass.split(' ')[0]} ${(selectedColor || ROLE_COLORS[0]) === colorClass ? 'ring-2 ring-offset-2 ring-slate-800' : 'opacity-70'}`} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs md:text-sm font-bold text-slate-500 mb-2">סמל:</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {Object.entries(ROLE_ICONS).map(([name, Icon]) => (
-                                                <button key={name} onClick={() => setSelectedIcon(name)} className={`p-2 rounded-lg ${selectedIcon === name ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
-                                                    <Icon size={16} />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-
-                            <div className="flex justify-end gap-2">
-                                <button onClick={activeTab === 'teams' ? handleSaveTeam : handleSaveRole} className="px-4 md:px-6 py-1.5 md:py-2 bg-idf-yellow text-slate-900 rounded-full font-bold text-sm md:text-base">שמור</button>
-                                <button onClick={closeForm} className="px-3 md:px-4 py-1.5 md:py-2 text-slate-500 hover:bg-slate-200 rounded-full text-sm">ביטול</button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Content Lists */}
             {/* Content Lists */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {activeTab === 'people' && (
@@ -469,30 +406,27 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                     {!isCollapsed && (
                                         <div className="p-3 md:p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-slate-200">
                                             {teamMembers.map(person => (
-                                                <React.Fragment key={person.id}>
-                                                    <div className="bg-white border border-slate-100 rounded-xl p-3 md:p-4 hover:shadow-md transition-all group">
-                                                        <div className="flex justify-between items-start">
-                                                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                                                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0 ${person.color}`}>{getPersonInitials(person.name)}</div>
-                                                                <div className="min-w-0 flex-1">
-                                                                    <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">{person.name}</h4>
-                                                                    <span className="text-xs text-slate-500 truncate block">{person.email || 'אין אימייל'}</span>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                                                <button onClick={() => handleEditPersonClick(person)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={14} /></button>
-                                                                <button onClick={() => onDeletePerson(person.id)} className="text-slate-300 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={14} /></button>
+                                                <div key={person.id} className="bg-white border border-slate-100 rounded-xl p-3 md:p-4 hover:shadow-md transition-all group">
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                                                            <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0 ${person.color}`}>{getPersonInitials(person.name)}</div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">{person.name}</h4>
+                                                                <span className="text-xs text-slate-500 truncate block">{person.email || 'אין אימייל'}</span>
                                                             </div>
                                                         </div>
-                                                        <div className="mt-2 md:mt-3 flex flex-wrap gap-1">
-                                                            {person.roleIds.map(rid => {
-                                                                const r = roles.find(role => role.id === rid);
-                                                                return r ? <span key={rid} className="text-[10px] bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-100">{r.name}</span> : null;
-                                                            })}
+                                                        <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                            <button onClick={() => handleEditPersonClick(person)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={14} /></button>
+                                                            <button onClick={() => onDeletePerson(person.id)} className="text-slate-300 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={14} /></button>
                                                         </div>
                                                     </div>
-                                                    {renderEditForm('person', person.id)}
-                                                </React.Fragment>
+                                                    <div className="mt-2 md:mt-3 flex flex-wrap gap-1">
+                                                        {person.roleIds.map(rid => {
+                                                            const r = roles.find(role => role.id === rid);
+                                                            return r ? <span key={rid} className="text-[10px] bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-100">{r.name}</span> : null;
+                                                        })}
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
                                     )}
@@ -503,42 +437,46 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 )}
 
                 {activeTab === 'teams' && teams.map(team => (
-                    <React.Fragment key={team.id}>
-                        <div className={`bg-white border-l-4 rounded-xl p-4 md:p-6 flex justify-between items-center group hover:shadow-md transition-all ${team.color || 'border-slate-500'}`}>
-                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                <div className="bg-slate-100 p-2 md:p-3 rounded-full text-slate-600 flex-shrink-0"><Users size={18} /></div>
-                                <h4 className="font-bold text-base md:text-lg text-slate-800 truncate">{team.name}</h4>
-                            </div>
-                            <div className="flex items-center gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                <button onClick={() => handleEditTeamClick(team)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={16} /></button>
-                                <button onClick={() => onDeleteTeam(team.id)} className="text-slate-400 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
-                            </div>
+                    <div key={team.id} className={`bg-white border-l-4 rounded-xl p-4 md:p-6 flex justify-between items-center group hover:shadow-md transition-all ${team.color || 'border-slate-500'}`}>
+                        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                            <div className="bg-slate-100 p-2 md:p-3 rounded-full text-slate-600 flex-shrink-0"><Users size={18} /></div>
+                            <h4 className="font-bold text-base md:text-lg text-slate-800 truncate">{team.name}</h4>
                         </div>
-                        {renderEditForm('team', team.id)}
-                    </React.Fragment>
+                        <div className="flex items-center gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                            <button onClick={() => handleEditTeamClick(team)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={16} /></button>
+                            <button onClick={() => onDeleteTeam(team.id)} className="text-slate-400 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                        </div>
+                    </div>
                 ))}
 
                 {activeTab === 'roles' && roles.map(role => {
                     const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
                     return (
-                        <React.Fragment key={role.id}>
-                            <div className="bg-white border border-idf-card-border rounded-xl p-3 md:p-4 flex justify-between items-center group hover:border-purple-300 transition-colors">
-                                <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                    <div className={`p-2 rounded-lg flex-shrink-0 ${role.color || 'bg-slate-100 text-slate-600'}`}>
-                                        <Icon size={16} />
-                                    </div>
-                                    <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">{role.name}</h4>
+                        <div key={role.id} className="bg-white border border-idf-card-border rounded-xl p-3 md:p-4 flex justify-between items-center group hover:border-purple-300 transition-colors">
+                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                                <div className={`p-2 rounded-lg flex-shrink-0 ${role.color || 'bg-slate-100 text-slate-600'}`}>
+                                    <Icon size={16} />
                                 </div>
-                                <div className="flex items-center gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                    <button onClick={() => handleEditRoleClick(role)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={14} /></button>
-                                    <button onClick={() => onDeleteRole(role.id)} className="text-slate-300 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={14} /></button>
-                                </div>
+                                <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">{role.name}</h4>
                             </div>
-                            {renderEditForm('role', role.id)}
-                        </React.Fragment>
+                            <div className="flex items-center gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                <button onClick={() => handleEditRoleClick(role)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={14} /></button>
+                                <button onClick={() => onDeleteRole(role.id)} className="text-slate-300 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={14} /></button>
+                            </div>
+                        </div>
                     );
                 })}
             </div>
+
+            <Modal
+                isOpen={isModalOpen}
+                onClose={closeForm}
+                title={getModalTitle()}
+                size="md"
+            >
+                {renderModalContent()}
+            </Modal>
+
             <ExcelImportWizard
                 isOpen={isImportWizardOpen}
                 onClose={() => setIsImportWizardOpen(false)}

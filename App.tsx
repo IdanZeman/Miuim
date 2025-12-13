@@ -218,7 +218,12 @@ const MainApp: React.FC = () => {
         if (!organization) return;
         const oldTask = state.taskTemplates.find(task => task.id === t.id);
         let updatedShifts = state.shifts;
-        const schedulingChanged = oldTask?.defaultStartTime !== t.defaultStartTime || oldTask?.durationHours !== t.durationHours || oldTask?.schedulingType !== t.schedulingType || oldTask?.specificDate !== t.specificDate;
+        const schedulingChanged = oldTask?.defaultStartTime !== t.defaultStartTime ||
+            oldTask?.durationHours !== t.durationHours ||
+            oldTask?.schedulingType !== t.schedulingType ||
+            oldTask?.specificDate !== t.specificDate ||
+            oldTask?.startDate !== t.startDate ||
+            oldTask?.endDate !== t.endDate;
 
         if (schedulingChanged) {
             updatedShifts = updatedShifts.filter(s => s.taskId !== t.id);

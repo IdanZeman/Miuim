@@ -12,7 +12,33 @@ export const generateShiftsForTask = (task: TaskTemplate, startOfWeek: Date): Sh
         // Check if specific date is set and matches
         if (task.specificDate) {
             const specific = new Date(task.specificDate);
-            if (currentDate.toDateString() !== specific.toDateString()) {
+            // Compare YYYY-MM-DD strings to avoid time issues
+            if (currentDate.toISOString().split('T')[0] !== specific.toISOString().split('T')[0]) {
+                continue;
+            }
+        }
+
+        // Check date range (startDate / endDate) for continuous tasks
+        if (task.startDate) {
+            const startLimit = new Date(task.startDate);
+            // Reset time to 00:00:00 for accurate date comparison
+            startLimit.setHours(0, 0, 0, 0);
+            currentDate.setHours(0, 0, 0, 0);
+            if (currentDate.getTime() < startLimit.getTime()) {
+                continue;
+            }
+        }
+
+        if (task.endDate) {
+            // Use local date parts to construct YYYY-MM-DD for comparison
+            // to avoid timezone issues with toISOString() which uses UTC
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+            const currentStr = `${year}-${month}-${day}`;
+            
+            // task.endDate is already YYYY-MM-DD
+            if (currentStr > task.endDate) {
                 continue;
             }
         }
@@ -37,6 +63,21 @@ export const generateShiftsForTask = (task: TaskTemplate, startOfWeek: Date): Sh
 
             let count = 0;
             while (currentShiftStart < dayLimit && count < 20) { // Safety break
+                // STRICT CHECK: If specific endDate is set, ensure individual shift starts on/before that date
+                if (task.endDate) {
+                    const shiftStartYear = currentShiftStart.getFullYear();
+                    const shiftStartMonth = String(currentShiftStart.getMonth() + 1).padStart(2, '0');
+                    const shiftStartDay = String(currentShiftStart.getDate()).padStart(2, '0');
+                    const shiftStartStr = `${shiftStartYear}-${shiftStartMonth}-${shiftStartDay}`;
+                    
+                    console.log(`Checking shift start: ${shiftStartStr} vs EndDate: ${task.endDate}`);
+
+                    if (shiftStartStr > task.endDate) {
+                        console.log('Break: Shift starts after end date');
+                        break;
+                    }
+                }
+
                 const end = new Date(currentShiftStart);
                 end.setHours(currentShiftStart.getHours() + (task.durationHours || 4));
 

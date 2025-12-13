@@ -92,6 +92,8 @@ export interface TaskTemplate {
   schedulingType: SchedulingType;
   defaultStartTime?: string; // "HH:MM"
   specificDate?: string; // "YYYY-MM-DD"
+  startDate?: string; // "YYYY-MM-DD" - Valid from
+  endDate?: string; // "YYYY-MM-DD" - Valid until
   organization_id?: string;
   is247?: boolean;
 }
