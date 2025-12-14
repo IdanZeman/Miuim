@@ -133,6 +133,8 @@ export const mapShiftToDB = (shift: Shift) => ({
 export const mapConstraintFromDB = (dbConstraint: any): import('../types').SchedulingConstraint => ({
     id: dbConstraint.id,
     personId: dbConstraint.person_id,
+    teamId: dbConstraint.team_id, // NEW
+    roleId: dbConstraint.role_id, // NEW
     type: dbConstraint.type,
     taskId: dbConstraint.task_id,
     startTime: dbConstraint.start_time,
@@ -143,6 +145,8 @@ export const mapConstraintFromDB = (dbConstraint: any): import('../types').Sched
 export const mapConstraintToDB = (constraint: import('../types').SchedulingConstraint) => ({
     id: constraint.id,
     person_id: constraint.personId,
+    team_id: constraint.teamId, // NEW
+    role_id: constraint.roleId, // NEW
     type: constraint.type,
     task_id: constraint.taskId,
     start_time: constraint.startTime,

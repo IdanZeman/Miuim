@@ -709,7 +709,7 @@ const MainApp: React.FC = () => {
             case 'reports': return <ShiftReport shifts={state.shifts} people={state.people} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} />;
             case 'logs': return <AdminLogsViewer />;
             case 'lottery': return <Lottery people={state.people} teams={state.teams} roles={state.roles} />;
-            case 'constraints': return <ConstraintsManager people={state.people} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} onUpdateConstraint={handleUpdateConstraint} />;
+            case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} onUpdateConstraint={handleUpdateConstraint} />;
             case 'contact': return <ContactPage />;
             default: return (
                 <div className="space-y-6">

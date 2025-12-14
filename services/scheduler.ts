@@ -81,15 +81,20 @@ const findBestCandidates = (
   const restDurationMs = task.minRest * 60 * 60 * 1000;
 
   let candidates = algoUsers.filter(u => {
-    // 0. Check Constraints
-    const userConstraints = constraints.filter(c => c.personId === u.person.id);
+    // 0. Check Constraints (Person > Team > Role Hierarchical Check)
+    // Find all constraints relevant to this user (Person specific OR Team specific OR Role specific)
+    const userConstraints = constraints.filter(c => 
+        c.personId === u.person.id || // Direct Person Constraint
+        (c.teamId && c.teamId === u.person.teamId) || // Team Constraint
+        (c.roleId && u.person.roleIds.includes(c.roleId)) // Role Constraint
+    );
     
-    // NEVER_ASSIGN: If user has a "never assign" constraint for this task
+    // NEVER_ASSIGN: If user has ANY "never assign" constraint for this task (from any source)
     if (userConstraints.some(c => c.type === 'never_assign' && c.taskId === task.taskId)) {
         return false;
     }
 
-    // TIME_BLOCK: Check if the task overlaps with any time block constraint
+    // TIME_BLOCK: Check if the task overlaps with ANY time block constraint
     const hasTimeBlock = userConstraints.some(c => {
         if (c.type === 'time_block' && c.startTime && c.endTime) {
             const blockStart = new Date(c.startTime).getTime();
@@ -104,9 +109,14 @@ const findBestCandidates = (
 
     // ALWAYS_ASSIGN (Restriction): If user has "always assign to X", they CANNOT do Y (unless Y is X)
     // "X תמיד ישובץ רק למשימה Y" -> X can only do Y.
-    const exclusiveTaskConstraint = userConstraints.find(c => c.type === 'always_assign');
-    if (exclusiveTaskConstraint && exclusiveTaskConstraint.taskId !== task.taskId) {
-        return false;
+    // Note: If multiple "always_assign" exist for different tasks, it creates an impossible condition (conflicting exclusives), so user matches none.
+    const exclusiveTaskConstraints = userConstraints.filter(c => c.type === 'always_assign');
+    if (exclusiveTaskConstraints.length > 0) {
+        // If there are exclusive constraints, the current task MUST be one of the permitted tasks
+        const permittedTaskIds = exclusiveTaskConstraints.map(c => c.taskId);
+        if (!permittedTaskIds.includes(task.taskId)) {
+            return false;
+        }
     }
 
     // 1. Already assigned to this task? (Always check)
@@ -197,7 +207,14 @@ const initializeUsers = (
     };
 
     // 0. Apply Time Block Constraints
-    const userConstraints = constraints.filter(c => c.personId === p.id && c.type === 'time_block');
+    // NEW: Filter for Person OR Team OR Role
+    const userConstraints = constraints.filter(c => 
+        c.type === 'time_block' && (
+            c.personId === p.id ||
+            (c.teamId && c.teamId === p.teamId) ||
+            (c.roleId && p.roleIds.includes(c.roleId))
+        )
+    );
     userConstraints.forEach(c => {
         if (c.startTime && c.endTime) {
             const cStart = new Date(c.startTime).getTime();

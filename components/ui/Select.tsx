@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { ChevronDown, Check, Search } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
 export interface SelectOption {
@@ -16,6 +16,7 @@ interface SelectProps {
     icon?: React.ReactNode;
     className?: string;
     disabled?: boolean;
+    searchable?: boolean; // NEW PROP
 }
 
 export const Select: React.FC<SelectProps> = ({
@@ -25,19 +26,40 @@ export const Select: React.FC<SelectProps> = ({
     placeholder = 'Select...',
     icon,
     className = '',
-    disabled = false
+    disabled = false,
+    searchable = false // Default off unless requested
 }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState(''); // NEW STATE
     const containerRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null); // NEW REF
 
-    useClickOutside(containerRef, () => setIsOpen(false));
+    useClickOutside(containerRef, () => {
+        setIsOpen(false);
+        setSearchTerm(''); // Reset search on close
+    });
 
     const selectedOption = options.find(opt => opt.value === value);
+
+    // Filter options based on search term
+    const filteredOptions = useMemo(() => {
+        if (!searchTerm) return options;
+        const lowerTerm = searchTerm.toLowerCase();
+        return options.filter(opt => opt.label.toLowerCase().includes(lowerTerm));
+    }, [options, searchTerm]);
 
     const handleSelect = (val: string) => {
         onChange(val);
         setIsOpen(false);
+        setSearchTerm('');
     };
+
+    // Auto-focus search input when opening
+    React.useEffect(() => {
+        if (isOpen && searchable && searchInputRef.current) {
+            searchInputRef.current.focus();
+        }
+    }, [isOpen, searchable]);
 
     return (
         <div className={`relative ${className}`} ref={containerRef}>
@@ -69,9 +91,28 @@ export const Select: React.FC<SelectProps> = ({
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-auto animate-in fade-in zoom-in-95 duration-100 origin-top">
-                    <div className="p-1">
-                        {options.map((option) => (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top">
+
+                    {/* Search Input (Conditionally Rendered) */}
+                    {searchable && (
+                        <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10">
+                            <div className="relative">
+                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <input
+                                    ref={searchInputRef}
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="חיפוש..."
+                                    className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans"
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="p-1 overflow-y-auto custom-scrollbar">
+                        {filteredOptions.map((option) => (
                             <button
                                 key={option.value}
                                 type="button"
@@ -92,9 +133,9 @@ export const Select: React.FC<SelectProps> = ({
                                 )}
                             </button>
                         ))}
-                        {options.length === 0 && (
-                            <div className="px-3 py-4 text-center text-slate-400 text-sm">
-                                אין אפשרויות
+                        {filteredOptions.length === 0 && (
+                            <div className="px-3 py-8 text-center text-slate-400 text-sm italic">
+                                {searchTerm ? 'לא נמצאו תוצאות' : 'אין אפשרויות זמינות'}
                             </div>
                         )}
                     </div>

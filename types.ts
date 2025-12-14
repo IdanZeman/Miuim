@@ -161,12 +161,15 @@ export type ConstraintType = 'always_assign' | 'never_assign' | 'time_block';
 
 export interface SchedulingConstraint {
   id: string;
-  personId: string;
+  personId?: string; // Optional if teamId or roleId is provided
+  teamId?: string;   // NEW: Constraint applies to entire team
+  roleId?: string;   // NEW: Constraint applies to entire role
   type: ConstraintType;
   taskId?: string;
   startTime?: string; // ISO string
   endTime?: string; // ISO string
   organization_id: string;
+  description?: string; // Optional note
 }
 
 export interface AppState {
