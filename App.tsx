@@ -17,7 +17,8 @@ import {
     mapTeamFromDB, mapTeamToDB,
     mapRoleFromDB, mapRoleToDB,
     mapTaskFromDB, mapTaskToDB,
-    mapConstraintFromDB, mapConstraintToDB
+    mapConstraintFromDB, mapConstraintToDB,
+    mapRotationFromDB, mapRotationToDB // NEW
 } from './services/supabaseClient';
 import { solveSchedule } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
@@ -76,13 +77,15 @@ const MainApp: React.FC = () => {
         roles: Role[];
         teams: Team[];
         constraints: SchedulingConstraint[];
+        teamRotations: import('./types').TeamRotation[]; // NEW
     }>({
         people: [],
         shifts: [],
         taskTemplates: [],
         roles: [],
         teams: [],
-        constraints: []
+        constraints: [],
+        teamRotations: [] // NEW
     });
 
     const isLinkedToPerson = React.useMemo(() => {
@@ -102,6 +105,7 @@ const MainApp: React.FC = () => {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduling_constraints', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'team_rotations', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
@@ -126,6 +130,7 @@ const MainApp: React.FC = () => {
             const { data: rolesData } = await supabase.from('roles').select('*').eq('organization_id', organization.id);
             const { data: teamsData } = await supabase.from('teams').select('*').eq('organization_id', organization.id);
             const { data: constraintsData } = await supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id);
+            const { data: rotationsData } = await supabase.from('team_rotations').select('*').eq('organization_id', organization.id); // NEW
 
             let mappedPeople = (peopleData || []).map(mapPersonFromDB);
             let mappedShifts = (shiftsData || []).map(mapShiftFromDB);
@@ -174,7 +179,8 @@ const MainApp: React.FC = () => {
                 taskTemplates: (tasksData || []).map(mapTaskFromDB),
                 roles: (rolesData || []).map(mapRoleFromDB),
                 teams: mappedTeams,
-                constraints: (constraintsData || []).map(mapConstraintFromDB)
+                constraints: (constraintsData || []).map(mapConstraintFromDB),
+                teamRotations: (rotationsData || []).map(mapRotationFromDB) // NEW
             });
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -203,6 +209,34 @@ const MainApp: React.FC = () => {
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
         } catch (e) { console.warn("DB Update Failed", e); }
         setState(prev => ({ ...prev, people: prev.people.map(person => person.id === p.id ? p : person) }));
+    };
+
+    const handleUpdatePeople = async (peopleToUpdate: Person[]) => {
+        // Optimistic update
+        setState(prev => ({
+            ...prev,
+            people: prev.people.map(p => {
+                const updated = peopleToUpdate.find(u => u.id === p.id);
+                return updated || p;
+            })
+        }));
+
+        try {
+            const mapped = peopleToUpdate.map(mapPersonToDB);
+            const { error } = await supabase.from('people').upsert(mapped);
+            if (error) throw error;
+            // No strict need to log bulk updates individually to avoid spam, or log a generic bulk action
+            await logger.log({
+                action: 'UPDATE',
+                entityId: 'bulk',
+                category: 'data',
+                metadata: { details: `Updated ${peopleToUpdate.length} people` }
+            });
+
+        } catch (e) {
+            console.warn("Bulk DB Update Failed", e);
+            // Revert on failure? Ideally yes, but keeping it simple for now as we trust optimistic
+        }
     };
 
     const handleDeletePerson = async (id: string) => {
@@ -358,6 +392,25 @@ const MainApp: React.FC = () => {
     const handleUpdateConstraint = async (c: SchedulingConstraint) => {
         try { await supabase.from('scheduling_constraints').update(mapConstraintToDB(c)).eq('id', c.id); } catch (e) { console.warn(e); }
         setState(prev => ({ ...prev, constraints: prev.constraints.map(constraint => constraint.id === c.id ? c : constraint) }));
+    };
+
+    // NEW ROTATION HANDLERS
+    const handleAddRotation = async (r: import('./types').TeamRotation) => {
+        if (!organization) return;
+        try {
+            await supabase.from('team_rotations').insert(mapRotationToDB({ ...r, organization_id: organization.id }));
+            setState(prev => ({ ...prev, teamRotations: [...prev.teamRotations, r] }));
+        } catch (e) { console.warn(e); }
+    };
+
+    const handleUpdateRotation = async (r: import('./types').TeamRotation) => {
+        try { await supabase.from('team_rotations').update(mapRotationToDB(r)).eq('id', r.id); } catch (e) { console.warn(e); }
+        setState(prev => ({ ...prev, teamRotations: prev.teamRotations.map(rot => rot.id === r.id ? r : rot) }));
+    };
+
+    const handleDeleteRotation = async (id: string) => {
+        try { await supabase.from('team_rotations').delete().eq('id', id); } catch (e) { console.warn(e); }
+        setState(prev => ({ ...prev, teamRotations: prev.teamRotations.filter(r => r.id !== id) }));
     };
 
     const handleAssign = async (shiftId: string, personId: string) => {
@@ -647,7 +700,7 @@ const MainApp: React.FC = () => {
 
         switch (view) {
             case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onUpdatePerson={handleUpdatePerson} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} />;
-            case 'attendance': return <AttendanceManager people={state.people} teams={state.teams} onUpdatePerson={handleUpdatePerson} />;
+            case 'attendance': return <AttendanceManager people={state.people} teams={state.teams} teamRotations={state.teamRotations} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddRotation={handleAddRotation} onUpdateRotation={handleUpdateRotation} onDeleteRotation={handleDeleteRotation} isViewer={!checkAccess('attendance', 'edit')} />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
             case 'settings': return <OrganizationSettings teams={state.teams} />;

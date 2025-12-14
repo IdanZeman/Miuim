@@ -16,7 +16,22 @@ export interface OrganizationSettings {
   night_shift_start: string; // "HH:MM:SS"
   night_shift_end: string;   // "HH:MM:SS"
   viewer_schedule_days?: number; // Default 2
+  rotation_cycle_days?: number; // Global default cycle length (optional)
 }
+
+
+export interface TeamRotation {
+  id: string;
+  organization_id: string;
+  team_id: string;
+  days_on_base: number;
+  days_at_home: number;
+  cycle_length: number; // days_on_base + days_at_home
+  start_date: string; // ISO Date "YYYY-MM-DD" - The anchor date for the cycle
+  end_date?: string; // ISO Date "YYYY-MM-DD" - Optional end of cycle entitlement
+  arrival_time: string; // "HH:MM" e.g "10:00"
+  departure_time: string; // "HH:MM" e.g "14:00"
+}    
 
 export interface OrganizationInvite {
   id: string;
@@ -161,4 +176,5 @@ export interface AppState {
   taskTemplates: TaskTemplate[];
   shifts: Shift[];
   constraints: SchedulingConstraint[];
+  teamRotations: TeamRotation[]; // NEW
 }

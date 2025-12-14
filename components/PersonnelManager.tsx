@@ -252,14 +252,38 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             );
         }
 
-        // Teams and Roles use similar form
         return (
             <div className="space-y-4">
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">שם {activeTab === 'teams' ? 'הצוות' : 'התפקיד'}</label>
                     <input value={newItemName} onChange={e => setNewItemName(e.target.value)} className="w-full p-2 border rounded-lg" />
                 </div>
-                {/* Simplified color picker or similar could go here */}
+
+                <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">צבע</label>
+                    <div className="flex flex-wrap gap-3">
+                        {[
+                            { value: 'border-red-500', bg: 'bg-red-500' },
+                            { value: 'border-orange-500', bg: 'bg-orange-500' },
+                            { value: 'border-yellow-500', bg: 'bg-yellow-500' },
+                            { value: 'border-green-500', bg: 'bg-green-500' },
+                            { value: 'border-teal-500', bg: 'bg-teal-500' },
+                            { value: 'border-blue-500', bg: 'bg-blue-500' },
+                            { value: 'border-indigo-500', bg: 'bg-indigo-500' },
+                            { value: 'border-purple-500', bg: 'bg-purple-500' },
+                            { value: 'border-pink-500', bg: 'bg-pink-500' },
+                            { value: 'border-slate-500', bg: 'bg-slate-500' },
+                        ].map((color) => (
+                            <button
+                                key={color.value}
+                                onClick={() => setNewItemColor(color.value)}
+                                className={`w-8 h-8 rounded-full ${color.bg} transition-transform hover:scale-110 flex items-center justify-center ${newItemColor === color.value ? 'ring-2 ring-offset-2 ring-slate-900 scale-110' : ''}`}
+                            >
+                                {newItemColor === color.value && <Check size={14} className="text-white" />}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 <div className="flex justify-end gap-2 mt-6">
                     <button onClick={closeForm} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">ביטול</button>

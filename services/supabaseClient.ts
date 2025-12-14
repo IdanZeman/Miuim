@@ -149,3 +149,30 @@ export const mapConstraintToDB = (constraint: import('../types').SchedulingConst
     end_time: constraint.endTime,
     organization_id: constraint.organization_id
 });
+
+// Team Rotations
+export const mapRotationFromDB = (dbRot: any): import('../types').TeamRotation => ({
+    id: dbRot.id,
+    organization_id: dbRot.organization_id,
+    team_id: dbRot.team_id,
+    days_on_base: dbRot.days_on_base,
+    days_at_home: dbRot.days_at_home,
+    cycle_length: dbRot.cycle_length,
+    start_date: dbRot.start_date,
+    end_date: dbRot.end_date, // NEW
+    arrival_time: dbRot.arrival_time,
+    departure_time: dbRot.departure_time
+});
+
+export const mapRotationToDB = (rot: import('../types').TeamRotation) => ({
+    id: rot.id,
+    organization_id: rot.organization_id,
+    team_id: rot.team_id,
+    days_on_base: rot.days_on_base,
+    days_at_home: rot.days_at_home,
+    cycle_length: rot.cycle_length,
+    start_date: rot.start_date,
+    end_date: rot.end_date, // NEW
+    arrival_time: rot.arrival_time,
+    departure_time: rot.departure_time
+});

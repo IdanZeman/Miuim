@@ -1,4 +1,5 @@
-import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint } from "../types";
+import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint, TeamRotation } from "../types";
+import { getEffectiveAvailability } from "../utils/attendanceUtils";
 
 // --- Internal Types for the Algorithm ---
 interface TimelineSegment {
@@ -180,7 +181,8 @@ const initializeUsers = (
   taskTemplates: TaskTemplate[],
   allShifts: Shift[],
   roleCounts: Map<string, number>, // NEW: Pass roleCounts as parameter
-  constraints: SchedulingConstraint[] = []
+  constraints: SchedulingConstraint[] = [],
+  teamRotations: TeamRotation[] = [] // NEW
 ): AlgoUser[] => {
   const dateKey = targetDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
@@ -211,8 +213,9 @@ const initializeUsers = (
         }
     });
 
-    // 1. Check Availability (Attendance Manager)
-    const avail = p.dailyAvailability?.[dateKey];
+    // 1. Check Availability (Attendance Manager + Rotation) - Using Shared Utility
+    // We assume teamRotations are passed correctly.
+    const avail = getEffectiveAvailability(p, targetDate, teamRotations);
 
     if (avail) {
       // If marked as "Absent" (isAvailable = false), block the whole day
@@ -221,8 +224,8 @@ const initializeUsers = (
       } else if (avail.startHour && avail.endHour) {
         // If present but has specific hours (e.g., 08:00 - 17:00)
         // Block 00:00 -> Start
-        const [sH, sM] = avail.startHour.split(':').map(Number);
-        const [eH, eM] = avail.endHour.split(':').map(Number);
+        const [sH, sM] = avail.startHour!.split(':').map(Number);
+        const [eH, eM] = avail.endHour!.split(':').map(Number);
 
         const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
         const userStart = new Date(targetDate); userStart.setHours(sH, sM, 0, 0);
@@ -415,7 +418,7 @@ export const solveSchedule = (
   // NEW: Add fixedShiftsOnDay to futureAssignments so they are treated as constraints
   const effectiveConstraints = [...futureAssignments, ...fixedShiftsOnDay];
   
-  const algoUsers = initializeUsers(people, startDate, historyScores, effectiveConstraints, taskTemplates, shifts, roleCounts, constraints || []);
+  const algoUsers = initializeUsers(people, startDate, historyScores, effectiveConstraints, taskTemplates, shifts, roleCounts, constraints || [], currentState.teamRotations || []);
 
   // Map Shifts to AlgoTasks with DYNAMIC DIFFICULTY
   const algoTasks: AlgoTask[] = shiftsToSolve.map(s => {
