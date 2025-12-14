@@ -118,21 +118,45 @@ const ShiftCard: React.FC<{
                 )}
             </div>
 
-            {/* Bottom Row: Info & Avatars */}
-            <div className="flex items-end justify-between mt-auto pt-1">
-                {/* Staffing Count */}
-                <div className="text-[10px] md:text-xs text-slate-500 font-medium leading-none">
-                    {assigned.length}/{req}
-                </div>
-
-                {/* Avatars */}
-                <div className="flex -space-x-1.5 space-x-reverse overflow-hidden px-1">
+            {/* Middle Row - Names (Adaptive - Desktop Only) */}
+            {(style?.height && parseInt(String(style.height)) >= 50 && assigned.length > 0) && (
+                <div className="hidden md:flex flex-1 flex-col justify-center items-center gap-1 overflow-hidden py-1 w-full px-1">
                     {assigned.map(p => (
-                        <div key={p.id} className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[9px] md:text-[10px] text-white font-bold ring-2 ring-white ${p.color} shadow-sm`}>
-                            {getPersonInitials(p.name)}
+                        <div
+                            key={p.id}
+                            className={`shadow-sm border border-slate-200/60 bg-white/95 px-3 py-1 rounded-full text-xs font-bold text-slate-800 truncate w-full max-w-[95%] text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
+                            title={p.name}
+                            onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
+                        >
+                            {p.name}
                         </div>
                     ))}
                 </div>
+            )}
+
+            {/* Bottom Row: Info & Avatars (Fallback) */}
+            <div className={`flex items-end justify-between ${!(style?.height && parseInt(String(style.height)) >= 50 && assigned.length > 0) ? 'mt-auto' : ''} pt-1 w-full overflow-hidden`}>
+
+                {/* Staffing Count */}
+                <div className="text-[10px] text-slate-400 font-medium leading-none flex-shrink-0 ml-1 mb-0.5">
+                    {assigned.length}/{req}
+                </div>
+
+                {/* Avatars Logic:
+                    1. If Shift is Short (<50px): Always Show (Flex).
+                    2. If Shift is Tall (>=50px):
+                       - Mobile: Show (Flex) - because Names are hidden.
+                       - Desktop: Hide (md:Hidden) - because Names are shown.
+                */}
+                {(assigned.length > 0) && (
+                    <div className={`flex -space-x-1.5 space-x-reverse overflow-hidden px-1 pb-0.5 ${(style?.height && parseInt(String(style.height)) >= 50) ? 'md:hidden' : ''}`}>
+                        {assigned.map(p => (
+                            <div key={p.id} className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[9px] md:text-[10px] text-white font-bold ring-2 ring-white ${p.color} shadow-sm`} title={p.name}>
+                                {getPersonInitials(p.name)}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Warning Indicator */}
