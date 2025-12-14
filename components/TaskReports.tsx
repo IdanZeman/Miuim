@@ -54,7 +54,8 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
         const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id));
         const totalHours = personShifts.reduce((acc, shift) => {
             const task = tasks.find(t => t.id === shift.taskId);
-            return acc + (task?.durationHours || 0);
+            const duration = (new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / (1000 * 60 * 60);
+            return acc + duration;
         }, 0);
 
         return {

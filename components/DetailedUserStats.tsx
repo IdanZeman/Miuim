@@ -69,7 +69,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
             const task = tasks.find(t => t.id === shift.taskId);
             if (!task) return;
 
-            const duration = task.durationHours;
+            const duration = (new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / (1000 * 60 * 60);
             totalHours += duration;
             totalLoad += duration * task.difficulty;
 
@@ -128,7 +128,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
                             <ArrowRight size={20} />
                         </button>
                         {/* Avatar with Initials */}
-                        <div 
+                        <div
                             className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center text-lg md:text-2xl font-bold text-white shadow-md flex-shrink-0 ${person.color}`}
                         >
                             {getPersonInitials(person.name)}
@@ -143,7 +143,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
                             </div>
                         </div>
                     </div>
-                    
+
                     {/* Stats Section - Stacked on mobile */}
                     <div className="flex gap-4 justify-start md:justify-end border-t md:border-t-0 pt-4 md:pt-0">
                         <div className="text-right">

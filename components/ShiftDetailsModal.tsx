@@ -23,7 +23,23 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   userRole
 }) => {
   // NEW: Get required role IDs
-  const requiredRoleIds = task?.roleComposition.map(rc => rc.roleId) || [];
+  let requiredRoleIds: string[] = [];
+  let requiredPeople = 0;
+
+  if (shift.requirements) {
+    requiredRoleIds = shift.requirements.roleComposition.map(rc => rc.roleId);
+    requiredPeople = shift.requirements.requiredPeople;
+  } else if (shift.segmentId && task?.segments) {
+    const seg = task.segments.find(s => s.id === shift.segmentId);
+    if (seg) {
+      requiredRoleIds = seg.roleComposition.map(rc => rc.roleId);
+      requiredPeople = seg.requiredPeople;
+    }
+  } else if (task?.segments?.[0]) {
+    // Fallback
+    requiredRoleIds = task.segments[0].roleComposition.map(rc => rc.roleId);
+    requiredPeople = task.segments[0].requiredPeople;
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -35,7 +51,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           <div>
             <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
               <Users size={18} />
-              כוח אדם משובץ ({shift.assignedPersonIds.length}/{task?.requiredPeople || 0})
+              כוח אדם משובץ ({shift.assignedPersonIds.length}/{requiredPeople})
             </h3>
             <div className="space-y-2">
               {shift.assignedPersonIds.map(pid => {
@@ -43,7 +59,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 if (!person) return null;
 
                 // NEW: Check qualification
-                const isQualified = person.roleIds.some(rid => requiredRoleIds.includes(rid));
+                const isQualified = requiredRoleIds.length === 0 || person.roleIds.some(rid => requiredRoleIds.includes(rid));
                 const personRoles = person.roleIds
                   .map(rid => roles.find(r => r.id === rid)?.name)
                   .filter(Boolean)
@@ -53,8 +69,8 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                   <div
                     key={pid}
                     className={`p-3 rounded-lg border-2 flex items-start justify-between transition-all ${isQualified
-                        ? 'bg-blue-50 border-blue-200'
-                        : 'bg-red-50 border-red-500 shadow-red-100 shadow-md'
+                      ? 'bg-blue-50 border-blue-200'
+                      : 'bg-red-50 border-red-500 shadow-red-100 shadow-md'
                       }`}
                   >
                     <div className="flex-1">
@@ -88,8 +104,8 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       <button
                         onClick={() => onUnassign(shift.id, pid)}
                         className={`p-2 rounded-lg transition-colors ${isQualified
-                            ? 'hover:bg-red-100 text-slate-400 hover:text-red-600'
-                            : 'bg-red-100 text-red-600 hover:bg-red-200'
+                          ? 'hover:bg-red-100 text-slate-400 hover:text-red-600'
+                          : 'bg-red-100 text-red-600 hover:bg-red-200'
                           }`}
                         title="הסר שיבוץ"
                       >

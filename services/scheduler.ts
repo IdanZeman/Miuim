@@ -258,13 +258,28 @@ const initializeUsers = (
     crossDayShifts.forEach(s => {
       const shiftEnd = new Date(s.endTime).getTime();
       const task = taskTemplates.find(t => t.id === s.taskId);
+      
+      // Resolve requirements from Shift Snapshot OR Segment OR Fallback
+      let requirements = s.requirements;
+      if (!requirements && task && s.segmentId) {
+         const seg = task.segments?.find(seg => seg.id === s.segmentId);
+         if (seg) {
+             requirements = {
+                 requiredPeople: seg.requiredPeople,
+                 roleComposition: seg.roleComposition,
+                 minRest: seg.minRestHoursAfter
+             };
+         }
+      }
 
       const blockStart = dayStart.getTime();
-      const isCritical = task && (task.difficulty >= 4 || task.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2));
+      // Use resolved requirements or defaults
+      const isCritical = task && (task.difficulty >= 4 || (requirements?.roleComposition?.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2) ?? false));
       addToTimeline(algoUser, blockStart, shiftEnd, 'TASK', s.taskId, isCritical);
 
-      if (task && task.minRestHoursBefore > 0) {
-        const restEnd = shiftEnd + (task.minRestHoursBefore * 60 * 60 * 1000);
+      const minRest = requirements?.minRest ?? 0;
+      if (minRest > 0) {
+        const restEnd = shiftEnd + (minRest * 60 * 60 * 1000);
         addToTimeline(algoUser, shiftEnd, restEnd, 'REST');
       }
     });
@@ -281,7 +296,21 @@ const initializeUsers = (
       
       const task = taskTemplates.find(t => t.id === s.taskId);
       if (!task) return false;
-      const isCritical = task.difficulty >= 4 || task.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2);
+
+      // Resolve requirements
+      let requirements = s.requirements;
+      if (!requirements && s.segmentId) {
+         const seg = task.segments?.find(seg => seg.id === s.segmentId);
+         if (seg) {
+             requirements = { 
+                requiredPeople: seg.requiredPeople, 
+                roleComposition: seg.roleComposition, 
+                minRest: seg.minRestHoursAfter 
+             };
+         }
+      }
+
+      const isCritical = task.difficulty >= 4 || (requirements?.roleComposition?.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2) ?? false);
       
       return isCritical;
     });
@@ -295,8 +324,15 @@ const initializeUsers = (
       if (!alreadyExists) {
         addToTimeline(algoUser, shiftStart, shiftEnd, 'TASK', s.taskId, true);
         
-        if (task && task.minRestHoursBefore > 0) {
-          const restEnd = shiftEnd + (task.minRestHoursBefore * 60 * 60 * 1000);
+        let minRest = 0;
+        if (s.requirements) minRest = s.requirements.minRest;
+        else if (s.segmentId && task) {
+             const seg = task.segments?.find(seg => seg.id === s.segmentId);
+             if (seg) minRest = seg.minRestHoursAfter;
+        }
+
+        if (minRest > 0) {
+          const restEnd = shiftEnd + (minRest * 60 * 60 * 1000);
           addToTimeline(algoUser, shiftEnd, restEnd, 'REST');
         }
 
@@ -312,11 +348,19 @@ const initializeUsers = (
       const sEnd = new Date(s.endTime).getTime();
       const task = taskTemplates.find(t => t.id === s.taskId);
 
-      const isCritical = task && (task.difficulty >= 4 || task.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2));
+      // Resolve requirements
+      let requirements = s.requirements;
+      if (!requirements && task && s.segmentId) {
+         const seg = task.segments?.find(seg => seg.id === s.segmentId);
+         if (seg) requirements = { requiredPeople: seg.requiredPeople, roleComposition: seg.roleComposition, minRest: seg.minRestHoursAfter };
+      }
+
+      const isCritical = task && (task.difficulty >= 4 || (requirements?.roleComposition?.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2) ?? false));
       addToTimeline(algoUser, sStart, sEnd, 'EXTERNAL_CONSTRAINT', s.taskId, isCritical);
 
-      if (task && task.minRestHoursBefore > 0) {
-        const restEnd = sEnd + (task.minRestHoursBefore * 60 * 60 * 1000);
+      const minRest = requirements?.minRest ?? 0;
+      if (minRest > 0) {
+        const restEnd = sEnd + (minRest * 60 * 60 * 1000);
         addToTimeline(algoUser, sEnd, restEnd, 'REST');
       }
     });
@@ -385,8 +429,31 @@ export const solveSchedule = (
     const isNight = isNightShift(startTime, endTime);
     const effectiveDifficulty = isNight ? template.difficulty * 1.5 : template.difficulty;
 
+    // Resolve Requirements from Shift Snapshot OR Segment
+    let requiredPeople = 0;
+    let roleComposition: { roleId: string; count: number }[] = [];
+    let minRest = 0;
+    let durationHours = (endTime - startTime) / (1000 * 60 * 60);
+
+    if (s.requirements) {
+        requiredPeople = s.requirements.requiredPeople;
+        roleComposition = s.requirements.roleComposition;
+        minRest = s.requirements.minRest;
+    } else if (s.segmentId) {
+        const seg = template.segments?.find(seg => seg.id === s.segmentId);
+        if (seg) {
+            requiredPeople = seg.requiredPeople;
+            roleComposition = seg.roleComposition;
+            minRest = seg.minRestHoursAfter;
+        }
+    } else {
+        // Fallback or Error?
+        // Assuming partial mock or legacy logic, defaulting to 0 requirements
+       // console.warn('Missing requirements for shift', s.id);
+    }
+
     // Check if any required role is Rare
-    const hasRareRole = template.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2);
+    const hasRareRole = roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2);
 
     // UPDATED: isCritical based on EFFECTIVE difficulty
     const isCritical = effectiveDifficulty >= 4 || hasRareRole;
@@ -396,11 +463,11 @@ export const solveSchedule = (
       taskId: template.id,
       startTime,
       endTime,
-      durationHours: template.durationHours,
+      durationHours,
       difficulty: effectiveDifficulty, // Use effective difficulty
-      roleComposition: template.roleComposition,
-      requiredPeople: template.requiredPeople,
-      minRest: template.minRestHoursBefore,
+      roleComposition,
+      requiredPeople,
+      minRest,
       isCritical,
       currentAssignees: []
     };

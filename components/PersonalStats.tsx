@@ -26,7 +26,7 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, ta
             const task = tasks.find(t => t.id === shift.taskId);
             if (!task) return;
 
-            const duration = task.durationHours;
+            const duration = (new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / (1000 * 60 * 60);
             totalHours += duration;
             totalLoad += duration * task.difficulty;
 

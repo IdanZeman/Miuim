@@ -256,24 +256,35 @@ const MainApp: React.FC = () => {
     const handleAddTask = async (t: TaskTemplate) => {
         if (!organization) return;
         try {
-            await supabase.from('task_templates').insert(mapTaskToDB({ ...t, organization_id: organization.id }));
+            const { error } = await supabase.from('task_templates').insert(mapTaskToDB({ ...t, organization_id: organization.id }));
+            if (error) throw error; // Re-throw to catch below
+
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const newShifts = generateShiftsForTask({ ...t, organization_id: organization.id }, today);
             const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: organization.id }));
-            if (shiftsWithOrg.length > 0) await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
+            if (shiftsWithOrg.length > 0) {
+                const { error: shiftsError } = await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
+                if (shiftsError) console.error('Error saving shifts:', shiftsError);
+            }
             setState(prev => ({ ...prev, taskTemplates: [...prev.taskTemplates, t], shifts: [...prev.shifts, ...newShifts] }));
-        } catch (e) { console.warn(e); setState(prev => ({ ...prev, taskTemplates: [...prev.taskTemplates, t] })); }
+            showToast('המשימה נוצרה בהצלחה', 'success');
+        } catch (e: any) {
+            console.error('Add Task Failed:', e);
+            showToast(`שגיאה ביצירת משימה: ${e.message}`, 'error');
+            // Optimistic update rollback (if we had done one, but here we update state only on success mostly)
+        }
     };
 
     const handleUpdateTask = async (t: TaskTemplate) => {
         if (!organization) return;
         const oldTask = state.taskTemplates.find(task => task.id === t.id);
         let updatedShifts = state.shifts;
-        const schedulingChanged = oldTask?.defaultStartTime !== t.defaultStartTime ||
-            oldTask?.durationHours !== t.durationHours ||
-            oldTask?.schedulingType !== t.schedulingType ||
-            oldTask?.specificDate !== t.specificDate ||
+
+        // Check if segments changed (naive check by length or deep comparison)
+        const oldSegmentsJSON = JSON.stringify(oldTask?.segments || []);
+        const newSegmentsJSON = JSON.stringify(t.segments || []);
+        const schedulingChanged = oldSegmentsJSON !== newSegmentsJSON ||
             oldTask?.startDate !== t.startDate ||
             oldTask?.endDate !== t.endDate;
 
@@ -286,12 +297,38 @@ const MainApp: React.FC = () => {
             const newShifts = generateShiftsForTask(t, startOfWeek);
             const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: organization.id }));
             try {
+                // Fix: Save the updated task template (with new segments) to DB FIRST!
+                const { error: taskError } = await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id);
+                if (taskError) {
+                    throw new Error(`Task Update Failed: ${taskError.message}`);
+                }
+
+                // Delete future/unlocked shifts for this task?
                 await supabase.from('shifts').delete().eq('task_id', t.id).eq('organization_id', organization.id);
-                if (shiftsWithOrg.length > 0) await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
-            } catch (e) { console.warn(e); }
-            setState(prev => ({ ...prev, taskTemplates: prev.taskTemplates.map(task => task.id === t.id ? t : task), shifts: [...updatedShifts, ...newShifts] }));
+
+                if (shiftsWithOrg.length > 0) {
+                    const { error: shiftsError } = await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
+                    if (shiftsError) console.error('Shifts insert error:', shiftsError);
+                }
+
+                setState(prev => ({ ...prev, taskTemplates: prev.taskTemplates.map(task => task.id === t.id ? t : task), shifts: [...updatedShifts, ...newShifts] }));
+                showToast('המשימה והמשמרות עודכנו בהצלחה', 'success');
+
+            } catch (e: any) {
+                console.error(e);
+                showToast(`שגיאה בעדכון משימה: ${e.message}`, 'error');
+            }
         } else {
-            try { await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id); } catch (e) { console.warn(e); }
+            try {
+                const { error } = await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id);
+                if (error) {
+                    console.error('Task Update Failed:', error);
+                    showToast(`שגיאה בשמירה: ${error.message} (${error.details || ''})`, 'error');
+                }
+            } catch (e: any) {
+                console.error('Task Update Exception:', e);
+                showToast(`שגיאה לא צפויה: ${e.message}`, 'error');
+            }
             setState(prev => ({ ...prev, taskTemplates: prev.taskTemplates.map(task => task.id === t.id ? t : task) }));
         }
     };
@@ -331,7 +368,19 @@ const MainApp: React.FC = () => {
 
         // --- Validation: Check Capacity ---
         const task = state.taskTemplates.find(t => t.id === shift.taskId);
-        if (task && shift.assignedPersonIds.length >= task.requiredPeople) {
+
+        // Resolve Requirements
+        let maxPeople = 1;
+        if (shift.requirements) maxPeople = shift.requirements.requiredPeople;
+        else if (task && shift.segmentId) {
+            const seg = task.segments?.find(s => s.id === shift.segmentId);
+            if (seg) maxPeople = seg.requiredPeople;
+        } else if (task) {
+            // Fallback to first segment or 1
+            maxPeople = task.segments?.[0]?.requiredPeople || 1;
+        }
+
+        if (shift.assignedPersonIds.length >= maxPeople) {
             showToast('לא ניתן לשבץ: המשמרת מלאה', 'error');
             return;
         }
@@ -400,6 +449,21 @@ const MainApp: React.FC = () => {
         setState(prev => ({ ...prev, shifts: prev.shifts.map(s => s.id === updatedShift.id ? updatedShift : s) }));
     };
 
+    const handleDeleteShift = async (shiftId: string) => {
+        // Optimistic update
+        setState(prev => ({
+            ...prev,
+            shifts: prev.shifts.filter(s => s.id !== shiftId)
+        }));
+
+        try {
+            await supabase.from('shifts').delete().eq('id', shiftId);
+        } catch (e) {
+            console.warn("Error deleting shift:", e);
+            fetchData(); // Revert
+        }
+    };
+
     const handleToggleCancelShift = async (shiftId: string) => {
         const shift = state.shifts.find(s => s.id === shiftId);
         if (!shift) return;
@@ -427,12 +491,20 @@ const MainApp: React.FC = () => {
     const handleAddShift = async (task: TaskTemplate, date: Date) => {
         if (!organization) return;
         const start = new Date(date);
-        if (task.defaultStartTime) {
-            const [h, m] = task.defaultStartTime.split(':').map(Number);
+
+        // Default to first segment or 08:00
+        let duration = 4;
+        if (task.segments && task.segments.length > 0) {
+            const seg = task.segments[0];
+            const [h, m] = seg.startTime.split(':').map(Number);
             start.setHours(h, m, 0, 0);
-        } else { start.setHours(12, 0, 0); }
+            duration = seg.durationHours;
+        } else {
+            start.setHours(8, 0, 0);
+        }
+
         const end = new Date(start);
-        end.setHours(start.getHours() + task.durationHours);
+        end.setHours(start.getHours() + duration);
         const newShift: Shift = { id: uuidv4(), taskId: task.id, startTime: start.toISOString(), endTime: end.toISOString(), assignedPersonIds: [], isLocked: false, organization_id: organization.id };
         try { await supabase.from('shifts').insert(mapShiftToDB(newShift)); } catch (e) { console.warn(e); }
         setState(prev => ({ ...prev, shifts: [...prev.shifts, newShift] }));
@@ -613,19 +685,22 @@ const MainApp: React.FC = () => {
                                 <ScheduleBoard
                                     shifts={state.shifts}
                                     people={state.people}
-                                    tasks={state.taskTemplates}
-                                    dateRange={{ start: scheduleStartDate, end: scheduleEndDate }}
-                                    onDateRangeChange={(start, end) => { setScheduleStartDate(start); setScheduleEndDate(end); }}
-                                    onShiftCreate={handleShiftCreate}
-                                    onShiftUpdate={handleShiftUpdate}
-                                    onShiftDelete={handleShiftDelete}
-                                    isLoading={isLoading}
+                                    taskTemplates={state.taskTemplates}
                                     roles={state.roles}
                                     teams={state.teams}
+                                    constraints={state.constraints}
                                     selectedDate={selectedDate}
-                                    onDateSelect={setSelectedDate}
-                                    scheduleMode={scheduleMode}
-                                    onScheduleModeChange={setScheduleMode}
+                                    onDateChange={setSelectedDate}
+                                    onSelect={() => { }}
+                                    onDelete={handleDeleteShift}
+                                    isViewer={false}
+                                    onClearDay={handleClearDay}
+                                    onNavigate={handleNavigate}
+                                    onAssign={handleAssign}
+                                    onUnassign={handleUnassign}
+                                    onAddShift={handleAddShift}
+                                    onUpdateShift={handleUpdateShift}
+                                    onToggleCancelShift={handleToggleCancelShift}
                                 />
                             </>
                         )

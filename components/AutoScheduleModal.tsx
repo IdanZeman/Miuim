@@ -27,7 +27,8 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
 
     useEffect(() => {
         if (isOpen) {
-            const dateStr = initialDate.toISOString().split('T')[0];
+            const date = initialDate || new Date(); // Fallback
+            const dateStr = date.toISOString().split('T')[0];
             setStartDate(dateStr);
             setEndDate(dateStr);
             // Select all tasks by default
@@ -186,9 +187,9 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                             <div className="flex-1 min-w-0">
                                                 <div className="font-medium text-slate-700 truncate text-sm">{task.name}</div>
                                                 <div className="text-xs text-slate-400 flex gap-2">
-                                                    <span>{task.requiredPeople} לוחמים</span>
+                                                    <span>{task.segments?.length || 0} מקטעים</span>
                                                     <span>•</span>
-                                                    <span>{task.durationHours} שעות</span>
+                                                    <span>{task.difficulty === 3 || task.difficulty === 'hard' ? 'קשה' : (task.difficulty === 2 || task.difficulty === 'medium' ? 'בינוני' : 'קל')}</span>
                                                 </div>
                                             </div>
                                             <div className={`w-1.5 h-8 rounded-full ${task.color.replace('border-l-', 'bg-')}`}></div>

@@ -46,14 +46,6 @@ export const calculateHistoricalLoad = (
 ): Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> => {
   const scores: Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> = {};
 
-  // Calculate Role Rarity for critical detection
-  const roleCounts = new Map<string, number>();
-  tasks.forEach(t => {
-    t.roleComposition.forEach(rc => {
-      roleCounts.set(rc.roleId, (roleCounts.get(rc.roleId) || 0) + 1);
-    });
-  });
-
   userIds.forEach(uid => {
     scores[uid] = { totalLoadScore: 0, shiftsCount: 0, criticalShiftCount: 0 };
   });
@@ -62,11 +54,20 @@ export const calculateHistoricalLoad = (
     const task = tasks.find(t => t.id === shift.taskId);
     if (!task) return;
 
-    const isCritical = task.difficulty >= 4 || task.roleComposition.some(rc => (roleCounts.get(rc.roleId) || 0) <= 2);
+    // Difficulty mapping
+    const diffMap: Record<string, number> = { 'easy': 1, 'medium': 2, 'hard': 3 };
+    const difficultyScore = diffMap[task.difficulty as string] || 1;
+
+    // Duration Calc
+    const start = new Date(shift.startTime).getTime();
+    const end = new Date(shift.endTime).getTime();
+    const durationHours = (end - start) / (1000 * 60 * 60);
+
+    const isCritical = difficultyScore >= 3; 
 
     shift.assignedPersonIds.forEach(pid => {
       if (scores[pid]) {
-        scores[pid].totalLoadScore += (task.durationHours * task.difficulty);
+        scores[pid].totalLoadScore += (durationHours * difficultyScore);
         scores[pid].shiftsCount += 1;
         if (isCritical) {
           scores[pid].criticalShiftCount += 1;

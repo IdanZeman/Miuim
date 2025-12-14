@@ -74,33 +74,50 @@ export interface Person {
 
 export type SchedulingType = 'continuous' | 'one-time';
 
+export type FrequencyType = 'daily' | 'weekly' | 'specific_date';
+
+export interface SchedulingSegment {
+  id: string;
+  taskId: string;
+  name: string; // e.g., "Morning Shift"
+  startTime: string; // "HH:MM"
+  durationHours: number;
+  frequency: FrequencyType;
+  daysOfWeek?: string[]; // ["sunday", "monday", ...]
+  specificDate?: string; // ISO "YYYY-MM-DD"
+  requiredPeople: number;
+  roleComposition: { roleId: string; count: number }[];
+  minRestHoursAfter: number;
+  isRepeat: boolean; // Continuous cycle if true
+}
+
 export interface TaskTemplate {
   id: string;
   name: string;
-  durationHours: number;
-  requiredPeople: number; // Calculated sum of roleComposition
-  roleComposition: { roleId: string; count: number }[];
-  minRestHoursBefore: number;
+  segments: SchedulingSegment[]; // NEW: List of segments
   difficulty: number; // 1-5
   color: string;
-  schedulingType: SchedulingType;
-  defaultStartTime?: string; // "HH:MM"
-  specificDate?: string; // "YYYY-MM-DD"
-  startDate?: string; // "YYYY-MM-DD" - Valid from
-  endDate?: string; // "YYYY-MM-DD" - Valid until
+  startDate?: string; // Valid from
+  endDate?: string; // Valid until
   organization_id?: string;
-  is247?: boolean;
+  is247?: boolean; // Legacy flag, might be relevant for default filling
 }
 
 export interface Shift {
   id: string;
   taskId: string;
+  segmentId?: string; // NEW: Link to the specific segment
   startTime: string; // ISO string
   endTime: string; // ISO string
   assignedPersonIds: string[];
   isLocked: boolean;
   organization_id?: string;
   isCancelled?: boolean;
+  requirements?: { // SNAPSHOT of requirements at generation
+    requiredPeople: number;
+    roleComposition: { roleId: string; count: number }[];
+    minRest: number;
+  };
 }
 
 export type ViewMode = 'dashboard' | 'personnel' | 'tasks' | 'schedule' | 'stats' | 'attendance' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints';

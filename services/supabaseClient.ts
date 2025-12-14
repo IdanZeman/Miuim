@@ -77,59 +77,56 @@ export const mapRoleToDB = (role: Role) => ({
 
 // Tasks
 // Tasks
+// Tasks
 export const mapTaskFromDB = (dbTask: any): TaskTemplate => ({
     id: dbTask.id,
     name: dbTask.name,
-    durationHours: dbTask.duration_hours,
-    requiredPeople: dbTask.required_people,
-    roleComposition: Array.isArray(dbTask.role_composition) ? dbTask.role_composition : [],
-    minRestHoursBefore: dbTask.min_rest_hours_before,
     difficulty: dbTask.difficulty,
     color: dbTask.color,
-    schedulingType: dbTask.scheduling_type as any,
-    defaultStartTime: dbTask.default_start_time,
-    specificDate: dbTask.specific_date,
+    startDate: dbTask.start_date,
+    endDate: dbTask.end_date,
     organization_id: dbTask.organization_id,
-    is247: dbTask.is_24_7
+    is247: dbTask.is_24_7,
+    segments: typeof dbTask.segments === 'string' ? JSON.parse(dbTask.segments) : (dbTask.segments || [])
 });
 
 export const mapTaskToDB = (task: TaskTemplate) => ({
     id: task.id,
     name: task.name,
-    duration_hours: task.durationHours,
-    required_people: task.requiredPeople,
-    role_composition: task.roleComposition,
-    min_rest_hours_before: task.minRestHoursBefore,
     difficulty: task.difficulty,
     color: task.color,
-    scheduling_type: task.schedulingType,
-    default_start_time: task.defaultStartTime,
-    specific_date: task.specificDate,
+    start_date: task.startDate,
+    end_date: task.endDate,
     organization_id: task.organization_id,
-    is_24_7: task.is247
+    is_24_7: task.is247,
+    segments: task.segments || [] // Will be stored as JSONB
 });
 
 // Shifts
 export const mapShiftFromDB = (dbShift: any): Shift => ({
     id: dbShift.id,
     taskId: dbShift.task_id,
+    segmentId: dbShift.segment_id, // NEW
     startTime: dbShift.start_time,
     endTime: dbShift.end_time,
     assignedPersonIds: dbShift.assigned_person_ids || [],
     isLocked: dbShift.is_locked,
     organization_id: dbShift.organization_id,
-    isCancelled: dbShift.is_cancelled
+    isCancelled: dbShift.is_cancelled,
+    requirements: dbShift.requirements // NEW: Snapshot
 });
 
 export const mapShiftToDB = (shift: Shift) => ({
     id: shift.id,
     task_id: shift.taskId,
+    segment_id: shift.segmentId, // NEW
     start_time: shift.startTime,
     end_time: shift.endTime,
     assigned_person_ids: shift.assignedPersonIds,
     is_locked: shift.isLocked,
     organization_id: shift.organization_id,
-    is_cancelled: shift.isCancelled
+    is_cancelled: shift.isCancelled,
+    requirements: shift.requirements // NEW
 });
 
 // Constraints
