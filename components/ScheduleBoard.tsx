@@ -4,10 +4,9 @@ import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { RotateCcw, Sparkles } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown, Search } from 'lucide-react';
+import { ConfirmationModal } from './ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { useConfirmation } from '../hooks/useConfirmation';
-import { ConfirmationModal } from './ConfirmationModal';
 import { analytics } from '../services/analytics';
 import { supabase } from '../services/supabaseClient';
 import { EmptyStateGuide } from './EmptyStateGuide';
@@ -68,12 +67,13 @@ const ShiftCard: React.FC<{
     taskTemplates: TaskTemplate[];
     people: Person[];
     roles: Role[];
+    teams: Team[];
     onSelect: (shift: Shift) => void;
     onToggleCancel: (shiftId: string) => void;
     isViewer: boolean;
     acknowledgedWarnings?: Set<string>;
     style?: React.CSSProperties;
-}> = ({ shift, taskTemplates, people, roles, onSelect, onToggleCancel, isViewer, acknowledgedWarnings, style }) => {
+}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, isViewer, acknowledgedWarnings, style }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const assigned = shift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
@@ -116,6 +116,10 @@ const ShiftCard: React.FC<{
         return isMismatch && (!acknowledgedWarnings || !acknowledgedWarnings.has(`${shift.id}-${p.id}`));
     });
 
+    // NEW: Check for Team Mismatch
+    const assignedTeamId = task.assignedTeamId;
+    const hasTeamMismatch = assignedTeamId && assigned.some(p => p.teamId !== assignedTeamId);
+
     return (
         <div
             id={`shift-card-${shift.id}`}
@@ -136,7 +140,15 @@ const ShiftCard: React.FC<{
                     {hasMissingRoles && (
                         <AlertTriangle size={12} className="text-red-500 drop-shadow-sm shrink-0" />
                     )}
+                    {hasTeamMismatch && (
+                        <AlertTriangle size={12} className="text-orange-500 shrink-0" title="ישנם משובצים שאינם מהצוות המוגדר!" />
+                    )}
 
+                    {task.assignedTeamId && (
+                        <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm mr-1 shrink-0 font-bold tracking-tight">
+                            {teams.find(t => t.id === task.assignedTeamId)?.name}
+                        </span>
+                    )}
                     <span className="truncate">{task.name}</span>
                 </div>
                 {!isViewer && (
@@ -230,6 +242,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const selectedShift = useMemo(() => shifts.find(s => s.id === selectedShiftId), [shifts, selectedShiftId]);
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(false);
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+    const [confirmationState, setConfirmationState] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
     const [newStart, setNewStart] = useState('');
     const [newEnd, setNewEnd] = useState('');
     const [isEditingTime, setIsEditingTime] = useState(false);
@@ -257,7 +275,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     const { organization } = useAuth();
     const { showToast } = useToast();
-    const { confirm, modalProps } = useConfirmation();
+
 
     useEffect(() => {
         if (selectedShift) {
@@ -396,6 +414,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     }
                 }
 
+                // NEW: Team Check
+                if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
+                    score -= 2000; // Penalize non-team members
+                    reasons.push('צוות לא תואם');
+                }
+
                 return { person: p, score, reasons };
             });
 
@@ -448,7 +472,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         };
 
         return createPortal(
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 md:p-6 animate-fadeIn pt-16 md:pt-24">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 md:p-6 animate-fadeIn pt-16 md:pt-24">
                 <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[calc(100vh-10rem)] md:max-h-[calc(100vh-12rem)] mb-16 md:mb-0">
                     <div className="p-3 md:p-6 border-b border-slate-100 bg-slate-50">
                         <div className="flex justify-between items-start gap-2">
@@ -581,6 +605,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                 )}
                                                 <button
                                                     onClick={() => {
+                                                        const p = currentSuggestion.person;
+                                                        if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
+                                                            setConfirmationState({
+                                                                isOpen: true,
+                                                                title: 'שיבוץ מחוץ לצוות',
+                                                                message: `שים לב: משימה זו מוגדרת עבור צוות ${teams.find(t => t.id === task.assignedTeamId)?.name}. האם אתה בטוח שברצונך לשבץ את ${p.name} מצוות ${teams.find(t => t.id === p.teamId)?.name || 'אחר'}?`,
+                                                                onConfirm: () => {
+                                                                    onAssign(selectedShift.id, currentSuggestion.person.id);
+                                                                    setSuggestedCandidates([]);
+                                                                    setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                                                                }
+                                                            });
+                                                            return;
+                                                        }
                                                         onAssign(selectedShift.id, currentSuggestion.person.id);
                                                         setSuggestedCandidates([]);
                                                     }}
@@ -673,20 +711,32 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                     members: noTeamMembers
                                                 });
                                             }
+                                            // Sort: Assigned team first
+                                            if (task.assignedTeamId) {
+                                                peopleByTeam.sort((a, b) => {
+                                                    if (a.team.id === task.assignedTeamId) return -1;
+                                                    if (b.team.id === task.assignedTeamId) return 1;
+                                                    return 0;
+                                                });
+                                            }
 
                                             return peopleByTeam.map(({ team, members }) => {
                                                 if (members.length === 0) return null;
-                                                const isCollapsed = collapsedTeams.has(team.id);
+                                                const isAssignedTeam = task.assignedTeamId === team.id;
+                                                const isCollapsed = collapsedTeams.has(team.id); // Fixed: Removed forced expansion
 
                                                 return (
-                                                    <div key={team.id} className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+                                                    <div key={team.id} className={`bg-slate-50 border rounded-lg overflow-hidden ${isAssignedTeam ? 'border-blue-400 shadow-sm ring-1 ring-blue-100' : 'border-slate-200'}`}>
                                                         <div
-                                                            className="px-2 py-1.5 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+                                                            className={`px-2 py-1.5 flex items-center justify-between cursor-pointer transition-colors ${isAssignedTeam ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-100'}`}
                                                             onClick={() => toggleTeamCollapse(team.id)}
                                                         >
                                                             <div className="flex items-center gap-2 overflow-hidden">
                                                                 <div className={`w-0.5 h-4 rounded-full ${team.color?.replace('border-', 'bg-') || 'bg-slate-400'}`}></div>
-                                                                <span className="font-bold text-xs text-slate-700 truncate">{team.name}</span>
+                                                                <span className="font-bold text-xs text-slate-700 truncate">
+                                                                    {team.name}
+                                                                    {isAssignedTeam && <span className="text-blue-600 mr-2 text-[10px] bg-blue-100 px-1.5 py-0.5 rounded-full">(צוות מוגדר)</span>}
+                                                                </span>
                                                                 <span className="text-[10px] bg-white px-1.5 rounded-full border border-slate-200 text-slate-500 font-bold">{members.length}</span>
                                                             </div>
                                                             <button className="text-slate-400">
@@ -714,7 +764,28 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                                                     {isFull && hasRole && <span className="text-[9px] md:text-[10px] text-amber-500">משמרת מלאה</span>}
                                                                                 </div>
                                                                             </div>
-                                                                            <button onClick={() => onAssign(selectedShift.id, p.id)} disabled={!canAssign} className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0 ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}>שבץ</button>
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation(); // Fixed: Prevent event bubbling
+                                                                                    if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
+                                                                                        setConfirmationState({
+                                                                                            isOpen: true,
+                                                                                            title: 'שיבוץ מחוץ לצוות',
+                                                                                            message: `שים לב: משימה זו מוגדרת עבור צוות ${teams.find(t => t.id === task.assignedTeamId)?.name}. האם אתה בטוח שברצונך לשבץ את ${p.name} מצוות ${team.name}?`,
+                                                                                            onConfirm: () => {
+                                                                                                onAssign(selectedShift.id, p.id);
+                                                                                                setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                                                                                            }
+                                                                                        });
+                                                                                        return;
+                                                                                    }
+                                                                                    onAssign(selectedShift.id, p.id);
+                                                                                }}
+                                                                                disabled={!canAssign}
+                                                                                className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0 ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}
+                                                                            >
+                                                                                שבץ
+                                                                            </button>
                                                                         </div>
                                                                     );
                                                                 })}
@@ -891,7 +962,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             {selectedShift && <Modal />}
 
 
-            <ConfirmationModal {...modalProps} />
+
 
             {/* Global Mismatch Warnings Panel */}
             {!isViewer && !isLoadingWarnings && mismatchWarnings.length > 0 && (
@@ -1153,6 +1224,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                         taskTemplates={taskTemplates}
                                                         people={people}
                                                         roles={roles}
+                                                        teams={teams}
                                                         onSelect={handleShiftSelect}
                                                         onToggleCancel={onToggleCancelShift}
                                                         isViewer={isViewer}
@@ -1217,6 +1289,17 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                 </div>
             </div>
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={confirmationState.isOpen}
+                title={confirmationState.title}
+                message={confirmationState.message}
+                onConfirm={confirmationState.onConfirm}
+                onCancel={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}
+                confirmText="אשר שיבוץ"
+                cancelText="ביטול"
+                type="warning"
+            />
         </div>
     );
 };

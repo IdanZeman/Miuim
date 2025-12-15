@@ -6,7 +6,7 @@ import { X, Calendar, CheckSquare, Wand2, Loader2, Sparkles } from 'lucide-react
 interface AutoScheduleModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSchedule: (params: { startDate: Date; endDate: Date; selectedTaskIds: string[] }) => Promise<void>;
+    onSchedule: (params: { startDate: Date; endDate: Date; selectedTaskIds: string[]; prioritizeTeamOrganic: boolean }) => Promise<void>;
     tasks: TaskTemplate[];
     initialDate: Date;
     isScheduling: boolean;
@@ -24,6 +24,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+    const [prioritizeTeamOrganic, setPrioritizeTeamOrganic] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -66,7 +67,8 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
         onSchedule({
             startDate: start,
             endDate: end,
-            selectedTaskIds: Array.from(selectedTaskIds)
+            selectedTaskIds: Array.from(selectedTaskIds),
+            prioritizeTeamOrganic
         });
     };
 
@@ -198,6 +200,20 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                 </div>
                             )}
                         </div>
+
+                        {/* Team Organic Toggle */}
+                        <div className="flex items-center gap-2 mt-4">
+                            <button
+                                onClick={() => setPrioritizeTeamOrganic(!prioritizeTeamOrganic)}
+                                className={`w-10 h-6 rounded-full transition-colors relative ${prioritizeTeamOrganic ? 'bg-idf-yellow' : 'bg-slate-300'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${prioritizeTeamOrganic ? 'left-1' : 'left-5'}`}></div>
+                            </button>
+                            <div>
+                                <h4 className="text-sm font-bold text-slate-800">שמור על אורגניות צוותית</h4>
+                                <p className="text-[10px] text-slate-500">נסה לשבץ אנשים מאותו צוות באותה משמרת</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -228,7 +244,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                     </button>
                 </div>
             </div>
-        </div>,
+        </div >,
         document.body
     );
 };

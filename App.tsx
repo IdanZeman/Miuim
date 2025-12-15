@@ -705,7 +705,7 @@ const MainApp: React.FC = () => {
             }} />;
             case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onUpdatePerson={handleUpdatePerson} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} />;
             case 'attendance': return <AttendanceManager people={state.people} teams={state.teams} teamRotations={state.teamRotations} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddRotation={handleAddRotation} onUpdateRotation={handleUpdateRotation} onDeleteRotation={handleDeleteRotation} isViewer={!checkAccess('attendance', 'edit')} />;
-            case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} />;
+            case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
             case 'settings': return <OrganizationSettings teams={state.teams} />;
 

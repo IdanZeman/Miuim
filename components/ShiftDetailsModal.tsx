@@ -11,6 +11,7 @@ interface ShiftDetailsModalProps {
   onClose: () => void;
   onUnassign: (shiftId: string, personId: string) => void;
   userRole: string;
+  teams?: import("../types").Team[]; // NEW: Optional teams
 }
 
 export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
@@ -20,7 +21,8 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   roles,
   onClose,
   onUnassign,
-  userRole
+  userRole,
+  teams
 }) => {
   // NEW: Get required role IDs
   let requiredRoleIds: string[] = [];
@@ -58,6 +60,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 const person = people.find(p => p.id === pid);
                 if (!person) return null;
 
+                // NEW: Team Check
+                const assignedTeamId = task.assignedTeamId;
+                const isTeamMismatch = assignedTeamId && person.teamId !== assignedTeamId;
+
                 // NEW: Check qualification
                 const isQualified = requiredRoleIds.length === 0 || person.roleIds.some(rid => requiredRoleIds.includes(rid));
                 const personRoles = person.roleIds
@@ -88,6 +94,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             <AlertTriangle size={12} /> שיבוץ כפוי
                           </span>
                         )}
+                        {isTeamMismatch && (
+                          <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-full flex items-center gap-1 border border-orange-200">
+                            ⚠️ צוות לא תואם
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-slate-600">
                         <strong>תפקידים:</strong> {personRoles || 'אין'}
@@ -96,6 +107,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         <p className="text-xs text-red-600 font-bold mt-1 flex items-center gap-1">
                           <AlertTriangle size={12} />
                           אדם זה אינו מוסמך לתפקיד הנדרש במשימה זו!
+                        </p>
+                      )}
+                      {isTeamMismatch && (
+                        <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                          משובץ: {teams?.find(t => t.id === person.teamId)?.name || 'לא ידוע'}, נדרש: {teams?.find(t => t.id === assignedTeamId)?.name || 'לא ידוע'}
                         </p>
                       )}
                     </div>

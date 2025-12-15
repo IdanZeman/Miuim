@@ -87,7 +87,8 @@ export const mapTaskFromDB = (dbTask: any): TaskTemplate => ({
     endDate: dbTask.end_date,
     organization_id: dbTask.organization_id,
     is247: dbTask.is_24_7,
-    segments: typeof dbTask.segments === 'string' ? JSON.parse(dbTask.segments) : (dbTask.segments || [])
+    segments: typeof dbTask.segments === 'string' ? JSON.parse(dbTask.segments) : (dbTask.segments || []),
+    assignedTeamId: dbTask.assigned_team_id // NEW
 });
 
 export const mapTaskToDB = (task: TaskTemplate) => ({
@@ -99,7 +100,8 @@ export const mapTaskToDB = (task: TaskTemplate) => ({
     end_date: task.endDate,
     organization_id: task.organization_id,
     is_24_7: task.is247,
-    segments: task.segments || [] // Will be stored as JSONB
+    segments: task.segments || [], // Will be stored as JSONB
+    assigned_team_id: task.assignedTeamId // NEW
 });
 
 // Shifts

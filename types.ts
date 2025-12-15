@@ -116,6 +116,7 @@ export interface TaskTemplate {
   endDate?: string; // Valid until
   organization_id?: string;
   is247?: boolean; // Legacy flag, might be relevant for default filling
+  assignedTeamId?: string; // NEW: Limit task to specific team
 }
 
 export interface Shift {
