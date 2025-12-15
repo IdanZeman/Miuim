@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { HomePage } from './components/HomePage'; // NEW
 import { ScheduleBoard } from './components/ScheduleBoard';
 import { TaskManager } from './components/TaskManager';
 import { StatsDashboard } from './components/StatsDashboard';
-import { Login } from './components/Login';
 import { LandingPage } from './components/LandingPage';
 import { Onboarding } from './components/Onboarding';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -49,7 +49,7 @@ import { ContactPage } from './pages/ContactPage';
 const MainApp: React.FC = () => {
     const { organization, user, profile, checkAccess } = useAuth();
     const { showToast } = useToast();
-    const [view, setView] = useState<'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints'>('dashboard');
+    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints'>('home');
 
     // Check for import wizard flag from onboarding
     useEffect(() => {
@@ -699,6 +699,10 @@ const MainApp: React.FC = () => {
         }
 
         switch (view) {
+            case 'home': return <HomePage shifts={state.shifts} tasks={state.taskTemplates} people={state.people} onNavigate={(view: any, date?: Date) => {
+                if (date) setSelectedDate(date);
+                setView(view);
+            }} />;
             case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onUpdatePerson={handleUpdatePerson} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} />;
             case 'attendance': return <AttendanceManager people={state.people} teams={state.teams} teamRotations={state.teamRotations} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddRotation={handleAddRotation} onUpdateRotation={handleUpdateRotation} onDeleteRotation={handleDeleteRotation} isViewer={!checkAccess('attendance', 'edit')} />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} />;

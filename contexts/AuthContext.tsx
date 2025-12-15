@@ -26,6 +26,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkAccess = (screen: ViewMode, requiredLevel: 'view' | 'edit' = 'view'): boolean => {
     if (!profile) return false;
 
+    // Always allow home and contact for authenticated users
+    if (screen === 'home' || screen === 'contact') return true;
+
     // 1. Check Custom Permissions Override
     if (profile.permissions && profile.permissions.screens) {
       const access = profile.permissions.screens[screen] || 'view'; // Default to view if not specified but permissions object exists? 

@@ -135,7 +135,7 @@ export interface Shift {
   };
 }
 
-export type ViewMode = 'dashboard' | 'personnel' | 'tasks' | 'schedule' | 'stats' | 'attendance' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints';
+export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'tasks' | 'schedule' | 'stats' | 'attendance' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints';
 
 export type AccessLevel = 'view' | 'edit' | 'none';
 export type DataScope = 'organization' | 'team' | 'personal';

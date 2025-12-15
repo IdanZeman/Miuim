@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor } from 'lucide-react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
@@ -40,9 +40,9 @@ const TopNavLink = ({
       title={label}
     >
       {Icon && <Icon size={16} className={active ? 'text-idf-yellow-hover' : 'text-slate-400'} />}
-      {/* Show text for active link always, expand on hover for others */}
+      {/* Show text only on large screens to prevent crowding */}
       <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${active
-        ? 'max-w-[200px] opacity-100'
+        ? 'max-w-0 opacity-0 2xl:max-w-[200px] 2xl:opacity-100'
         : 'max-w-0 opacity-0 2xl:max-w-[200px] 2xl:opacity-100 group-hover:max-w-[200px] group-hover:opacity-100 delay-300 group-hover:delay-0'
         }`}>
         {label}
@@ -88,7 +88,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
           {/* Right: Logo & Nav */}
           <div className="flex items-center gap-8">
             <button
-              onClick={() => setView && setView('dashboard')}
+              onClick={() => setView && setView('home')}
               className="flex items-center gap-1 hover:opacity-80 transition-opacity"
             >
               {/* IDF Logo Placeholder */}
@@ -104,6 +104,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             {/* Desktop Nav - Hidden in Public Mode */}
             {!isPublic && setView && (
               <nav className="hidden md:flex items-center gap-0.5 lg:gap-1">
+                {/* Home - Visible to everyone */}
+                <TopNavLink active={currentView === 'home'} onClick={() => setView('home')} label="בית" icon={Home} />
+
                 {/* Dashboard - Visible to everyone */}
                 {checkAccess('dashboard') && (
                   <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" icon={Calendar} />
@@ -216,6 +219,18 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             </div>
 
             <div className="p-4 pb-24 flex flex-col gap-1">
+              {/* Home */}
+              <button
+                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'home'
+                  ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                  : 'hover:bg-slate-50 text-slate-700'
+                  }`}
+                onClick={() => { setView('home'); setIsMobileMenuOpen(false) }}
+              >
+                <Home size={22} className={currentView === 'home' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                <span>בית</span>
+              </button>
+
               {/* Dashboard - Visible to everyone */}
               {checkAccess('dashboard') && (
                 <button
@@ -437,9 +452,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       {/* Main Content - Scrollable */}
       <main ref={mainRef} className="flex-1 overflow-y-auto relative bg-idf-bg pb-20 md:pb-0">
         {/* Green Hero Section - Responsive height */}
-        <div className="bg-hero-pattern h-40 md:h-64 w-full absolute top-0 left-0 z-0">
+        <div className="bg-hero-pattern h-52 md:h-64 w-full absolute top-0 left-0 z-0">
           <div className="max-w-7xl mx-auto px-4 pt-4 md:pt-8 lg:pt-10">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-slate-800">
+              {currentView === 'home' && 'בית'}
               {currentView === 'dashboard' && 'השיבוצים שלי'}
               {currentView === 'personnel' && 'ניהול יחידה'}
               {currentView === 'attendance' && 'יומן נוכחות'}
