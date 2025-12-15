@@ -78,21 +78,43 @@ const ShiftCard: React.FC<{
     if (!task) return null;
     const assigned = shift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
 
+    // Calc required for display
+    const segment = task.segments?.find(s => s.id === shift.segmentId) || task.segments?.[0];
+    const req = shift.requirements?.requiredPeople || segment?.requiredPeople || 1;
+
+    // Check for missing roles (not just mismatches)
+    const roleComposition = shift.requirements?.roleComposition || segment?.roleComposition || [];
+    const missingRoles = roleComposition.filter(rc => {
+        const currentCount = assigned.filter(p => p.roleIds.includes(rc.roleId)).length;
+        return currentCount < rc.count;
+    }).map(rc => roles.find(r => r.id === rc.roleId)?.name).filter(Boolean);
+
+    const hasMissingRoles = missingRoles.length > 0;
+
     // Determine status color
     let bgColor = 'bg-blue-50';
     let borderColor = 'border-blue-200';
     if (shift.isCancelled) { bgColor = 'bg-slate-100'; borderColor = 'border-slate-300'; }
     else if (shift.assignedPersonIds.length === 0) { bgColor = 'bg-white'; }
     else if (task.segments && task.segments.length > 0) {
-        // Use segment or task required people
-        const segment = task.segments.find(s => s.id === shift.segmentId) || task.segments[0];
-        const req = shift.requirements?.requiredPeople || segment?.requiredPeople || 1;
-        if (shift.assignedPersonIds.length >= req) { bgColor = 'bg-green-50'; borderColor = 'border-green-200'; }
+        if (shift.assignedPersonIds.length >= req && !hasMissingRoles) {
+            bgColor = 'bg-green-50';
+            borderColor = 'border-green-200';
+        } else if (hasMissingRoles) {
+            // Even if full by count, if missing roles, warning color
+            bgColor = 'bg-amber-50';
+            borderColor = 'border-amber-200';
+        }
     }
 
-    // Calc required for display
-    const segment = task.segments?.find(s => s.id === shift.segmentId) || task.segments?.[0];
-    const req = shift.requirements?.requiredPeople || segment?.requiredPeople || 1;
+    // Role mismatch check (existing logic, checks if assigned person fits ANY required role)
+    const hasRoleMismatch = assigned.some(p => {
+        const requiredRoleIds = roleComposition.map(rc => rc.roleId);
+        if (requiredRoleIds.length === 0) return false;
+
+        const isMismatch = !p.roleIds.some(rid => requiredRoleIds.includes(rid));
+        return isMismatch && (!acknowledgedWarnings || !acknowledgedWarnings.has(`${shift.id}-${p.id}`));
+    });
 
     return (
         <div
@@ -100,17 +122,27 @@ const ShiftCard: React.FC<{
             className={`absolute flex flex-col p-1.5 rounded-md border text-xs cursor-pointer transition-all overflow-hidden ${bgColor} ${borderColor} hover:border-blue-400 group justify-between shadow-sm`}
             style={style}
             onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
+            title={hasMissingRoles ? `חסרים תפקידים: ${missingRoles.join(', ')}` : undefined}
         >
             {/* Top Row: Task Name & Actions */}
             <div className="flex font-bold truncate text-slate-800 text-[11px] md:text-sm justify-between items-start">
-                <div className="flex items-center gap-1 truncate">
-                    {shift.isCancelled && <Ban size={12} className="text-red-500 mr-1" />}
-                    <span>{task.name}</span>
+                <div className="flex items-center gap-1 truncate w-full">
+                    {shift.isCancelled && <Ban size={12} className="text-red-500 mr-1 shrink-0" />}
+
+                    {/* Inline Warnings */}
+                    {hasRoleMismatch && !hasMissingRoles && (
+                        <AlertTriangle size={12} className="text-amber-500 shrink-0" />
+                    )}
+                    {hasMissingRoles && (
+                        <AlertTriangle size={12} className="text-red-500 drop-shadow-sm shrink-0" />
+                    )}
+
+                    <span className="truncate">{task.name}</span>
                 </div>
                 {!isViewer && (
                     <button
                         onClick={(e) => { e.stopPropagation(); onToggleCancel(shift.id); }}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-slate-200 rounded transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-slate-200 rounded transition-opacity shrink-0 ml-1"
                         title={shift.isCancelled ? 'הפעל משמרת' : 'בטל משמרת'}
                     >
                         {shift.isCancelled ? <RotateCcw size={12} className="text-blue-500" /> : <Ban size={12} className="text-slate-400 hover:text-red-500" />}
@@ -138,16 +170,11 @@ const ShiftCard: React.FC<{
             <div className={`flex items-end justify-between ${!(style?.height && parseInt(String(style.height)) >= 50 && assigned.length > 0) ? 'mt-auto' : ''} pt-1 w-full overflow-hidden`}>
 
                 {/* Staffing Count */}
-                <div className="text-[10px] text-slate-400 font-medium leading-none flex-shrink-0 ml-1 mb-0.5">
+                <div className={`text-[10px] font-medium leading-none flex-shrink-0 ml-1 mb-0.5 ${hasMissingRoles ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
                     {assigned.length}/{req}
                 </div>
 
-                {/* Avatars Logic:
-                    1. If Shift is Short (<50px): Always Show (Flex).
-                    2. If Shift is Tall (>=50px):
-                       - Mobile: Show (Flex) - because Names are hidden.
-                       - Desktop: Hide (md:Hidden) - because Names are shown.
-                */}
+                {/* Avatars Logic */}
                 {(assigned.length > 0) && (
                     <div className={`flex -space-x-1.5 space-x-reverse overflow-hidden px-1 pb-0.5 ${(style?.height && parseInt(String(style.height)) >= 50) ? 'md:hidden' : ''}`}>
                         {assigned.map(p => (
@@ -158,21 +185,6 @@ const ShiftCard: React.FC<{
                     </div>
                 )}
             </div>
-
-            {/* Warning Indicator */}
-            {acknowledgedWarnings && assigned.some(p => {
-                const segment = task.segments?.find(s => s.id === shift.segmentId) || task.segments?.[0];
-                const roleComposition = shift.requirements?.roleComposition || segment?.roleComposition || [];
-                const requiredRoleIds = roleComposition.map(rc => rc.roleId);
-                if (requiredRoleIds.length === 0) return false;
-
-                const isMismatch = !p.roleIds.some(rid => requiredRoleIds.includes(rid));
-                return isMismatch && !acknowledgedWarnings.has(`${shift.id}-${p.id}`);
-            }) && (
-                    <div className="absolute top-0 right-0 p-0.5">
-                        <AlertTriangle size={10} className="text-amber-500" />
-                    </div>
-                )}
         </div>
     );
 };
@@ -222,6 +234,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [newEnd, setNewEnd] = useState('');
     const [isEditingTime, setIsEditingTime] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('');
     const [viewerDaysLimit, setViewerDaysLimit] = useState(2);
     const now = new Date();
     // Local state for warnings
@@ -265,6 +278,21 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         , [selectedShift, people]);
 
 
+    // Calculate overlapping shifts for the selected shift
+    const overlappingShifts = useMemo(() => {
+        if (!selectedShift) return [];
+        const thisStart = new Date(selectedShift.startTime);
+        const thisEnd = new Date(selectedShift.endTime);
+
+        return shifts.filter(s => {
+            if (s.id === selectedShift.id) return false;
+            if (s.isCancelled) return false;
+            const sStart = new Date(s.startTime);
+            const sEnd = new Date(s.endTime);
+            return sStart < thisEnd && sEnd > thisStart;
+        });
+    }, [shifts, selectedShift]);
+
     const availablePeople = useMemo(() => {
         if (!selectedShift) return [];
         const task = taskTemplates.find(t => t.id === selectedShift.taskId);
@@ -276,27 +304,35 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         const requiredRoleIds = roleComposition.map(rc => rc.roleId);
 
         return people.filter(p => {
-            // 1. Exclude if already assigned
+            // 1. Exclude if already assigned (to this shift)
             if (selectedShift.assignedPersonIds.includes(p.id)) return false;
 
             // 2. Check unavailability
             if (p.unavailableDates?.includes(selectedDate.toLocaleDateString('en-CA'))) return false;
             if (p.dailyAvailability?.[selectedDate.toLocaleDateString('en-CA')]?.isAvailable === false) return false;
 
-            // 3. Role check
+            // 3. Overlap Check (Busy in other shift)
+            if (overlappingShifts.some(s => s.assignedPersonIds.includes(p.id))) return false;
+
+            // 4. Role check
             if (requiredRoleIds.length > 0) {
                 const hasRole = p.roleIds.some(rid => requiredRoleIds.includes(rid));
                 if (!hasRole) return false;
             }
 
-            // 4. Search Term
+            // 5. Role Filter
+            if (selectedRoleFilter) {
+                if (!p.roleIds.includes(selectedRoleFilter)) return false;
+            }
+
+            // 6. Search Term
             if (searchTerm) {
                 return p.name.includes(searchTerm) || (p.phone && p.phone.includes(searchTerm));
             }
 
             return true;
         });
-    }, [people, selectedShift, selectedDate, searchTerm, taskTemplates]);
+    }, [people, selectedShift, selectedDate, searchTerm, taskTemplates, overlappingShifts, selectedRoleFilter]);
 
 
     const Modal = () => {
@@ -307,9 +343,26 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         const task = taskTemplates.find(t => t.id === selectedShift.taskId)!;
 
         const handleSuggestBest = () => {
+            // 1. Identify Missing Roles
+            const segment = task.segments?.find(s => s.id === selectedShift.segmentId) || task.segments?.[0];
+            const roleComposition = selectedShift.requirements?.roleComposition || segment?.roleComposition || [];
+
+            // Get currently assigned people for this comparison
+            const currentAssigned = selectedShift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
+
+            const missingRoleIds = roleComposition.filter(rc => {
+                const currentCount = currentAssigned.filter(p => p.roleIds.includes(rc.roleId)).length;
+                return currentCount < rc.count;
+            }).map(rc => rc.roleId);
+
             const candidates = people.map(p => {
                 let score = 0;
                 const reasons: string[] = [];
+
+                // Basic Availability Checks
+                if (selectedShift.assignedPersonIds.includes(p.id)) score -= 10000;
+                if (p.unavailableDates?.includes(selectedDate.toLocaleDateString('en-CA'))) score -= 10000;
+
                 // Reconstruct variables for orphaned code
                 const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id));
                 const hasRestViolation = false; // Placeholder
@@ -332,6 +385,15 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 if (hasOverlap) {
                     score -= 5000; // Disqualify
                     reasons.push('חפיפה עם משמרת אחרת');
+                }
+
+                // NEW: Missing Role Bonus
+                if (missingRoleIds.length > 0) {
+                    const fillsMissingRole = p.roleIds.some(rid => missingRoleIds.includes(rid));
+                    if (fillsMissingRole) {
+                        score += 500;
+                        reasons.push('מתאים לתפקיד חסר');
+                    }
                 }
 
                 return { person: p, score, reasons };
@@ -435,6 +497,57 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
                         <div className="flex-1 overflow-y-auto flex flex-col md:flex-row">
                             <div className="md:flex-1 p-3 md:p-6 h-fit border-b md:border-b-0 md:border-l border-slate-100">
+                                {/* Role Requirements Visualization */}
+                                {(() => {
+                                    const segment = task.segments?.find(s => s.id === selectedShift.segmentId) || task.segments?.[0];
+                                    const roleComposition = selectedShift.requirements?.roleComposition || segment?.roleComposition || [];
+
+                                    // Calculate missing roles for warning
+                                    const missingRoles = roleComposition.filter(rc => {
+                                        const currentCount = assignedPeople.filter(p => p.roleIds.includes(rc.roleId)).length;
+                                        return currentCount < rc.count;
+                                    }).map(rc => roles.find(r => r.id === rc.roleId)?.name).filter(Boolean);
+
+                                    return (
+                                        <>
+                                            {missingRoles.length > 0 && (
+                                                <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 animate-fadeIn flex items-start gap-3">
+                                                    <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={16} />
+                                                    <div>
+                                                        <h4 className="text-sm font-bold text-red-800">שים לב: חסרים תפקידים בשיבוץ</h4>
+                                                        <p className="text-xs text-red-600 mt-1">
+                                                            למרות שיש מספיק משובצים, חסר: <span className="font-bold">{missingRoles.join(', ')}</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {roleComposition.length > 0 && (
+                                                <div className="mb-4 bg-slate-50 rounded-lg p-3 border border-slate-200">
+                                                    <h5 className="text-[10px] uppercase font-bold text-slate-500 mb-2">דרישות תפקיד</h5>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {roleComposition.map((rc, idx) => {
+                                                            const role = roles.find(r => r.id === rc.roleId);
+                                                            const currentCount = assignedPeople.filter(p => p.roleIds.includes(rc.roleId)).length;
+                                                            const isMet = currentCount >= rc.count;
+
+                                                            return (
+                                                                <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs border ${isMet ? 'bg-green-50 border-green-200 text-green-700' : 'bg-orange-50 border-orange-200 text-orange-700'}`}>
+                                                                    {isMet ? <CheckCircle size={10} /> : <AlertTriangle size={10} />}
+                                                                    <span className="font-bold">{role?.name || 'תפקיד לא ידוע'}</span>
+                                                                    <span className="bg-white px-1.5 rounded-full text-[10px] font-bold shadow-sm border border-current opacity-80">
+                                                                        {currentCount}/{rc.count}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+
                                 <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">משובצים ({assignedPeople.length}/{selectedShift.requirements?.requiredPeople || (task.segments?.find(s => s.id === selectedShift.segmentId)?.requiredPeople || task.segments?.[0]?.requiredPeople || 1)})</h4>
 
                                 {currentSuggestion && (
@@ -523,15 +636,28 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                             <Sparkles size={12} />
                                             תציע לי חייל זמין                                        </button>
                                     </div>
-                                    <div className="relative mb-3">
-                                        <Search className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                                        <input
-                                            type="text"
-                                            placeholder="חפש חייל פנוי..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="w-full pl-3 pr-8 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                                        />
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                            <input
+                                                type="text"
+                                                placeholder="חפש חייל..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="w-full pl-2 pr-8 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                                            />
+                                        </div>
+                                        <select
+                                            value={selectedRoleFilter}
+                                            onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                                            className="py-1.5 px-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white max-w-[120px]"
+                                            dir="rtl"
+                                        >
+                                            <option value="">כל הפק"לים</option>
+                                            {roles.map(r => (
+                                                <option key={r.id} value={r.id}>{r.name}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div className="space-y-4">
                                         {(() => {
@@ -581,6 +707,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                                                 <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
                                                                                 <div className="flex flex-col min-w-0 flex-1">
                                                                                     <span className="font-bold text-slate-700 text-xs md:text-sm truncate">{p.name}</span>
+                                                                                    <span className="text-[10px] text-slate-500 truncate">
+                                                                                        {roles.filter(r => p.roleIds.includes(r.id)).map(r => r.name).join(', ')}
+                                                                                    </span>
                                                                                     {!hasRole && <span className="text-[9px] md:text-[10px] text-red-500">אין התאמה</span>}
                                                                                     {isFull && hasRole && <span className="text-[9px] md:text-[10px] text-amber-500">משמרת מלאה</span>}
                                                                                 </div>

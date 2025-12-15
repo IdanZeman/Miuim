@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Person, Team, Role } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
-import { Trophy, Users, RefreshCw, Sparkles, Shuffle, Dices } from 'lucide-react';
-import { Select } from './ui/Select';
+import { Trophy, Users, RefreshCw, Sparkles, Shuffle, Dices, Check, Settings2, X, ChevronDown } from 'lucide-react';
 
 interface LotteryProps {
     people: Person[];
@@ -14,45 +13,60 @@ type PoolType = 'all' | 'team' | 'role' | 'custom';
 
 export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
     const [mode, setMode] = useState<'single' | 'multiple'>('single');
-    const [poolType, setPoolType] = useState<PoolType>('all');
-    const [selectedPoolId, setSelectedPoolId] = useState<string>('');
-    const [customSelection, setCustomSelection] = useState<string[]>([]);
-    const [numberOfWinners, setNumberOfWinners] = useState(1);
+    const [participatingIds, setParticipatingIds] = useState<Set<string>>(new Set(people.map(p => p.id))); // Default all selected
+    const [filterType, setFilterType] = useState<'all' | 'team' | 'role' | 'manual'>('all');
+    const [activeFilterId, setActiveFilterId] = useState<string>('');
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [filterSearch, setFilterSearch] = useState('');
 
     const [candidates, setCandidates] = useState<Person[]>([]);
     const [winners, setWinners] = useState<Person[]>([]);
     const [isSpinning, setIsSpinning] = useState(false);
     const [rotation, setRotation] = useState(0);
     const [showConfetti, setShowConfetti] = useState(false);
-
-    // Animation states for Multiple Mode (Digital Shuffle)
     const [displayCandidate, setDisplayCandidate] = useState<Person | null>(null);
+    const [numberOfWinners, setNumberOfWinners] = useState(1);
 
-    // Update candidates when configuration changes
+    // Update candidates based on selection
     useEffect(() => {
-        let nextCandidates: Person[] = [];
-
-        switch (poolType) {
-            case 'all':
-                nextCandidates = people;
-                break;
-            case 'team':
-                nextCandidates = people.filter(p => p.teamId === selectedPoolId);
-                break;
-            case 'role':
-                nextCandidates = people.filter(p => p.roleIds.includes(selectedPoolId));
-                break;
-            case 'custom':
-                nextCandidates = people.filter(p => customSelection.includes(p.id));
-                break;
-        }
-
-        setCandidates(nextCandidates);
-        setDisplayCandidate(null);
+        setCandidates(people.filter(p => participatingIds.has(p.id)));
         setWinners([]);
         setShowConfetti(false);
         setRotation(0);
-    }, [poolType, selectedPoolId, customSelection, people]);
+        setDisplayCandidate(null);
+    }, [participatingIds, people]);
+
+    // Bulk Actions
+    // Handle Main Filter Change
+    const handleFilterChange = (type: 'all' | 'team' | 'role' | 'manual', id?: string) => {
+        setFilterType(type);
+        if (id) setActiveFilterId(id);
+
+        // Auto-update selection based on filter
+        if (type === 'all') {
+            setParticipatingIds(new Set(people.map(p => p.id)));
+        } else if (type === 'team' && id) {
+            const teamIds = people.filter(p => p.teamId === id).map(p => p.id);
+            setParticipatingIds(new Set(teamIds));
+        } else if (type === 'role' && id) {
+            const roleIds = people.filter(p => p.roleIds.includes(id)).map(p => p.id);
+            setParticipatingIds(new Set(roleIds));
+        } else if (type === 'manual') {
+            // Keep existing or clear? Let's keep existing to allow refinement
+        }
+    };
+
+    const togglePerson = (id: string) => {
+        setParticipatingIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const selectAll = () => setParticipatingIds(new Set(people.map(p => p.id)));
+    const clearAll = () => setParticipatingIds(new Set());
 
     const handleSpin = () => {
         if (candidates.length === 0 || isSpinning) return;
@@ -151,22 +165,13 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
         }
     };
 
-    const [searchTerm, setSearchTerm] = useState('');
-
-    // Helper to toggle person in custom selection
-    const togglePerson = (id: string) => {
-        setCustomSelection(prev =>
-            prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
-        );
-    };
-
     // Wheel Colors
     const wheelColors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6'];
 
     return (
         <div className="h-full flex flex-col md:flex-row gap-6 p-4 md:p-6 overflow-hidden">
             {/* Configuration Panel */}
-            <div className="w-full md:w-1/3 bg-white rounded-2xl shadow-lg p-6 flex flex-col gap-6 overflow-y-auto z-20">
+            <div className="w-full md:w-1/3 bg-white rounded-2xl shadow-lg p-6 flex flex-col gap-4 overflow-y-auto z-20 md:max-h-full">
                 <div>
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-4">
                         <Dices className="text-idf-yellow" />
@@ -174,12 +179,12 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                     </h2>
 
                     {/* Mode Selection */}
-                    <div className="flex bg-slate-100 p-1 rounded-lg mb-6">
+                    <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
                         <button
                             onClick={() => setMode('single')}
                             className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${mode === 'single' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                            זוכים בודדים (גלגל)
+                            גלגל מזל
                         </button>
                         <button
                             onClick={() => setMode('multiple')}
@@ -189,67 +194,92 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                         </button>
                     </div>
 
-                    {/* Pool Type */}
+                    {/* Simplified Filter UI */}
                     <div className="space-y-4">
-                        <label className="block text-sm font-bold text-slate-700">מתוך מי בוחרים?</label>
-                        <Select
-                            value={poolType}
-                            onChange={(val) => {
-                                setPoolType(val as PoolType);
-                                setSelectedPoolId('');
-                                setCustomSelection([]);
-                                setSearchTerm('');
-                            }}
-                            options={[
-                                { value: 'all', label: `כל היחידה (${people.length})` },
-                                { value: 'team', label: 'צוות מסוים' },
-                                { value: 'role', label: 'תפקיד מסוים' },
-                                { value: 'custom', label: 'בחירה ידנית' }
-                            ]}
-                            placeholder="מתוך מי בוחרים?"
-                        />
+                        <label className="block text-sm font-bold text-slate-700">מי משתתף בהגרלה?</label>
 
-                        {poolType === 'team' && (
-                            <Select
-                                value={selectedPoolId}
-                                onChange={setSelectedPoolId}
-                                options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                placeholder="בחר צוות..."
-                            />
+                        {/* 1. Filter Type Tabs */}
+                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                            {(['all', 'team', 'role', 'manual'] as const).map(type => (
+                                <button
+                                    key={type}
+                                    onClick={() => handleFilterChange(type)}
+                                    className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${filterType === type ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    {type === 'all' && 'כולם'}
+                                    {type === 'team' && 'לפי צוות'}
+                                    {type === 'role' && 'לפי תפקיד'}
+                                    {type === 'manual' && 'בחירה ידנית'}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* 2. Dynamic Selection based on Filter Type */}
+                        {filterType === 'team' && (
+                            <select
+                                className="w-full p-2 rounded-lg border border-slate-200 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={activeFilterId}
+                                onChange={(e) => handleFilterChange('team', e.target.value)}
+                                dir="rtl"
+                            >
+                                <option value="">בחר צוות...</option>
+                                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
                         )}
 
-                        {poolType === 'role' && (
-                            <Select
-                                value={selectedPoolId}
-                                onChange={setSelectedPoolId}
-                                options={roles.map(r => ({ value: r.id, label: r.name }))}
-                                placeholder="בחר תפקיד..."
-                            />
+                        {filterType === 'role' && (
+                            <select
+                                className="w-full p-2 rounded-lg border border-slate-200 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={activeFilterId}
+                                onChange={(e) => handleFilterChange('role', e.target.value)}
+                                dir="rtl"
+                            >
+                                <option value="">בחר תפקיד...</option>
+                                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                            </select>
                         )}
 
-                        {poolType === 'custom' && (
-                            <div className="space-y-2">
-                                <input
-                                    type="text"
-                                    placeholder="חפש שם..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full p-2 rounded-lg border border-slate-200 text-sm"
-                                />
-                                <div className="border border-slate-200 rounded-xl p-2 max-h-48 overflow-y-auto bg-slate-50">
+                        {/* Summary of Selection */}
+                        <div className="bg-blue-50/50 rounded-lg p-3 flex items-center justify-between border border-blue-100">
+                            <span className="text-xs text-blue-800 font-medium">נבחרו: {participatingIds.size} משתתפים</span>
+                            <button
+                                onClick={() => setIsEditMode(!isEditMode)}
+                                className="text-xs flex items-center gap-1 text-slate-500 hover:text-blue-600 transition-colors"
+                            >
+                                <Settings2 size={12} />
+                                {isEditMode ? 'סגור עריכה' : 'עריכה מתקדמת'}
+                            </button>
+                        </div>
+
+                        {/* 3. Advanced Manual Selection (Collapsible) */}
+                        {isEditMode && (
+                            <div className="flex flex-col border border-slate-200 rounded-xl bg-white animate-fade-in max-h-[300px]">
+                                <div className="p-2 border-b border-slate-100 flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="חפש להוספה/הסרה..."
+                                        value={filterSearch}
+                                        onChange={e => setFilterSearch(e.target.value)}
+                                        className="flex-1 text-xs px-2 py-1.5 rounded bg-slate-50 border-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <button onClick={selectAll} className="text-[10px] text-blue-600 hover:bg-blue-50 px-2 py-1 rounded">הכל</button>
+                                    <button onClick={clearAll} className="text-[10px] text-slate-500 hover:bg-slate-50 px-2 py-1 rounded">נקה</button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-1 space-y-0.5 custom-scrollbar">
                                     {people
-                                        .filter(p => p.name.includes(searchTerm))
+                                        .filter(p => !filterSearch || p.name.includes(filterSearch))
                                         .map(p => (
-                                            <div key={p.id} onClick={() => togglePerson(p.id)} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-white transition-colors ${customSelection.includes(p.id) ? 'bg-blue-50' : ''}`}>
-                                                <div className={`w-4 h-4 rounded border flex items-center justify-center ${customSelection.includes(p.id) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
-                                                    {customSelection.includes(p.id) && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                            <div
+                                                key={p.id}
+                                                onClick={() => togglePerson(p.id)}
+                                                className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs ${participatingIds.has(p.id) ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                                            >
+                                                <div className={`w-3 h-3 rounded border flex items-center justify-center ${participatingIds.has(p.id) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                                    {participatingIds.has(p.id) && <Check size={8} className="text-white" />}
                                                 </div>
-                                                <span className="text-sm text-slate-700">{p.name}</span>
+                                                <span className={participatingIds.has(p.id) ? 'font-medium text-slate-800' : 'text-slate-500'}>{p.name}</span>
                                             </div>
                                         ))}
-                                </div>
-                                <div className="text-xs text-slate-500 text-right">
-                                    נבחרו: {customSelection.length}
                                 </div>
                             </div>
                         )}
@@ -381,22 +411,23 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                 {mode === 'multiple' && (
                     <div className="w-full h-full flex flex-col items-center justify-between relative">
                         {/* The Display Screen */}
-                        <div className="w-full max-w-2xl h-64 md:h-80 bg-slate-900 rounded-3xl border-8 border-slate-800 shadow-2xl relative overflow-hidden mb-8 flex items-center justify-center">
-                            {/* Screen Glare */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
+                        <div className="w-full max-w-2xl h-56 md:h-72 bg-white rounded-3xl border-4 border-blue-100 shadow-xl relative overflow-hidden mb-8 flex items-center justify-center">
+                            {/* Decorative Background */}
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-50 via-transparent to-transparent opacity-50 pointer-events-none"></div>
 
                             {/* Digital Text */}
                             {displayCandidate ? (
-                                <div className="text-center animate-pulse">
-                                    <div className="text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 filter drop-shadow-[0_0_10px_rgba(34,197,94,0.5)]">
+                                <div className="text-center animate-pulse z-10">
+                                    <div className="text-5xl md:text-7xl font-black text-slate-800 drop-shadow-sm tracking-tight">
                                         {displayCandidate.name}
                                     </div>
-                                    <div className="text-slate-400 mt-4 font-mono text-lg">
-                                        {isSpinning ? '...מאתר זוכה...' : '!!!זוכה מאושר'}
+                                    <div className="text-blue-500 mt-2 font-bold text-lg md:text-xl uppercase tracking-widest">
+                                        {isSpinning ? '...מאתר זוכה...' : '🎉 זוכה מאושר'}
                                     </div>
                                 </div>
                             ) : (
-                                <div className="text-slate-600 font-mono text-xl animate-pulse">
+                                <div className="text-slate-300 font-bold text-2xl md:text-3xl animate-pulse flex flex-col items-center gap-2">
+                                    <Sparkles size={32} className="text-slate-300" />
                                     {isSpinning ? '...מערבל נתונים...' : 'מוכן להגרלה'}
                                 </div>
                             )}
