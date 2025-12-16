@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Person, TeamRotation } from '../types';
 import { ChevronRight, ChevronLeft, X, ArrowRight, ArrowLeft, Home, Calendar as CalendarIcon } from 'lucide-react';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
+import { Modal } from './ui/Modal';
 
 interface PersonalAttendanceCalendarProps {
     person: Person;
@@ -101,29 +102,21 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-12 animate-fadeIn" onClick={onClose}>
-            <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[75vh]" onClick={e => e.stopPropagation()}>
-                {/* Header */}
-                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white text-slate-800">
-                    <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color}`}>
-                            {person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold">{person.name}</h2>
-                            <p className="text-sm text-slate-500 flex items-center gap-1">
-                                <CalendarIcon size={12} />
-                                לוח נוכחות אישי
-                            </p>
-                        </div>
+        <Modal isOpen={true} onClose={onClose} title={person.name} size="xl">
+            <div className="flex flex-col h-full max-h-[calc(90dvh-100px)]">
+                {/* Sub-Header with Avatar and subtitle - Styled as part of content */}
+                <div className="flex items-center gap-4 mb-6">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} text-lg`}>
+                        {person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
-                        <X size={24} />
-                    </button>
+                    <div>
+                        <h3 className="font-bold text-slate-700">לוח נוכחות אישי</h3>
+                        <p className="text-sm text-slate-500">צפה וערוך את הנוכחות החודשית</p>
+                    </div>
                 </div>
 
                 {/* Calendar Controls */}
-                <div className="p-4 flex items-center justify-between bg-slate-50 border-b border-slate-100">
+                <div className="p-4 flex items-center justify-between bg-slate-50 rounded-t-xl border border-slate-200 border-b-0">
                     <button onClick={handlePrevMonth} className="p-2 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-slate-200 transition-all text-slate-600">
                         <ChevronRight />
                     </button>
@@ -134,7 +127,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 overflow-y-auto custom-scrollbar border border-slate-200 rounded-b-xl">
                     <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
                         {['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'].map(day => (
                             <div key={day} className="py-2 text-center text-xs font-bold text-slate-500">
@@ -147,6 +140,6 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     </div>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { Modal as GenericModal } from './ui/Modal';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { RotateCcw, Sparkles } from 'lucide-react';
@@ -355,7 +356,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     }, [people, selectedShift, selectedDate, searchTerm, taskTemplates, overlappingShifts, selectedRoleFilter]);
 
 
-    const Modal = () => {
+    const AssignmentModal = () => {
         const [suggestedCandidates, setSuggestedCandidates] = useState<{ person: Person, reason: string }[]>([]);
         const [suggestionIndex, setSuggestionIndex] = useState(0);
 
@@ -473,54 +474,57 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             setIsEditingTime(false);
         };
 
-        return createPortal(
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 md:p-6 animate-fadeIn pt-16 md:pt-24">
-                <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[calc(100vh-10rem)] md:max-h-[calc(100vh-12rem)] mb-16 md:mb-0">
-                    <div className="p-3 md:p-6 border-b border-slate-100 bg-slate-50">
-                        <div className="flex justify-between items-start gap-2">
-                            <div className="flex-1 min-w-0">
-                                <h3 className="text-base md:text-xl font-bold text-slate-900 truncate">{task.name} - {isViewer ? 'פרטי משמרת' : 'ניהול שיבוץ'}</h3>
-                                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                    {!isEditingTime ? (
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <p className="text-slate-500 text-xs md:text-sm flex items-center gap-1 md:gap-2">
-                                                <span>{new Date(selectedShift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</span>
-                                                <span className="text-slate-300">|</span>
-                                                <span dir="ltr" className="text-[11px] md:text-sm">
-                                                    {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
-                                            </p>
-                                            {!isViewer && (
-                                                <button onClick={() => setIsEditingTime(true)} className="text-blue-600 hover:text-blue-800 p-1 bg-blue-50 rounded-full transition-colors" title="ערוך שעות">
-                                                    <Pencil size={12} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-1 md:gap-2 animate-fadeIn flex-wrap">
-                                            <input type="time" value={newStart} onChange={e => setNewStart(e.target.value)} className="text-xs md:text-sm p-1 rounded border border-slate-300 w-20 text-right" lang="he" />
-                                            <span className="text-xs">-</span>
-                                            <input type="time" value={newEnd} onChange={e => setNewEnd(e.target.value)} className="text-xs md:text-sm p-1 rounded border border-slate-300 w-20 text-right" lang="he" />
-                                            <button onClick={handleSaveTime} className="text-green-600 hover:text-green-800 p-1 bg-green-50 rounded-full transition-colors"><Save size={12} /></button>
-                                            <button onClick={() => setIsEditingTime(false)} className="text-red-500 hover:text-red-700 p-1 bg-red-50 rounded-full transition-colors"><X size={12} /></button>
-                                        </div>
+        return (
+            <GenericModal
+                isOpen={true}
+                onClose={() => setSelectedShiftId(null)}
+                title={`${task.name} - ${isViewer ? 'פרטי משמרת' : 'ניהול שיבוץ'}`}
+                size="2xl"
+                scrollableContent={false}
+            >
+                <div className="flex flex-col h-full overflow-hidden max-h-[80dvh]">
+                    {/* Toolbar */}
+                    <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                        {/* Time Control */}
+                        <div className="flex items-center gap-2">
+                            {!isEditingTime ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-700 text-sm">
+                                        {new Date(selectedShift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
+                                    </span>
+                                    <span className="text-slate-300">|</span>
+                                    <span dir="ltr" className="font-mono text-sm font-bold text-slate-800">
+                                        {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    {!isViewer && (
+                                        <button onClick={() => setIsEditingTime(true)} className="p-1.5 hover:bg-white text-blue-600 rounded-full transition-colors border border-transparent hover:border-slate-200 shadow-sm"><Pencil size={12} /></button>
                                     )}
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-                                {!isViewer && (
-                                    <button onClick={() => { onToggleCancelShift(selectedShift.id); setSelectedShiftId(null); }} className={`p-1.5 md:p-2 rounded-full transition-colors ${selectedShift.isCancelled ? 'text-green-600 hover:bg-green-50' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}`} title={selectedShift.isCancelled ? "שחזר משמרת" : "בטל משמרת"}>
-                                        {selectedShift.isCancelled ? <Undo2 size={16} /> : <Ban size={16} />}
-                                    </button>
-                                )}
-                                <button onClick={() => setSelectedShiftId(null)} className="p-1.5 md:p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
-                                    <X size={20} />
+                            ) : (
+                                <div className="flex items-center gap-2 animate-fadeIn bg-white p-1 rounded-lg border border-blue-200 shadow-sm">
+                                    <input type="time" value={newStart} onChange={e => setNewStart(e.target.value)} className="p-1 rounded border border-slate-300 text-xs w-20 text-center font-bold" />
+                                    <span className="text-slate-400">-</span>
+                                    <input type="time" value={newEnd} onChange={e => setNewEnd(e.target.value)} className="p-1 rounded border border-slate-300 text-xs w-20 text-center font-bold" />
+                                    <button onClick={handleSaveTime} className="p-1 bg-green-50 text-green-600 rounded hover:bg-green-100"><Save size={14} /></button>
+                                    <button onClick={() => setIsEditingTime(false)} className="p-1 bg-red-50 text-red-600 rounded hover:bg-red-100"><X size={14} /></button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2">
+                            {!isViewer && (
+                                <button
+                                    onClick={() => { onToggleCancelShift(selectedShift.id); setSelectedShiftId(null); }}
+                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${selectedShift.isCancelled ? 'bg-green-100 text-green-700' : 'bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:border-red-200'}`}
+                                >
+                                    {selectedShift.isCancelled ? <><Undo2 size={12} /> שחזר</> : <><Ban size={12} /> בטל משמרת</>}
                                 </button>
-                            </div>
+                            )}
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
+                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0 border rounded-xl border-slate-200 bg-white">
                         <div className="flex-1 overflow-y-auto flex flex-col md:flex-row">
                             <div className="md:flex-1 p-3 md:p-6 h-fit border-b md:border-b-0 md:border-l border-slate-100">
                                 {/* Role Requirements Visualization */}
@@ -801,13 +805,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 </div>
                             )}
                         </div>
-
                     </div>
                 </div>
-            </div>,
-            document.body
+            </GenericModal>
         );
     };
+
 
 
     const mismatchWarnings = useMemo(() => {
@@ -963,7 +966,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     return (
         <div className="flex flex-col gap-2 h-full">
             {isViewer && renderFeaturedCard()}
-            {selectedShift && <Modal />}
+            {selectedShift && <AssignmentModal />}
 
 
 

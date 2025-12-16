@@ -114,7 +114,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">שם המקטע</label>
-                        <input value={name} onChange={e => setName(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300" placeholder="לדוגמה: משמרת בוקר" />
+                        <input value={name} onChange={e => setName(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-base md:text-sm" placeholder="לדוגמה: משמרת בוקר" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">תדירות</label>
@@ -154,21 +154,21 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                     {frequency === 'specific_date' && (
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">תאריך</label>
-                            <input type="date" value={specificDate} onChange={e => setSpecificDate(e.target.value)} className="p-2 rounded-lg border border-slate-300" />
+                            <input type="date" value={specificDate} onChange={e => setSpecificDate(e.target.value)} className="p-2 rounded-lg border border-slate-300 text-base md:text-sm" />
                         </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">שעת התחלה</label>
-                            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-center" />
+                            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-center text-base md:text-sm" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">משך (שעות)</label>
-                            <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-full p-2 rounded-lg border border-slate-300 text-center" min="1" />
+                            <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-full p-2 rounded-lg border border-slate-300 text-center text-base md:text-sm" min="1" />
                         </div>
                         <div className="flex items-center">
-                            <label className="flex items-center gap-2 cursor-pointer mt-4">
+                            <label className="flex items-center gap-2 cursor-pointer mt-0 sm:mt-4 p-2 sm:p-0 bg-white sm:bg-transparent rounded-lg border sm:border-none border-slate-200 w-full sm:w-auto">
                                 <input type="checkbox" checked={isRepeat} onChange={e => setIsRepeat(e.target.checked)} className="w-4 h-4 text-blue-600 rounded" />
                                 <span className="text-xs font-bold text-slate-600">מחזור רציף (24ש)</span>
                             </label>
@@ -195,7 +195,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                                     placeholder="בחר תפקיד"
                                     className="flex-1"
                                 />
-                                <input type="number" min="1" value={rc.count} onChange={e => updateRoleRow(idx, 'count', e.target.value)} className="w-20 p-2 rounded-lg border border-slate-300 text-sm" />
+                                <input type="number" min="1" value={rc.count} onChange={e => updateRoleRow(idx, 'count', e.target.value)} className="w-20 p-2 rounded-lg border border-slate-300 text-base md:text-sm" />
                                 <button onClick={() => removeRoleRow(idx)} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><Trash2 size={16} /></button>
                             </div>
                         ))}
@@ -208,7 +208,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
 
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">מנוחה נדרשת אחרי (שעות)</label>
-                    <input type="number" value={minRest} onChange={e => setMinRest(Number(e.target.value))} className="w-24 p-2 rounded-lg border border-slate-300 text-center" min="0" />
+                    <input type="number" value={minRest} onChange={e => setMinRest(Number(e.target.value))} className="w-24 p-2 rounded-lg border border-slate-300 text-center text-base md:text-sm" min="0" />
                 </div>
 
                 {/* Footer */}

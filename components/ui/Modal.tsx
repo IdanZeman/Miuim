@@ -8,6 +8,7 @@ interface ModalProps {
     title: string;
     children: React.ReactNode;
     size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+    scrollableContent?: boolean; // If false, content container will be overflow-hidden (bring your own scroll)
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -15,7 +16,8 @@ export const Modal: React.FC<ModalProps> = ({
     onClose,
     title,
     children,
-    size = 'md'
+    size = 'md',
+    scrollableContent = true
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -62,7 +64,7 @@ export const Modal: React.FC<ModalProps> = ({
             ></div>
 
             {/* Modal */}
-            <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col overflow-hidden transform transition-all duration-200 ${getSizeClasses()} ${isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
+            <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90dvh] flex flex-col overflow-hidden transform transition-all duration-200 ${getSizeClasses()} ${isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-100 flex-shrink-0 bg-white z-10">
                     <h2 className="text-xl md:text-2xl font-bold text-slate-800">{title}</h2>
@@ -75,7 +77,7 @@ export const Modal: React.FC<ModalProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="p-4 md:p-6 overflow-y-auto custom-scrollbar">
+                <div className={`p-4 md:p-6 ${scrollableContent ? 'overflow-y-auto custom-scrollbar' : 'overflow-hidden flex flex-col'}`}>
                     {children}
                 </div>
             </div>

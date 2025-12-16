@@ -235,7 +235,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">שם המשימה</label>
-                            <input value={name} onChange={e => setName(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300" placeholder="לדוגמה: סיור בוקר" />
+                            <input value={name} onChange={e => setName(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-base md:text-sm" placeholder="לדוגמה: סיור בוקר" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-2">צבע</label>
@@ -252,11 +252,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">תאריך התחלה</label>
-                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-sm" />
+                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-base md:text-sm" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">תאריך סיום</label>
-                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-sm" />
+                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-base md:text-sm" />
                             </div>
                         </div>
                     </div>
@@ -266,7 +266,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                         <select
                             value={assignedTeamId}
                             onChange={e => setAssignedTeamId(e.target.value)}
-                            className="w-full p-2 rounded-lg border border-slate-300 text-sm bg-white"
+                            className="w-full p-2 rounded-lg border border-slate-300 text-base md:text-sm bg-white"
                             dir="rtl"
                         >
                             <option value="">ללא שיוך לצוות (פתוח לכולם)</option>

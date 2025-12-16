@@ -194,12 +194,10 @@ export const LandingPage: React.FC = () => {
                                 onClick={() => setShowLoginModal(true)}
                                 className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-green-900/20 hover:shadow-green-900/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-3"
                             >
-                                <span>התחל שימוש בחינם</span>
+                                <span>התחל שימוש</span>
                                 <ArrowLeft className="group-hover:-translate-x-1 transition-transform" />
                             </button>
-                            <button className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white border border-white/20 px-8 py-4 rounded-xl font-bold text-lg hover:-translate-y-1 transition-all">
-                                איך זה עובד?
-                            </button>
+
                         </div>
                     </div>
                 </div>
@@ -261,10 +259,6 @@ export const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto px-4 md:px-6 relative z-10">
                     <div className="grid md:grid-cols-2 gap-12 items-center">
                         <div className="space-y-6">
-                            <div className="inline-flex items-center gap-2 bg-slate-800 text-slate-200 rounded-full px-4 py-1.5 text-sm font-medium border border-slate-700">
-                                <Heart size={16} className="text-red-500" />
-                                נבנה מתוך צורך אמיתי
-                            </div>
                             <h2 className="text-4xl md:text-5xl font-black leading-tight">
                                 קצת עליי ועל הסיבה שהמערכת קיימת
                             </h2>
