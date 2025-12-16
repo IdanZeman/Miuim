@@ -128,25 +128,35 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                             <label className="block text-xs font-bold text-slate-500 mb-1">
                                 {mode === 'single' ? 'תאריך לשיבוץ' : 'תאריך התחלה'}
                             </label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full p-2 md:p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-idf-yellow focus:ring-2 focus:ring-yellow-100 outline-none transition-all font-medium text-sm text-right"
-                                lang="he"
-                            />
+                            <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-idf-yellow transition-colors">
+                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${startDate ? 'text-slate-900' : 'text-slate-400'}`}>
+                                    {startDate ? new Date(startDate).toLocaleDateString('he-IL') : 'בחר תאריך'}
+                                </span>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                />
+                                <Calendar size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                            </div>
                         </div>
                         {mode === 'range' && (
                             <div className="animate-fadeIn">
                                 <label className="block text-xs font-bold text-slate-500 mb-1">תאריך סיום</label>
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    min={startDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="w-full p-2 md:p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-idf-yellow focus:ring-2 focus:ring-yellow-100 outline-none transition-all font-medium text-sm text-right"
-                                    lang="he"
-                                />
+                                <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-idf-yellow transition-colors">
+                                    <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${endDate ? 'text-slate-900' : 'text-slate-400'}`}>
+                                        {endDate ? new Date(endDate).toLocaleDateString('he-IL') : 'בחר תאריך'}
+                                    </span>
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        min={startDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                    />
+                                    <Calendar size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                                </div>
                             </div>
                         )}
                     </div>

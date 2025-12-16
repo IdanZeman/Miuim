@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Person, Team, Role } from '../types';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -119,12 +118,18 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
 
                     {/* Date Picker */}
                     <div className="w-40">
-                        <Input
-                            type="date"
-                            value={dateKey}
-                            onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                            icon={Calendar}
-                        />
+                        <div className="relative flex items-center bg-white rounded-lg border border-slate-300 px-3 py-2 w-full group hover:border-blue-500 transition-colors">
+                            <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${dateKey ? 'text-slate-900' : 'text-slate-400'}`}>
+                                {selectedDate ? selectedDate.toLocaleDateString('he-IL') : 'בחר תאריך'}
+                            </span>
+                            <input
+                                type="date"
+                                value={dateKey}
+                                onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            />
+                            <Calendar size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                        </div>
                     </div>
 
                     {/* Team Filter */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Person, TeamRotation } from '../types';
-import { ChevronRight, ChevronLeft, X, ArrowRight, ArrowLeft, Home, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, ArrowRight, ArrowLeft, Home, Calendar as CalendarIcon, Trash2, Clock } from 'lucide-react';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
@@ -234,21 +234,33 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                             <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 mb-1 block">התחלה</label>
-                                    <input
-                                        type="time"
-                                        value={editState.start}
-                                        onChange={e => setEditState(prev => ({ ...prev, start: e.target.value }))}
-                                        className="w-full p-2 border border-slate-200 rounded-lg text-center font-bold bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
+                                    <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
+                                        <span className={`text-sm font-bold flex-1 text-center pointer-events-none ${editState.start ? 'text-slate-900' : 'text-slate-400'}`}>
+                                            {editState.start || '00:00'}
+                                        </span>
+                                        <input
+                                            type="time"
+                                            value={editState.start}
+                                            onChange={e => setEditState(prev => ({ ...prev, start: e.target.value }))}
+                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                        />
+                                        <Clock size={16} className="text-slate-400 absolute left-2 pointer-events-none" />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 mb-1 block">סיום</label>
-                                    <input
-                                        type="time"
-                                        value={editState.end}
-                                        onChange={e => setEditState(prev => ({ ...prev, end: e.target.value }))}
-                                        className="w-full p-2 border border-slate-200 rounded-lg text-center font-bold bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
+                                    <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
+                                        <span className={`text-sm font-bold flex-1 text-center pointer-events-none ${editState.end ? 'text-slate-900' : 'text-slate-400'}`}>
+                                            {editState.end || '23:59'}
+                                        </span>
+                                        <input
+                                            type="time"
+                                            value={editState.end}
+                                            onChange={e => setEditState(prev => ({ ...prev, end: e.target.value }))}
+                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                        />
+                                        <Clock size={16} className="text-slate-400 absolute left-2 pointer-events-none" />
+                                    </div>
                                 </div>
                             </div>
                         )}

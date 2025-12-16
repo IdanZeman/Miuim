@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
-import { useConfirmation } from '../hooks/useConfirmation';
-import { ConfirmationModal } from './ConfirmationModal';
-import { logger } from '../services/loggingService';
-import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users, Search, Pencil, Info } from 'lucide-react';
-import { UserRole, Profile, OrganizationInvite, UserPermissions } from '../types';
-import { Select } from './ui/Select';
+import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw } from 'lucide-react';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
+import { Team, Profile, UserPermissions, UserRole, OrganizationInvite } from '../types';
 import { PermissionEditor } from './PermissionEditor';
+import { Modal } from './ui/Modal';
+import { ConfirmationModal } from './ConfirmationModal';
+import { logger } from '../services/loggingService';
+import { useConfirmation } from '../hooks/useConfirmation';
+import { Select } from './ui/Select';
 
 const canManageOrganization = (role: UserRole) => {
     return role === 'admin';
@@ -82,22 +83,34 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
         <div className="space-y-4 md:space-y-6">
             <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-4 max-w-2xl">
                 <div className="flex-1 w-full md:w-auto">
-                    <Input
-                        type="time"
-                        label="התחלת משמרת לילה"
-                        value={start}
-                        onChange={e => setStart(e.target.value)}
-                        className="text-right w-full"
-                    />
+                    <label className="block text-sm font-bold text-slate-700 mb-1">התחלת משמרת לילה</label>
+                    <div className="relative flex items-center bg-white rounded-lg border border-slate-300 px-3 py-2 w-full group hover:border-blue-500 transition-colors">
+                        <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${start ? 'text-slate-900' : 'text-slate-400'}`}>
+                            {start || 'בחר שעה'}
+                        </span>
+                        <input
+                            type="time"
+                            value={start}
+                            onChange={e => setStart(e.target.value)}
+                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                        />
+                        <Clock size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                    </div>
                 </div>
                 <div className="flex-1 w-full md:w-auto">
-                    <Input
-                        type="time"
-                        label="סיום משמרת לילה"
-                        value={end}
-                        onChange={e => setEnd(e.target.value)}
-                        className="text-right w-full"
-                    />
+                    <label className="block text-sm font-bold text-slate-700 mb-1">סיום משמרת לילה</label>
+                    <div className="relative flex items-center bg-white rounded-lg border border-slate-300 px-3 py-2 w-full group hover:border-blue-500 transition-colors">
+                        <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${end ? 'text-slate-900' : 'text-slate-400'}`}>
+                            {end || 'בחר שעה'}
+                        </span>
+                        <input
+                            type="time"
+                            value={end}
+                            onChange={e => setEnd(e.target.value)}
+                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                        />
+                        <Clock size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                    </div>
                 </div>
             </div>
 
@@ -134,8 +147,6 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
         </div>
     );
 };
-
-import { Team } from '../types';
 
 export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }) => {
     const { user, profile, organization } = useAuth();
