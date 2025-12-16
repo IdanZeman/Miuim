@@ -27,6 +27,7 @@ export const mapPersonFromDB = (p: any): Person => {
         id: p.id,
         name: p.name,
         roleId: p.role_id,
+        roleIds: p.role_ids || [], // NEW: Map role_ids from DB
         teamId: p.team_id,
         userId: p.user_id,
         color: p.color || 'bg-blue-500',
@@ -40,6 +41,7 @@ export const mapPersonToDB = (p: Person) => ({
     id: p.id,
     name: p.name,
     role_id: p.roleId,
+    role_ids: p.roleIds, // NEW: Map roleIds to DB
     team_id: p.teamId,
     user_id: p.userId,
     color: p.color,

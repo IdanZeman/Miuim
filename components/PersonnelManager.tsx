@@ -404,12 +404,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className="mt-2 md:mt-3 flex flex-wrap gap-1">
-                                                        {(person.roleIds || []).map(rid => {
-                                                            const r = roles.find(role => role.id === rid);
-                                                            return r ? <span key={rid} className="text-[10px] bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-100">{r.name}</span> : null;
-                                                        })}
-                                                    </div>
+
                                                     <div className="flex flex-wrap gap-1 mt-1">
                                                         {(person.roleIds || []).map(roleId => {
                                                             const role = roles.find(r => r.id === roleId);
