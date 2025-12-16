@@ -297,12 +297,16 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         console.log(`Saving permissions for ${userId}`, permissions);
         const { error } = await supabase
             .from('profiles')
-            .update({ permissions } as any) // Type assertion until DB schema matches
+            .update({ permissions: permissions as any })
             .eq('id', userId);
 
         if (error) {
             console.error('Error saving permissions:', error);
-            showToast('שגיאה בשמירת הרשאות - ייתכן שהעמודה חסרה בבסיס הנתונים', 'error');
+            if (error.code === 'PGRST204') {
+                showToast('שגיאה: חסרה עמודת permissions בטבלה profiles. יש להריץ את סקריפט העדכון (db_update.sql).', 'error');
+            } else {
+                showToast('שגיאה בשמירת הרשאות', 'error');
+            }
         } else {
             showToast('הרשאות עודכנו בהצלחה', 'success');
             setMembers(prev => prev.map(m => m.id === userId ? { ...m, permissions } : m));

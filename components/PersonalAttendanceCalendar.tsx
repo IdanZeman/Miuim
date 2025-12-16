@@ -218,10 +218,15 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                                 <span className={`text-sm font-bold ${editState.isAvailable ? 'text-green-600' : 'text-slate-500'}`}>
                                     {editState.isAvailable ? 'נוכח' : 'בבית'}
                                 </span>
-                                <Switch 
-                                    checked={editState.isAvailable} 
-                                    onChange={() => setEditState(prev => ({ ...prev, isAvailable: !prev.isAvailable }))} 
-                                />
+                                <button
+                                    onClick={() => setEditState(prev => ({ ...prev, isAvailable: !prev.isAvailable }))}
+                                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${editState.isAvailable ? 'bg-green-500' : 'bg-slate-200'}`}
+                                    dir="ltr"
+                                >
+                                    <span
+                                        className={`absolute top-0.5 right-0.5 bg-white w-5 h-5 rounded-full shadow transform transition-transform duration-200 ease-in-out ${editState.isAvailable ? '-translate-x-5' : 'translate-x-0'}`}
+                                    />
+                                </button>
                             </div>
                         </div>
 

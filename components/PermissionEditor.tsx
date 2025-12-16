@@ -101,9 +101,14 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
 
     const handleSave = async () => {
         setSaving(true);
-        await onSave(targetUser.id, permissions);
-        setSaving(false);
-        onClose();
+        try {
+            await onSave(targetUser.id, permissions);
+            onClose();
+        } catch (error) {
+            console.error('Failed to save permissions', error);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const toggleTeam = (teamId: string) => {

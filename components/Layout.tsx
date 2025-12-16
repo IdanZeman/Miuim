@@ -56,7 +56,28 @@ const TopNavLink = ({
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, isPublic = false }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-  const { user, profile, organization, signOut, checkAccess } = useAuth();
+  const { user, profile, organization, signOut, checkAccess: contextCheckAccess } = useAuth();
+
+  const checkAccess = (screen: ViewMode): boolean => {
+    // 1. Admin always has access
+    if (profile?.role === 'admin') return true;
+
+    // 2. Check explicit permissions object
+    if (profile?.permissions?.screens) {
+      const access = profile.permissions.screens[screen];
+      return access === 'view' || access === 'edit';
+    }
+
+    // 3. Fallback to context check or role defaults
+    if (contextCheckAccess) return contextCheckAccess(screen);
+
+    // 4. Hard fallback defaults
+    if (profile?.role === 'editor') return screen !== 'settings' && screen !== 'logs';
+    if (profile?.role === 'viewer') return ['home', 'dashboard', 'contact', 'lottery', 'stats'].includes(screen);
+    if (profile?.role === 'attendance_only') return ['home', 'attendance', 'contact'].includes(screen);
+    
+    return false;
+  };
 
   const handleLogout = async () => {
     analytics.trackButtonClick('logout', 'header');
