@@ -247,6 +247,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         title: string;
         message: string;
         onConfirm: () => void;
+        confirmText?: string;
+        type?: 'warning' | 'danger' | 'info';
     }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
     const [newStart, setNewStart] = useState('');
     const [newEnd, setNewEnd] = useState('');
@@ -939,7 +941,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     const handleClearDayClick = () => {
         analytics.trackButtonClick('clear_day', 'schedule_board');
-        confirm({
+        setConfirmationState({
+            isOpen: true,
             title: 'ניקוי יום',
             message: 'האם אתה בטוח שברצונך למחוק את כל המשמרות של היום? פעולה זו אינה הפיכה.',
             confirmText: 'נקה יום',
@@ -947,6 +950,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             onConfirm: () => {
                 onClearDay();
                 showToast('היום נוקה בהצלחה', 'success');
+                setConfirmationState(prev => ({ ...prev, isOpen: false }));
             }
         });
     };
@@ -1296,9 +1300,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 message={confirmationState.message}
                 onConfirm={confirmationState.onConfirm}
                 onCancel={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}
-                confirmText="אשר שיבוץ"
+                confirmText={confirmationState.confirmText || "אשר שיבוץ"}
                 cancelText="ביטול"
-                type="warning"
+                type={confirmationState.type || "warning"}
             />
         </div>
     );
