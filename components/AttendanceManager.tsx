@@ -193,10 +193,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 <ChevronRight size={20} />
                             </button>
 
-                            <div
-                                className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-1.5 min-w-[160px] justify-center group hover:bg-white hover:border-slate-300 transition-colors cursor-pointer"
-                            >
-                                <span className="text-lg font-bold text-slate-700 pointer-events-none">
+                            <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-1.5 min-w-[160px] justify-center group hover:bg-white hover:border-slate-300 transition-colors">
+                                <span className="text-lg font-bold text-slate-700 pointer-events-none pl-6">
                                     {selectedDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                                 </span>
                                 <input
@@ -204,7 +202,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     type="date"
                                     value={dateKey}
                                     onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                                 />
                                 <CalendarDays className="absolute left-3 text-slate-400 group-hover:text-blue-500 transition-colors pointer-events-none" size={16} />
                             </div>

@@ -306,29 +306,40 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             </Button>
                         </div>
 
-                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
                             {segments.length === 0 ? (
-                                <p className="text-center text-xs text-slate-400 py-4 italic bg-slate-50 rounded-lg">לא הוגדרו מקטעים. לחץ על "הוסף מקטע" כדי להתחיל.</p>
+                                <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                                    <p className="text-slate-400 text-sm">לא הוגדרו מקטעים. לחץ על "הוסף מקטע" כדי להתחיל.</p>
+                                </div>
                             ) : (
                                 segments.map((seg, idx) => (
                                     <div key={seg.id || idx} className="flex justify-between items-center bg-white border border-slate-200 p-3 rounded-lg hover:border-blue-300 transition-colors group">
-                                        <div>
+                                        <div className="min-w-0 flex-1 ml-2">
                                             <div className="flex items-center gap-2">
-                                                <span className="font-bold text-sm text-slate-800">{seg.name}</span>
-                                                <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500">
+                                                <span className="font-bold text-sm text-slate-800 truncate" title={seg.name}>{seg.name}</span>
+                                                <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 flex-shrink-0 whitespace-nowrap">
                                                     {seg.frequency === 'daily' ? 'יומי' : seg.frequency === 'weekly' ? 'שבועי' : 'תאריך'}
                                                 </span>
                                             </div>
                                             <div className="text-xs text-slate-500 mt-1 flex gap-3">
-                                                <span className="flex items-center gap-1"><Clock size={12} /> {seg.startTime} ({seg.durationHours}h)</span>
-                                                <span className="flex items-center gap-1"><Users size={12} /> {seg.requiredPeople} חיילים</span>
+                                                <span className="flex items-center gap-1 whitespace-nowrap"><Clock size={12} /> {seg.startTime} ({seg.durationHours}h)</span>
+                                                <span className="flex items-center gap-1 whitespace-nowrap"><Users size={12} /> {seg.requiredPeople} חיילים</span>
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => handleDuplicateSegment(seg)} className="p-1.5 hover:bg-green-50 text-green-600 rounded" title="שכפל מקטע"><Copy size={14} /></button>
-                                            <button onClick={() => { setEditingSegment(seg); setShowSegmentEditor(true); }} className="p-1.5 hover:bg-blue-50 text-blue-600 rounded"><Pencil size={14} /></button>
-                                            <button onClick={() => handleDeleteSegment(seg.id)} className="p-1.5 hover:bg-red-50 text-red-600 rounded"><Trash2 size={14} /></button>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                            <button
+                                                onClick={() => handleEditSegment(idx)}
+                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteSegment(idx)}
+                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
                                         </div>
                                     </div>
                                 ))
