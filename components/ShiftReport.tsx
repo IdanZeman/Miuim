@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Shift, TaskTemplate, Role, Team } from '../types';
-import { Calendar, Download, Copy, Filter, X, Check } from 'lucide-react';
+import { Calendar, Filter, Download, Copy, X, Clock } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 interface ShiftReportProps {
@@ -177,43 +177,63 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4 items-end">
                     <div>
                         <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">מתאריך</label>
-                        <input
-                            type="date"
-                            lang="he"
-                            value={startDate}
-                            onChange={e => setStartDate(e.target.value)}
-                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base text-right"
-                        />
+                        <div className="relative flex items-center bg-slate-50 rounded-lg border-2 border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
+                            <span className="text-sm font-bold flex-1 text-right pointer-events-none text-slate-700">
+                                {startDate ? new Date(startDate).toLocaleDateString('he-IL') : ''}
+                            </span>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={e => setStartDate(e.target.value)}
+                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            />
+                            <Calendar size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                        </div>
                     </div>
                     <div>
                         <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">משעה</label>
-                        <input
-                            type="time"
-                            lang="he"
-                            value={startTime}
-                            onChange={e => setStartTime(e.target.value)}
-                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base text-right"
-                        />
+                        <div className="relative flex items-center bg-slate-50 rounded-lg border-2 border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
+                            <span className="text-sm font-bold flex-1 text-right pointer-events-none text-slate-700">
+                                {startTime}
+                            </span>
+                            <input
+                                type="time"
+                                value={startTime}
+                                onChange={e => setStartTime(e.target.value)}
+                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            />
+                            <Clock size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                        </div>
                     </div>
                     <div>
                         <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">עד תאריך</label>
-                        <input
-                            type="date"
-                            lang="he"
-                            value={endDate}
-                            onChange={e => setEndDate(e.target.value)}
-                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base text-right"
-                        />
+                        <div className="relative flex items-center bg-slate-50 rounded-lg border-2 border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
+                            <span className="text-sm font-bold flex-1 text-right pointer-events-none text-slate-700">
+                                {endDate ? new Date(endDate).toLocaleDateString('he-IL') : ''}
+                            </span>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={e => setEndDate(e.target.value)}
+                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            />
+                            <Calendar size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                        </div>
                     </div>
                     <div>
                         <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">עד שעה</label>
-                        <input
-                            type="time"
-                            lang="he"
-                            value={endTime}
-                            onChange={e => setEndTime(e.target.value)}
-                            className="w-full px-3 md:px-4 py-2 rounded-lg border-2 border-slate-200 focus:border-blue-400 focus:outline-none text-sm md:text-base text-right"
-                        />
+                        <div className="relative flex items-center bg-slate-50 rounded-lg border-2 border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
+                            <span className="text-sm font-bold flex-1 text-right pointer-events-none text-slate-700">
+                                {endTime}
+                            </span>
+                            <input
+                                type="time"
+                                value={endTime}
+                                onChange={e => setEndTime(e.target.value)}
+                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            />
+                            <Clock size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                        </div>
                     </div>
                 </div>
 

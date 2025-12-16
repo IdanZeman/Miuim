@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Team, TeamRotation } from '../types';
-import { Settings, CalendarDays, Trash2, Save } from 'lucide-react';
+import { Settings, CalendarDays, Trash2, Save, Clock } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Modal } from './ui/Modal';
 import { Input } from './ui/Input';
@@ -103,35 +103,69 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
                     </div>
 
                     <div className="space-y-4">
-                        <Input
-                            label="תאריך התחלה (עוגן)"
-                            type="date"
-                            value={anchorDate}
-                            onChange={e => setAnchorDate(e.target.value)}
-                        />
-                        <Input
-                            label="תאריך סיום (אופציונלי)"
-                            type="date"
-                            value={endDate}
-                            onChange={e => setEndDate(e.target.value)}
-                        />
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">תאריך התחלה (עוגן)</label>
+                            <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-slate-300 transition-colors">
+                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${anchorDate ? 'text-slate-700' : 'text-slate-400'}`}>
+                                    {anchorDate ? new Date(anchorDate).toLocaleDateString('he-IL') : 'בחר תאריך'}
+                                </span>
+                                <input
+                                    type="date"
+                                    value={anchorDate}
+                                    onChange={e => setAnchorDate(e.target.value)}
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                />
+                                <CalendarDays size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">תאריך סיום (אופציונלי)</label>
+                            <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-slate-300 transition-colors">
+                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${endDate ? 'text-slate-700' : 'text-slate-400'}`}>
+                                    {endDate ? new Date(endDate).toLocaleDateString('he-IL') : 'ללא סיום'}
+                                </span>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={e => setEndDate(e.target.value)}
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                />
+                                <CalendarDays size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="space-y-4">
-                        <Input
-                            label="שעת הגעה (יום 1)"
-                            type="time"
-                            value={arrTime}
-                            onChange={e => setArrTime(e.target.value)}
-                            className="ltr-input"
-                        />
-                        <Input
-                            label="שעת יציאה (יום אחרון)"
-                            type="time"
-                            value={depTime}
-                            onChange={e => setDepTime(e.target.value)}
-                            className="ltr-input"
-                        />
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">שעת הגעה (יום 1)</label>
+                            <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-slate-300 transition-colors">
+                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${arrTime ? 'text-slate-700' : 'text-slate-400'}`}>
+                                    {arrTime || 'בחר שעה'}
+                                </span>
+                                <input
+                                    type="time"
+                                    value={arrTime}
+                                    onChange={e => setArrTime(e.target.value)}
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                />
+                                <Clock size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">שעת יציאה (יום אחרון)</label>
+                            <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-slate-300 transition-colors">
+                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${depTime ? 'text-slate-700' : 'text-slate-400'}`}>
+                                    {depTime || 'בחר שעה'}
+                                </span>
+                                <input
+                                    type="time"
+                                    value={depTime}
+                                    onChange={e => setDepTime(e.target.value)}
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                />
+                                <Clock size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TaskTemplate, Role, SchedulingSegment, Team } from '../types';
-import { CheckSquare, Plus, Pencil, Trash2, Copy, Layers, Clock, Users } from 'lucide-react';
+import { CheckSquare, Plus, Pencil, Trash2, Copy, Layers, Clock, Users, Calendar } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../contexts/AuthContext';
@@ -131,6 +131,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         } else {
             setSegments(prev => [...prev, segment]);
         }
+    };
+
+    const handleEditSegment = (index: number) => {
+        setEditingSegment(segments[index]);
+        setShowSegmentEditor(true);
     };
 
     const handleDeleteSegment = (segmentId: string) => {
@@ -265,18 +270,30 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             <input type="range" value={difficulty} onChange={e => setDifficulty(Number(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg mt-2 accent-idf-yellow" min="1" max="5" />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                            <Input
-                                type="date"
-                                label="תאריך התחלה"
-                                value={startDate}
-                                onChange={e => setStartDate(e.target.value)}
-                            />
-                            <Input
-                                type="date"
-                                label="תאריך סיום"
-                                value={endDate}
-                                onChange={e => setEndDate(e.target.value)}
-                            />
+                            <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-slate-300 transition-colors">
+                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${startDate ? 'text-slate-700' : 'text-slate-400'}`}>
+                                    {startDate ? new Date(startDate).toLocaleDateString('he-IL') : 'תאריך התחלה'}
+                                </span>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={e => setStartDate(e.target.value)}
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                />
+                                <Calendar size={16} className="text-slate-400 ml-2 pointer-events-none" />
+                            </div>
+                            <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-slate-300 transition-colors">
+                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${endDate ? 'text-slate-700' : 'text-slate-400'}`}>
+                                    {endDate ? new Date(endDate).toLocaleDateString('he-IL') : 'תאריך סיום'}
+                                </span>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={e => setEndDate(e.target.value)}
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                />
+                                <Calendar size={16} className="text-slate-400 ml-2 pointer-events-none" />
+                            </div>
                         </div>
                         <div className="col-span-1 md:col-span-2">
                             <Select

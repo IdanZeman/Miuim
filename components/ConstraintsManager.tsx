@@ -374,35 +374,57 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, 
                     {selectedType === 'time_block' ? (
                         <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                             <div>
-                                <Input
-                                    label="תאריך התחלה"
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                />
-                                <div className="mt-2">
-                                    <Input
+                                <label className="block text-xs font-bold text-slate-500 mb-1">התחלה</label>
+                                <div className="relative flex items-center bg-white rounded-lg border border-slate-200 px-2 py-1.5 w-full mb-2">
+                                    <span className={`text-xs font-bold flex-1 text-right pointer-events-none ${startDate ? 'text-slate-700' : 'text-slate-400'}`}>
+                                        {startDate ? new Date(startDate).toLocaleDateString('he-IL') : 'תאריך'}
+                                    </span>
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                    />
+                                    <Calendar size={14} className="text-slate-400 ml-1 pointer-events-none" />
+                                </div>
+                                <div className="relative flex items-center bg-white rounded-lg border border-slate-200 px-2 py-1.5 w-full">
+                                    <span className={`text-xs font-bold flex-1 text-right pointer-events-none ${startTime ? 'text-slate-700' : 'text-slate-400'}`}>
+                                        {startTime || 'שעה'}
+                                    </span>
+                                    <input
                                         type="time"
                                         value={startTime}
                                         onChange={(e) => setStartTime(e.target.value)}
-                                        className="text-right ltr-input"
+                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                                     />
+                                    <Clock size={14} className="text-slate-400 ml-1 pointer-events-none" />
                                 </div>
                             </div>
                             <div>
-                                <Input
-                                    label="תאריך סיום"
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                />
-                                <div className="mt-2">
-                                    <Input
+                                <label className="block text-xs font-bold text-slate-500 mb-1">סיום</label>
+                                <div className="relative flex items-center bg-white rounded-lg border border-slate-200 px-2 py-1.5 w-full mb-2">
+                                    <span className={`text-xs font-bold flex-1 text-right pointer-events-none ${endDate ? 'text-slate-700' : 'text-slate-400'}`}>
+                                        {endDate ? new Date(endDate).toLocaleDateString('he-IL') : 'תאריך'}
+                                    </span>
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                    />
+                                    <Calendar size={14} className="text-slate-400 ml-1 pointer-events-none" />
+                                </div>
+                                <div className="relative flex items-center bg-white rounded-lg border border-slate-200 px-2 py-1.5 w-full">
+                                    <span className={`text-xs font-bold flex-1 text-right pointer-events-none ${endTime ? 'text-slate-700' : 'text-slate-400'}`}>
+                                        {endTime || 'שעה'}
+                                    </span>
+                                    <input
                                         type="time"
                                         value={endTime}
                                         onChange={(e) => setEndTime(e.target.value)}
-                                        className="text-right ltr-input"
+                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                                     />
+                                    <Clock size={14} className="text-slate-400 ml-1 pointer-events-none" />
                                 </div>
                             </div>
                         </div>
