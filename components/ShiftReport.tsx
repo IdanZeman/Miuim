@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Shift, TaskTemplate, Role, Team } from '../types';
-import { Calendar, Filter, Download, Copy, X, Clock } from 'lucide-react';
+import { Calendar, Filter, Download, Copy, X, Clock, List } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 interface ShiftReportProps {
@@ -9,10 +9,13 @@ interface ShiftReportProps {
     tasks: TaskTemplate[];
     roles: Role[];
     teams: Team[];
+    teamRotations?: any[];
 }
 
-export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks, roles, teams }) => {
+export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks, roles, teams, teamRotations = [] }) => {
     const { showToast } = useToast();
+
+    // ... (Existing state for Shift Report) ...
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -22,7 +25,7 @@ export const ShiftReport: React.FC<ShiftReportProps> = ({ shifts, people, tasks,
         end.setDate(end.getDate() + 7);
         return end.toISOString().split('T')[0];
     })());
-    const [startTime, setStartTime] = useState('07:00'); // חדש ברירת מחדל 07:00
+    const [startTime, setStartTime] = useState('07:00');
     const [endTime, setEndTime] = useState('23:59');
 
     const [selectedTasks, setSelectedTasks] = useState<string[]>([]);

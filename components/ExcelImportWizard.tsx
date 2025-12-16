@@ -59,6 +59,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         { value: 'team', label: 'צוות' },
         { value: 'role', label: 'תפקיד' },
         { value: 'email', label: 'אימייל' },
+        { value: 'mobile', label: 'טלפון נייד' }, // NEW: Phone support
         { value: 'ignore', label: 'התעלם' }
     ];
 

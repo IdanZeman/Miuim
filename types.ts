@@ -86,6 +86,8 @@ export interface Person {
   };
   roleIds?: string[]; // For multi-role support
   email?: string;
+  phone?: string; // NEW: Phone number
+  isActive?: boolean; // NEW: Active status (default true)
   unavailableDates?: string[];
   preferences?: {
     preferNight: boolean;

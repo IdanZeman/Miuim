@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from '../services/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 import { Person, Team, Role } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { Trophy, Users, RefreshCw, Sparkles, Shuffle, Dices, Check, Settings2, X, ChevronDown } from 'lucide-react';
@@ -9,51 +11,63 @@ interface LotteryProps {
     roles: Role[];
 }
 
-type PoolType = 'all' | 'team' | 'role' | 'custom';
+type PoolType = 'all' | 'team' | 'role' | 'manual';
 
 export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
+    // History State
+    const [history, setHistory] = useState<any[]>([]);
+    const [showHistory, setShowHistory] = useState(false);
+
+    // Core State
     const [mode, setMode] = useState<'single' | 'multiple'>('single');
-    const [participatingIds, setParticipatingIds] = useState<Set<string>>(new Set(people.map(p => p.id))); // Default all selected
-    const [filterType, setFilterType] = useState<'all' | 'team' | 'role' | 'manual'>('all');
+    const [filterType, setFilterType] = useState<PoolType>('all');
     const [activeFilterId, setActiveFilterId] = useState<string>('');
+    const [participatingIds, setParticipatingIds] = useState<Set<string>>(new Set(people.map(p => p.id)));
+
+    // Animation State
+    const [rotation, setRotation] = useState(0);
+    const [isSpinning, setIsSpinning] = useState(false);
+    const [showConfetti, setShowConfetti] = useState(false);
+
+    // Multiple Winners State
+    const [numberOfWinners, setNumberOfWinners] = useState(1);
+    const [winners, setWinners] = useState<Person[]>([]);
+    const [displayCandidate, setDisplayCandidate] = useState<Person | null>(null);
+
+    // Advanced Filter UI State
     const [isEditMode, setIsEditMode] = useState(false);
     const [filterSearch, setFilterSearch] = useState('');
 
-    const [candidates, setCandidates] = useState<Person[]>([]);
-    const [winners, setWinners] = useState<Person[]>([]);
-    const [isSpinning, setIsSpinning] = useState(false);
-    const [rotation, setRotation] = useState(0);
-    const [showConfetti, setShowConfetti] = useState(false);
-    const [displayCandidate, setDisplayCandidate] = useState<Person | null>(null);
-    const [numberOfWinners, setNumberOfWinners] = useState(1);
-
-    // Update candidates based on selection
+    // Update participants when filters change
     useEffect(() => {
-        setCandidates(people.filter(p => participatingIds.has(p.id)));
-        setWinners([]);
-        setShowConfetti(false);
-        setRotation(0);
-        setDisplayCandidate(null);
-    }, [participatingIds, people]);
+        let ids: string[] = [];
+        if (filterType === 'all') {
+            ids = people.map(p => p.id);
+        } else if (filterType === 'team' && activeFilterId) {
+            ids = people.filter(p => p.teamId === activeFilterId).map(p => p.id);
+        } else if (filterType === 'role' && activeFilterId) {
+            // Check both singular and plural role assignments
+            ids = people.filter(p => p.roleId === activeFilterId || (p.roleIds && p.roleIds.includes(activeFilterId))).map(p => p.id);
+        } else if (filterType === 'manual') {
+            // Keep existing selection or start empty? Let's keep current if moving to manual, or reset?
+            // User experience: if I switch to manual, I usually want to tweak what I had.
+            // But if I switch FROM manual to All, it resets.
+            // Just keep current participatingIds if switching TO manual.
+            if (participatingIds.size === 0) ids = people.map(p => p.id); // Default to all if empty
+            else return; // Don't reset
+        }
 
-    // Bulk Actions
-    // Handle Main Filter Change
-    const handleFilterChange = (type: 'all' | 'team' | 'role' | 'manual', id?: string) => {
+        if (filterType !== 'manual') {
+            setParticipatingIds(new Set(ids));
+        }
+    }, [filterType, activeFilterId, people]);
+
+    const candidates = people.filter(p => participatingIds.has(p.id));
+
+    const handleFilterChange = (type: PoolType, id: string = '') => {
         setFilterType(type);
         if (id) setActiveFilterId(id);
-
-        // Auto-update selection based on filter
-        if (type === 'all') {
-            setParticipatingIds(new Set(people.map(p => p.id)));
-        } else if (type === 'team' && id) {
-            const teamIds = people.filter(p => p.teamId === id).map(p => p.id);
-            setParticipatingIds(new Set(teamIds));
-        } else if (type === 'role' && id) {
-            const roleIds = people.filter(p => (p.roleIds || []).includes(id)).map(p => p.id);
-            setParticipatingIds(new Set(roleIds));
-        } else if (type === 'manual') {
-            // Keep existing or clear? Let's keep existing to allow refinement
-        }
+        else setActiveFilterId('');
     };
 
     const togglePerson = (id: string) => {
@@ -68,6 +82,43 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
     const selectAll = () => setParticipatingIds(new Set(people.map(p => p.id)));
     const clearAll = () => setParticipatingIds(new Set());
 
+    // Fetch History
+    useEffect(() => {
+        const fetchHistory = async () => {
+            const { data } = await supabase.from('lottery_history').select('*').order('created_at', { ascending: false }).limit(20);
+            if (data) setHistory(data);
+        };
+        fetchHistory();
+    }, []);
+
+    const { organization } = useAuth(); // Get organization from context
+
+    // ... (rest of code)
+
+    const saveToHistory = async (winners: Person[]) => {
+        if (!organization?.id) {
+            console.error("No organization ID found");
+            return;
+        }
+
+        const entry = {
+            winners: winners.map(w => ({ id: w.id, name: w.name, color: w.color })),
+            mode,
+            context: filterType === 'team' ? 'הגרלה צוותית' : filterType === 'role' ? 'הגרלת תפקיד' : 'הגרלה כללית',
+            organization_id: organization.id
+        };
+
+        // Optimistic update
+        setHistory(prev => [{ ...entry, created_at: new Date().toISOString() }, ...prev]);
+
+        const { error } = await supabase.from('lottery_history').insert([entry]);
+        if (error) {
+            console.error("Error saving lottery history:", error);
+        }
+    };
+
+
+
     const handleSpin = () => {
         if (candidates.length === 0 || isSpinning) return;
 
@@ -76,31 +127,18 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
         setShowConfetti(false);
 
         if (mode === 'single') {
-            // Wheel Logic
-            const spinDuration = 8000; // 8 seconds for suspense
+            const spinDuration = 8000;
             const winnerIndex = Math.floor(Math.random() * candidates.length);
             const winner = candidates[winnerIndex];
-
-            // Calculate angle to land on the winner
             const segmentSize = 360 / candidates.length;
-            // The center angle of the winner's segment
             const winnerAngle = (winnerIndex * segmentSize) + (segmentSize / 2);
-
-            // We want (winnerAngle + rotation) % 360 = 0 (top)
-            // So rotation = -winnerAngle
-            // Add random jitter within the segment (keep it safe, 40% of segment width each way)
             const jitter = (Math.random() - 0.5) * (segmentSize * 0.8);
-
-            // Target rotation (0-360)
             let targetRotation = (360 - winnerAngle + jitter) % 360;
             if (targetRotation < 0) targetRotation += 360;
-
-            // Calculate total rotation needed
             const currentRotationMod = rotation % 360;
             let rotationDiff = targetRotation - currentRotationMod;
             if (rotationDiff < 0) rotationDiff += 360;
-
-            const randomSpins = 8 + Math.floor(Math.random() * 5); // 8-13 full rotations
+            const randomSpins = 8 + Math.floor(Math.random() * 5);
             const totalRotation = rotation + (randomSpins * 360) + rotationDiff;
 
             setRotation(totalRotation);
@@ -109,9 +147,9 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                 setIsSpinning(false);
                 setWinners([winner]);
                 setShowConfetti(true);
+                saveToHistory([winner]); // SAVE
             }, spinDuration);
         } else {
-            // Multiple Winners Logic (Digital Shuffle)
             let remainingCandidates = [...candidates];
             let winnersList: Person[] = [];
             let count = 0;
@@ -121,13 +159,13 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                     setIsSpinning(false);
                     setShowConfetti(true);
                     setDisplayCandidate(null);
+                    saveToHistory(winnersList); // SAVE
                     return;
                 }
 
-                // Rapid Shuffle Effect
                 let shuffleInterval: NodeJS.Timeout;
                 let shuffleCount = 0;
-                const maxShuffles = 30; // Number of rapid changes before stopping
+                const maxShuffles = 30;
 
                 shuffleInterval = setInterval(() => {
                     const randomIdx = Math.floor(Math.random() * remainingCandidates.length);
@@ -136,31 +174,19 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
 
                     if (shuffleCount >= maxShuffles) {
                         clearInterval(shuffleInterval);
-
-                        // Pick actual winner
                         const winnerIndex = Math.floor(Math.random() * remainingCandidates.length);
                         const winner = remainingCandidates[winnerIndex];
-
-                        // Show winner
                         setDisplayCandidate(winner);
-
-                        // Remove from pool
                         remainingCandidates.splice(winnerIndex, 1);
-
-                        // Add to winners list after a "lock-in" pause
                         setTimeout(() => {
                             winnersList.push(winner);
                             setWinners([...winnersList]);
                             count++;
-
-                            // Schedule next draw
                             setTimeout(drawNextWinner, 1000);
                         }, 1000);
                     }
-                }, 80); // Speed of shuffle (80ms)
+                }, 80);
             };
-
-            // Start the draw loop
             drawNextWinner();
         }
     };
@@ -173,155 +199,190 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
             {/* Configuration Panel */}
             <div className="w-full md:w-1/3 bg-white rounded-2xl shadow-lg p-6 flex flex-col gap-4 overflow-y-auto z-20 md:max-h-full">
                 <div>
-                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-4">
-                        <Dices className="text-idf-yellow" />
-                        הגדרות הגרלה
+                    <h2 className="text-xl font-bold text-slate-800 flex items-center justify-between mb-4">
+                        <span className="flex items-center gap-2">
+                            <Dices className="text-idf-yellow" />
+                            הגדרות הגרלה
+                        </span>
+                        <button
+                            onClick={() => setShowHistory(!showHistory)}
+                            className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 hover:text-blue-600 transition-colors"
+                        >
+                            {showHistory ? 'חזרה להגדרות' : 'היסטוריה'}
+                        </button>
                     </h2>
 
-                    {/* Mode Selection */}
-                    <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
-                        <button
-                            onClick={() => setMode('single')}
-                            className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${mode === 'single' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            גלגל מזל
-                        </button>
-                        <button
-                            onClick={() => setMode('multiple')}
-                            className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${mode === 'multiple' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            הגרלה קבוצתית
-                        </button>
-                    </div>
-
-                    {/* Simplified Filter UI */}
-                    <div className="space-y-4">
-                        <label className="block text-sm font-bold text-slate-700">מי משתתף בהגרלה?</label>
-
-                        {/* 1. Filter Type Tabs */}
-                        <div className="flex bg-slate-100 p-1 rounded-lg">
-                            {(['all', 'team', 'role', 'manual'] as const).map(type => (
-                                <button
-                                    key={type}
-                                    onClick={() => handleFilterChange(type)}
-                                    className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${filterType === type ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    {type === 'all' && 'כולם'}
-                                    {type === 'team' && 'לפי צוות'}
-                                    {type === 'role' && 'לפי תפקיד'}
-                                    {type === 'manual' && 'בחירה ידנית'}
-                                </button>
+                    {showHistory ? (
+                        <div className="space-y-3 animate-fade-in">
+                            <h3 className="text-sm font-bold text-slate-500">הגרלות אחרונות</h3>
+                            {history.length === 0 && <p className="text-xs text-slate-400">אין היסטוריה זמינה</p>}
+                            {history.map((h: any) => (
+                                <div key={h.id} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="text-xs font-bold text-slate-700">{h.context}</span>
+                                        <span className="text-[10px] text-slate-400">{new Date(h.created_at).toLocaleDateString('he-IL')}</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                        {h.winners.map((w: any) => (
+                                            <span key={w.name} className="text-[10px] bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                                                {w.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
                             ))}
                         </div>
-
-                        {/* 2. Dynamic Selection based on Filter Type */}
-                        {filterType === 'team' && (
-                            <select
-                                className="w-full p-2 rounded-lg border border-slate-200 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={activeFilterId}
-                                onChange={(e) => handleFilterChange('team', e.target.value)}
-                                dir="rtl"
-                            >
-                                <option value="">בחר צוות...</option>
-                                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                            </select>
-                        )}
-
-                        {filterType === 'role' && (
-                            <select
-                                className="w-full p-2 rounded-lg border border-slate-200 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={activeFilterId}
-                                onChange={(e) => handleFilterChange('role', e.target.value)}
-                                dir="rtl"
-                            >
-                                <option value="">בחר תפקיד...</option>
-                                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                            </select>
-                        )}
-
-                        {/* Summary of Selection */}
-                        <div className="bg-blue-50/50 rounded-lg p-3 flex items-center justify-between border border-blue-100">
-                            <span className="text-xs text-blue-800 font-medium">נבחרו: {participatingIds.size} משתתפים</span>
-                            <button
-                                onClick={() => setIsEditMode(!isEditMode)}
-                                className="text-xs flex items-center gap-1 text-slate-500 hover:text-blue-600 transition-colors"
-                            >
-                                <Settings2 size={12} />
-                                {isEditMode ? 'סגור עריכה' : 'עריכה מתקדמת'}
-                            </button>
-                        </div>
-
-                        {/* 3. Advanced Manual Selection (Collapsible) */}
-                        {isEditMode && (
-                            <div className="flex flex-col border border-slate-200 rounded-xl bg-white animate-fade-in max-h-[300px]">
-                                <div className="p-2 border-b border-slate-100 flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="חפש להוספה/הסרה..."
-                                        value={filterSearch}
-                                        onChange={e => setFilterSearch(e.target.value)}
-                                        className="flex-1 text-xs px-2 py-1.5 rounded bg-slate-50 border-none focus:ring-1 focus:ring-blue-500"
-                                    />
-                                    <button onClick={selectAll} className="text-[10px] text-blue-600 hover:bg-blue-50 px-2 py-1 rounded">הכל</button>
-                                    <button onClick={clearAll} className="text-[10px] text-slate-500 hover:bg-slate-50 px-2 py-1 rounded">נקה</button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto p-1 space-y-0.5 custom-scrollbar">
-                                    {people
-                                        .filter(p => !filterSearch || p.name.includes(filterSearch))
-                                        .map(p => (
-                                            <div
-                                                key={p.id}
-                                                onClick={() => togglePerson(p.id)}
-                                                className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs ${participatingIds.has(p.id) ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
-                                            >
-                                                <div className={`w-3 h-3 rounded border flex items-center justify-center ${participatingIds.has(p.id) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
-                                                    {participatingIds.has(p.id) && <Check size={8} className="text-white" />}
-                                                </div>
-                                                <span className={participatingIds.has(p.id) ? 'font-medium text-slate-800' : 'text-slate-500'}>{p.name}</span>
-                                            </div>
-                                        ))}
-                                </div>
+                    ) : (
+                        <>
+                            {/* Mode Selection */}
+                            <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
+                                <button
+                                    onClick={() => setMode('single')}
+                                    className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${mode === 'single' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    גלגל מזל
+                                </button>
+                                <button
+                                    onClick={() => setMode('multiple')}
+                                    className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${mode === 'multiple' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    הגרלה קבוצתית
+                                </button>
                             </div>
-                        )}
-                    </div>
 
-                    {mode === 'multiple' && (
-                        <div className="mt-6">
-                            <label className="block text-sm font-bold text-slate-700 mb-2">כמה זוכים?</label>
-                            <input
-                                type="number"
-                                min="1"
-                                max={candidates.length}
-                                value={numberOfWinners}
-                                onChange={(e) => setNumberOfWinners(Math.min(candidates.length, Math.max(1, Number(e.target.value))))}
-                                className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-center font-bold text-lg"
-                            />
-                        </div>
+                            {/* Simplified Filter UI */}
+                            <div className="space-y-4">
+                                <label className="block text-sm font-bold text-slate-700">מי משתתף בהגרלה?</label>
+
+                                {/* 1. Filter Type Tabs */}
+                                <div className="flex bg-slate-100 p-1 rounded-lg">
+                                    {(['all', 'team', 'role', 'manual'] as const).map(type => (
+                                        <button
+                                            key={type}
+                                            onClick={() => handleFilterChange(type)}
+                                            className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${filterType === type ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            {type === 'all' && 'כולם'}
+                                            {type === 'team' && 'לפי צוות'}
+                                            {type === 'role' && 'לפי תפקיד'}
+                                            {type === 'manual' && 'בחירה ידנית'}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* 2. Dynamic Selection based on Filter Type */}
+                                {filterType === 'team' && (
+                                    <select
+                                        className="w-full p-2 rounded-lg border border-slate-200 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={activeFilterId}
+                                        onChange={(e) => handleFilterChange('team', e.target.value)}
+                                        dir="rtl"
+                                    >
+                                        <option value="">בחר צוות...</option>
+                                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    </select>
+                                )}
+
+                                {filterType === 'role' && (
+                                    <select
+                                        className="w-full p-2 rounded-lg border border-slate-200 text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={activeFilterId}
+                                        onChange={(e) => handleFilterChange('role', e.target.value)}
+                                        dir="rtl"
+                                    >
+                                        <option value="">בחר תפקיד...</option>
+                                        {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                    </select>
+                                )}
+
+                                {/* Summary of Selection */}
+                                <div className="bg-blue-50/50 rounded-lg p-3 flex items-center justify-between border border-blue-100">
+                                    <span className="text-xs text-blue-800 font-medium">נבחרו: {participatingIds.size} משתתפים</span>
+                                    <button
+                                        onClick={() => setIsEditMode(!isEditMode)}
+                                        className="text-xs flex items-center gap-1 text-slate-500 hover:text-blue-600 transition-colors"
+                                    >
+                                        <Settings2 size={12} />
+                                        {isEditMode ? 'סגור עריכה' : 'עריכה מתקדמת'}
+                                    </button>
+                                </div>
+
+                                {/* 3. Advanced Manual Selection (Collapsible) */}
+                                {isEditMode && (
+                                    <div className="flex flex-col border border-slate-200 rounded-xl bg-white animate-fade-in max-h-[300px]">
+                                        <div className="p-2 border-b border-slate-100 flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="חפש להוספה/הסרה..."
+                                                value={filterSearch}
+                                                onChange={e => setFilterSearch(e.target.value)}
+                                                className="flex-1 text-xs px-2 py-1.5 rounded bg-slate-50 border-none focus:ring-1 focus:ring-blue-500"
+                                            />
+                                            <button onClick={selectAll} className="text-[10px] text-blue-600 hover:bg-blue-50 px-2 py-1 rounded">הכל</button>
+                                            <button onClick={clearAll} className="text-[10px] text-slate-500 hover:bg-slate-50 px-2 py-1 rounded">נקה</button>
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto p-1 space-y-0.5 custom-scrollbar">
+                                            {people
+                                                .filter(p => !filterSearch || p.name.includes(filterSearch))
+                                                .map(p => (
+                                                    <div
+                                                        key={p.id}
+                                                        onClick={() => togglePerson(p.id)}
+                                                        className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs ${participatingIds.has(p.id) ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                                                    >
+                                                        <div className={`w-3 h-3 rounded border flex items-center justify-center ${participatingIds.has(p.id) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                                            {participatingIds.has(p.id) && <Check size={8} className="text-white" />}
+                                                        </div>
+                                                        <span className={participatingIds.has(p.id) ? 'font-medium text-slate-800' : 'text-slate-500'}>{p.name}</span>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {mode === 'multiple' && (
+                                <div className="mt-6">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">כמה זוכים?</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={candidates.length}
+                                        value={numberOfWinners}
+                                        onChange={(e) => setNumberOfWinners(Math.min(candidates.length, Math.max(1, Number(e.target.value))))}
+                                        className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-center font-bold text-lg"
+                                    />
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
 
-                <div className="mt-auto pt-6 border-t border-slate-100">
-                    <div className="flex justify-between items-center mb-4 text-sm text-slate-500">
-                        <span>משתתפים בהגרלה:</span>
-                        <span className="font-bold text-slate-800">{candidates.length}</span>
+                {!showHistory && (
+                    <div className="mt-auto pt-6 border-t border-slate-100">
+                        <div className="flex justify-between items-center mb-4 text-sm text-slate-500">
+                            <span>משתתפים בהגרלה:</span>
+                            <span className="font-bold text-slate-800">{candidates.length}</span>
+                        </div>
+                        <button
+                            onClick={handleSpin}
+                            disabled={candidates.length === 0 || isSpinning}
+                            className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transform transition-all active:scale-95 flex items-center justify-center gap-2
+                                ${candidates.length === 0 || isSpinning
+                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-idf-yellow to-yellow-400 text-slate-900 hover:shadow-xl hover:-translate-y-1'
+                                }`}
+                        >
+                            {isSpinning ? <RefreshCw className="animate-spin" /> : <Sparkles />}
+                            {isSpinning ? 'מגריל...' : 'התחל הגרלה!'}
+                        </button>
                     </div>
-                    <button
-                        onClick={handleSpin}
-                        disabled={candidates.length === 0 || isSpinning}
-                        className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transform transition-all active:scale-95 flex items-center justify-center gap-2
-                            ${candidates.length === 0 || isSpinning
-                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-idf-yellow to-yellow-400 text-slate-900 hover:shadow-xl hover:-translate-y-1'
-                            }`}
-                    >
-                        {isSpinning ? <RefreshCw className="animate-spin" /> : <Sparkles />}
-                        {isSpinning ? 'מגריל...' : 'התחל הגרלה!'}
-                    </button>
-                </div>
+                )}
             </div>
 
-            {/* Visual Stage */}
+            {/* Visual Stage (Unchanged) */}
             <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-inner relative overflow-hidden flex flex-col items-center justify-center p-8 border border-slate-200">
+
                 {/* Background Pattern */}
                 <div className="absolute inset-0 opacity-5 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:16px_16px]"></div>
 

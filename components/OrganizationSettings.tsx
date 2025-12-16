@@ -125,6 +125,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                     </div>
                 </div>
             </div>
+            <p className="text-slate-400 text-xs md:text-sm -mt-2">הגדרת משמרת לילה מסייעת לאלגוריתם לחשב את קושי המשימות בשיבוץ.</p>
 
             <div className="border-t border-slate-100 pt-4 md:pt-6">
                 <Input
@@ -367,7 +368,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                     </div>
                     <div className="min-w-0 flex-1">
                         <h1 className="text-xl md:text-3xl font-bold text-slate-800 truncate">{organization?.name}</h1>
-                        <p className="text-sm md:text-base text-slate-600">{members.length} חברי צוות</p>
+                        <p className="text-sm md:text-base text-slate-600">{members.length} משתמשים במערכת</p>
                     </div>
                 </div>
             </div>
@@ -378,7 +379,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                     <LinkIcon className="text-blue-600 flex-shrink-0" size={20} />
                     <h2 className="text-lg md:text-2xl font-bold text-slate-800">קישור הצטרפות</h2>
                 </div>
-                <InviteLinkSettings organization={organization} onUpdate={fetchMembers} />
+                <InviteLinkSettings organization={organization} onUpdate={fetchMembers} teams={teams} />
             </div>
 
             {/* Night Shift Settings */}
@@ -390,99 +391,19 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                 <GeneralSettings organizationId={organization?.id || ''} />
             </div>
 
-            {/* Invite Form */}
-            <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-emerald-200">
-                <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-                    <UserPlus className="text-emerald-600 flex-shrink-0" size={20} />
-                    <h2 className="text-lg md:text-2xl font-bold text-slate-800">הזמן משתמש חדש</h2>
-                </div>
 
-                <form onSubmit={handleSendInvite} className="space-y-3 md:space-y-4 max-w-3xl">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                        <Input
-                            label="כתובת אימייל"
-                            type="email"
-                            value={inviteEmail}
-                            onChange={(e) => setInviteEmail(e.target.value)}
-                            placeholder="user@example.com"
-                            required
-                            disabled={sending}
-                            className="text-right"
-                        />
 
-                        <div>
-                            <Select
-                                label="הרשאה"
-                                value={inviteRole}
-                                onChange={(val) => setInviteRole(val as UserRole)}
-                                options={[
-                                    { value: 'admin', label: 'מנהל - גישה מלאה' },
-                                    { value: 'editor', label: 'עורך - עריכת שיבוצים' },
-                                    { value: 'viewer', label: 'צופה - צפייה בלבד' },
-                                    { value: 'attendance_only', label: 'נוכחות בלבד' }
-                                ]}
-                                disabled={sending}
-                                placeholder="בחר הרשאה"
-                            />
-                        </div>
-                    </div>
-
-                    <Button
-                        type="submit"
-                        disabled={sending || !inviteEmail.trim()}
-                        isLoading={sending}
-                        icon={Mail}
-                        fullWidth={false}
-                        variant="primary"
-                        className="w-full md:w-auto shadow-md"
-                    >
-                        {sending ? 'שולח...' : 'שלח הזמנה'}
-                    </Button>
-                </form>
-            </div>
-
-            {/* Pending Invites */}
-            {invites.length > 0 && (
-                <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-yellow-200">
-                    <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-                        <Clock className="text-yellow-600 flex-shrink-0" size={20} />
-                        <h2 className="text-lg md:text-2xl font-bold text-slate-800">הזמנות ממתינות</h2>
-                    </div>
-
-                    <div className="space-y-2 md:space-y-3">
-                        {invites.map((invite) => (
-                            <div key={invite.id} className="flex items-center justify-between p-3 md:p-4 bg-yellow-50 rounded-lg md:rounded-xl border border-yellow-200 gap-3">
-                                <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
-                                    <Mail className="text-yellow-600 flex-shrink-0" size={18} />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="font-medium text-slate-800 text-sm md:text-base truncate">{invite.email}</p>
-                                        <p className="text-xs md:text-sm text-slate-600">{getRoleDisplayName(invite.role)}</p>
-                                    </div>
-                                </div>
-                                <Button
-                                    onClick={() => handleDeleteInvite(invite.id)}
-                                    variant="ghost"
-                                    className="text-red-500 hover:bg-red-50 hover:text-red-600 p-2 h-auto w-auto"
-                                    title="מחק הזמנה"
-                                >
-                                    <Trash2 size={16} />
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
 
             {/* Members List */}
             <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-emerald-200">
                 <div className="flex items-center justify-between mb-4 md:mb-6">
                     <div className="flex items-center gap-2 md:gap-3">
                         <Users className="text-emerald-600 flex-shrink-0" size={20} />
-                        <h2 className="text-lg md:text-2xl font-bold text-slate-800">חברי צוות</h2>
+                        <h2 className="text-lg md:text-2xl font-bold text-slate-800">משתמשים במערכת</h2>
                     </div>
                     <div className="w-full max-w-xs">
                         <Input
-                            placeholder="חפש חבר צוות..."
+                            placeholder="חפש משתמש..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             icon={Search}
@@ -550,7 +471,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     );
 };
 
-const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> = ({ organization, onUpdate }) => {
+const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void, teams: Team[] }> = ({ organization, onUpdate, teams }) => {
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
     const [loading, setLoading] = useState(false);
@@ -566,6 +487,34 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
             setInviteToken(organization.invite_token);
         }
     }, [organization]);
+
+    const [isPermissionEditorOpen, setIsPermissionEditorOpen] = useState(false);
+
+    // Mock profile for the invite link
+    const inviteLinkProfile: Profile = {
+        id: 'invite-link-template',
+        email: 'משתמשים חדשים',
+        role: defaultRole,
+        organization_id: organization.id,
+        permissions: undefined // We rely on the role to population default permissions in the editor
+    };
+
+    const handleSaveInvitePermissions = async (userId: string, permissions: UserPermissions) => {
+        // Infer role from permissions
+        let explicitRole: UserRole = 'viewer';
+
+        if (permissions.canManageSettings) {
+            explicitRole = 'admin';
+        } else if (permissions.canManageUsers) {
+            explicitRole = 'editor';
+        } else if (permissions.screens.attendance === 'edit' && permissions.screens.dashboard !== 'edit') {
+            explicitRole = 'attendance_only';
+        }
+
+        // Save the inferred role
+        await handleRoleChange(explicitRole);
+        setIsPermissionEditorOpen(false);
+    };
 
     const handleToggleActive = async () => {
         setLoading(true);
@@ -654,14 +603,91 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
         }
     };
 
-    const getRoleDescription = (role: UserRole) => {
+    // Helper to get permissions for a role (similar to PermissionEditor)
+    const getRolePermissions = (role: UserRole) => {
+        const perms = {
+            canManageUsers: false,
+            canManageSettings: false,
+            screens: [] as { label: string, level: 'view' | 'edit' | 'none' }[]
+        };
+
+        const screens = [
+            { id: 'dashboard', label: 'לוח שיבוצים' },
+            { id: 'personnel', label: 'ניהול כוח אדם' },
+            { id: 'attendance', label: 'דיווח נוכחות' },
+            { id: 'stats', label: 'דוחות ונתונים' },
+            { id: 'settings', label: 'הגדרות מערכת' }
+        ];
+
         switch (role) {
-            case 'admin': return 'גישה מלאה לכל הגדרות הארגון, המשתמשים והנתונים.';
-            case 'editor': return 'יכולת עריכת שיבוצים, ניהול משימות וצפייה בדוחות.';
-            case 'viewer': return 'צפייה בלוח השיבוצים ובנתונים בלבד, ללא יכולת עריכה.';
-            case 'attendance_only': return 'גישה לדיווח נוכחות בלבד.';
-            default: return 'הרשאות בסיסיות.';
+            case 'admin':
+                perms.canManageUsers = true;
+                perms.canManageSettings = true;
+                perms.screens = screens.map(s => ({ ...s, level: 'edit' }));
+                break;
+            case 'editor':
+                perms.canManageUsers = true;
+                perms.canManageSettings = false;
+                perms.screens = screens.map(s => ({
+                    ...s,
+                    level: (s.id === 'settings') ? 'none' : 'edit'
+                }));
+                break;
+            case 'viewer':
+                perms.canManageUsers = false;
+                perms.canManageSettings = false;
+                perms.screens = screens.map(s => ({
+                    ...s,
+                    level: (['settings', 'personnel'].includes(s.id)) ? 'none' : 'view'
+                }));
+                break;
+            case 'attendance_only':
+                perms.canManageUsers = false;
+                perms.canManageSettings = false;
+                perms.screens = screens.map(s => ({
+                    ...s,
+                    level: (s.id === 'attendance') ? 'edit' : (s.id === 'dashboard' ? 'view' : 'none')
+                }));
+                break;
         }
+        return perms;
+    };
+
+    const RolePermissionsPreview: React.FC<{ role: UserRole }> = ({ role }) => {
+        const perms = getRolePermissions(role);
+
+        const getLevelIcon = (level: string) => {
+            switch (level) {
+                case 'edit': return <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-xs font-bold"><Pencil size={12} /> עריכה מלאה</div>;
+                case 'view': return <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded-md text-xs font-bold"><Users size={12} /> צפייה בלבד</div>;
+                default: return <div className="flex items-center gap-1 text-slate-400 bg-slate-50 px-2 py-1 rounded-md text-xs font-bold"><Shield size={12} /> אין גישה</div>;
+            }
+        };
+
+        return (
+            <div className="mt-4 border rounded-xl overflow-hidden bg-white shadow-sm">
+                <div className="bg-slate-50 px-4 py-2 border-b flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">פירוט הרשאות</span>
+                    <span className="text-xs font-bold text-slate-500">{getRoleDisplayName(role)}</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                    {perms.screens.map((screen) => (
+                        <div key={screen.label} className="flex items-center justify-between px-4 py-2 hover:bg-slate-50 transition-colors">
+                            <span className="text-sm font-medium text-slate-700">{screen.label}</span>
+                            {getLevelIcon(screen.level)}
+                        </div>
+                    ))}
+                    {/* Special Capability Rows */}
+                    <div className="flex items-center justify-between px-4 py-2 hover:bg-slate-50 transition-colors">
+                        <span className="text-sm font-medium text-slate-700">ניהול משתמשים והזמנות</span>
+                        {perms.canManageUsers
+                            ? <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md text-xs font-bold"><CheckCircle size={12} /> מורשה</div>
+                            : <div className="flex items-center gap-1 text-slate-400 bg-slate-50 px-2 py-1 rounded-md text-xs font-bold"><Trash2 size={12} /> חסום</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -682,36 +708,21 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                     </span>
                 </label>
 
-                {/* Role Selector */}
-                <div className="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 w-full sm:w-auto">
-                    <span className="text-sm font-medium text-slate-600 whitespace-nowrap hidden sm:inline">הרשאה למצטרפים:</span>
-                    <div className="w-full sm:w-48">
-                        <Select
-                            value={defaultRole}
-                            onChange={(val) => handleRoleChange(val as UserRole)}
-                            options={[
-                                { value: 'viewer', label: 'צופה (Viewer)' },
-                                { value: 'editor', label: 'עורך (Editor)' },
-                                { value: 'admin', label: 'מנהל (Admin)' },
-                                { value: 'attendance_only', label: 'נוכחות בלבד' }
-                            ]}
-                            disabled={loading}
-                            placeholder="בחר הרשאה"
-                        />
-                    </div>
+                {/* Advanced Permission Button */}
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <Button
+                        onClick={() => setIsPermissionEditorOpen(true)}
+                        variant="secondary"
+                        icon={Pencil}
+                        className="w-full sm:w-auto border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 ring-1 ring-blue-200"
+                    >
+                        {`ערוך הרשאות (נבחר: ${getRoleDisplayName(defaultRole)})`}
+                    </Button>
                 </div>
             </div>
 
             {isActive && inviteToken && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <p className="text-sm text-slate-600 flex items-start gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                        <Info size={16} className="text-blue-500 mt-0.5 shrink-0" />
-                        <span>
-                            <strong>משמעות ההרשאה הנבחרת ({getRoleDisplayName(defaultRole)}):</strong><br />
-                            {getRoleDescription(defaultRole)}
-                        </span>
-                    </p>
-
                     <div className="flex flex-col md:flex-row gap-3 items-end">
                         {/* URL Display */}
                         <div className="flex-1 w-full">
@@ -748,9 +759,21 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                             </Button>
                         </div>
                     </div>
+
+
                 </div>
             )}
+
+            {isPermissionEditorOpen && (
+                <PermissionEditor
+                    isOpen={true}
+                    onClose={() => setIsPermissionEditorOpen(false)}
+                    user={inviteLinkProfile}
+                    onSave={handleSaveInvitePermissions}
+                    teams={teams}
+                />
+            )}
             <ConfirmationModal {...modalProps} />
-        </div>
+        </div >
     );
 };

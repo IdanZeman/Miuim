@@ -26,6 +26,8 @@ export const mapPersonFromDB = (p: any): Person => {
     return {
         id: p.id,
         name: p.name,
+        phone: p.phone, // NEW
+        isActive: p.is_active !== false, // NEW: Default to true if null/undefined
         roleId: p.role_id,
         roleIds: p.role_ids || [], // NEW: Map role_ids from DB
         teamId: p.team_id,
@@ -40,6 +42,8 @@ export const mapPersonFromDB = (p: any): Person => {
 export const mapPersonToDB = (p: Person) => ({
     id: p.id,
     name: p.name,
+    phone: p.phone, // NEW
+    is_active: p.isActive, // NEW
     role_id: p.roleId,
     role_ids: p.roleIds, // NEW: Map roleIds to DB
     team_id: p.teamId,

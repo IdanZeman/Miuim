@@ -57,6 +57,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
     const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
+    const [showInactive, setShowInactive] = useState(false); // NEW: Toggle inactive
 
     // Form/Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,6 +71,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     // Form Fields
     const [newName, setNewName] = useState('');
     const [newEmail, setNewEmail] = useState('');
+    const [newPhone, setNewPhone] = useState(''); // NEW
+    const [newItemActive, setNewItemActive] = useState(true); // NEW
     const [newTeamId, setNewTeamId] = useState('');
     const [newRoleIds, setNewRoleIds] = useState<string[]>([]);
 
@@ -110,6 +113,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setEditingRoleId(null);
         setNewName('');
         setNewEmail('');
+        setNewPhone(''); // NEW
+        setNewItemActive(true); // NEW
         setNewTeamId('');
         setNewRoleIds([]);
         setNewItemName('');
@@ -120,6 +125,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setEditingPersonId(person.id);
         setNewName(person.name);
         setNewEmail(person.email || '');
+        setNewPhone(person.phone || ''); // NEW
+        setNewItemActive(person.isActive !== false); // NEW
         setNewTeamId(person.teamId);
         setNewRoleIds(person.roleIds || []);
         setIsModalOpen(true);
@@ -152,6 +159,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             const personData: any = {
                 name: newName,
                 email: newEmail,
+                phone: newPhone, // NEW
+                isActive: newItemActive, // NEW
                 teamId: newTeamId,
                 roleIds: newRoleIds,
                 maxHoursPerWeek: 40,
@@ -221,6 +230,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         placeholder="ישראל ישראלי"
                     />
                     <Input
+                        label="טלפון נייד"
+                        value={newPhone}
+                        onChange={e => setNewPhone(e.target.value)}
+                        placeholder="050-0000000"
+                    />
+                    <Input
                         label="אימייל"
                         value={newEmail}
                         onChange={e => setNewEmail(e.target.value)}
@@ -235,6 +250,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             placeholder="בחר צוות..."
                         />
                     </div>
+                    {/* Active Toggle */}
+                    {editingPersonId && (
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <div className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors ${newItemActive ? 'bg-green-500' : 'bg-slate-300'}`} onClick={() => setNewItemActive(!newItemActive)}>
+                                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${newItemActive ? 'translate-x-(-4)' : 'translate-x-0'}`} />
+                            </div>
+                            <span className="font-bold text-slate-700">{newItemActive ? 'פעיל' : 'לא פעיל (בארכיון)'}</span>
+                        </div>
+                    )}
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">תפקידים</label>
                         <div className="flex flex-wrap gap-2">
@@ -344,6 +368,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             הוסף חדש
                         </Button>
                     )}
+                    <div className="flex items-center gap-2 mr-4">
+                        <label className="text-xs font-bold text-slate-500 flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+                            הצג לא פעילים
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -362,7 +392,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         </div>
 
                         {teams.concat([{ id: 'no-team', name: 'ללא צוות', color: 'border-slate-300' } as any]).map(team => {
-                            const teamMembers = people.filter(p => (team.id === 'no-team' ? !p.teamId : p.teamId === team.id))
+                            const teamMembers = people
+                                .filter(p => (team.id === 'no-team' ? !p.teamId : p.teamId === team.id))
+                                .filter(p => !p.isActive ? showInactive : true) // Filter inactive
                                 .filter(p => p.name.includes(searchTerm));
                             if (teamMembers.length === 0) return null;
                             const isCollapsed = collapsedTeams.has(team.id);
@@ -393,8 +425,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                         <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
                                                             <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0 ${person.color}`}>{getPersonInitials(person.name)}</div>
                                                             <div className="min-w-0 flex-1">
-                                                                <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">{person.name}</h4>
+                                                                <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">
+                                                                    {person.name}
+                                                                    {person.isActive === false && <span className="mr-2 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">לא פעיל</span>}
+                                                                </h4>
                                                                 <span className="text-xs text-slate-500 truncate block">{person.email || 'אין אימייל'}</span>
+                                                                <span className="text-xs text-slate-400 truncate block">{person.phone || ''}</span>
                                                             </div>
                                                         </div>
                                                         {canEdit && (

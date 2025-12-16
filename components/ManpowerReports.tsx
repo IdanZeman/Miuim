@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Team, Role } from '../types';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Label } from 'recharts';
 import { Users, Calendar, TrendingUp, AlertCircle, CheckCircle2, XCircle, LayoutGrid, List } from 'lucide-react';
 import { Select } from './ui/Select';
 import { Input } from './ui/Input';
@@ -222,26 +222,61 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                             </div>
                         </div>
 
-                        {/* Team Comparison Chart (Vertical) */}
+                        {/* Team Comparison Chart (Donut - Quantity) */}
                         {selectedTeamId === 'all' && (
-                            <div className="bg-white p-6 rounded-xl shadow-portal">
-                                <h3 className="text-lg font-bold text-slate-800 mb-6">השוואה צוותית</h3>
-                                <div className="h-[300px] w-full min-w-0">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={stats.teamBreakdown} layout="vertical" margin={{ left: 0, right: 30 }}>
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                                            <XAxis type="number" domain={[0, 100]} hide />
-                                            <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12, fill: '#64748b', fontWeight: 'bold' }} axisLine={false} tickLine={false} />
+                            <div className="bg-white p-6 rounded-xl shadow-portal flex flex-col">
+                                <h3 className="text-lg font-bold text-slate-800 mb-2">התפלגות נוכחים לפי צוותים</h3>
+                                <div className="w-full h-[300px] relative">
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                                            <Pie
+                                                data={stats.teamBreakdown}
+                                                dataKey="present"
+                                                nameKey="name"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={100}
+                                                paddingAngle={2}
+                                                cornerRadius={4}
+                                            >
+                                                {stats.teamBreakdown.map((entry: any, index: number) => {
+                                                    // Vibrant Palette
+                                                    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1'];
+                                                    return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} strokeWidth={0} />;
+                                                })}
+                                                <Label
+                                                    content={({ viewBox }) => {
+                                                        const { cx, cy } = viewBox as any;
+                                                        return (
+                                                            <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+                                                                <tspan x={cx} dy="-0.5em" fontSize="28" fontWeight="bold" fill="#1e293b">
+                                                                    {stats.dailyStats.present}
+                                                                </tspan>
+                                                                <tspan x={cx} dy="1.5em" fontSize="14" fill="#64748b">
+                                                                    נוכחים
+                                                                </tspan>
+                                                            </text>
+                                                        );
+                                                    }}
+                                                    position="center"
+                                                />
+                                            </Pie>
                                             <Tooltip
-                                                cursor={{ fill: '#f8fafc' }}
-                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                                                itemStyle={{ color: '#1e293b', fontWeight: 'bold' }}
+                                                formatter={(value: number) => [value, 'נוכחים']}
                                             />
-                                            <Bar dataKey="percentage" radius={[0, 4, 4, 0]} barSize={20} background={{ fill: '#f1f5f9', radius: [0, 4, 4, 0] }}>
-                                                {stats.teamBreakdown.map((entry: any, index: number) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color?.replace('border-', 'bg-').replace('text-', 'bg-') || '#3b82f6'} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
+                                            <Legend
+                                                layout="vertical"
+                                                verticalAlign="middle"
+                                                align="right"
+                                                iconType="circle"
+                                                formatter={(value, entry: any) => (
+                                                    <span className="text-slate-700 font-medium mr-2">{value} ({entry.payload.present})</span>
+                                                )}
+                                            />
+                                        </PieChart>
                                     </ResponsiveContainer>
                                 </div>
                             </div>

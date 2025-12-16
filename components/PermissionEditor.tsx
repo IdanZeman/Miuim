@@ -139,7 +139,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                     </span>
                 </div>
             }
-            size="3xl"
+            size="2xl"
             footer={(
                 <div className="flex justify-end gap-3 w-full">
                     <Button
