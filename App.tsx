@@ -44,6 +44,17 @@ import { ConstraintsManager } from './components/ConstraintsManager';
 import { ToastProvider } from './contexts/ToastContext';
 import { ContactPage } from './pages/ContactPage';
 
+// Disable console logs in production (non-localhost)
+if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    const noop = () => {};
+    console.log = noop;
+    console.info = noop;
+    console.warn = noop;
+    console.error = noop;
+    console.debug = noop;
+    console.table = noop;
+}
+
 // --- Main App Content (Authenticated) ---
 // Track view changes
 const MainApp: React.FC = () => {
