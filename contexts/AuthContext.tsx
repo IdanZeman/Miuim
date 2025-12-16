@@ -236,7 +236,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const timeoutPromise = new Promise<{ data: { session: null }; timeout: boolean }>((resolve) => {
           setTimeout(() => {
             resolve({ data: { session: null }, timeout: true });
-          }, 20000); // Increased from 8000 to 20000
+          }, 40000); // Increased from 8000 to 20000
         });
 
         // Race
