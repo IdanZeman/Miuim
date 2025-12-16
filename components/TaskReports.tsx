@@ -6,6 +6,7 @@ import { Activity, Users, CalendarCheck, UserCircle, BarChart2, Moon, Search } f
 import { PersonalStats } from './PersonalStats';
 import { DetailedUserStats } from './DetailedUserStats';
 import { supabase } from '../services/supabaseClient';
+import { Input } from './ui/Input';
 
 interface TaskReportsProps {
     people: Person[];
@@ -126,14 +127,13 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                         </div>
                     ) : (
                         <div className="space-y-6">
-                            <div className="relative max-w-md mx-auto">
-                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                <input
-                                    type="text"
+                            <div className="max-w-md mx-auto">
+                                <Input
                                     placeholder="חפש חייל..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-4 pr-10 py-2 rounded-full border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    icon={Search}
+                                    className="rounded-full"
                                 />
                             </div>
 

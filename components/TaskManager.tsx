@@ -5,6 +5,9 @@ import { useToast } from '../contexts/ToastContext';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../contexts/AuthContext';
 import { SegmentEditor } from './SegmentEditor';
+import { Input } from './ui/Input';
+import { Select } from './ui/Select';
+import { Button } from './ui/Button';
 
 interface TaskManagerProps {
     tasks: TaskTemplate[];
@@ -151,7 +154,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     ניהול משימות
                 </h2>
                 {canEdit && (
-                    <button
+                    <Button
                         onClick={() => {
                             if (roles.length === 0) {
                                 showToast('יש להגדיר תפקידים לפני יצירת משימות', 'error');
@@ -159,10 +162,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             }
                             setIsAdding(true);
                         }}
-                        className="w-full md:w-auto bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2"
+                        className="w-full md:w-auto"
+                        icon={Plus}
+                        variant="primary"
                     >
-                        הוסף משימה<Plus size={16} />
-                    </button>
+                        הוסף משימה
+                    </Button>
                 )}
             </div>
 
@@ -229,14 +234,24 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 onClose={resetForm}
                 title={editId ? 'עריכת משימה' : 'הוספת משימה חדשה'}
                 size="lg"
+                footer={(
+                    <div className="flex justify-end gap-2 w-full">
+                        <Button variant="ghost" onClick={resetForm}>ביטול</Button>
+                        <Button variant="primary" onClick={handleSubmit}>
+                            {editId ? 'עדכן משימה' : 'שמור משימה'}
+                        </Button>
+                    </div>
+                )}
             >
                 <div className="space-y-6">
                     {/* Task General Settings */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">שם המשימה</label>
-                            <input value={name} onChange={e => setName(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-base md:text-sm" placeholder="לדוגמה: סיור בוקר" />
-                        </div>
+                        <Input
+                            label="שם המשימה"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="לדוגמה: סיור בוקר"
+                        />
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-2">צבע</label>
                             <div className="flex gap-2">
@@ -250,82 +265,78 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             <input type="range" value={difficulty} onChange={e => setDifficulty(Number(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg mt-2 accent-idf-yellow" min="1" max="5" />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">תאריך התחלה</label>
-                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-base md:text-sm" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">תאריך סיום</label>
-                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-base md:text-sm" />
-                            </div>
+                            <Input
+                                type="date"
+                                label="תאריך התחלה"
+                                value={startDate}
+                                onChange={e => setStartDate(e.target.value)}
+                            />
+                            <Input
+                                type="date"
+                                label="תאריך סיום"
+                                value={endDate}
+                                onChange={e => setEndDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="col-span-1 md:col-span-2">
+                            <Select
+                                label="צוות אחראי (אופציונלי)"
+                                value={assignedTeamId}
+                                onChange={val => setAssignedTeamId(val)}
+                                options={[{ value: '', label: 'ללא שיוך לצוות (פתוח לכולם)' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                                placeholder="ללא שיוך לצוות"
+                            />
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">צוות אחראי (אופציונלי)</label>
-                        <select
-                            value={assignedTeamId}
-                            onChange={e => setAssignedTeamId(e.target.value)}
-                            className="w-full p-2 rounded-lg border border-slate-300 text-base md:text-sm bg-white"
-                            dir="rtl"
-                        >
-                            <option value="">ללא שיוך לצוות (פתוח לכולם)</option>
-                            {teams.map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
+                    {/* Segments Management */}
+                    <div className="border-t border-slate-100 pt-4">
+                        <div className="flex justify-between items-center mb-3">
+                            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                <Layers size={16} /> תבניות שיבוץ (Segments)
+                            </h3>
+                            <Button
+                                variant="ghost"
+                                onClick={() => { setEditingSegment(undefined); setShowSegmentEditor(true); }}
+                                className="text-blue-600 hover:bg-blue-50 border-blue-200 border-dashed border"
+                                icon={Plus}
+                                size="sm"
+                            >
+                                הוסף מקטע
+                            </Button>
+                        </div>
 
-                {/* Segments Management */}
-                <div className="border-t border-slate-100 pt-4">
-                    <div className="flex justify-between items-center mb-3">
-                        <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                            <Layers size={16} /> תבניות שיבוץ (Segments)
-                        </h3>
-                        <button
-                            onClick={() => { setEditingSegment(undefined); setShowSegmentEditor(true); }}
-                            className="text-xs font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-dashed border-blue-200 flex items-center gap-1"
-                        >
-                            <Plus size={14} /> הוסף מקטע
-                        </button>
-                    </div>
-
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {segments.length === 0 ? (
-                            <p className="text-center text-xs text-slate-400 py-4 italic bg-slate-50 rounded-lg">לא הוגדרו מקטעים. לחץ על "הוסף מקטע" כדי להתחיל.</p>
-                        ) : (
-                            segments.map((seg, idx) => (
-                                <div key={seg.id || idx} className="flex justify-between items-center bg-white border border-slate-200 p-3 rounded-lg hover:border-blue-300 transition-colors group">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-sm text-slate-800">{seg.name}</span>
-                                            <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500">
-                                                {seg.frequency === 'daily' ? 'יומי' : seg.frequency === 'weekly' ? 'שבועי' : 'תאריך'}
-                                            </span>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            {segments.length === 0 ? (
+                                <p className="text-center text-xs text-slate-400 py-4 italic bg-slate-50 rounded-lg">לא הוגדרו מקטעים. לחץ על "הוסף מקטע" כדי להתחיל.</p>
+                            ) : (
+                                segments.map((seg, idx) => (
+                                    <div key={seg.id || idx} className="flex justify-between items-center bg-white border border-slate-200 p-3 rounded-lg hover:border-blue-300 transition-colors group">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-sm text-slate-800">{seg.name}</span>
+                                                <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500">
+                                                    {seg.frequency === 'daily' ? 'יומי' : seg.frequency === 'weekly' ? 'שבועי' : 'תאריך'}
+                                                </span>
+                                            </div>
+                                            <div className="text-xs text-slate-500 mt-1 flex gap-3">
+                                                <span className="flex items-center gap-1"><Clock size={12} /> {seg.startTime} ({seg.durationHours}h)</span>
+                                                <span className="flex items-center gap-1"><Users size={12} /> {seg.requiredPeople} חיילים</span>
+                                            </div>
                                         </div>
-                                        <div className="text-xs text-slate-500 mt-1 flex gap-3">
-                                            <span className="flex items-center gap-1"><Clock size={12} /> {seg.startTime} ({seg.durationHours}h)</span>
-                                            <span className="flex items-center gap-1"><Users size={12} /> {seg.requiredPeople} חיילים</span>
+
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => handleDuplicateSegment(seg)} className="p-1.5 hover:bg-green-50 text-green-600 rounded" title="שכפל מקטע"><Copy size={14} /></button>
+                                            <button onClick={() => { setEditingSegment(seg); setShowSegmentEditor(true); }} className="p-1.5 hover:bg-blue-50 text-blue-600 rounded"><Pencil size={14} /></button>
+                                            <button onClick={() => handleDeleteSegment(seg.id)} className="p-1.5 hover:bg-red-50 text-red-600 rounded"><Trash2 size={14} /></button>
                                         </div>
                                     </div>
-
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => handleDuplicateSegment(seg)} className="p-1.5 hover:bg-green-50 text-green-600 rounded" title="שכפל מקטע"><Copy size={14} /></button>
-                                        <button onClick={() => { setEditingSegment(seg); setShowSegmentEditor(true); }} className="p-1.5 hover:bg-blue-50 text-blue-600 rounded"><Pencil size={14} /></button>
-                                        <button onClick={() => handleDeleteSegment(seg.id)} className="p-1.5 hover:bg-red-50 text-red-600 rounded"><Trash2 size={14} /></button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
+                                ))
+                            )}
+                        </div>
                     </div>
-                </div>
 
-                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                    <button onClick={resetForm} className="px-3 md:px-5 py-1.5 md:py-2 text-slate-500 hover:bg-slate-100 rounded-full text-sm font-medium">ביטול</button>
-                    <button onClick={handleSubmit} className="px-4 md:px-6 py-1.5 md:py-2 bg-idf-yellow text-slate-900 rounded-full font-bold text-sm md:text-base">
-                        {editId ? 'עדכן משימה' : 'שמור משימה'}
-                    </button>
+                    {/* Footer moved to prop */}
                 </div>
             </Modal>
 

@@ -3,6 +3,7 @@ import { Person, TeamRotation } from '../types';
 import { ChevronRight, ChevronLeft, X, ArrowRight, ArrowLeft, Home, Calendar as CalendarIcon } from 'lucide-react';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { Modal } from './ui/Modal';
+import { Button } from './ui/Button';
 
 interface PersonalAttendanceCalendarProps {
     person: Person;
@@ -117,13 +118,9 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
                 {/* Calendar Controls */}
                 <div className="p-4 flex items-center justify-between bg-slate-50 rounded-t-xl border border-slate-200 border-b-0">
-                    <button onClick={handlePrevMonth} className="p-2 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-slate-200 transition-all text-slate-600">
-                        <ChevronRight />
-                    </button>
+                    <Button onClick={handlePrevMonth} variant="ghost" size="icon" icon={ChevronRight} />
                     <h3 className="text-lg font-bold text-slate-700">{monthName}</h3>
-                    <button onClick={handleNextMonth} className="p-2 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-slate-200 transition-all text-slate-600">
-                        <ChevronLeft />
-                    </button>
+                    <Button onClick={handleNextMonth} variant="ghost" size="icon" icon={ChevronLeft} />
                 </div>
 
                 {/* Calendar Grid */}

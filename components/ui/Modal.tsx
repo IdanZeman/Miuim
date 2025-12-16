@@ -9,6 +9,7 @@ interface ModalProps {
     children: React.ReactNode;
     size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
     scrollableContent?: boolean; // If false, content container will be overflow-hidden (bring your own scroll)
+    footer?: React.ReactNode; // Content for sticky footer
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -17,7 +18,8 @@ export const Modal: React.FC<ModalProps> = ({
     title,
     children,
     size = 'md',
-    scrollableContent = true
+    scrollableContent = true,
+    footer
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -77,9 +79,16 @@ export const Modal: React.FC<ModalProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className={`p-4 md:p-6 ${scrollableContent ? 'overflow-y-auto custom-scrollbar' : 'overflow-hidden flex flex-col'}`}>
+                <div className={`p-4 md:p-6 ${scrollableContent ? 'overflow-y-auto custom-scrollbar' : 'overflow-hidden flex flex-col'} flex-1`}>
                     {children}
                 </div>
+
+                {/* Footer */}
+                {footer && (
+                    <div className="p-4 md:p-6 border-t border-slate-100 bg-slate-50 flex-shrink-0 rounded-b-2xl">
+                        {footer}
+                    </div>
+                )}
             </div>
         </div>,
         document.body

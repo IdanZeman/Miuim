@@ -3,6 +3,8 @@ import * as XLSX from 'xlsx';
 import { Upload, FileSpreadsheet, ArrowRight, ArrowLeft, Check, AlertCircle, Plus, ArrowUpRight } from 'lucide-react';
 import { Person, Team, Role } from '../types';
 import { useToast } from '../contexts/ToastContext';
+import { Select } from './ui/Select';
+import { Button } from './ui/Button';
 
 interface ExcelImportWizardProps {
     isOpen: boolean;
@@ -406,22 +408,12 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
                                         {/* System Target (Left side in RTL) */}
                                         <div className="flex-1">
-                                            <select
+                                            <Select
                                                 value={mapping.systemField}
-                                                onChange={(e) => handleMappingChange(idx, e.target.value as any)}
-                                                className={`w-full p-2 rounded-md border transition-colors cursor-pointer font-medium outline-none
-                                                    ${mapping.systemField === 'ignore'
-                                                        ? 'border-slate-200 text-slate-400 bg-white hover:border-slate-300'
-                                                        : 'border-blue-500 text-blue-700 bg-blue-50 hover:bg-blue-100'
-                                                    }
-                                                `}
-                                            >
-                                                {systemFields.map(field => (
-                                                    <option key={field.value} value={field.value} className="text-slate-800 bg-white">
-                                                        {field.label}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                onChange={(val) => handleMappingChange(idx, val as any)}
+                                                options={systemFields}
+                                                className="w-full"
+                                            />
                                         </div>
                                     </div>
                                 ))}
@@ -470,18 +462,20 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                             />
                                             <div className="flex-1 flex items-center gap-2">
                                                 <ArrowUpRight size={16} className="text-blue-600" />
-                                                <span>מפה לקיים:</span>
-                                                <select
-                                                    className="p-1 border rounded text-sm flex-1 mr-2"
-                                                    disabled={res.action !== 'map'}
-                                                    value={res.targetId || ''}
-                                                    onChange={(e) => handleResolutionChange(idx, { targetId: e.target.value })}
-                                                >
-                                                    {res.type === 'team'
-                                                        ? teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)
-                                                        : roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)
-                                                    }
-                                                </select>
+                                                <span className="shrink-0 text-sm">מפה לקיים:</span>
+                                                <div className="flex-1 mr-2">
+                                                    <Select
+                                                        disabled={res.action !== 'map'}
+                                                        value={res.targetId || ''}
+                                                        onChange={(val) => handleResolutionChange(idx, { targetId: val })}
+                                                        options={res.type === 'team'
+                                                            ? teams.map(t => ({ value: t.id, label: t.name }))
+                                                            : roles.map(r => ({ value: r.id, label: r.name }))
+                                                        }
+                                                        placeholder="בחר..."
+                                                        className="w-full text-sm"
+                                                    />
+                                                </div>
                                             </div>
                                         </label>
 
@@ -561,45 +555,46 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 {/* Footer */}
                 <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between" dir="rtl">
                     {step !== 'upload' ? (
-                        <button
+                        <Button
                             onClick={() => {
                                 if (step === 'preview') setStep(resolutions.length > 0 ? 'resolution' : 'mapping');
                                 else if (step === 'resolution') setStep('mapping');
                                 else setStep('upload');
                             }}
-                            className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-medium"
+                            variant="secondary"
                         >
                             חזור
-                        </button>
+                        </Button>
                     ) : (
                         <div></div>
                     )}
 
                     {step === 'mapping' && (
-                        <button
+                        <Button
                             onClick={analyzeConflicts}
-                            className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2"
+                            variant="primary"
+                            className="bg-blue-600 hover:bg-blue-700 text-white border-transparent"
                         >
                             המשך <ArrowLeft size={16} />
-                        </button>
+                        </Button>
                     )}
 
                     {step === 'resolution' && (
-                        <button
+                        <Button
                             onClick={() => generatePreview(resolutions)}
-                            className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center gap-2"
+                            className="bg-blue-600 hover:bg-blue-700 text-white border-transparent"
                         >
                             המשך <ArrowLeft size={16} />
-                        </button>
+                        </Button>
                     )}
 
                     {step === 'preview' && (
-                        <button
+                        <Button
                             onClick={handleFinalImport}
-                            className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 flex items-center gap-2"
+                            className="bg-green-600 hover:bg-green-700 text-white border-transparent"
                         >
                             הוסף {previewData.length} חיילים <Check size={16} />
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>

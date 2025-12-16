@@ -4,6 +4,9 @@ import { Person, Team, Role } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Modal } from './ui/Modal';
+import { Input } from './ui/Input';
+import { Select } from './ui/Select';
+import { Button } from './ui/Button';
 import { ExcelImportWizard } from './ExcelImportWizard';
 
 interface PersonnelManagerProps {
@@ -205,24 +208,32 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     }, [isAdding]);
 
 
+    // ...
+
     const renderModalContent = () => {
         if (activeTab === 'people') {
             return (
                 <div className="space-y-4">
+                    <Input
+                        label="שם מלא"
+                        value={newName}
+                        onChange={e => setNewName(e.target.value)}
+                        placeholder="ישראל ישראלי"
+                    />
+                    <Input
+                        label="אימייל"
+                        value={newEmail}
+                        onChange={e => setNewEmail(e.target.value)}
+                        placeholder="email@example.com"
+                    />
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">שם מלא</label>
-                        <input value={newName} onChange={e => setNewName(e.target.value)} className="w-full p-2 border rounded-lg" placeholder="ישראל ישראלי" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">אימייל</label>
-                        <input value={newEmail} onChange={e => setNewEmail(e.target.value)} className="w-full p-2 border rounded-lg" placeholder="email@example.com" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">צוות</label>
-                        <select value={newTeamId} onChange={e => setNewTeamId(e.target.value)} className="w-full p-2 border rounded-lg">
-                            <option value="">בחר צוות...</option>
-                            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
+                        <Select
+                            label="צוות"
+                            value={newTeamId}
+                            onChange={(val) => setNewTeamId(val)}
+                            options={[{ value: '', label: 'בחר צוות...' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                            placeholder="בחר צוות..."
+                        />
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">תפקידים</label>
@@ -236,7 +247,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             if (isSelected) setNewRoleIds(newRoleIds.filter(id => id !== role.id));
                                             else setNewRoleIds([...newRoleIds, role.id]);
                                         }}
-                                        className={`px-3 py-1 rounded-full text-sm border ${isSelected ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
+                                        className={`px-3 py-1 rounded-full text-sm border transition-colors ${isSelected ? 'bg-blue-100 border-blue-300 text-blue-700 font-bold' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-300'}`}
                                     >
                                         {role.name}
                                     </button>
@@ -244,20 +255,18 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             })}
                         </div>
                     </div>
-                    <div className="flex justify-end gap-2 mt-6">
-                        <button onClick={closeForm} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">ביטול</button>
-                        <button onClick={handleSave} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800">שמור</button>
-                    </div>
+                    {/* Footer moved to prop */}
                 </div>
             );
         }
 
         return (
             <div className="space-y-4">
-                <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">שם {activeTab === 'teams' ? 'הצוות' : 'התפקיד'}</label>
-                    <input value={newItemName} onChange={e => setNewItemName(e.target.value)} className="w-full p-2 border rounded-lg" />
-                </div>
+                <Input
+                    label={`שם ${activeTab === 'teams' ? 'הצוות' : 'התפקיד'}`}
+                    value={newItemName}
+                    onChange={e => setNewItemName(e.target.value)}
+                />
 
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">צבע</label>
@@ -285,10 +294,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </div>
                 </div>
 
-                <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={closeForm} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">ביטול</button>
-                    <button onClick={handleSave} className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800">שמור</button>
-                </div>
+                {/* Footer moved to prop */}
             </div>
         );
     };
@@ -312,21 +318,31 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 <div className="flex gap-2 w-full md:w-auto">
                     {activeTab === 'people' && canEdit && (
                         /* Import Button */
-                        <button onClick={() => setIsImportWizardOpen(true)} className="flex-1 md:flex-none bg-green-100 text-green-800 hover:bg-green-200 px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2 transition-colors">
-                            ייבוא <FileSpreadsheet size={18} />
-                        </button>
+                        <Button
+                            variant="secondary"
+                            onClick={() => setIsImportWizardOpen(true)}
+                            icon={FileSpreadsheet}
+                            className="flex-1 md:flex-none"
+                        >
+                            ייבוא
+                        </Button>
                     )}
                     {canEdit && (
-                        <button onClick={() => {
-                            if (activeTab === 'people' && teams.length === 0) {
-                                showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
-                                setActiveTab('teams');
-                                return;
-                            }
-                            setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
-                        }} className="flex-1 md:flex-none bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover px-4 md:px-5 py-2 md:py-2.5 rounded-full font-bold shadow-sm text-sm flex items-center justify-center gap-2">
-                            הוסף חדש <Plus size={16} />
-                        </button>
+                        <Button
+                            variant="primary"
+                            onClick={() => {
+                                if (activeTab === 'people' && teams.length === 0) {
+                                    showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
+                                    setActiveTab('teams');
+                                    return;
+                                }
+                                setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
+                            }}
+                            icon={Plus}
+                            className="flex-1 md:flex-none"
+                        >
+                            הוסף חדש
+                        </Button>
                     )}
                 </div>
             </div>
@@ -335,14 +351,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {activeTab === 'people' && (
                     <div className="col-span-full space-y-6">
-                        <div className="relative max-w-md mx-auto mb-6">
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                            <input
-                                type="text"
+                        <div className="max-w-md mx-auto mb-6">
+                            <Input
+                                icon={Search}
                                 placeholder="חפש לוחם..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-4 pr-10 py-2 rounded-full border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-idf-green focus:border-transparent"
+                                className="w-full"
                             />
                         </div>
 
@@ -446,6 +461,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 onClose={closeForm}
                 title={getModalTitle()}
                 size="md"
+                footer={(
+                    <div className="flex justify-end gap-2 w-full">
+                        <Button variant="ghost" onClick={closeForm}>ביטול</Button>
+                        <Button variant="primary" onClick={handleSave}>שמור</Button>
+                    </div>
+                )}
             >
                 {renderModalContent()}
             </Modal>

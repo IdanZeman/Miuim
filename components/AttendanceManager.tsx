@@ -6,6 +6,7 @@ import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { GlobalTeamCalendar } from './GlobalTeamCalendar'; // NEW
 import { RotationEditor } from './RotationEditor';
+import { Input } from './ui/Input';
 
 interface AttendanceManagerProps {
     people: Person[];
@@ -231,14 +232,12 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 היום
                             </button>
                         </div>
-                        <div className="relative w-full md:w-64">
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                            <input
-                                type="text"
+                        <div className="w-full md:w-64">
+                            <Input
                                 placeholder="חיפוש לפי שם..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-4 pr-9 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                icon={Search}
                             />
                         </div>
                     </div>

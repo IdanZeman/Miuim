@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { SchedulingSegment, Role, FrequencyType } from '../types';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
+import { Input } from './ui/Input';
+import { Button } from './ui/Button';
 import { Plus, Trash2, Clock, Users, Calendar, Sparkles } from 'lucide-react';
 
 interface SegmentEditorProps {
@@ -107,15 +109,32 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
 
     if (!isOpen) return null;
 
+    // ...
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={initialSegment ? 'עריכת מקטע שיבוץ' : 'הוספת מקטע שיבוץ חדש'} size="lg">
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={initialSegment ? 'עריכת מקטע שיבוץ' : 'הוספת מקטע שיבוץ חדש'}
+            size="lg"
+            footer={(
+                <div className="flex justify-end gap-2 w-full">
+                    <Button variant="ghost" onClick={onClose}>ביטול</Button>
+                    <Button variant="primary" onClick={handleSave}>
+                        {initialSegment ? 'עדכן מקטע' : 'שמור והוסף'}
+                    </Button>
+                </div>
+            )}
+        >
             <div className="space-y-6">
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">שם המקטע</label>
-                        <input value={name} onChange={e => setName(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-base md:text-sm" placeholder="לדוגמה: משמרת בוקר" />
-                    </div>
+                    <Input
+                        label="שם המקטע"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        placeholder="לדוגמה: משמרת בוקר"
+                    />
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">תדירות</label>
                         <div className="flex gap-2">
@@ -152,23 +171,32 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                     )}
 
                     {frequency === 'specific_date' && (
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">תאריך</label>
-                            <input type="date" value={specificDate} onChange={e => setSpecificDate(e.target.value)} className="p-2 rounded-lg border border-slate-300 text-base md:text-sm" />
-                        </div>
+                        <Input
+                            type="date"
+                            label="תאריך"
+                            value={specificDate}
+                            onChange={e => setSpecificDate(e.target.value)}
+                        />
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">שעת התחלה</label>
-                            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 text-center text-base md:text-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">משך (שעות)</label>
-                            <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-full p-2 rounded-lg border border-slate-300 text-center text-base md:text-sm" min="1" />
-                        </div>
+                        <Input
+                            type="time"
+                            label="שעת התחלה"
+                            value={startTime}
+                            onChange={e => setStartTime(e.target.value)}
+                            className="text-center"
+                        />
+                        <Input
+                            type="number"
+                            label="משך (שעות)"
+                            value={duration}
+                            onChange={e => setDuration(Number(e.target.value))}
+                            className="text-center"
+                            min={1}
+                        />
                         <div className="flex items-center">
-                            <label className="flex items-center gap-2 cursor-pointer mt-0 sm:mt-4 p-2 sm:p-0 bg-white sm:bg-transparent rounded-lg border sm:border-none border-slate-200 w-full sm:w-auto">
+                            <label className="flex items-center gap-2 cursor-pointer mt-0 sm:mt-6 p-2 sm:p-0 bg-white sm:bg-transparent rounded-lg border sm:border-none border-slate-200 w-full sm:w-auto">
                                 <input type="checkbox" checked={isRepeat} onChange={e => setIsRepeat(e.target.checked)} className="w-4 h-4 text-blue-600 rounded" />
                                 <span className="text-xs font-bold text-slate-600">מחזור רציף (24ש)</span>
                             </label>
@@ -195,7 +223,14 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                                     placeholder="בחר תפקיד"
                                     className="flex-1"
                                 />
-                                <input type="number" min="1" value={rc.count} onChange={e => updateRoleRow(idx, 'count', e.target.value)} className="w-20 p-2 rounded-lg border border-slate-300 text-base md:text-sm" />
+                                <div className="w-24">
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        value={rc.count}
+                                        onChange={e => updateRoleRow(idx, 'count', e.target.value)}
+                                    />
+                                </div>
                                 <button onClick={() => removeRoleRow(idx)} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><Trash2 size={16} /></button>
                             </div>
                         ))}
@@ -207,17 +242,18 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">מנוחה נדרשת אחרי (שעות)</label>
-                    <input type="number" value={minRest} onChange={e => setMinRest(Number(e.target.value))} className="w-24 p-2 rounded-lg border border-slate-300 text-center text-base md:text-sm" min="0" />
+                    <Input
+                        type="number"
+                        label="מנוחה נדרשת אחרי (שעות)"
+                        value={minRest}
+                        onChange={e => setMinRest(Number(e.target.value))}
+                        containerClassName="w-24"
+                        className="text-center"
+                        min={0}
+                    />
                 </div>
 
-                {/* Footer */}
-                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                    <button onClick={onClose} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-full text-sm font-bold">ביטול</button>
-                    <button onClick={handleSave} className="px-6 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-full text-sm font-bold">
-                        {initialSegment ? 'עדכן מקטע' : 'שמור והוסף'}
-                    </button>
-                </div>
+                {/* Footer moved to prop */}
             </div>
         </Modal>
     );

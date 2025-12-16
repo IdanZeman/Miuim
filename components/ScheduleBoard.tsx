@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Modal as GenericModal } from './ui/Modal';
+import { Input } from './ui/Input';
+import { Select } from './ui/Select';
+import { Button } from './ui/Button';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { RotateCcw, Sparkles } from 'lucide-react';
@@ -669,6 +672,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 </div>
                             </div>
 
+
                             {!isViewer && (
                                 <div className="flex-1 p-3 md:p-6 h-fit bg-slate-50/50">
                                     <div className="flex items-center justify-between mb-3 md:mb-4">
@@ -678,30 +682,29 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                             className="flex items-center gap-1 text-[10px] md:text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-full transition-colors"
                                         >
                                             <Sparkles size={12} />
-                                            תציע לי חייל זמין                                        </button>
+                                            תציע לי חייל זמין
+                                        </button>
                                     </div>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <div className="relative flex-1">
-                                            <Search className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                                            <input
-                                                type="text"
-                                                placeholder="חפש חייל..."
-                                                value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                                className="w-full pl-2 pr-8 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                                    <div className="flex gap-2 mb-3">
+                                        <Input
+                                            icon={Search}
+                                            placeholder="חפש חייל..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            containerClassName="flex-1"
+                                            className="text-xs"
+                                        />
+                                        <div className="w-[140px]">
+                                            <Select
+                                                value={selectedRoleFilter}
+                                                onChange={(val) => setSelectedRoleFilter(val)}
+                                                options={[
+                                                    { value: '', label: 'כל הפק"לים' },
+                                                    ...roles.map(r => ({ value: r.id, label: r.name }))
+                                                ]}
+                                                placeholder="תפקיד"
                                             />
                                         </div>
-                                        <select
-                                            value={selectedRoleFilter}
-                                            onChange={(e) => setSelectedRoleFilter(e.target.value)}
-                                            className="py-1.5 px-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white max-w-[120px]"
-                                            dir="rtl"
-                                        >
-                                            <option value="">כל הפק"לים</option>
-                                            {roles.map(r => (
-                                                <option key={r.id} value={r.id}>{r.name}</option>
-                                            ))}
-                                        </select>
                                     </div>
                                     <div className="space-y-4">
                                         {(() => {
@@ -770,9 +773,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                                                     {isFull && hasRole && <span className="text-[9px] md:text-[10px] text-amber-500">משמרת מלאה</span>}
                                                                                 </div>
                                                                             </div>
-                                                                            <button
+                                                                            <Button
                                                                                 onClick={(e) => {
-                                                                                    e.stopPropagation(); // Fixed: Prevent event bubbling
+                                                                                    e.stopPropagation();
                                                                                     if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
                                                                                         setConfirmationState({
                                                                                             isOpen: true,
@@ -788,10 +791,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                                                     onAssign(selectedShift.id, p.id);
                                                                                 }}
                                                                                 disabled={!canAssign}
-                                                                                className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0 ${canAssign ? 'bg-idf-yellow text-slate-900 hover:bg-idf-yellow-hover' : 'bg-slate-200 text-slate-400'}`}
+                                                                                size="sm"
+                                                                                className={`flex-shrink-0 ${!canAssign ? 'bg-slate-200 text-slate-400 hover:bg-slate-200 border-transparent shadow-none' : ''}`}
                                                                             >
                                                                                 שבץ
-                                                                            </button>
+                                                                            </Button>
                                                                         </div>
                                                                     );
                                                                 })}

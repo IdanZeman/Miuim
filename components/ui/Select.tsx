@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { ChevronDown, Check, Search } from 'lucide-react';
+import { ChevronDown, Check, Search, LucideIcon } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
 export interface SelectOption {
@@ -13,7 +13,7 @@ interface SelectProps {
     onChange: (value: string) => void;
     options: SelectOption[];
     placeholder?: string;
-    icon?: React.ReactNode;
+    icon?: LucideIcon;
     className?: string;
     disabled?: boolean;
     searchable?: boolean; // NEW PROP
@@ -24,7 +24,7 @@ export const Select: React.FC<SelectProps> = ({
     onChange,
     options,
     placeholder = 'Select...',
-    icon,
+    icon: Icon,
     className = '',
     disabled = false,
     searchable = false // Default off unless requested
@@ -77,9 +77,9 @@ export const Select: React.FC<SelectProps> = ({
                 </span>
 
                 {/* Left Icon (if provided) */}
-                {icon && (
+                {Icon && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                        {icon}
+                        <Icon size={18} />
                     </div>
                 )}
 

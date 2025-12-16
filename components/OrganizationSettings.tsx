@@ -5,9 +5,11 @@ import { useToast } from '../contexts/ToastContext';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { ConfirmationModal } from './ConfirmationModal';
 import { logger } from '../services/loggingService';
-import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users, Search, Pencil } from 'lucide-react';
+import { Save, CheckCircle, LinkIcon, Copy, RefreshCw, Moon, Shield, UserPlus, Clock, XCircle, Mail, Trash2, Users, Search, Pencil, Info } from 'lucide-react';
 import { UserRole, Profile, OrganizationInvite, UserPermissions } from '../types';
 import { Select } from './ui/Select';
+import { Input } from './ui/Input';
+import { Button } from './ui/Button';
 import { PermissionEditor } from './PermissionEditor';
 
 const canManageOrganization = (role: UserRole) => {
@@ -80,40 +82,35 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
         <div className="space-y-4 md:space-y-6">
             <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-4">
                 <div className="flex-1">
-                    <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">התחלת משמרת לילה</label>
-                    <input
+                    <Input
                         type="time"
+                        label="התחלת משמרת לילה"
                         value={start}
                         onChange={e => setStart(e.target.value)}
-                        className="w-full px-3 md:px-4 py-2 rounded-lg md:rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-sm md:text-base text-right"
-                        lang="he"
+                        className="text-right" // Native time input alignment
                     />
                 </div>
                 <div className="flex-1">
-                    <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">סיום משמרת לילה</label>
-                    <input
+                    <Input
                         type="time"
+                        label="סיום משמרת לילה"
                         value={end}
                         onChange={e => setEnd(e.target.value)}
-                        className="w-full px-3 md:px-4 py-2 rounded-lg md:rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-sm md:text-base text-right"
-                        lang="he"
+                        className="text-right"
                     />
                 </div>
             </div>
 
             <div className="border-t border-slate-100 pt-4 md:pt-6">
-                <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">חשיפת לו"ז לצופים (ימים קדימה)</label>
-                <div className="flex flex-wrap items-center gap-3 md:gap-4">
-                    <input
-                        type="number"
-                        min="1"
-                        max="30"
-                        value={viewerDays}
-                        onChange={e => setViewerDays(parseInt(e.target.value))}
-                        className="w-20 md:w-24 px-3 md:px-4 py-2 rounded-lg md:rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-sm md:text-base"
-                    />
-                    <span className="text-slate-500 text-xs md:text-sm">ימים</span>
-                </div>
+                <Input
+                    type="number"
+                    label="חשיפת לו&quot;ז לצופים (ימים קדימה)"
+                    min={1}
+                    max={30}
+                    value={viewerDays}
+                    onChange={e => setViewerDays(parseInt(e.target.value))}
+                    containerClassName="w-32"
+                />
                 <p className="text-slate-400 text-xs md:text-sm mt-2">המשתמשים יוכלו לראות את הלו"ז להיום ולמספר הימים הבאים שהוגדר.</p>
             </div>
 
@@ -124,14 +121,14 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                         <span className="font-bold text-xs md:text-sm">נשמר בהצלחה!</span>
                     </div>
                 )}
-                <button
+                <Button
                     onClick={handleSave}
-                    disabled={saving}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 md:px-6 py-2 md:py-2.5 rounded-lg md:rounded-xl font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50 text-sm md:text-base"
+                    isLoading={saving}
+                    icon={Save}
+                    className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 border-transparent text-white shadow-md"
                 >
-                    <Save size={16} />
                     {saving ? 'שומר...' : 'שמור שינויים'}
-                </button>
+                </Button>
             </div>
         </div>
     );
@@ -374,26 +371,20 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
 
                 <form onSubmit={handleSendInvite} className="space-y-3 md:space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                        <div>
-                            <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">
-                                כתובת אימייל
-                            </label>
-                            <input
-                                type="email"
-                                value={inviteEmail}
-                                onChange={(e) => setInviteEmail(e.target.value)}
-                                placeholder="user@example.com"
-                                className="w-full px-3 md:px-4 py-2 md:py-3 rounded-lg md:rounded-xl border-2 border-slate-200 focus:border-emerald-400 focus:outline-none text-right text-sm md:text-base"
-                                required
-                                disabled={sending}
-                            />
-                        </div>
+                        <Input
+                            label="כתובת אימייל"
+                            type="email"
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                            placeholder="user@example.com"
+                            required
+                            disabled={sending}
+                            className="text-right"
+                        />
 
                         <div>
-                            <label className="block text-slate-700 font-medium mb-2 text-right text-sm md:text-base">
-                                הרשאה
-                            </label>
                             <Select
+                                label="הרשאה"
                                 value={inviteRole}
                                 onChange={(val) => setInviteRole(val as UserRole)}
                                 options={[
@@ -408,14 +399,16 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                         </div>
                     </div>
 
-                    <button
+                    <Button
                         type="submit"
                         disabled={sending || !inviteEmail.trim()}
-                        className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-bold py-2.5 md:py-3 px-5 md:px-6 rounded-lg md:rounded-xl transition-all shadow-lg hover:shadow-xl disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
+                        isLoading={sending}
+                        icon={Mail}
+                        fullWidth
+                        className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 border-transparent text-white shadow-lg"
                     >
-                        <Mail size={18} />
-                        <span>{sending ? 'שולח...' : 'שלח הזמנה'}</span>
-                    </button>
+                        {sending ? 'שולח...' : 'שלח הזמנה'}
+                    </Button>
                 </form>
             </div>
 
@@ -457,14 +450,13 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                         <Users className="text-emerald-600 flex-shrink-0" size={20} />
                         <h2 className="text-lg md:text-2xl font-bold text-slate-800">חברי צוות</h2>
                     </div>
-                    <div className="relative w-full max-w-xs">
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                            type="text"
+                    <div className="w-full max-w-xs">
+                        <Input
                             placeholder="חפש חבר צוות..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-4 pr-10 py-2 rounded-full border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                            icon={Search}
+                            className="rounded-full"
                         />
                     </div>
                 </div>
@@ -497,14 +489,15 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                     </span>
                                 ) : (
                                     <div className="flex items-center gap-2">
-                                        <button
+                                        <Button
                                             onClick={() => handleOpenPermissionEditor(member)}
-                                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 rounded-lg transition-colors font-medium text-sm"
-                                            title="ערוך הרשאות ותפקיד"
+                                            variant="ghost"
+                                            size="sm"
+                                            icon={Pencil}
+                                            className="bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600"
                                         >
-                                            <Pencil size={14} />
-                                            <span>ערוך הרשאות</span>
-                                        </button>
+                                            ערוך הרשאות
+                                        </Button>
                                     </div>
                                 )}
                             </div>
@@ -625,6 +618,16 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const getRoleDescription = (role: UserRole) => {
+        switch (role) {
+            case 'admin': return 'גישה מלאה לכל הגדרות הארגון, המשתמשים והנתונים.';
+            case 'editor': return 'יכולת עריכת שיבוצים, ניהול משימות וצפייה בדוחות.';
+            case 'viewer': return 'צפייה בלוח השיבוצים ובנתונים בלבד, ללא יכולת עריכה.';
+            case 'attendance_only': return 'גישה לדיווח נוכחות בלבד.';
+            default: return 'הרשאות בסיסיות.';
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -644,17 +647,17 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                 </label>
 
                 {/* Role Selector */}
-                <div className="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                    <span className="text-sm font-medium text-slate-600 whitespace-nowrap">הרשאה למצטרפים:</span>
-                    <div className="w-40">
+                <div className="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 w-full sm:w-auto">
+                    <span className="text-sm font-medium text-slate-600 whitespace-nowrap hidden sm:inline">הרשאה למצטרפים:</span>
+                    <div className="w-full sm:w-48">
                         <Select
                             value={defaultRole}
                             onChange={(val) => handleRoleChange(val as UserRole)}
                             options={[
-                                { value: 'viewer', label: 'צופה' },
-                                { value: 'editor', label: 'עורך' },
-                                { value: 'attendance_only', label: 'נוכחות בלבד' },
-                                { value: 'member', label: 'חבר צוות' }
+                                { value: 'viewer', label: 'צופה (Viewer)' },
+                                { value: 'editor', label: 'עורך (Editor)' },
+                                { value: 'admin', label: 'מנהל (Admin)' },
+                                { value: 'attendance_only', label: 'נוכחות בלבד' }
                             ]}
                             disabled={loading}
                             placeholder="בחר הרשאה"
@@ -664,41 +667,50 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
             </div>
 
             {isActive && inviteToken && (
-                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="flex flex-col md:flex-row gap-3">
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-sm text-slate-600 flex items-start gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                        <Info size={16} className="text-blue-500 mt-0.5 shrink-0" />
+                        <span>
+                            <strong>משמעות ההרשאה הנבחרת ({getRoleDisplayName(defaultRole)}):</strong><br />
+                            {getRoleDescription(defaultRole)}
+                        </span>
+                    </p>
+
+                    <div className="flex flex-col md:flex-row gap-3 items-end">
                         {/* URL Display */}
-                        <div className="flex-1 flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border-2 border-slate-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-50 transition-all">
-                            <div
-                                className="flex-1 px-3 py-2 text-slate-600 text-sm font-mono truncate select-all"
-                                dir="ltr"
-                            >
-                                {`${window.location.origin}/join/${inviteToken}`}
+                        <div className="flex-1 w-full">
+                            <label className="text-xs font-bold text-slate-500 mb-1 block">קישור להעתקה</label>
+                            <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-50 transition-all shadow-sm">
+                                <div
+                                    className="flex-1 px-3 py-2 text-slate-600 text-sm font-mono truncate select-all"
+                                    dir="ltr"
+                                >
+                                    {`${window.location.origin}/join/${inviteToken}`}
+                                </div>
+                                <div className="w-px h-8 bg-slate-100 mx-1"></div>
+                                <button
+                                    onClick={copyToClipboard}
+                                    className="p-2 hover:bg-slate-50 rounded-lg transition-all text-slate-500 hover:text-blue-600 hover:shadow-sm active:scale-95"
+                                    title="העתק קישור"
+                                >
+                                    {copied ? <CheckCircle size={20} className="text-green-500" /> : <Copy size={20} />}
+                                </button>
                             </div>
-                            <div className="w-px h-8 bg-slate-200 mx-1"></div>
-                            <button
-                                onClick={copyToClipboard}
-                                className="p-2 hover:bg-white rounded-lg transition-all text-slate-500 hover:text-blue-600 hover:shadow-sm active:scale-95"
-                                title="העתק קישור"
-                            >
-                                {copied ? <CheckCircle size={20} className="text-green-500" /> : <Copy size={20} />}
-                            </button>
                         </div>
 
                         {/* Regenerate Button */}
-                        <button
-                            onClick={handleRegenerate}
-                            disabled={loading}
-                            className="px-5 py-3 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-sm hover:shadow-md active:scale-95"
-                        >
-                            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-                            <span>צור קישור חדש</span>
-                        </button>
+                        <div className="w-full md:w-auto">
+                            <Button
+                                onClick={handleRegenerate}
+                                disabled={loading}
+                                icon={RefreshCw}
+                                variant="outline"
+                                className="bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                            >
+                                צור קישור חדש
+                            </Button>
+                        </div>
                     </div>
-
-                    <p className="text-xs text-slate-500 flex items-center gap-1.5 mr-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                        משתמשים שיירשמו דרך הקישור יצורפו אוטומטית לארגון עם ההרשאה שנבחרה.
-                    </p>
                 </div>
             )}
             <ConfirmationModal {...modalProps} />

@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
 import { v4 as uuidv4 } from 'uuid';
+import { Input } from '../components/ui/Input';
+import { Button } from '../components/ui/Button';
 
 export const ContactPage: React.FC = () => {
     const { user } = useAuth();
@@ -92,42 +94,37 @@ export const ContactPage: React.FC = () => {
                         </div>
                         <h3 className="text-2xl font-bold text-slate-800 mb-2">ההודעה נשלחה בהצלחה!</h3>
                         <p className="text-slate-600 mb-6">נחזור אליך בהקדם האפשרי</p>
-                        <button
+                        <Button
                             onClick={() => setIsSuccess(false)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+                            variant="primary"
+                            className="w-full sm:w-auto"
                         >
                             שלח הודעה נוספת
-                        </button>
+                        </Button>
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="p-6 space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">שם מלא</label>
-                            <div className="relative">
-                                <User className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                <input
-                                    type="text"
-                                    required
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="w-full pr-10 pl-4 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
-                                    placeholder="השם שלך"
-                                />
-                            </div>
+                            <Input
+                                label="שם מלא"
+                                required
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                icon={User}
+                                placeholder="השם שלך"
+                            />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">טלפון (אופציונלי)</label>
-                            <div className="relative">
-                                <Phone className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                <input
-                                    type="tel"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    className="w-full pr-10 pl-4 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none text-right"
-                                    placeholder="מספר נייד לחזרה"
-                                />
-                            </div>
+                            <Input
+                                label="טלפון (אופציונלי)"
+                                type="tel"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                icon={Phone}
+                                placeholder="מספר נייד לחזרה"
+                                className="text-right"
+                            />
                         </div>
 
                         <div>
@@ -139,7 +136,7 @@ export const ContactPage: React.FC = () => {
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
                                     rows={5}
-                                    className="w-full pr-10 pl-4 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none resize-none"
+                                    className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all outline-none resize-none text-slate-900 text-base md:text-sm"
                                     placeholder="כתבו כאן את ההודעה..."
                                 ></textarea>
                             </div>
@@ -182,23 +179,16 @@ export const ContactPage: React.FC = () => {
                         </div>
 
                         <div className="pt-4">
-                            <button
+                            <Button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-blue-200"
+                                isLoading={isSubmitting}
+                                className="w-full shadow-lg shadow-blue-200"
+                                size="lg"
+                                icon={Send}
                             >
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 size={18} className="animate-spin" />
-                                        שולח...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Send size={18} />
-                                        שלח הודעה
-                                    </>
-                                )}
-                            </button>
+                                שלח הודעה
+                            </Button>
                         </div>
                     </form>
                 )}

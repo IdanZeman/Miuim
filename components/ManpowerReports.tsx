@@ -4,6 +4,7 @@ import { Person, Team, Role } from '../types';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Users, Calendar, TrendingUp, AlertCircle, CheckCircle2, XCircle, LayoutGrid, List } from 'lucide-react';
 import { Select } from './ui/Select';
+import { Input } from './ui/Input';
 
 interface ManpowerReportsProps {
     people: Person[];
@@ -117,13 +118,12 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                     <div className="h-8 w-px bg-slate-200 mx-1"></div>
 
                     {/* Date Picker */}
-                    <div className="relative">
-                        <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
+                    <div className="w-40">
+                        <Input
                             type="date"
                             value={dateKey}
                             onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                            className="pl-4 pr-10 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            icon={Calendar}
                         />
                     </div>
 
