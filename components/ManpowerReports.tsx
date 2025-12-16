@@ -50,7 +50,10 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
         // 2. Role Breakdown (Daily)
         const roleBreakdown = roles.map(role => {
             if (selectedRoleId !== 'all' && role.id !== selectedRoleId) return null;
-            const peopleWithRole = filteredPeople.filter(p => p.roleIds.includes(role.id));
+            const peopleWithRole = filteredPeople.filter(p => {
+                const currentRoleIds = p.roleIds || [p.roleId];
+                return currentRoleIds.includes(role.id);
+            });
             if (peopleWithRole.length === 0) return null;
             const roleStats = getAttendanceForDate(dateKey, peopleWithRole);
             return { ...role, ...roleStats };
@@ -223,7 +226,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         {selectedTeamId === 'all' && (
                             <div className="bg-white p-6 rounded-xl shadow-portal">
                                 <h3 className="text-lg font-bold text-slate-800 mb-6">השוואה צוותית</h3>
-                                <div className="h-[300px] w-full">
+                                <div className="h-[300px] w-full min-w-0">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={stats.teamBreakdown} layout="vertical" margin={{ left: 0, right: 30 }}>
                                             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />

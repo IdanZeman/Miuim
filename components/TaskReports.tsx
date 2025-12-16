@@ -165,7 +165,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div className="bg-white p-6 rounded-xl shadow-portal">
                             <h3 className="text-lg font-bold text-slate-800 mb-6">עומס שעות שבועי</h3>
-                            <div className="h-[300px] w-full">
+                            <div className="h-[300px] w-full min-w-0">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={loadData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -181,7 +181,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
 
                         <div className="bg-white p-6 rounded-xl shadow-portal flex flex-col">
                             <h3 className="text-lg font-bold text-slate-800 mb-6">סטטוס איוש</h3>
-                            <div className="h-[300px] w-full">
+                            <div className="h-[300px] w-full min-w-0">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie

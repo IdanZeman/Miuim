@@ -86,7 +86,7 @@ const findBestCandidates = (
     const userConstraints = constraints.filter(c => 
         c.personId === u.person.id || // Direct Person Constraint
         (c.teamId && c.teamId === u.person.teamId) || // Team Constraint
-        (c.roleId && u.person.roleIds.includes(c.roleId)) // Role Constraint
+        (c.roleId && (u.person.roleIds || []).includes(c.roleId)) // Role Constraint
     );
     
     // NEVER_ASSIGN: If user has ANY "never assign" constraint for this task (from any source)
@@ -124,7 +124,7 @@ const findBestCandidates = (
 
     // 2. Role Check - SKIPPED IN LEVEL 4 (Force Assign)
     if (relaxationLevel < 4) {
-      if (!u.person.roleIds.includes(roleId)) return false;
+      if (!(u.person.roleIds || []).includes(roleId)) return false;
     }
 
     // LEVEL-SPECIFIC CHECKS
@@ -212,7 +212,7 @@ const initializeUsers = (
         c.type === 'time_block' && (
             c.personId === p.id ||
             (c.teamId && c.teamId === p.teamId) ||
-            (c.roleId && p.roleIds.includes(c.roleId))
+            (c.roleId && (p.roleIds || []).includes(c.roleId))
         )
     );
     userConstraints.forEach(c => {
@@ -426,7 +426,7 @@ export const solveSchedule = (
   // Calculate Role Rarity (<= 2 people is "Rare")
   const roleCounts = new Map<string, number>();
   people.forEach(p => {
-    p.roleIds.forEach(rid => {
+    (p.roleIds || []).forEach(rid => {
       roleCounts.set(rid, (roleCounts.get(rid) || 0) + 1);
     });
   });
@@ -565,7 +565,7 @@ export const solveSchedule = (
         if (task.isCritical && selected.length > 0) {
           console.log(`   📊 Selected candidates by critical shift count:`);
           selected.forEach(c => {
-            const hasRole = c.person.roleIds.includes(roleId);
+            const hasRole = (c.person.roleIds || []).includes(roleId);
             const roleWarning = hasRole ? '' : ' [⚠️ ROLE MISMATCH]';
             console.log(`      ${c.person.name}: ${c.criticalShiftCount} critical shifts | Load: ${c.loadScore.toFixed(1)}${roleWarning}`);
           });
@@ -576,7 +576,7 @@ export const solveSchedule = (
           task.currentAssignees.push(u.person.id);
 
           const restDurationMs = task.minRest * 60 * 60 * 1000;
-          const isMismatch = !u.person.roleIds.includes(roleId); // NEW: Check for role mismatch
+          const isMismatch = !(u.person.roleIds || []).includes(roleId); // NEW: Check for role mismatch
 
           // Update User State with mismatch flag
           addToTimeline(u, task.startTime, task.endTime, 'TASK', task.taskId, task.isCritical, isMismatch);

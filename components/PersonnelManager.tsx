@@ -121,7 +121,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setNewName(person.name);
         setNewEmail(person.email || '');
         setNewTeamId(person.teamId);
-        setNewRoleIds(person.roleIds);
+        setNewRoleIds(person.roleIds || []);
         setIsModalOpen(true);
     };
 
@@ -405,10 +405,32 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                         )}
                                                     </div>
                                                     <div className="mt-2 md:mt-3 flex flex-wrap gap-1">
-                                                        {person.roleIds.map(rid => {
+                                                        {(person.roleIds || []).map(rid => {
                                                             const r = roles.find(role => role.id === rid);
                                                             return r ? <span key={rid} className="text-[10px] bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-100">{r.name}</span> : null;
                                                         })}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {(person.roleIds || []).map(roleId => {
+                                                            const role = roles.find(r => r.id === roleId);
+                                                            if (!role) return null;
+                                                            return (
+                                                                <span key={role.id} className={`text-[10px] px-1.5 py-0.5 rounded-md ${role.color} text-slate-700 font-medium`}>
+                                                                    {role.name}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                        {/* Fallback for legacy single roleId if roleIds is empty but roleId exists */}
+                                                        {(!person.roleIds || person.roleIds.length === 0) && person.roleId && (
+                                                            (() => {
+                                                                const role = roles.find(r => r.id === person.roleId);
+                                                                return role ? (
+                                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${role.color} text-slate-700 font-medium`}>
+                                                                        {role.name}
+                                                                    </span>
+                                                                ) : null;
+                                                            })()
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}

@@ -83,8 +83,9 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 const isTeamMismatch = assignedTeamId && person.teamId !== assignedTeamId;
 
                 // NEW: Check qualification
-                const isQualified = requiredRoleIds.length === 0 || person.roleIds.some(rid => requiredRoleIds.includes(rid));
-                const personRoles = person.roleIds
+                const userRoleIds = person.roleIds || [];
+                const isQualified = requiredRoleIds.length === 0 || userRoleIds.some(rid => requiredRoleIds.includes(rid));
+                const personRoles = userRoleIds
                   .map(rid => roles.find(r => r.id === rid)?.name)
                   .filter(Boolean)
                   .join(', ');

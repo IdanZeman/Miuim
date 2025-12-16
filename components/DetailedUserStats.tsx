@@ -137,7 +137,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
                             <h2 className="text-xl md:text-2xl font-bold text-slate-800 truncate">{person.name}</h2>
                             <div className="flex flex-wrap items-center gap-2 text-slate-500 mt-1">
                                 <span className="bg-slate-100 px-2 py-0.5 rounded text-xs font-medium">
-                                    {person.roleIds.map(id => roles.find(r => r.id === id)?.name).filter(Boolean).join(', ')}
+                                    {(person.roleIds || []).map(id => roles.find(r => r.id === id)?.name).filter(Boolean).join(', ')}
                                 </span>
                                 <span className="text-xs md:text-sm">• {stats.shiftCount} משמרות</span>
                             </div>

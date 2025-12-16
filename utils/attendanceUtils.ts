@@ -1,67 +1,84 @@
 import { Person, TeamRotation } from '../types';
 
-export const getRotationStatusForDate = (person: Person, date: Date, rotation?: TeamRotation) => {
-    if (!rotation || !person.teamId || person.teamId !== rotation.team_id) return null;
+export const getRotationStatusForDate = (date: Date, rotation: TeamRotation) => {
+    const start = new Date(rotation.start_date);
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
 
-    // Check date range
-    const anchor = new Date(rotation.start_date);
-    const target = new Date(date);
-    
-    // Normalize to midnight UTC to avoid timezone drift
-    const anchorTime = Date.UTC(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
-    const targetTime = Date.UTC(target.getFullYear(), target.getMonth(), target.getDate());
+    const diffTime = d.getTime() - start.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    // Range Check
-    if (targetTime < anchorTime) return null; // Before start
-    if (rotation.end_date) {
-        const end = new Date(rotation.end_date);
-        const endTime = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
-        // User request: If date is AFTER end date, show as HOME (not default/base)
-        if (targetTime > endTime) {
-             return { isAvailable: false, startHour: '00:00', endHour: '00:00', status: 'home', cycleDay: -1 };
-        }
-    }
-    
-    const diffDays = Math.floor((targetTime - anchorTime) / (1000 * 60 * 60 * 24));
-    const cycleDay = ((diffDays % rotation.cycle_length) + rotation.cycle_length) % rotation.cycle_length; // Handle negative diffs
+    if (diffDays < 0) return null; // Before rotation start
 
-    // 0-indexed: 0 to (days_on_base - 1) is BASE
-    const isBase = cycleDay < rotation.days_on_base;
-    
-    let startHour = '00:00';
-    let endHour = '23:59';
-    let status = '';
+    const cycleLength = rotation.days_on_base + rotation.days_at_home;
+    const dayInCycle = diffDays % cycleLength;
 
-    if (isBase) {
-        if (cycleDay === 0) {
-            status = 'arrival';
-            startHour = rotation.arrival_time; // Late arrival
-        } else if (cycleDay === rotation.days_on_base - 1) {
-            status = 'departure';
-            endHour = rotation.departure_time; // Early departure
-        } else {
-            status = 'base';
-        }
-        return { isAvailable: true, startHour, endHour, status, cycleDay };
-    } else {
-         return { isAvailable: false, startHour: '00:00', endHour: '00:00', status: 'home', cycleDay };
-    }
+    if (dayInCycle === 0) return 'arrival';
+    if (dayInCycle < rotation.days_on_base - 1) return 'full';
+    if (dayInCycle === rotation.days_on_base - 1) return 'departure';
+    return 'home';
 };
 
 export const getEffectiveAvailability = (person: Person, date: Date, teamRotations: TeamRotation[]) => {
-    const dateKey = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
-    
-    // 1. Check for Manual Entry for this specific date
-    const manualEntry = person.dailyAvailability?.[dateKey];
-    if (manualEntry) return { ...manualEntry, source: 'manual' };
+    const dateKey = date.toLocaleDateString('en-CA');
 
-    // 2. Check for Rotation
-    if (person.teamId) {
-        const rotation = teamRotations.find(r => r.team_id === person.teamId);
-        const rotStatus = getRotationStatusForDate(person, date, rotation);
-        if (rotStatus) return { ...rotStatus, source: 'rotation' };
+    // 1. Manual Override
+    if (person.dailyAvailability && person.dailyAvailability[dateKey]) {
+        const manual = person.dailyAvailability[dateKey];
+        // Infer status for manual overrides if not present
+        let status = 'full';
+        if (!manual.isAvailable) status = 'home';
+        else if (manual.startHour && manual.startHour !== '00:00') status = 'arrival';
+        else if (manual.endHour && manual.endHour !== '23:59') status = 'departure';
+        
+        return { ...manual, status, source: 'manual' };
     }
 
-    // 3. Default
-    return { isAvailable: true, startHour: '00:00', endHour: '23:59', source: 'default', status: 'base' };
+    // 2. Personal Rotation
+    if (person.personalRotation?.isActive && person.personalRotation.startDate) {
+        const [y, m, dStr] = person.personalRotation.startDate.split('-').map(Number);
+        const start = new Date(y, m - 1, dStr); // Local midnight
+        
+        const d = new Date(date); 
+        d.setHours(0,0,0,0);
+        
+        const diffTime = d.getTime() - start.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays >= 0) {
+            const daysOn = person.personalRotation.daysOn || 1;
+            const daysOff = person.personalRotation.daysOff || 1;
+            const cycleLength = daysOn + daysOff;
+            const dayInCycle = diffDays % cycleLength;
+
+            if (dayInCycle === 0) {
+                // Arrival: Default to full day 00:00-23:59
+                return { isAvailable: true, startHour: '00:00', endHour: '23:59', status: 'arrival', source: 'personal_rotation' };
+            } else if (dayInCycle < daysOn - 1) {
+                return { isAvailable: true, startHour: '00:00', endHour: '23:59', status: 'full', source: 'personal_rotation' };
+            } else if (dayInCycle === daysOn - 1) {
+                // Departure: Default to full day 00:00-23:59
+                return { isAvailable: true, startHour: '00:00', endHour: '23:59', status: 'departure', source: 'personal_rotation' };
+            } else {
+                return { isAvailable: false, startHour: '00:00', endHour: '00:00', status: 'home', source: 'personal_rotation' };
+            }
+        }
+    }
+
+    // 3. Team Rotation
+    if (person.teamId) {
+        const rotation = teamRotations.find(r => r.team_id === person.teamId);
+        if (rotation) {
+            const status = getRotationStatusForDate(date, rotation);
+            if (status === 'home') return { isAvailable: false, startHour: '00:00', endHour: '00:00', status, source: 'rotation' };
+            // Default all available statuses to 00:00-23:59
+            if (status === 'arrival') return { isAvailable: true, startHour: '00:00', endHour: '23:59', status, source: 'rotation' };
+            if (status === 'departure') return { isAvailable: true, startHour: '00:00', endHour: '23:59', status, source: 'rotation' };
+            if (status === 'full') return { isAvailable: true, startHour: '00:00', endHour: '23:59', status, source: 'rotation' };
+        }
+    }
+
+    // Default
+    return { isAvailable: true, startHour: '00:00', endHour: '23:59', status: 'full', source: 'default' };
 };

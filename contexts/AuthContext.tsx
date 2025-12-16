@@ -330,7 +330,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authChangeTimeout) clearTimeout(authChangeTimeout);
       subscription.unsubscribe();
     };
-  }, [user?.id]); // NEW: Add user?.id as dependency
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {

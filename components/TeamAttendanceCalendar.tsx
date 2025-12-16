@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Team, TeamRotation } from '../types';
 import { ChevronRight, ChevronLeft, X, Calendar as CalendarIcon, Home, ArrowRight, ArrowLeft } from 'lucide-react';
-import { getRotationStatusForDate } from '../utils/attendanceUtils';
+import { getEffectiveAvailability } from '../utils/attendanceUtils';
 
 interface TeamAttendanceCalendarProps {
     team: Team;
@@ -68,13 +68,13 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
 
             // Generate dummy person for util
             const dummyPerson = { id: 'dummy', teamId: team.id, name: 'dummy' } as any;
-            const rotStatus = getRotationStatusForDate(dummyPerson, date, rotation);
+            const availability = getEffectiveAvailability(dummyPerson, date, teamRotations);
 
             let content = null;
             let cellBg = 'bg-white';
 
-            if (rotStatus) {
-                if (!rotStatus.isAvailable) {
+            if (availability.source !== 'default') {
+                if (!availability.isAvailable) {
                     // Home
                     cellBg = 'bg-slate-50/50';
                     content = (
@@ -85,8 +85,8 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
                     );
                 } else {
                     // Base / Arrival / Departure
-                    const isArrival = rotStatus.status === 'arrival';
-                    const isDeparture = rotStatus.status === 'departure';
+                    const isArrival = availability.status === 'arrival';
+                    const isDeparture = availability.status === 'departure';
 
                     content = (
                         <div className={`flex flex-col items-center justify-center h-full w-full rounded-md m-1 p-1 ${teamStyles.bg} ${teamStyles.text} ${teamStyles.border} border`}>
@@ -99,7 +99,7 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
 
                             {(isArrival || isDeparture) && (
                                 <span className="text-[10px] mt-1 opacity-80">
-                                    {isArrival ? rotStatus.startHour : rotStatus.endHour}
+                                    {isArrival ? availability.startHour : availability.endHour}
                                 </span>
                             )}
                         </div>

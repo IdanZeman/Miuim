@@ -49,7 +49,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
             const teamIds = people.filter(p => p.teamId === id).map(p => p.id);
             setParticipatingIds(new Set(teamIds));
         } else if (type === 'role' && id) {
-            const roleIds = people.filter(p => p.roleIds.includes(id)).map(p => p.id);
+            const roleIds = people.filter(p => (p.roleIds || []).includes(id)).map(p => p.id);
             setParticipatingIds(new Set(roleIds));
         } else if (type === 'manual') {
             // Keep existing or clear? Let's keep existing to allow refinement

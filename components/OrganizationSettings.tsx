@@ -41,18 +41,30 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
     }, [organizationId]);
 
     const fetchSettings = async () => {
-        const { data, error } = await supabase
-            .from('organization_settings')
-            .select('*')
-            .eq('organization_id', organizationId)
-            .single();
+        try {
+            const { data, error } = await supabase
+                .from('organization_settings')
+                .select('*')
+                .eq('organization_id', organizationId)
+                .maybeSingle(); // Use maybeSingle to avoid 406 on empty? No, 406 is header/content neg. 
 
-        if (data) {
-            setStart(data.night_shift_start.slice(0, 5));
-            setEnd(data.night_shift_end.slice(0, 5));
-            setViewerDays(data.viewer_schedule_days || 2);
+            if (error) {
+                if (error.code !== '406' && error.code !== 'PGRST116') {
+                    console.error('Error fetching settings:', error);
+                }
+                // If 406 or not found, just use defaults
+            }
+
+            if (data) {
+                setStart(data.night_shift_start.slice(0, 5));
+                setEnd(data.night_shift_end.slice(0, 5));
+                setViewerDays(data.viewer_schedule_days || 2);
+            }
+        } catch (err) {
+            console.warn('Failed to fetch settings, using defaults');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleSave = async () => {

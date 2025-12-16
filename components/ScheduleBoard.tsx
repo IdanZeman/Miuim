@@ -5,6 +5,9 @@ import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { Button } from './ui/Button';
 import { Shift, Person, TaskTemplate, Role, Team } from '../types';
+import { generateShiftsForTask } from '../utils/shiftUtils';
+import { getEffectiveAvailability } from '../utils/attendanceUtils';
+import { TeamRotation } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { RotateCcw, Sparkles } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown, Search } from 'lucide-react';
@@ -32,9 +35,10 @@ interface ScheduleBoardProps {
     onNavigate: (view: 'personnel' | 'tasks', tab?: 'people' | 'teams' | 'roles') => void;
     onAssign: (shiftId: string, personId: string) => void;
     onUnassign: (shiftId: string, personId: string) => void;
-    onAddShift: (task: TaskTemplate, date: Date) => void;
-    onUpdateShift: (shift: Shift) => void;
-    onToggleCancelShift: (shiftId: string) => void;
+    onAddShift?: (task: TaskTemplate, date: Date) => void;
+    onUpdateShift?: (shift: Shift) => void;
+    onToggleCancelShift?: (shiftId: string) => void;
+    teamRotations: TeamRotation[]; // NEW
 }
 
 // Helper to calculate position based on time
@@ -52,7 +56,6 @@ const getPositionFromTime = (date: Date) => {
 const getHeightFromDuration = (start: Date, end: Date) => {
     const durationMs = end.getTime() - start.getTime();
     const durationHours = durationMs / (1000 * 60 * 60);
-    return durationHours * PIXELS_PER_HOUR;
     return durationHours * PIXELS_PER_HOUR;
 };
 
@@ -209,7 +212,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     shifts, people, taskTemplates, roles, teams, constraints,
     selectedDate, onDateChange, onSelect, onDelete, isViewer,
     acknowledgedWarnings: propAcknowledgedWarnings, onClearDay, onNavigate, onAssign,
-    onUnassign, onAddShift, onUpdateShift, onToggleCancelShift
+    onUnassign, onAddShift, onUpdateShift, onToggleCancelShift, teamRotations
 }) => {
     // Scroll Synchronization Refs
     const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -322,31 +325,34 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         const task = taskTemplates.find(t => t.id === selectedShift.taskId);
         if (!task) return [];
 
-        // Resolve requirements
-        const segment = task.segments?.find(s => s.id === selectedShift.segmentId) || task.segments?.[0];
-        const roleComposition = selectedShift.requirements?.roleComposition || segment?.roleComposition || [];
-        const requiredRoleIds = roleComposition.map(rc => rc.roleId);
-
         return people.filter(p => {
             // 1. Exclude if already assigned (to this shift)
             if (selectedShift.assignedPersonIds.includes(p.id)) return false;
 
-            // 2. Check unavailability
-            if (p.unavailableDates?.includes(selectedDate.toLocaleDateString('en-CA'))) return false;
-            if (p.dailyAvailability?.[selectedDate.toLocaleDateString('en-CA')]?.isAvailable === false) return false;
+            // 2. Check Availability (Rotations + Manual + Unavailability)
+            // 2. Check Availability (Rotations + Manual + Unavailability)
+            const availability = getEffectiveAvailability(p, selectedDate, teamRotations);
+
+            // If Manually marked "Present" (available), we explicitly show them
+            if (availability.source === 'manual' && availability.isAvailable) {
+                // Keep them, ignore legacy unavailableDates
+            } else {
+                // Otherwise check legacy unavailableDates
+                if (p.unavailableDates?.includes(selectedDate.toLocaleDateString('en-CA'))) return false;
+                // And check calculated availability
+                if (!availability.isAvailable) return false;
+            }
 
             // 3. Overlap Check (Busy in other shift)
             if (overlappingShifts.some(s => s.assignedPersonIds.includes(p.id))) return false;
 
-            // 4. Role check
-            if (requiredRoleIds.length > 0) {
-                const hasRole = p.roleIds.some(rid => requiredRoleIds.includes(rid));
-                if (!hasRole) return false;
-            }
+            // 4. Role check - REMOVED strict filter to allow viewing mismatched candidates (UI handles disabling)
+            // The render loop will mark them as "No Match"
 
-            // 5. Role Filter
+            // 5. Role Filter (Dropdown in UI) - This is a user-initiated filter, so we KEEP it
             if (selectedRoleFilter) {
-                if (!p.roleIds.includes(selectedRoleFilter)) return false;
+                const currentRoleIds = p.roleIds || [p.roleId];
+                if (!currentRoleIds.includes(selectedRoleFilter)) return false;
             }
 
             // 6. Search Term
@@ -356,7 +362,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
             return true;
         });
-    }, [people, selectedShift, selectedDate, searchTerm, taskTemplates, overlappingShifts, selectedRoleFilter]);
+    }, [people, selectedShift, selectedDate, searchTerm, taskTemplates, overlappingShifts, selectedRoleFilter, teamRotations]);
 
 
     const AssignmentModal = () => {
@@ -375,7 +381,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             const currentAssigned = selectedShift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
 
             const missingRoleIds = roleComposition.filter(rc => {
-                const currentCount = currentAssigned.filter(p => p.roleIds.includes(rc.roleId)).length;
+                const currentCount = currentAssigned.filter(p => {
+                    const rIds = p.roleIds || [p.roleId];
+                    return rIds.includes(rc.roleId);
+                }).length;
                 return currentCount < rc.count;
             }).map(rc => rc.roleId);
 
@@ -756,7 +765,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                         {!isCollapsed && (
                                                             <div className="space-y-1.5 p-2 pt-0 md:space-y-2 border-t border-slate-200/50 mt-1">
                                                                 {members.map(p => {
-                                                                    const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => p.roleIds.includes(rc.roleId));
+                                                                    const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => (p.roleIds || [p.roleId]).includes(rc.roleId));
                                                                     const isFull = assignedPeople.length >= task.requiredPeople;
                                                                     const canAssign = hasRole && !isFull;
 
@@ -767,7 +776,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                                                 <div className="flex flex-col min-w-0 flex-1">
                                                                                     <span className="font-bold text-slate-700 text-xs md:text-sm truncate">{p.name}</span>
                                                                                     <span className="text-[10px] text-slate-500 truncate">
-                                                                                        {roles.filter(r => p.roleIds.includes(r.id)).map(r => r.name).join(', ')}
+                                                                                        {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => r.name).join(', ')}
                                                                                     </span>
                                                                                     {!hasRole && <span className="text-[9px] md:text-[10px] text-red-500">אין התאמה</span>}
                                                                                     {isFull && hasRole && <span className="text-[9px] md:text-[10px] text-amber-500">משמרת מלאה</span>}
@@ -840,7 +849,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                     if (requiredRoleIds.length === 0) return false; // No specific roles required
 
-                    return !person.roleIds.some(rid => requiredRoleIds.includes(rid));
+                    const currentRoleIds = person.roleIds || [person.roleId];
+                    return !currentRoleIds.some(rid => requiredRoleIds.includes(rid));
                 })
                 .map(pid => {
                     const person = people.find(p => p.id === pid)!;
@@ -967,6 +977,52 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         analytics.trackFilterApplied('date', dateKey);
     }, [selectedDate]);
 
+    // Calculate conflicts
+    const conflicts = useMemo(() => {
+        return (shifts || []).flatMap(shift => {
+            const shiftStart = new Date(`${selectedDate.toISOString().split('T')[0]}T${shift.startTime}`);
+            const shiftEnd = new Date(`${selectedDate.toISOString().split('T')[0]}T${shift.endTime}`);
+            if (shiftEnd < shiftStart) shiftEnd.setDate(shiftEnd.getDate() + 1);
+
+            // Ensure assignedPersonIds is an array before filtering
+            const assignedIds = shift.assignedPersonIds || [];
+
+            return assignedIds.filter(personId => {
+                const person = people.find(p => p.id === personId);
+                if (!person) return false;
+
+                // Check availability
+                const availability = getEffectiveAvailability(person, selectedDate, teamRotations);
+                if (!availability.isAvailable) return true;
+
+                // Check double booking
+                const otherShifts = (shifts || []).filter(s =>
+                    s.id !== shift.id &&
+                    (s.assignedPersonIds || []).includes(personId) // Safe check here too
+                );
+
+                return otherShifts.some(s => {
+                    const sStart = new Date(`${selectedDate.toISOString().split('T')[0]}T${s.startTime}`);
+                    const sEnd = new Date(`${selectedDate.toISOString().split('T')[0]}T${s.endTime}`);
+                    if (sEnd < sStart) sEnd.setDate(sEnd.getDate() + 1);
+
+                    return (shiftStart < sEnd && shiftEnd > sStart);
+                });
+            }).map(personId => ({ shiftId: shift.id, personId }));
+        });
+    }, [shifts, people, selectedDate, teamRotations]);
+
+    const getShiftConflicts = (shiftId: string) => {
+        const shift = shifts.find(s => s.id === shiftId);
+        if (!shift) return [];
+
+        const shiftStart = new Date(`${selectedDate.toISOString().split('T')[0]}T${shift.startTime}`);
+        const shiftEnd = new Date(`${selectedDate.toISOString().split('T')[0]}T${shift.endTime}`);
+        if (shiftEnd < shiftStart) shiftEnd.setDate(shiftEnd.getDate() + 1);
+
+        return conflicts.filter(c => c.shiftId === shiftId);
+    };
+
     return (
         <div className="flex flex-col gap-2 h-full">
             {isViewer && renderFeaturedCard()}
@@ -1018,6 +1074,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 </button>
                             </li>
                         ))}
+
                     </ul>
                 </div>
             )

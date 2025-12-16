@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Person, Role, Team, TaskTemplate, Shift } from '../types';
 
@@ -13,66 +12,69 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 // --- Mappers (App Types <-> DB Types) ---
 
 // People
-export const mapPersonFromDB = (dbPerson: any): Person => ({
-    id: dbPerson.id,
-    name: dbPerson.name,
-    teamId: dbPerson.team_id,
-    roleIds: dbPerson.role_ids || [],
-    maxHoursPerWeek: dbPerson.max_hours_per_week,
-    unavailableDates: dbPerson.unavailable_dates || [],
-    preferences: dbPerson.preferences || { preferNight: false, avoidWeekends: false },
-    color: dbPerson.color,
-    dailyAvailability: dbPerson.daily_availability || {},
-    organization_id: dbPerson.organization_id,
-    email: dbPerson.email,
-    userId: dbPerson.user_id
-});
+export const mapPersonFromDB = (p: any): Person => {
+    let dailyAvailability = p.daily_availability || {};
+    if (typeof dailyAvailability === 'string') {
+        try { dailyAvailability = JSON.parse(dailyAvailability); } catch (e) { dailyAvailability = {}; }
+    }
 
-export const mapPersonToDB = (person: Person) => ({
-    id: person.id,
-    name: person.name,
-    team_id: person.teamId,
-    role_ids: person.roleIds,
-    max_hours_per_week: person.maxHoursPerWeek,
-    unavailable_dates: person.unavailableDates,
-    preferences: person.preferences,
-    color: person.color,
-    daily_availability: person.dailyAvailability,
-    organization_id: person.organization_id,
-    email: person.email,
-    user_id: person.userId
+    let personalRotation = p.personal_rotation || undefined;
+    if (typeof personalRotation === 'string') {
+        try { personalRotation = JSON.parse(personalRotation); } catch (e) { personalRotation = undefined; }
+    }
+
+    return {
+        id: p.id,
+        name: p.name,
+        roleId: p.role_id,
+        teamId: p.team_id,
+        userId: p.user_id,
+        color: p.color || 'bg-blue-500',
+        maxShiftsPerWeek: p.max_shifts_per_week || 5,
+        dailyAvailability,
+        personalRotation
+    };
+};
+
+export const mapPersonToDB = (p: Person) => ({
+    id: p.id,
+    name: p.name,
+    role_id: p.roleId,
+    team_id: p.teamId,
+    user_id: p.userId,
+    color: p.color,
+    max_shifts_per_week: p.maxShiftsPerWeek,
+    daily_availability: p.dailyAvailability,
+    personal_rotation: p.personalRotation === undefined ? null : p.personalRotation,
+    organization_id: (p as any).organization_id
 });
 
 // Teams
-export const mapTeamFromDB = (dbTeam: any): Team => ({
-    id: dbTeam.id,
-    name: dbTeam.name,
-    color: dbTeam.color,
-    organization_id: dbTeam.organization_id
+export const mapTeamFromDB = (t: any): Team => ({
+    id: t.id,
+    name: t.name,
+    color: t.color || 'border-slate-500'
 });
 
-export const mapTeamToDB = (team: Team) => ({
-    id: team.id,
-    name: team.name,
-    color: team.color,
-    organization_id: team.organization_id
+export const mapTeamToDB = (t: Team) => ({
+    id: t.id,
+    name: t.name,
+    color: t.color,
+    organization_id: (t as any).organization_id
 });
 
 // Roles
-export const mapRoleFromDB = (dbRole: any): Role => ({
-    id: dbRole.id,
-    name: dbRole.name,
-    color: dbRole.color,
-    icon: dbRole.icon,
-    organization_id: dbRole.organization_id
+export const mapRoleFromDB = (r: any): Role => ({
+    id: r.id,
+    name: r.name,
+    color: r.color || 'bg-slate-200'
 });
 
-export const mapRoleToDB = (role: Role) => ({
-    id: role.id,
-    name: role.name,
-    color: role.color,
-    icon: role.icon,
-    organization_id: role.organization_id
+export const mapRoleToDB = (r: Role) => ({
+    id: r.id,
+    name: r.name,
+    color: r.color,
+    organization_id: (r as any).organization_id
 });
 
 // Tasks

@@ -72,19 +72,25 @@ export interface DailyAvailability {
 export interface Person {
   id: string;
   name: string;
-  teamId: string; // Reference to Team
-  roleIds: string[]; // Array of Role IDs
-  maxHoursPerWeek: number;
-  unavailableDates: string[]; // ISO date strings
-  preferences: {
+  roleId: string;
+  teamId?: string;
+  userId?: string;
+  color: string;
+  maxShiftsPerWeek: number;
+  dailyAvailability?: Record<string, { isAvailable: boolean; startHour?: string; endHour?: string; source?: string }>;
+  personalRotation?: {
+    isActive: boolean;
+    daysOn: number;
+    daysOff: number;
+    startDate: string;
+  };
+  roleIds?: string[]; // For multi-role support
+  email?: string;
+  unavailableDates?: string[];
+  preferences?: {
     preferNight: boolean;
     avoidWeekends: boolean;
   };
-  color: string; // Avatar color
-  dailyAvailability?: DailyAvailability; // New field
-  organization_id?: string;
-  email?: string;
-  userId?: string;
 }
 
 export type SchedulingType = 'continuous' | 'one-time';
@@ -136,7 +142,7 @@ export interface Shift {
   };
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'tasks' | 'schedule' | 'stats' | 'attendance' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints';
+export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints';
 
 export type AccessLevel = 'view' | 'edit' | 'none';
 export type DataScope = 'organization' | 'team' | 'personal';

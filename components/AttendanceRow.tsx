@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Person } from '../types';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Settings } from 'lucide-react';
 
 interface AttendanceRowProps {
     person: Person;
@@ -8,6 +8,7 @@ interface AttendanceRowProps {
     onTogglePresence: (p: Person) => void;
     onTimeChange: (p: Person, field: 'startHour' | 'endHour', value: string) => void;
     onSelectPerson: (p: Person) => void;
+    onEditRotation?: (p: Person) => void;
     isViewer?: boolean;
 }
 
@@ -17,6 +18,7 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
     onTogglePresence,
     onTimeChange,
     onSelectPerson,
+    onEditRotation,
     isViewer = false
 }) => {
     // Optimistic state for immediate feedback
@@ -47,6 +49,10 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
     } else if (availStatus === 'departure') {
         statusLabel = 'יוצא הביתה';
         statusColor = 'bg-orange-100 text-orange-700';
+    } else if (availStatus === 'home') {
+        // Handle explicit 'home' status from rotation
+        statusLabel = 'בבית';
+        statusColor = 'bg-slate-100 text-slate-500';
     }
 
     return (
@@ -65,18 +71,23 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
                             {availStatus === 'departure' && <ChevronRight size={10} className="rotate-180" />}
                             {statusLabel}
                         </span>
-
-                        {isManualOverride && (
-                            <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 font-bold" title="שינוי ידני חריג">
-                                ידני
-                            </span>
-                        )}
                     </div>
                 </div>
             </div>
 
             {/* Controls */}
             <div className="flex items-center gap-4">
+                {/* Settings Button */}
+                {!isViewer && onEditRotation && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onEditRotation(person); }}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                        title="הגדרת סבב אישי"
+                    >
+                        <Settings size={16} />
+                    </button>
+                )}
+
                 {isAvailable && (
                     <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex flex-col items-center">

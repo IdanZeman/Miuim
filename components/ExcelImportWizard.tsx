@@ -526,7 +526,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                             };
 
                                             const teamName = getTeamName(person.teamId);
-                                            const roleNames = person.roleIds
+                                            const roleNames = (person.roleIds || [])
                                                 .map(getRoleName)
                                                 .filter(Boolean)
                                                 .join(', ');

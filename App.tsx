@@ -46,7 +46,7 @@ import { ContactPage } from './pages/ContactPage';
 
 // Disable console logs in production (non-localhost)
 if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    const noop = () => {};
+    const noop = () => { };
     console.log = noop;
     console.info = noop;
     console.warn = noop;
@@ -216,9 +216,12 @@ const MainApp: React.FC = () => {
 
     const handleUpdatePerson = async (p: Person) => {
         try {
-            await supabase.from('people').update(mapPersonToDB(p)).eq('id', p.id);
+            const { error } = await supabase.from('people').update(mapPersonToDB(p)).eq('id', p.id);
+            if (error) throw error;
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
-        } catch (e) { console.warn("DB Update Failed", e); }
+        } catch (e) {
+            console.warn("DB Update Failed:", e);
+        }
         setState(prev => ({ ...prev, people: prev.people.map(person => person.id === p.id ? p : person) }));
     };
 
@@ -768,7 +771,10 @@ const MainApp: React.FC = () => {
                                     onUnassign={handleUnassign}
                                     onAddShift={handleAddShift}
                                     onUpdateShift={handleUpdateShift}
+                                    onAddShift={handleAddShift}
+                                    onUpdateShift={handleUpdateShift}
                                     onToggleCancelShift={handleToggleCancelShift}
+                                    teamRotations={state.teamRotations}
                                 />
                             </>
                         )

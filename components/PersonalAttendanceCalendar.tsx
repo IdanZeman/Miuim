@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Person, TeamRotation } from '../types';
-import { ChevronRight, ChevronLeft, X, ArrowRight, ArrowLeft, Home, Calendar as CalendarIcon, Trash2, Clock } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, ArrowRight, ArrowLeft, Home, Calendar as CalendarIcon, Trash2, Clock, RotateCcw } from 'lucide-react';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
@@ -11,20 +11,40 @@ interface PersonalAttendanceCalendarProps {
     teamRotations: TeamRotation[];
     onClose: () => void;
     onUpdatePerson: (p: Person) => void;
+    initialShowSettings?: boolean;
 }
 
 const formatTime = (time?: string) => time?.slice(0, 5) || '';
 
-export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({ person: initialPerson, teamRotations, onClose, onUpdatePerson }) => {
+export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({ person: initialPerson, teamRotations, onClose, onUpdatePerson, initialShowSettings = false }) => {
     const [person, setPerson] = useState(initialPerson);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [editingDate, setEditingDate] = useState<Date | null>(null);
     const [editState, setEditState] = useState({ isAvailable: false, start: '00:00', end: '23:59' });
+    const [showRotationSettings, setShowRotationSettings] = useState(initialShowSettings);
 
     // Sync with prop updates
     useEffect(() => {
         setPerson(initialPerson);
     }, [initialPerson]);
+
+    // Personal Rotation State
+    const [personalRotation, setPersonalRotation] = useState({
+        isActive: person.personalRotation?.isActive || false,
+        daysOn: person.personalRotation?.daysOn || 11,
+        daysOff: person.personalRotation?.daysOff || 3,
+        startDate: person.personalRotation?.startDate || new Date().toISOString().split('T')[0]
+    });
+
+    const handleSaveRotation = () => {
+        const updatedPerson = {
+            ...person,
+            personalRotation: personalRotation
+        };
+        setPerson(updatedPerson);
+        onUpdatePerson(updatedPerson);
+        setShowRotationSettings(false);
+    };
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -40,10 +60,15 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
     const handlePrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
     const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
+    // Helper to calculate availability including personal rotation
+    const getDisplayAvailability = (date: Date) => {
+        return getEffectiveAvailability(person, date, teamRotations);
+    };
+
     // Initialize edit state when opening modal
     useEffect(() => {
         if (editingDate) {
-            const data = getEffectiveAvailability(person, editingDate, teamRotations);
+            const data = getDisplayAvailability(editingDate);
             setEditState({
                 isAvailable: data.isAvailable,
                 start: data.startHour === '00:00' ? '00:00' : data.startHour,
@@ -101,7 +126,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             const date = new Date(year, month, d);
             const isToday = new Date().toDateString() === date.toDateString();
 
-            const avail = getEffectiveAvailability(person, date, teamRotations);
+            const avail = getDisplayAvailability(date);
             const isManual = avail.source === 'manual';
             const status = (avail as any).status; // Cast for now
 
@@ -171,14 +196,24 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         <Modal isOpen={true} onClose={onClose} title={person.name} size="xl">
             <div className="flex flex-col h-full max-h-[calc(90dvh-100px)]">
                 {/* Sub-Header with Avatar and subtitle - Styled as part of content */}
-                <div className="flex items-center gap-4 mb-6">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} text-lg`}>
-                        {person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} text-lg`}>
+                            {person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-slate-700">לוח נוכחות אישי</h3>
+                            <p className="text-sm text-slate-500">צפה וערוך את הנוכחות החודשית</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="font-bold text-slate-700">לוח נוכחות אישי</h3>
-                        <p className="text-sm text-slate-500">צפה וערוך את הנוכחות החודשית</p>
-                    </div>
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        icon={RotateCcw} 
+                        onClick={() => setShowRotationSettings(true)}
+                    >
+                        הגדרת סבב אישי
+                    </Button>
                 </div>
 
                 {/* Calendar Controls */}
@@ -203,6 +238,70 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 </div>
             </div>
 
+            {/* Rotation Settings Modal */}
+            {showRotationSettings && (
+                <Modal
+                    isOpen={true}
+                    onClose={() => setShowRotationSettings(false)}
+                    title="הגדרת סבב יציאות אישי"
+                    size="sm"
+                >
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <span className="font-bold text-slate-700">סבב אישי פעיל</span>
+                            <Switch 
+                                checked={personalRotation.isActive} 
+                                onChange={(checked) => setPersonalRotation(prev => ({ ...prev, isActive: checked }))} 
+                            />
+                        </div>
+
+                        {personalRotation.isActive && (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 mb-1 block">ימים בבסיס</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={personalRotation.daysOn}
+                                            onChange={e => setPersonalRotation(prev => ({ ...prev, daysOn: parseInt(e.target.value) || 0 }))}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 mb-1 block">ימים בבית</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={personalRotation.daysOff}
+                                            onChange={e => setPersonalRotation(prev => ({ ...prev, daysOff: parseInt(e.target.value) || 0 }))}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 mb-1 block">תאריך התחלת סבב (יום ראשון בבסיס)</label>
+                                    <input
+                                        type="date"
+                                        value={personalRotation.startDate}
+                                        onChange={e => setPersonalRotation(prev => ({ ...prev, startDate: e.target.value }))}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
+                                    הגדרת סבב אישי תגבר על הסבב הצוותי המוגדר.
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button variant="ghost" onClick={() => setShowRotationSettings(false)}>ביטול</Button>
+                            <Button variant="primary" onClick={handleSaveRotation}>שמור הגדרות</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
             {/* Day Edit Modal */}
             {editingDate && (
                 <Modal
@@ -219,7 +318,14 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                                     {editState.isAvailable ? 'נוכח' : 'בבית'}
                                 </span>
                                 <button
-                                    onClick={() => setEditState(prev => ({ ...prev, isAvailable: !prev.isAvailable }))}
+                                    onClick={() => setEditState(prev => {
+                                        const nextAvailable = !prev.isAvailable;
+                                        // Always default to 00:00-23:59 when turning ON
+                                        if (nextAvailable) {
+                                            return { ...prev, isAvailable: nextAvailable, start: '00:00', end: '23:59' };
+                                        }
+                                        return { ...prev, isAvailable: nextAvailable };
+                                    })}
                                     className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${editState.isAvailable ? 'bg-green-500' : 'bg-slate-200'}`}
                                     dir="ltr"
                                 >
@@ -266,7 +372,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         )}
 
                         <div className="flex gap-3 pt-2">
-                            {getEffectiveAvailability(person, editingDate, teamRotations).source === 'manual' && (
+                            {getDisplayAvailability(editingDate).source === 'manual' && (
                                 <Button onClick={handleClearDay} variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-600 px-3" title="נקה שינוי ידני">
                                     <Trash2 size={18} />
                                 </Button>
