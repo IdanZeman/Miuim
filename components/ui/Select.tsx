@@ -12,31 +12,35 @@ interface SelectProps {
     value: string;
     onChange: (value: string) => void;
     options: SelectOption[];
+    label?: string; // Added label prop
     placeholder?: string;
     icon?: LucideIcon;
     className?: string;
     disabled?: boolean;
-    searchable?: boolean; // NEW PROP
+    searchable?: boolean;
+    containerClassName?: string;
 }
 
 export const Select: React.FC<SelectProps> = ({
     value,
     onChange,
     options,
+    label,
     placeholder = 'Select...',
     icon: Icon,
     className = '',
+    containerClassName = '',
     disabled = false,
-    searchable = false // Default off unless requested
+    searchable = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState(''); // NEW STATE
+    const [searchTerm, setSearchTerm] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
-    const searchInputRef = useRef<HTMLInputElement>(null); // NEW REF
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     useClickOutside(containerRef, () => {
         setIsOpen(false);
-        setSearchTerm(''); // Reset search on close
+        setSearchTerm('');
     });
 
     const selectedOption = options.find(opt => opt.value === value);
@@ -62,14 +66,20 @@ export const Select: React.FC<SelectProps> = ({
     }, [isOpen, searchable]);
 
     return (
-        <div className={`relative ${className}`} ref={containerRef}>
+        <div className={`relative w-full ${containerClassName}`} ref={containerRef}>
+            {label && (
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                    {label}
+                </label>
+            )}
             <button
                 type="button"
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}
-                className={`w-full py-3 pr-10 pl-10 rounded-xl border bg-white flex items-center justify-between transition-all shadow-sm text-slate-700 font-medium text-right
-                    ${isOpen ? 'ring-2 ring-blue-500 border-blue-500' : 'border-slate-300 hover:border-slate-400'}
+                className={`w-full py-2.5 pr-10 pl-10 rounded-xl border bg-white flex items-center justify-between transition-all shadow-sm text-slate-700 text-base md:text-sm text-right
+                    ${isOpen ? 'ring-4 ring-blue-50 border-blue-500' : 'border-slate-300 hover:border-slate-400'}
                     ${disabled ? 'opacity-60 cursor-not-allowed bg-slate-50' : 'cursor-pointer'}
+                    ${className}
                 `}
             >
                 <span className={`block truncate ${!selectedOption ? 'text-slate-400' : ''}`}>

@@ -80,23 +80,23 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
 
     return (
         <div className="space-y-4 md:space-y-6">
-            <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-4">
-                <div className="flex-1">
+            <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-4 max-w-2xl">
+                <div className="flex-1 w-full md:w-auto">
                     <Input
                         type="time"
                         label="התחלת משמרת לילה"
                         value={start}
                         onChange={e => setStart(e.target.value)}
-                        className="text-right" // Native time input alignment
+                        className="text-right w-full"
                     />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 w-full md:w-auto">
                     <Input
                         type="time"
                         label="סיום משמרת לילה"
                         value={end}
                         onChange={e => setEnd(e.target.value)}
-                        className="text-right"
+                        className="text-right w-full"
                     />
                 </div>
             </div>
@@ -125,7 +125,8 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                     onClick={handleSave}
                     isLoading={saving}
                     icon={Save}
-                    className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 border-transparent text-white shadow-md"
+                    variant="primary"
+                    className="w-full sm:w-auto shadow-md"
                 >
                     {saving ? 'שומר...' : 'שמור שינויים'}
                 </Button>
@@ -369,7 +370,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                     <h2 className="text-lg md:text-2xl font-bold text-slate-800">הזמן משתמש חדש</h2>
                 </div>
 
-                <form onSubmit={handleSendInvite} className="space-y-3 md:space-y-4">
+                <form onSubmit={handleSendInvite} className="space-y-3 md:space-y-4 max-w-3xl">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         <Input
                             label="כתובת אימייל"
@@ -404,8 +405,9 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                         disabled={sending || !inviteEmail.trim()}
                         isLoading={sending}
                         icon={Mail}
-                        fullWidth
-                        className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 border-transparent text-white shadow-lg"
+                        fullWidth={false}
+                        variant="primary"
+                        className="w-full md:w-auto shadow-md"
                     >
                         {sending ? 'שולח...' : 'שלח הזמנה'}
                     </Button>
@@ -430,13 +432,14 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                         <p className="text-xs md:text-sm text-slate-600">{getRoleDisplayName(invite.role)}</p>
                                     </div>
                                 </div>
-                                <button
+                                <Button
                                     onClick={() => handleDeleteInvite(invite.id)}
-                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                                    variant="ghost"
+                                    className="text-red-500 hover:bg-red-50 hover:text-red-600 p-2 h-auto w-auto"
                                     title="מחק הזמנה"
                                 >
                                     <Trash2 size={16} />
-                                </button>
+                                </Button>
                             </div>
                         ))}
                     </div>
@@ -457,6 +460,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                             onChange={(e) => setSearchTerm(e.target.value)}
                             icon={Search}
                             className="rounded-full"
+                            containerClassName="max-w-xs"
                         />
                     </div>
                 </div>
@@ -612,10 +616,15 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
 
     const copyToClipboard = () => {
         const link = `${window.location.origin}/join/${inviteToken}`;
-        navigator.clipboard.writeText(link);
-        setCopied(true);
-        showToast('הקישור הועתק ללוח', 'success');
-        setTimeout(() => setCopied(false), 2000);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(link);
+            setCopied(true);
+            showToast('הקישור הועתק ללוח', 'success');
+            setTimeout(() => setCopied(false), 2000);
+        } else {
+            // Fallback
+            showToast('שגיאה בהעתקה, נא להעתיק ידנית', 'error');
+        }
     };
 
     const getRoleDescription = (role: UserRole) => {
@@ -688,13 +697,14 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                                     {`${window.location.origin}/join/${inviteToken}`}
                                 </div>
                                 <div className="w-px h-8 bg-slate-100 mx-1"></div>
-                                <button
+                                <Button
                                     onClick={copyToClipboard}
-                                    className="p-2 hover:bg-slate-50 rounded-lg transition-all text-slate-500 hover:text-blue-600 hover:shadow-sm active:scale-95"
+                                    variant="ghost"
+                                    className="text-slate-500 hover:text-blue-600 p-2 h-auto w-auto"
                                     title="העתק קישור"
                                 >
                                     {copied ? <CheckCircle size={20} className="text-green-500" /> : <Copy size={20} />}
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
