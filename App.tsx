@@ -771,8 +771,6 @@ const MainApp: React.FC = () => {
                                     onUnassign={handleUnassign}
                                     onAddShift={handleAddShift}
                                     onUpdateShift={handleUpdateShift}
-                                    onAddShift={handleAddShift}
-                                    onUpdateShift={handleUpdateShift}
                                     onToggleCancelShift={handleToggleCancelShift}
                                     teamRotations={state.teamRotations}
                                 />

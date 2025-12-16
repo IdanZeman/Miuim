@@ -12,6 +12,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   checkAccess: (screen: ViewMode, requiredLevel?: 'view' | 'edit') => boolean;
+  isFetchingProfile: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -235,7 +236,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const timeoutPromise = new Promise<{ data: { session: null }; timeout: boolean }>((resolve) => {
           setTimeout(() => {
             resolve({ data: { session: null }, timeout: true });
-          }, 8000);
+          }, 20000); // Increased from 8000 to 20000
         });
 
         // Race
@@ -254,7 +255,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userTimeoutPromise = new Promise<{ data: { user: null }; error: any }>((resolve) => {
             setTimeout(() => {
               resolve({ data: { user: null }, error: { message: "Timeout" } });
-            }, 5000);
+            }, 10000); // Increased from 5000 to 10000
           });
 
           const userResult: any = await Promise.race([
@@ -383,7 +384,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, organization, loading, signOut, refreshProfile, checkAccess }}>
+    <AuthContext.Provider value={{ user, profile, organization, loading, signOut, refreshProfile, checkAccess, isFetchingProfile }}>
       {children}
     </AuthContext.Provider>
   );
