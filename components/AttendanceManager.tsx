@@ -344,6 +344,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     person={selectedPersonForCalendar}
                     teamRotations={teamRotations}
                     onClose={() => setSelectedPersonForCalendar(null)}
+                    onUpdatePerson={onUpdatePerson}
                 />
             )}
         </div>
