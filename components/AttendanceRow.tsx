@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Person } from '../types';
-import { ChevronRight, ChevronLeft, CalendarDays } from 'lucide-react';
-import { Switch } from './ui/Switch';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface AttendanceRowProps {
     person: Person;
-    availability: any; // Using any for brevity given the complex type, but should be strictly typed
+    availability: any;
     onTogglePresence: (p: Person) => void;
     onTimeChange: (p: Person, field: 'startHour' | 'endHour', value: string) => void;
     onSelectPerson: (p: Person) => void;
@@ -14,40 +13,32 @@ interface AttendanceRowProps {
 
 export const AttendanceRow: React.FC<AttendanceRowProps> = ({
     person,
-    availability: initialAvailability,
+    availability,
     onTogglePresence,
     onTimeChange,
     onSelectPerson,
     isViewer = false
 }) => {
-    // Local optimistic state
-    const [optimisticAvailability, setOptimisticAvailability] = useState(initialAvailability);
+    // Optimistic state for immediate feedback
+    const [isAvailable, setIsAvailable] = useState(availability.isAvailable);
 
-    // Sync with props when they change (server/parent update confirmed)
+    // Sync with props when they change from parent
     useEffect(() => {
-        setOptimisticAvailability(initialAvailability);
-    }, [initialAvailability]);
+        setIsAvailable(availability.isAvailable);
+    }, [availability.isAvailable]);
 
     const handleToggle = () => {
         if (isViewer) return;
-
-        // Optimistic update
-        const newIsAvailable = !optimisticAvailability.isAvailable;
-        setOptimisticAvailability(prev => ({
-            ...prev,
-            isAvailable: newIsAvailable
-        }));
-
-        // Actual update
+        setIsAvailable(!isAvailable); // Immediate visual update
         onTogglePresence(person);
     };
 
-    const isManualOverride = optimisticAvailability.source === 'manual';
+    const isManualOverride = availability.source === 'manual';
     let statusLabel = 'נוכח';
     let statusColor = 'bg-green-100 text-green-700';
-    const availStatus = optimisticAvailability.status;
+    const availStatus = availability.status;
 
-    if (!optimisticAvailability.isAvailable) {
+    if (!isAvailable) {
         statusLabel = 'בבית';
         statusColor = 'bg-slate-100 text-slate-500';
     } else if (availStatus === 'arrival') {
@@ -59,7 +50,7 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
     }
 
     return (
-        <div className={`p-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-colors ${optimisticAvailability.isAvailable ? 'bg-white' : 'bg-slate-50/50 opacity-90'}`}>
+        <div className={`p-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-colors ${isAvailable ? 'bg-white' : 'bg-slate-50/50 opacity-90'}`}>
             {/* Person Info */}
             <div className="flex items-center gap-4 flex-1 w-full md:w-auto cursor-pointer hover:bg-slate-50 p-2 rounded-lg transition-colors group" onClick={() => onSelectPerson(person)}>
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} group-hover:ring-4 ring-slate-100 transition-all text-sm`}>
@@ -86,17 +77,14 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
 
             {/* Controls */}
             <div className="flex items-center gap-4">
-                {optimisticAvailability.isAvailable && (
+                {isAvailable && (
                     <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex flex-col items-center">
                             <span className="text-[10px] text-slate-400 font-medium tracking-wide">התחלה</span>
                             <input
                                 type="time"
-                                value={optimisticAvailability.startHour}
-                                onChange={e => {
-                                    setOptimisticAvailability(prev => ({ ...prev, startHour: e.target.value })); // Immediate local feedback
-                                    onTimeChange(person, 'startHour', e.target.value);
-                                }}
+                                value={availability.startHour}
+                                onChange={e => onTimeChange(person, 'startHour', e.target.value)}
                                 className="bg-slate-50 rounded px-1 text-sm font-bold text-slate-700 w-20 text-center focus:outline-none focus:ring-1 focus:ring-blue-200 ltr-input"
                                 disabled={isViewer}
                             />
@@ -106,11 +94,8 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
                             <span className="text-[10px] text-slate-400 font-medium tracking-wide">סיום</span>
                             <input
                                 type="time"
-                                value={optimisticAvailability.endHour}
-                                onChange={e => {
-                                    setOptimisticAvailability(prev => ({ ...prev, endHour: e.target.value })); // Immediate local feedback
-                                    onTimeChange(person, 'endHour', e.target.value);
-                                }}
+                                value={availability.endHour}
+                                onChange={e => onTimeChange(person, 'endHour', e.target.value)}
                                 className="bg-slate-50 rounded px-1 text-sm font-bold text-slate-700 w-20 text-center focus:outline-none focus:ring-1 focus:ring-blue-200 ltr-input"
                                 disabled={isViewer}
                             />
@@ -120,11 +105,16 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
 
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2" dir="ltr">
-                        <Switch
-                            checked={!!optimisticAvailability.isAvailable}
-                            onChange={handleToggle}
+                        <button
+                            onClick={handleToggle}
+                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${isAvailable ? 'bg-green-500' : 'bg-slate-200'}`}
                             disabled={isViewer}
-                        />
+                            dir="ltr"
+                        >
+                            <span
+                                className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transform transition-transform duration-200 ease-in-out ${isAvailable ? 'translate-x-5' : 'translate-x-0'}`}
+                            />
+                        </button>
                     </div>
                 </div>
             </div>

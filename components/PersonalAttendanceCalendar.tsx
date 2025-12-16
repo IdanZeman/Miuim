@@ -224,7 +224,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                                     dir="ltr"
                                 >
                                     <span
-                                        className={`absolute top-0.5 right-0.5 bg-white w-5 h-5 rounded-full shadow transform transition-transform duration-200 ease-in-out ${editState.isAvailable ? '-translate-x-5' : 'translate-x-0'}`}
+                                        className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transform transition-transform duration-200 ease-in-out ${editState.isAvailable ? 'translate-x-5' : 'translate-x-0'}`}
                                     />
                                 </button>
                             </div>
