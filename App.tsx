@@ -43,6 +43,8 @@ import { EmptyStateGuide } from './components/EmptyStateGuide';
 import { ConstraintsManager } from './components/ConstraintsManager';
 import { ToastProvider } from './contexts/ToastContext';
 import { ContactPage } from './pages/ContactPage';
+import { SupportTicketsPage } from './pages/SupportTicketsPage';
+import { SystemManagementPage } from './pages/SystemManagementPage'; // NEW
 
 // Disable console logs in production (non-localhost)
 if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -60,7 +62,7 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 const MainApp: React.FC = () => {
     const { organization, user, profile, checkAccess } = useAuth();
     const { showToast } = useToast();
-    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints'>('home');
+    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system'>('home');
 
     // Check for import wizard flag from onboarding
     useEffect(() => {
@@ -729,6 +731,9 @@ const MainApp: React.FC = () => {
             case 'lottery': return <Lottery people={state.people} teams={state.teams} roles={state.roles} />;
             case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} onUpdateConstraint={handleUpdateConstraint} />;
             case 'contact': return <ContactPage />;
+            case 'tickets': return <SystemManagementPage />; // Redirect legacy tickets route
+            case 'logs': return <SystemManagementPage />; // Redirect legacy logs route
+            case 'system': return <SystemManagementPage />; // NEW
             default: return (
                 <div className="space-y-6">
                     {checkAccess('dashboard', 'edit') && (

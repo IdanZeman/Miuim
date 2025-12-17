@@ -54,6 +54,7 @@ export const ContactPage: React.FC = () => {
                 .insert({
                     name,
                     phone,
+                    email: user?.email || null, // Capture user email
                     message,
                     image_url: imageUrl,
                     user_id: user?.id || null

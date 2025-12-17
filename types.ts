@@ -190,3 +190,19 @@ export interface AppState {
   constraints: SchedulingConstraint[];
   teamRotations: TeamRotation[]; // NEW
 }
+
+export type TicketStatus = 'new' | 'in_progress' | 'resolved';
+
+export interface ContactMessage {
+  id: string;
+  user_id?: string;
+  name: string;
+  phone?: string;
+  email?: string; // New column
+  message: string;
+  image_url?: string;
+  created_at: string;
+  status: TicketStatus; // New column
+  admin_notes?: string; // New column
+  updated_at?: string; // New column
+}
