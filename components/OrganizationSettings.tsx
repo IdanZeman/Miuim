@@ -615,6 +615,8 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
     };
 
     const handleRoleChange = async (newRole: UserRole) => {
+        const previousRole = defaultRole;
+        setDefaultRole(newRole); // Optimistic update
         setLoading(true);
         try {
             const { error } = await supabase
@@ -623,10 +625,10 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                 .eq('id', organization.id);
 
             if (error) throw error;
-            setDefaultRole(newRole);
         } catch (error) {
             console.error('Error updating default role:', error);
             showToast('שגיאה בעדכון הרשאת ברירת מחדל', 'error');
+            setDefaultRole(previousRole); // Revert on error
         } finally {
             setLoading(false);
         }
