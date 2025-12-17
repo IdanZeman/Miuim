@@ -38,11 +38,25 @@ export const Select: React.FC<SelectProps> = ({
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [position, setPosition] = useState({ top: 0, left: 0, width: 0, isTop: false }); // NEW
+    const [position, setPosition] = useState({ top: 0, left: 0, width: 0, isTop: false });
     const containerRef = useRef<HTMLDivElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null); // NEW: Ref for portal
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    useClickOutside(containerRef, () => {
+    useClickOutside(containerRef, (e) => {
+        // Simple Debug
+        const isInsideDropdown = dropdownRef.current && dropdownRef.current.contains(e.target as Node);
+        console.log('[Select] Click outside handler.', {
+            target: e.target,
+            isInsideContainer: containerRef.current?.contains(e.target as Node),
+            isInsideDropdown
+        });
+
+        // If click is inside the dropdown portal, ignore it
+        if (isInsideDropdown) {
+            return;
+        }
+        console.log('[Select] Closing dropdown due to outside click');
         setIsOpen(false);
         setSearchTerm('');
     });
@@ -57,6 +71,7 @@ export const Select: React.FC<SelectProps> = ({
     }, [options, searchTerm]);
 
     const handleSelect = (val: string) => {
+        console.log('[Select] Option clicked:', val); // DEBUG
         onChange(val);
         setIsOpen(false);
         setSearchTerm('');
@@ -104,16 +119,10 @@ export const Select: React.FC<SelectProps> = ({
         if (!isOpen) return;
 
         const handleScroll = () => {
-            updatePosition(); // Keep it attached or close it? 
-            // Better to close on scroll to avoid "floating" issues if simple implementation
-            // But user asked for "doesn't matter how screen is", so let's try to update.
-            // Actually, updating is hard because "rect" moves.
-            // Simpler: Close on window scroll/resize, or use a library.
-            // Let's stick to updatePosition.
             updatePosition();
         };
 
-        window.addEventListener('scroll', handleScroll, true); // Capture phase for all scrollable parents
+        window.addEventListener('scroll', handleScroll, true);
         window.addEventListener('resize', handleScroll);
 
         return () => {
@@ -159,6 +168,7 @@ export const Select: React.FC<SelectProps> = ({
             {/* Portal Dropdown Menu */}
             {isOpen && createPortal(
                 <div
+                    ref={dropdownRef} // NEW: Attach ref here
                     className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top"
                     style={{
                         top: position.isTop ? 'auto' : position.top,
