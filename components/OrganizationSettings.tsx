@@ -615,16 +615,28 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
     };
 
     const handleRoleChange = async (newRole: UserRole) => {
+        console.log(' [DEBUG] handleRoleChange triggered with:', newRole);
         const previousRole = defaultRole;
         setDefaultRole(newRole); // Optimistic update
         setLoading(true);
         try {
-            const { error } = await supabase
+            console.log(' [DEBUG] Sending update to Supabase...', {
+                id: organization.id,
+                invite_link_role: newRole
+            });
+
+            const { data, error } = await supabase
                 .from('organizations')
                 .update({ invite_link_role: newRole })
-                .eq('id', organization.id);
+                .eq('id', organization.id)
+                .select(); // Add select to see what happened
 
-            if (error) throw error;
+            if (error) {
+                console.error(' [DEBUG] Supabase Update Error:', error);
+                throw error;
+            }
+            console.log(' [DEBUG] Supabase Update Success. Returned data:', data);
+
         } catch (error) {
             console.error('Error updating default role:', error);
             showToast('שגיאה בעדכון הרשאת ברירת מחדל', 'error');
