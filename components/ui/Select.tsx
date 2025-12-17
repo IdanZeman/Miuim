@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom'; // NEW
 import { ChevronDown, Check, Search, LucideIcon } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
@@ -19,6 +20,7 @@ interface SelectProps {
     disabled?: boolean;
     searchable?: boolean;
     containerClassName?: string;
+    direction?: 'top' | 'bottom';
 }
 
 export const Select: React.FC<SelectProps> = ({
@@ -31,10 +33,12 @@ export const Select: React.FC<SelectProps> = ({
     className = '',
     containerClassName = '',
     disabled = false,
-    searchable = false
+    searchable = false,
+    direction = 'bottom'
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [position, setPosition] = useState({ top: 0, left: 0, width: 0, isTop: false }); // NEW
     const containerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +69,59 @@ export const Select: React.FC<SelectProps> = ({
         }
     }, [isOpen, searchable]);
 
+    // Calculate position on open
+    const updatePosition = () => {
+        if (containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            const MENU_HEIGHT = 200; // Estimated max height
+
+            // Decide direction: prefer bottom unless space below is small AND space above is larger
+            const showTop = (spaceBelow < MENU_HEIGHT && spaceAbove > spaceBelow);
+
+            setPosition({
+                top: showTop ? rect.top - 4 : rect.bottom + 4,
+                left: rect.left,
+                width: rect.width,
+                isTop: showTop
+            });
+        }
+    };
+
+    const toggleOpen = () => {
+        if (disabled) return;
+        if (!isOpen) {
+            updatePosition();
+            setIsOpen(true);
+        } else {
+            setIsOpen(false);
+        }
+    };
+
+    // Update position on scroll/resize if open
+    React.useEffect(() => {
+        if (!isOpen) return;
+
+        const handleScroll = () => {
+            updatePosition(); // Keep it attached or close it? 
+            // Better to close on scroll to avoid "floating" issues if simple implementation
+            // But user asked for "doesn't matter how screen is", so let's try to update.
+            // Actually, updating is hard because "rect" moves.
+            // Simpler: Close on window scroll/resize, or use a library.
+            // Let's stick to updatePosition.
+            updatePosition();
+        };
+
+        window.addEventListener('scroll', handleScroll, true); // Capture phase for all scrollable parents
+        window.addEventListener('resize', handleScroll);
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll, true);
+            window.removeEventListener('resize', handleScroll);
+        };
+    }, [isOpen]);
+
     return (
         <div className={`relative w-full ${containerClassName}`} ref={containerRef}>
             {label && (
@@ -74,10 +131,10 @@ export const Select: React.FC<SelectProps> = ({
             )}
             <button
                 type="button"
-                onClick={() => !disabled && setIsOpen(!isOpen)}
+                onClick={toggleOpen}
                 disabled={disabled}
                 className={`w-full py-2.5 pr-10 pl-10 rounded-xl border bg-white flex items-center justify-between transition-all shadow-sm text-slate-700 text-base md:text-sm text-right
-                    ${isOpen ? 'ring-4 ring-blue-50 border-blue-500' : 'border-slate-300 hover:border-slate-400'}
+                    ${isOpen ? 'ring-2 ring-blue-100 border-blue-500' : 'border-slate-300 hover:border-slate-400'}
                     ${disabled ? 'opacity-60 cursor-not-allowed bg-slate-50' : 'cursor-pointer'}
                     ${className}
                 `}
@@ -86,7 +143,7 @@ export const Select: React.FC<SelectProps> = ({
                     {selectedOption ? selectedOption.label : placeholder}
                 </span>
 
-                {/* Left Icon (if provided) */}
+                {/* Left Icon */}
                 {Icon && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
                         <Icon size={18} />
@@ -99,11 +156,19 @@ export const Select: React.FC<SelectProps> = ({
                 </div>
             </button>
 
-            {/* Dropdown Menu */}
-            {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top">
-
-                    {/* Search Input (Conditionally Rendered) */}
+            {/* Portal Dropdown Menu */}
+            {isOpen && createPortal(
+                <div
+                    className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top"
+                    style={{
+                        top: position.isTop ? 'auto' : position.top,
+                        bottom: position.isTop ? (window.innerHeight - position.top) : 'auto',
+                        left: position.left,
+                        width: position.width,
+                        maxHeight: '200px'
+                    }}
+                >
+                    {/* Search Input */}
                     {searchable && (
                         <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10">
                             <div className="relative">
@@ -114,8 +179,9 @@ export const Select: React.FC<SelectProps> = ({
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     placeholder="חיפוש..."
-                                    className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans"
+                                    className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-sans"
                                     onClick={(e) => e.stopPropagation()}
+                                    autoFocus
                                 />
                             </div>
                         </div>
@@ -149,7 +215,8 @@ export const Select: React.FC<SelectProps> = ({
                             </div>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

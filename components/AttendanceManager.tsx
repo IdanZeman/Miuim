@@ -109,7 +109,19 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
     let peopleByTeam = teams.map(team => ({
         team,
-        members: filteredPeople.filter(p => p.teamId === team.id)
+        members: filteredPeople
+            .filter(p => p.teamId === team.id)
+            .sort((a, b) => {
+                const availA = getEffectiveAvailability(a, selectedDate, teamRotations);
+                const availB = getEffectiveAvailability(b, selectedDate, teamRotations);
+
+                // Sort by Availability (Available first)
+                if (availA.isAvailable && !availB.isAvailable) return -1;
+                if (!availA.isAvailable && availB.isAvailable) return 1;
+
+                // Secondary sort by name
+                return a.name.localeCompare(b.name);
+            })
     }));
 
     const noTeamMembers = filteredPeople.filter(p => !p.teamId || !teams.find(t => t.id === p.teamId));
@@ -184,6 +196,17 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         setSelectedPersonIds(new Set());
     };
 
+    const handleQuickBulkUpdate = (isAvailable: boolean) => {
+        const dateStr = selectedDate.toLocaleDateString('en-CA');
+        handleBulkApply({
+            startDate: dateStr,
+            endDate: dateStr,
+            isAvailable,
+            startHour: isAvailable ? '00:00' : '00:00',
+            endHour: isAvailable ? '23:59' : '00:00'
+        });
+    };
+
     const handleUpdatePersonalRotation = (rotationSettings: any) => {
         if (!editingPersonalRotation) return;
         const updatedPerson = {
@@ -213,25 +236,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {viewMode === 'day_detail' && !isBulkMode && (
-                        <button
-                            onClick={() => setIsBulkMode(true)}
-                            className="flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors font-bold"
-                        >
-                            <ListChecks size={20} />
-                            עריכה קבוצתית
-                        </button>
-                    )}
-
-                    {viewMode === 'day_detail' && !isBulkMode && (
-                        <button
-                            onClick={handleBackToCalendar}
-                            className="flex items-center gap-2 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors font-bold"
-                        >
-                            <ArrowRight size={20} />
-                            חזרה ללוח שנה
-                        </button>
-                    )}
+                    {/* Buttons moved to secondary toolbar */}
                 </div>
             </div>
 
@@ -247,13 +252,37 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             {selectedPersonIds.size === filteredPeople.length ? 'בטל בחירה' : 'בחר הכל'}
                         </button>
                     </div>
-                    <button
-                        onClick={() => selectedPersonIds.size > 0 && setShowBulkModal(true)}
-                        disabled={selectedPersonIds.size === 0}
-                        className={`font-bold bg-white text-blue-600 px-6 py-2 rounded-lg shadow-sm transition-all ${selectedPersonIds.size === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
-                    >
-                        ערוך נבחרים
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => selectedPersonIds.size > 0 && setShowBulkModal(true)}
+                            disabled={selectedPersonIds.size === 0}
+                            className={`px-3 py-2 rounded-lg text-blue-100 hover:bg-blue-700 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium ${selectedPersonIds.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            title="אפשרויות מתקדמות"
+                        >
+                            <Settings size={16} />
+                            <span className="hidden md:inline">מתקדם</span>
+                        </button>
+
+                        <div className="h-6 w-px bg-blue-500 mx-2"></div>
+
+                        <button
+                            onClick={() => selectedPersonIds.size > 0 && handleQuickBulkUpdate(false)}
+                            disabled={selectedPersonIds.size === 0}
+                            className={`flex items-center gap-2 bg-red-100 text-red-700 hover:bg-red-200 px-4 py-2 rounded-lg transition-colors font-bold shadow-sm ${selectedPersonIds.size === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                        >
+                            <XCircle size={18} />
+                            לא נמצאים
+                        </button>
+
+                        <button
+                            onClick={() => selectedPersonIds.size > 0 && handleQuickBulkUpdate(true)}
+                            disabled={selectedPersonIds.size === 0}
+                            className={`flex items-center gap-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-4 py-2 rounded-lg transition-colors font-bold shadow-sm ${selectedPersonIds.size === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                        >
+                            <CheckCircle2 size={18} />
+                            נמצאים
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -274,27 +303,51 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         {!isBulkMode && (
                             <div className="bg-white rounded-xl shadow-sm p-4 flex flex-col md:flex-row justify-between items-center gap-4 border border-slate-100 shrink-0">
                                 <div className="flex items-center gap-4">
-                                    <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() - 1)))} className="p-2 hover:bg-slate-50 rounded-md text-slate-600 transition-colors border border-slate-200">
-                                        <ChevronRight size={20} />
-                                    </button>
+                                    {/* Back Button (Right of Date) */}
+                                    {viewMode === 'day_detail' && !isBulkMode && (
+                                        <button
+                                            onClick={handleBackToCalendar}
+                                            className="flex items-center gap-2 text-slate-600 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors font-bold border border-transparent hover:border-slate-200"
+                                            title="חזרה ללוח שנה"
+                                        >
+                                            <ArrowRight size={20} />
+                                            <span className="hidden md:inline">חזרה ללוח</span>
+                                        </button>
+                                    )}
 
-                                    <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-1.5 min-w-[160px] justify-center group hover:bg-white hover:border-blue-300 transition-colors">
-                                        <span className="text-lg font-bold text-slate-700 pointer-events-none pl-6">
-                                            {selectedDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                        </span>
-                                        <input
-                                            ref={dateInputRef}
-                                            type="date"
-                                            value={dateKey}
-                                            onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                        />
-                                        <CalendarDays className="absolute left-3 text-slate-400 group-hover:text-blue-500 transition-colors pointer-events-none" size={16} />
+                                    <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200">
+                                        <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() - 1)))} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-slate-600 transition-all">
+                                            <ChevronRight size={18} />
+                                        </button>
+
+                                        <div className="relative flex items-center justify-center px-4 min-w-[140px] group cursor-pointer">
+                                            <span className="text-lg font-bold text-slate-700 pointer-events-none">
+                                                {selectedDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                            </span>
+                                            <input
+                                                ref={dateInputRef}
+                                                type="date"
+                                                value={dateKey}
+                                                onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                            />
+                                        </div>
+
+                                        <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() + 1)))} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-slate-600 transition-all">
+                                            <ChevronLeft size={18} />
+                                        </button>
                                     </div>
 
-                                    <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() + 1)))} className="p-2 hover:bg-slate-50 rounded-md text-slate-600 transition-colors border border-slate-200">
-                                        <ChevronLeft size={20} />
-                                    </button>
+                                    {/* Bulk Edit Button (Left of Date) */}
+                                    {viewMode === 'day_detail' && !isBulkMode && (
+                                        <button
+                                            onClick={() => setIsBulkMode(true)}
+                                            className="flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors font-bold border border-slate-200"
+                                        >
+                                            <ListChecks size={18} />
+                                            <span className="hidden md:inline">עריכה קבוצתית</span>
+                                        </button>
+                                    )}
                                 </div>
                                 <div className="w-full md:w-64">
                                     <Input
@@ -393,6 +446,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                                                         }}
                                                                         onEditRotation={(p) => setEditingPersonalRotation(p)}
                                                                         isViewer={isViewer || isBulkMode} // Disable row interactions in bulk mode
+                                                                        teamColor={team.color} // NEW
                                                                     />
                                                                 </div>
                                                             </div>

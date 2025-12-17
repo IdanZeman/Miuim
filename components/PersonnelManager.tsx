@@ -248,6 +248,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             onChange={(val) => setNewTeamId(val)}
                             options={[{ value: '', label: 'בחר צוות...' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
                             placeholder="בחר צוות..."
+                            direction="top" // NEW
                         />
                     </div>
                     {/* Active Toggle */}
@@ -423,7 +424,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                 <div key={person.id} className="bg-white border border-slate-100 rounded-xl p-3 md:p-4 hover:shadow-md transition-all group">
                                                     <div className="flex justify-between items-start">
                                                         <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                                            <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0 ${person.color}`}>{getPersonInitials(person.name)}</div>
+                                                            <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0 ${team.color ? team.color.replace('border-', 'bg-') : person.color}`}>{getPersonInitials(person.name)}</div>
                                                             <div className="min-w-0 flex-1">
                                                                 <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">
                                                                     {person.name}

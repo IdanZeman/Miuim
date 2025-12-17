@@ -145,6 +145,8 @@ const MainApp: React.FC = () => {
             const { data: constraintsData } = await supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id);
             const { data: rotationsData } = await supabase.from('team_rotations').select('*').eq('organization_id', organization.id); // NEW
 
+            console.log("DEBUG: Raw People Data:", peopleData);
+
             let mappedPeople = (peopleData || []).map(mapPersonFromDB);
             let mappedShifts = (shiftsData || []).map(mapShiftFromDB);
             let mappedTeams = (teamsData || []).map(mapTeamFromDB);
@@ -251,6 +253,7 @@ const MainApp: React.FC = () => {
 
         } catch (e) {
             console.warn("Bulk DB Update Failed", e);
+            showToast("שגיאה בעדכון קבוצתי", 'error');
             // Revert on failure? Ideally yes, but keeping it simple for now as we trust optimistic
         }
     };

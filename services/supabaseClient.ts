@@ -28,31 +28,32 @@ export const mapPersonFromDB = (p: any): Person => {
         name: p.name,
         phone: p.phone, // NEW
         isActive: p.is_active !== false, // NEW: Default to true if null/undefined
-        roleId: p.role_id,
-        roleIds: p.role_ids || [], // NEW: Map role_ids from DB
-        teamId: p.team_id,
-        userId: p.user_id,
-        color: p.color || 'bg-blue-500',
-        maxShiftsPerWeek: p.max_shifts_per_week || 5,
-        dailyAvailability,
-        personalRotation
-    };
+    roleId: p.role_id || (p.role_ids && p.role_ids[0]) || '',
+    roleIds: p.role_ids || [], // NEW: Map role_ids from DB
+    teamId: p.team_id,
+    userId: p.user_id,
+    color: p.color || 'bg-blue-500',
+    maxShiftsPerWeek: p.max_shifts_per_week || 5,
+    dailyAvailability,
+    personalRotation,
+    organization_id: p.organization_id // NEW: Map organization_id
+};
 };
 
 export const mapPersonToDB = (p: Person) => ({
-    id: p.id,
-    name: p.name,
-    phone: p.phone, // NEW
-    is_active: p.isActive, // NEW
-    role_id: p.roleId,
-    role_ids: p.roleIds, // NEW: Map roleIds to DB
-    team_id: p.teamId,
-    user_id: p.userId,
+id: p.id,
+name: p.name,
+phone: p.phone, // NEW
+is_active: p.isActive, // NEW
+// role_id removed as it doesn't exist in DB schema
+role_ids: (p.roleIds && p.roleIds.length > 0) ? p.roleIds : (p.roleId ? [p.roleId] : []),
+team_id: p.teamId,
+user_id: p.userId,
     color: p.color,
     max_shifts_per_week: p.maxShiftsPerWeek,
     daily_availability: p.dailyAvailability,
     personal_rotation: p.personalRotation === undefined ? null : p.personalRotation,
-    organization_id: (p as any).organization_id
+    organization_id: p.organization_id
 });
 
 // Teams

@@ -10,6 +10,7 @@ interface AttendanceRowProps {
     onSelectPerson: (p: Person) => void;
     onEditRotation?: (p: Person) => void;
     isViewer?: boolean;
+    teamColor?: string; // NEW
 }
 
 export const AttendanceRow: React.FC<AttendanceRowProps> = ({
@@ -19,7 +20,8 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
     onTimeChange,
     onSelectPerson,
     onEditRotation,
-    isViewer = false
+    isViewer = false,
+    teamColor // NEW
 }) => {
     // Optimistic state for immediate feedback
     const [isAvailable, setIsAvailable] = useState(availability.isAvailable);
@@ -59,7 +61,7 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
         <div className={`p-4 flex flex-col md:flex-row items-center justify-between gap-4 transition-colors ${isAvailable ? 'bg-white' : 'bg-slate-50/50 opacity-90'}`}>
             {/* Person Info */}
             <div className="flex items-center gap-4 flex-1 w-full md:w-auto cursor-pointer hover:bg-slate-50 p-2 rounded-lg transition-colors group" onClick={() => onSelectPerson(person)}>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} group-hover:ring-4 ring-slate-100 transition-all text-sm`}>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${teamColor ? teamColor.replace('border-', 'bg-') : person.color} group-hover:ring-4 ring-slate-100 transition-all text-sm`}>
                     {person.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                 </div>
                 <div className="flex flex-col justify-center">
@@ -79,7 +81,7 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
             <div className="flex items-center gap-4">
                 {/* Settings Button */}
                 {!isViewer && onEditRotation && (
-                    <button 
+                    <button
                         onClick={(e) => { e.stopPropagation(); onEditRotation(person); }}
                         className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
                         title="הגדרת סבב אישי"

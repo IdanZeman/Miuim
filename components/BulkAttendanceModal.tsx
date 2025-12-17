@@ -1,149 +1,118 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react';
-import { Person } from '../types';
+import { Modal } from './ui/Modal';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Select } from './ui/Select';
+import { Switch } from './ui/Switch';
+import { Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
 interface BulkAttendanceModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onApply: (data: {
-        startDate: string;
-        endDate: string;
-        isAvailable: boolean;
-        startHour: string;
-        endHour: string;
-        reason?: string
-    }) => void;
+    onApply: (data: { startDate: string; endDate: string; isAvailable: boolean; startHour: string; endHour: string; reason?: string }) => void;
     selectedCount: number;
 }
 
 export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen, onClose, onApply, selectedCount }) => {
-    if (!isOpen) return null;
-
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-    const [isAvailable, setIsAvailable] = useState(true);
-    const [startHour, setStartHour] = useState('08:00');
-    const [endHour, setEndHour] = useState('17:00');
+    const [status, setStatus] = useState<'available' | 'away'>('away'); // Default to away as that's the common use case
+    const [startHour, setStartHour] = useState('00:00');
+    const [endHour, setEndHour] = useState('23:59');
     const [reason, setReason] = useState('');
 
-    const handleSubmit = () => {
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
         onApply({
             startDate,
             endDate,
-            isAvailable,
-            startHour: isAvailable ? startHour : '00:00',
-            endHour: isAvailable ? endHour : '00:00',
+            isAvailable: status === 'available',
+            startHour: status === 'available' ? startHour : '00:00',
+            endHour: status === 'available' ? endHour : '00:00',
             reason
         });
         onClose();
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-scaleIn">
-                <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                    <h3 className="font-bold text-lg text-slate-800">עריכה קבוצתית ({selectedCount} נבחרים)</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-                        <X size={20} />
+        <Modal isOpen={isOpen} onClose={onClose} title={`עריכה קבוצתית (${selectedCount} נבחרים)`}>
+            <form onSubmit={handleSubmit} className="space-y-6">
+
+                {/* Status Selection */}
+                <div className="grid grid-cols-2 gap-4">
+                    <button
+                        type="button"
+                        onClick={() => setStatus('available')}
+                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${status === 'available' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-200 hover:border-slate-300 text-slate-500'}`}
+                    >
+                        <CheckCircle2 size={32} className="mb-2" />
+                        <span className="font-bold">נוכח / זמין</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setStatus('away')}
+                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${status === 'away' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-200 hover:border-slate-300 text-slate-500'}`}
+                    >
+                        <XCircle size={32} className="mb-2" />
+                        <span className="font-bold">לא נוכח / חופש</span>
                     </button>
                 </div>
 
-                <div className="p-6 space-y-6">
-                    {/* Status Selection */}
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => setIsAvailable(true)}
-                            className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${isAvailable ? 'border-green-500 bg-green-50 text-green-700 font-bold' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
-                        >
-                            <CheckCircle2 size={20} />
-                            זמין
-                        </button>
-                        <button
-                            onClick={() => setIsAvailable(false)}
-                            className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${!isAvailable ? 'border-red-500 bg-red-50 text-red-700 font-bold' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
-                        >
-                            <XCircle size={20} />
-                            לא זמין
-                        </button>
-                    </div>
-
-                    {/* Date Range */}
+                {/* Date Range */}
+                <div className="bg-slate-50 p-4 rounded-xl space-y-4 border border-slate-100">
+                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                        <Calendar size={18} />
+                        טווח תאריכים
+                    </h3>
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">מתאריך</label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={e => setStartDate(e.target.value)}
-                                className="w-full bg-slate-50 border-slate-200 rounded-lg text-sm"
+                        <Input
+                            type="date"
+                            label="מתאריך"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            required
+                        />
+                        <Input
+                            type="date"
+                            label="עד תאריך"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            required
+                        />
+                    </div>
+                </div>
+
+                {/* Hours Configuration (Only if Available) */}
+                {status === 'available' && (
+                    <div className="bg-slate-50 p-4 rounded-xl space-y-4 border border-slate-100 animate-in fade-in slide-in-from-top-2">
+                        <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                            <Clock size={18} />
+                            שעות זמינות
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input
+                                type="time"
+                                label="התחלה"
+                                value={startHour}
+                                onChange={(e) => setStartHour(e.target.value)}
+                                required
                             />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">עד תאריך</label>
-                            <input
-                                type="date"
-                                value={endDate}
-                                onChange={e => setEndDate(e.target.value)}
-                                min={startDate}
-                                className="w-full bg-slate-50 border-slate-200 rounded-lg text-sm"
+                            <Input
+                                type="time"
+                                label="סיום"
+                                value={endHour}
+                                onChange={(e) => setEndHour(e.target.value)}
+                                required
                             />
                         </div>
                     </div>
+                )}
 
-                    {/* Time Range (Only if available) */}
-                    {isAvailable && (
-                        <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                            <div className="flex items-center gap-2 text-blue-800 font-bold text-sm mb-3">
-                                <Clock size={16} />
-                                שעות זמינות
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">התחלה</label>
-                                    <input
-                                        type="time"
-                                        value={startHour}
-                                        onChange={e => setStartHour(e.target.value)}
-                                        className="w-full bg-white border-slate-200 rounded-lg text-sm"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">סיום</label>
-                                    <input
-                                        type="time"
-                                        value={endHour}
-                                        onChange={e => setEndHour(e.target.value)}
-                                        className="w-full bg-white border-slate-200 rounded-lg text-sm"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Reason */}
-                    {!isAvailable && (
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">סיבה (אופציונלי)</label>
-                            <input
-                                type="text"
-                                placeholder="לדוגמה: ימי מחלה, חופשה..."
-                                value={reason}
-                                onChange={e => setReason(e.target.value)}
-                                className="w-full bg-slate-50 border-slate-200 rounded-lg text-sm"
-                            />
-                        </div>
-                    )}
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <Button type="button" variant="ghost" onClick={onClose}>ביטול</Button>
+                    <Button type="submit" variant="primary">החל שינויים</Button>
                 </div>
-
-                <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors">
-                        ביטול
-                    </button>
-                    <button onClick={handleSubmit} className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
-                        החל שינויים
-                    </button>
-                </div>
-            </div>
-        </div>
+            </form>
+        </Modal>
     );
 };
