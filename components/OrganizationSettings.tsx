@@ -35,6 +35,11 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
     const [start, setStart] = useState('22:00');
     const [end, setEnd] = useState('06:00');
     const [viewerDays, setViewerDays] = useState(2);
+    // New Params
+    const [daysOn, setDaysOn] = useState(11);
+    const [daysOff, setDaysOff] = useState(3);
+    const [minStaff, setMinStaff] = useState(0);
+    const [rotationStart, setRotationStart] = useState('');
 
     useEffect(() => {
         fetchSettings();
@@ -46,19 +51,22 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 .from('organization_settings')
                 .select('*')
                 .eq('organization_id', organizationId)
-                .maybeSingle(); // Use maybeSingle to avoid 406 on empty? No, 406 is header/content neg. 
+                .maybeSingle();
 
             if (error) {
                 if (error.code !== '406' && error.code !== 'PGRST116') {
                     console.error('Error fetching settings:', error);
                 }
-                // If 406 or not found, just use defaults
             }
 
             if (data) {
                 setStart(data.night_shift_start.slice(0, 5));
                 setEnd(data.night_shift_end.slice(0, 5));
                 setViewerDays(data.viewer_schedule_days || 2);
+                setDaysOn(data.default_days_on || 11);
+                setDaysOff(data.default_days_off || 3);
+                setMinStaff(data.min_daily_staff || 0);
+                setRotationStart(data.rotation_start_date || '');
             }
         } catch (err) {
             console.warn('Failed to fetch settings, using defaults');
@@ -75,7 +83,11 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 organization_id: organizationId,
                 night_shift_start: start,
                 night_shift_end: end,
-                viewer_schedule_days: viewerDays
+                viewer_schedule_days: viewerDays,
+                default_days_on: daysOn,
+                default_days_off: daysOff,
+                rotation_start_date: rotationStart || null,
+                min_daily_staff: minStaff
             });
 
         if (error) {
@@ -92,7 +104,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
     if (loading) return <div className="text-slate-500 text-sm">טוען הגדרות...</div>;
 
     return (
-        <div className="space-y-4 md:space-y-6">
+        <div className="space-y-4 md:space-y-6 max-w-3xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-4 max-w-2xl">
                 <div className="flex-1 w-full md:w-auto">
                     <label className="block text-sm font-bold text-slate-700 mb-1">התחלת משמרת לילה</label>
@@ -138,6 +150,63 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                     containerClassName="w-32"
                 />
                 <p className="text-slate-400 text-xs md:text-sm mt-2">המשתמשים יוכלו לראות את הלו"ז להיום ולמספר הימים הבאים שהוגדר.</p>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 md:pt-6">
+                <h3 className="font-bold text-slate-800 mb-4">הגדרות מחולל סבבים</h3>
+                <div className="flex flex-col gap-6">
+                    {/* Cycle Definition */}
+                    <div className="flex flex-wrap items-end gap-4">
+                        <Input
+                            type="number"
+                            label="ימים בבסיס"
+                            min={1}
+                            max={30}
+                            value={daysOn}
+                            onChange={e => setDaysOn(parseInt(e.target.value))}
+                            placeholder="11"
+                            containerClassName="w-32"
+                        />
+                        <div className="pb-3 text-slate-300 font-bold text-xl">+</div>
+                        <Input
+                            type="number"
+                            label="ימים בבית"
+                            min={1}
+                            max={30}
+                            value={daysOff}
+                            onChange={e => setDaysOff(parseInt(e.target.value))}
+                            placeholder="3"
+                            containerClassName="w-32"
+                        />
+                        <div className="pb-3 text-slate-500 font-bold text-sm">
+                            = סה"כ מחזור: {daysOn + daysOff} ימים
+                        </div>
+                    </div>
+
+                    {/* Constraints & Start Date */}
+                    <div className="flex flex-wrap gap-6 border-t border-slate-100 pt-4">
+                        <Input
+                            type="number"
+                            label="מינימום כוח אדם"
+                            min={0}
+                            max={100}
+                            value={minStaff}
+                            onChange={e => setMinStaff(parseInt(e.target.value))}
+                            placeholder="5"
+                            containerClassName="w-40"
+                        />
+
+                        <div className="w-64">
+                            <label className="block text-sm font-bold text-slate-700 mb-1">תאריך התחלת סבב</label>
+                            <Input
+                                type="date"
+                                value={rotationStart}
+                                onChange={e => setRotationStart(e.target.value)}
+                            />
+                            <p className="text-slate-400 text-[10px] mt-1">נקודת ייחוס לחישוב (מתי מתחיל יום 1).</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-3 md:gap-4 pt-2">
@@ -359,7 +428,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     }
 
     return (
-        <div className="space-y-4 md:space-y-6">
+        <div className="space-y-4 md:space-y-6 max-w-3xl mx-auto">
             {/* Organization Info */}
             <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-yellow-200">
                 <div className="flex items-center gap-3 md:gap-4 mb-4">
@@ -634,9 +703,9 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                         </span>
                     </p>
 
-                    <div className="flex flex-col md:flex-row gap-3 items-end">
+                    <div className="flex flex-col md:flex-row gap-3 items-end flex-wrap">
                         {/* URL Display */}
-                        <div className="flex-1 w-full">
+                        <div className="flex-1 w-full min-w-[200px]">
                             <label className="text-xs font-bold text-slate-500 mb-1 block">קישור להעתקה</label>
                             <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-50 transition-all shadow-sm">
                                 <div
@@ -658,13 +727,13 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                         </div>
 
                         {/* Regenerate Button */}
-                        <div className="w-full md:w-auto">
+                        <div className="w-full md:w-auto shrink-0">
                             <Button
                                 onClick={handleRegenerate}
                                 disabled={loading}
                                 icon={RefreshCw}
                                 variant="outline"
-                                className="bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                                className="bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50 w-full"
                             >
                                 צור קישור חדש
                             </Button>
