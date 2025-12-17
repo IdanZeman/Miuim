@@ -39,12 +39,9 @@ const TopNavLink = ({
         }`}
       title={label}
     >
-      {Icon && <Icon size={16} className={active ? 'text-idf-yellow-hover' : 'text-slate-400'} />}
-      {/* Show text only on large screens to prevent crowding */}
-      <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${active
-        ? 'max-w-0 opacity-0 2xl:max-w-[200px] 2xl:opacity-100'
-        : 'max-w-0 opacity-0 2xl:max-w-[200px] 2xl:opacity-100 group-hover:max-w-[200px] group-hover:opacity-100 delay-300 group-hover:delay-0'
-        }`}>
+      {Icon && <Icon size={20} className={active ? 'text-idf-yellow-hover' : 'text-slate-400'} />}
+      {/* Show text only for ACTIVE tab, or on HOVER, or on ultra-wide screens */}
+      <span className={`whitespace-nowrap ${active ? 'font-bold block' : 'hidden group-hover:block min-[2000px]:block'}`}>
         {label}
       </span>
       {active && (
@@ -58,24 +55,25 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const { user, profile, organization, signOut, checkAccess: contextCheckAccess } = useAuth();
 
+  // ... (Access check logic remains the same, skipping lines for brevity if possible, keeping context stable)
+  // Re-stating critical parts to ensure file integrity during replace
   const checkAccess = (screen: ViewMode): boolean => {
     // 1. Admin always has access
     if (profile?.role === 'admin') return true;
-
+    // ... existing logic ...
     // 2. Check explicit permissions object
     if (profile?.permissions?.screens) {
-      const access = profile.permissions.screens[screen];
+      const access = profile?.permissions?.screens?.[screen];
       return access === 'view' || access === 'edit';
     }
-
-    // 3. Fallback to context check or role defaults
+    // 3. Fallback to context check
     if (contextCheckAccess) return contextCheckAccess(screen);
 
     // 4. Hard fallback defaults
     if (profile?.role === 'editor') return screen !== 'settings' && screen !== 'logs';
     if (profile?.role === 'viewer') return ['home', 'dashboard', 'contact', 'lottery', 'stats'].includes(screen);
     if (profile?.role === 'attendance_only') return ['home', 'attendance', 'contact'].includes(screen);
-    
+
     return false;
   };
 
@@ -92,9 +90,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   };
 
   const isAdmin = profile?.role === 'admin';
-
   const mainRef = React.useRef<HTMLDivElement>(null);
-
   React.useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTo(0, 0);
@@ -105,32 +101,30 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
     <div className="flex flex-col h-screen bg-idf-bg overflow-hidden font-sans">
       {/* White Header */}
       <header className="bg-white shadow-sm z-40 relative h-16 flex-none">
-        <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between gap-4"> {/* Added gap-4 for safety */}
           {/* Right: Logo & Nav */}
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4 md:gap-8 flex-1 min-w-0 max-w-[calc(100%-220px)]"> {/* Increased safety margin */}
             <button
               onClick={() => setView && setView('home')}
-              className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+              className="flex items-center gap-1 hover:opacity-80 transition-opacity flex-shrink-0"
             >
-              {/* IDF Logo Placeholder */}
-              {/* App Logo */}
-              <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
+              <div className="w-10 h-10 md:w-20 md:h-20 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
                 <img src="/images/app_icon.png" alt="App Logo" className="w-full h-full object-cover" />
               </div>
-              <span className="text-lg font-bold text-slate-800 tracking-tight">
+              <span className="text-lg font-bold text-slate-800 tracking-tight hidden md:block whitespace-nowrap">
                 {isPublic ? 'Miuim' : (organization?.name || 'Miuim')}
               </span>
             </button>
 
             {/* Desktop Nav - Hidden in Public Mode */}
             {!isPublic && setView && (
-              <nav className="hidden md:flex items-center gap-0.5 lg:gap-1">
+              <nav className="hidden md:flex items-center gap-1 overflow-visible"> {/* Allow overflow-visible if needed, but constrained by parent */}
                 {/* Home - Visible to everyone */}
                 <TopNavLink active={currentView === 'home'} onClick={() => setView('home')} label="בית" icon={Home} />
 
                 {/* Dashboard - Visible to everyone */}
                 {checkAccess('dashboard') && (
-                  <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="לוח שיבוצים" icon={Calendar} />
+                  <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="שיבוצים" icon={Calendar} />
                 )}
 
                 {/* Personnel */}
@@ -150,7 +144,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
                 {/* Attendance */}
                 {checkAccess('attendance') && (
-                  <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות וזמינות" icon={Clock} />
+                  <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות" icon={Clock} />
                 )}
 
                 {/* Stats */}
@@ -168,15 +162,21 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
                 {/* Admin Only Screens */}
                 {checkAccess('reports') && (
-                  <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="דו״ח משמרות" icon={Clock} />
+                  <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="ייצוא נתונים" icon={Clock} />
                 )}
 
                 {checkAccess('settings') && (
                   <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
                 )}
 
-                {checkAccess('logs') && isAdmin && user?.email === 'idanzeman@gmail.com' && (
-                  <TopNavLink active={currentView === 'logs'} onClick={() => setView('logs')} label="לוגים" icon={Shield} />
+                {/* System Management (Admin Only) */}
+                {(isAdmin && (user?.email?.includes('idanzeman') || user?.email === 'idanzman@gmail.com')) && (
+                  <TopNavLink
+                    active={currentView === 'system' || currentView === 'logs' || currentView === 'tickets'}
+                    onClick={() => setView('system')}
+                    label="ניהול מערכת"
+                    icon={Shield}
+                  />
                 )}
               </nav>
             )}
@@ -184,18 +184,18 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
           {/* Left: User Profile - Hidden in Public Mode */}
           {!isPublic && (
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-slate-600 hidden md:block">
+            <div className="flex items-center justify-end gap-3 pl-2 flex-shrink-0 min-w-[180px] max-w-[250px]">
+              <span className="text-sm font-medium text-slate-600 hidden md:block truncate text-ellipsis dir-ltr text-right" title={user?.email || ''}>
                 {user?.email?.split('@')[0] || 'משתמש'}
               </span>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
+                className="flex items-center gap-2 p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors flex-shrink-0"
                 title="התנתק"
               >
                 <LogOut size={20} />
               </button>
-              <button className="hidden md:hidden p-2" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+              <button className="hidden md:hidden p-2 flex-shrink-0" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
                 <Menu size={24} />
               </button>
             </div>
