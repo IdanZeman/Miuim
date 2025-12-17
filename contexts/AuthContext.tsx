@@ -24,6 +24,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
 
+  // Use ref to track user state for use in closures
+  const userRef = React.useRef<User | null>(null);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   const checkAccess = (screen: ViewMode, requiredLevel: 'view' | 'edit' = 'view'): boolean => {
     if (!profile) return false;
 
@@ -32,10 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 1. Check Custom Permissions Override
     if (profile.permissions && profile.permissions.screens) {
-      const access = profile.permissions.screens[screen] || 'view'; // Default to view if not specified but permissions object exists? 
-      // Actually, if permissions object exists, we should rely on it.
-      // But standard default is determined by Logic below.
-      // Let's refine: If specific screen permission IS set, use it.
+      const access = profile.permissions.screens[screen] || 'view';
       if (profile.permissions.screens[screen]) {
         const level = profile.permissions.screens[screen];
         if (level === 'none') return false;
@@ -46,19 +50,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 2. Fallback to Role-Based Defaults
     const role = profile.role;
-    if (role === 'admin') return true; // Admin can do everything by default
+    if (role === 'admin') return true;
 
     if (role === 'attendance_only') {
       return screen === 'attendance';
     }
 
     if (role === 'viewer') {
-      if (requiredLevel === 'edit') return false; // Viewers can't edit anything by default
-      return true; // Can view everything
+      if (requiredLevel === 'edit') return false;
+      return true;
     }
 
     if (role === 'editor') {
-      // Editors restricted from Settings/Admin stuff usually?
       if (screen === 'settings') return false;
       return true;
     }
@@ -67,7 +70,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const fetchProfile = async (userId: string, force = false) => {
-    // Prevent concurrent fetches unless forced
     if (isFetchingProfile && !force) {
       console.log('⏭️ Profile fetch already in progress, skipping...');
       return;
@@ -76,7 +78,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsFetchingProfile(true);
 
     try {
-      // Increase timeout to 15 seconds (more generous)
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Profile fetch timeout - check your connection')), 15000)
       );
@@ -94,7 +95,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError && profileError.code !== 'PGRST116') {
         console.error('⚠️ Error fetching profile:', profileError);
-        // Don't clear profile on error - keep existing
         return;
       }
 
@@ -106,7 +106,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userData?.user?.user_metadata?.name ||
           email.split('@')[0];
 
-        // Try to find existing person with this email to link organization
         const { data: existingPerson } = await supabase
           .from('people')
           .select('organization_id, id')
@@ -119,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: userId,
             email: email,
             full_name: fullName,
-            role: existingPerson ? 'viewer' : 'admin', // Default to viewer if joining existing org
+            role: existingPerson ? 'viewer' : 'admin',
             organization_id: existingPerson?.organization_id || null,
             created_at: new Date().toISOString()
           }, {
@@ -134,7 +133,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // If we found a person, link the user_id to that person record
         if (existingPerson) {
           await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
         }
@@ -146,7 +144,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('✅ Profile loaded successfully');
 
-      // Check if we need to link to a person (if organization_id is missing or just to be safe)
       if (!profileData.organization_id) {
         const { data: existingPerson } = await supabase
           .from('people')
@@ -165,10 +162,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (!updateError) {
             setProfile(updatedProfile);
-            // Also link the person record to this user
             await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
 
-            // Fetch organization immediately
             const { data: orgData } = await supabase
               .from('organizations')
               .select('*')
@@ -206,12 +201,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('❌ Unexpected error in fetchProfile:', error);
-      // Don't clear profile on timeout - keep existing data
       console.log('⚠️ Keeping existing profile data due to fetch error');
 
-      // Track error in analytics if available
-      if (analytics && typeof analytics.trackError === 'function') {
-        analytics.trackError((error as Error).message, 'FetchProfile');
+      if (analytics && typeof (analytics as any).trackError === 'function') {
+        (analytics as any).trackError((error as Error).message, 'FetchProfile');
       }
     } finally {
       setIsFetchingProfile(false);
@@ -229,17 +222,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initAuth = async () => {
       try {
-        // Strategy: Try getSession with a timeout. If it times out, try getUser (server verification).
-
         const fetchSessionPromise = supabase.auth.getSession();
 
         const timeoutPromise = new Promise<{ data: { session: null }; timeout: boolean }>((resolve) => {
           setTimeout(() => {
             resolve({ data: { session: null }, timeout: true });
-          }, 40000); // Increased from 8000 to 20000
+          }, 40000);
         });
 
-        // Race
         const result: any = await Promise.race([
           fetchSessionPromise,
           timeoutPromise
@@ -250,12 +240,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // If timed out or no session, try getUser as a robust fallback
         if (result.timeout || !session) {
 
-          // Wrap getUser in timeout as well
           const fetchUserPromise = supabase.auth.getUser();
           const userTimeoutPromise = new Promise<{ data: { user: null }; error: any }>((resolve) => {
             setTimeout(() => {
               resolve({ data: { user: null }, error: { message: "Timeout" } });
-            }, 10000); // Increased from 5000 to 10000
+            }, 10000);
           });
 
           const userResult: any = await Promise.race([
@@ -294,23 +283,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
 
-    // Listen for auth changes - with debounce
     let authChangeTimeout: NodeJS.Timeout | null = null;
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
       console.log('🔄 Auth state changed:', event);
 
-      // Debounce to prevent multiple rapid calls
       if (authChangeTimeout) {
         clearTimeout(authChangeTimeout);
       }
 
       authChangeTimeout = setTimeout(async () => {
         const currentUser = session?.user ?? null;
+        // Use ref to compare with current state instead of closure-captured state
+        const currentUserState = userRef.current;
 
-        // Only update if user actually changed
-        if (currentUser?.id !== user?.id) {
+        if (currentUser?.id !== currentUserState?.id) {
           console.log('👤 User changed, updating...');
           setUser(currentUser);
 
@@ -323,7 +311,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           console.log('✅ User unchanged, skipping profile fetch');
         }
-      }, 300); // Wait 300ms before processing
+      }, 300);
     });
 
     return () => {
