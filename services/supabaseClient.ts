@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Person, Role, Team, TaskTemplate, Shift } from '../types';
+import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint } from '../types';
 
 const supabaseUrl = 'https://rfqkkzhhvytkkgrnyarm.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmcWtremhodnl0a2tncm55YXJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwNjgxMjMsImV4cCI6MjA3NzY0NDEyM30.4kMkKtzq4eowtOQvQXVxwBU5iiEfNqw0f2JYBrVXR4E';
@@ -191,3 +191,72 @@ export const mapRotationToDB = (rot: import('../types').TeamRotation) => ({
     arrival_time: rot.arrival_time,
     departure_time: rot.departure_time
 });
+
+// Constraints
+export const fetchConstraints = async (organizationId: string): Promise<SchedulingConstraint[]> => {
+    const { data, error } = await supabase
+        .from('scheduling_constraints')
+        .select('*')
+        .eq('organization_id', organizationId);
+    
+    if (error) throw error;
+    
+    return data.map((c: any) => ({
+        id: c.id,
+        personId: c.person_id,
+        teamId: c.team_id,
+        roleId: c.role_id,
+        type: c.type,
+        taskId: c.task_id,
+        startTime: c.start_time,
+        endTime: c.end_time,
+        organization_id: c.organization_id,
+        description: c.description
+    }));
+};
+
+export const addConstraint = async (constraint: Omit<SchedulingConstraint, 'id'>) => {
+    const sanitizeUuid = (id: string | undefined | null) => (id && id.length > 0 ? id : null);
+
+    const dbConstraint = {
+        person_id: sanitizeUuid(constraint.personId),
+        team_id: sanitizeUuid(constraint.teamId),
+        role_id: sanitizeUuid(constraint.roleId),
+        type: constraint.type,
+        task_id: sanitizeUuid(constraint.taskId),
+        start_time: constraint.startTime,
+        end_time: constraint.endTime,
+        organization_id: constraint.organization_id,
+        description: constraint.description
+    };
+
+    const { data, error } = await supabase
+        .from('scheduling_constraints')
+        .insert([dbConstraint])
+        .select()
+        .single();
+    
+    if (error) throw error;
+
+    return {
+        id: data.id,
+        personId: data.person_id,
+        teamId: data.team_id,
+        roleId: data.role_id,
+        type: data.type,
+        taskId: data.task_id,
+        startTime: data.start_time,
+        endTime: data.end_time,
+        organization_id: data.organization_id,
+        description: data.description
+    };
+};
+
+export const deleteConstraint = async (id: string) => {
+    const { error } = await supabase
+        .from('scheduling_constraints')
+        .delete()
+        .eq('id', id);
+    
+    if (error) throw error;
+};

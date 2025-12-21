@@ -70,7 +70,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
     if (contextCheckAccess) return contextCheckAccess(screen);
 
     // 4. Hard fallback defaults
-    if (profile?.role === 'editor') return screen !== 'settings' && screen !== 'logs';
+    if (profile?.role === 'editor') return screen !== 'settings' && screen !== 'logs' && screen !== 'system'; // Editors can access planner
+
+
     if (profile?.role === 'viewer') return ['home', 'dashboard', 'contact', 'lottery', 'stats'].includes(screen);
     if (profile?.role === 'attendance_only') return ['home', 'attendance', 'contact'].includes(screen);
 
@@ -142,6 +144,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   <TopNavLink active={currentView === 'constraints'} onClick={() => setView('constraints')} label="אילוצים" icon={Anchor} />
                 )}
 
+
+
                 {/* Attendance */}
                 {checkAccess('attendance') && (
                   <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות" icon={Clock} />
@@ -160,10 +164,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 {/* Contact - Visible to everyone */}
                 <TopNavLink active={currentView === 'contact'} onClick={() => setView('contact')} label="צור קשר" icon={Mail} />
 
-                {/* Admin Only Screens */}
-                {checkAccess('reports') && (
-                  <TopNavLink active={currentView === 'reports'} onClick={() => setView('reports')} label="ייצוא נתונים" icon={Clock} />
-                )}
 
                 {checkAccess('settings') && (
                   <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
@@ -439,6 +439,16 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               </button>
             )}
 
+            {checkAccess('attendance') && (
+              <button
+                onClick={() => setView('attendance')}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'attendance' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <Clock size={20} className={currentView === 'attendance' ? 'fill-blue-100' : ''} />
+                <span className="text-[10px] font-medium">נוכחות</span>
+              </button>
+            )}
+
             {checkAccess('stats') && (
               <button
                 onClick={() => setView('stats')}
@@ -446,16 +456,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               >
                 <BarChart2 size={20} className={currentView === 'stats' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">דוחות</span>
-              </button>
-            )}
-
-            {checkAccess('lottery') && (
-              <button
-                onClick={() => setView('lottery')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'lottery' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <Dices size={20} className={currentView === 'lottery' ? 'fill-blue-100' : ''} />
-                <span className="text-[10px] font-medium">הגרלה</span>
               </button>
             )}
 
@@ -493,7 +493,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         </div>
 
         {/* Content Cards Container - Responsive spacing */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 pt-24 md:pt-32 pb-6 md:pb-10 min-h-full">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 pt-32 md:pt-32 pb-24 md:pb-10 min-h-full">
           {children}
         </div>
       </main>

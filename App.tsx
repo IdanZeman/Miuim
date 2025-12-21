@@ -1,10 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { HomePage } from './components/HomePage'; // NEW
-import { ScheduleBoard } from './components/ScheduleBoard';
-import { TaskManager } from './components/TaskManager';
-import { StatsDashboard } from './components/StatsDashboard';
+// Lazy Load Pages
+const ScheduleBoard = React.lazy(() => import('./components/ScheduleBoard').then(module => ({ default: module.ScheduleBoard })));
+const PersonnelManager = React.lazy(() => import('./components/PersonnelManager').then(module => ({ default: module.PersonnelManager })));
+const AttendanceManager = React.lazy(() => import('./components/AttendanceManager').then(module => ({ default: module.AttendanceManager })));
+const TaskManager = React.lazy(() => import('./components/TaskManager').then(module => ({ default: module.TaskManager })));
+const StatsDashboard = React.lazy(() => import('./components/StatsDashboard').then(module => ({ default: module.StatsDashboard })));
+const OrganizationSettingsComponent = React.lazy(() => import('./components/OrganizationSettings').then(module => ({ default: module.OrganizationSettings })));
+const ShiftReport = React.lazy(() => import('./components/ShiftReport').then(module => ({ default: module.ShiftReport })));
+const AdminLogsViewer = React.lazy(() => import('./components/AdminLogsViewer').then(module => ({ default: module.AdminLogsViewer })));
+const Lottery = React.lazy(() => import('./components/Lottery').then(module => ({ default: module.Lottery })));
+const ConstraintsManager = React.lazy(() => import('./components/ConstraintsManager').then(module => ({ default: module.ConstraintsManager })));
+const ContactPage = React.lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
+const SystemManagementPage = React.lazy(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
+
+
+import { HomePage } from './components/HomePage';
 import { LandingPage } from './components/LandingPage';
 import { Onboarding } from './components/Onboarding';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -18,33 +30,24 @@ import {
     mapRoleFromDB, mapRoleToDB,
     mapTaskFromDB, mapTaskToDB,
     mapConstraintFromDB, mapConstraintToDB,
-    mapRotationFromDB, mapRotationToDB // NEW
+    mapRotationFromDB, mapRotationToDB
 } from './services/supabaseClient';
 import { solveSchedule } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
 import { Wand2, Loader2, Sparkles, Shield } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { generateShiftsForTask } from './utils/shiftUtils';
-import { PersonnelManager } from './components/PersonnelManager';
-import { AttendanceManager } from './components/AttendanceManager';
-import { OrganizationSettings } from './components/OrganizationSettings';
-import { ShiftReport } from './components/ShiftReport';
 import { logger } from './services/loggingService';
-import { AdminLogsViewer } from './components/AdminLogsViewer';
 import JoinPage from './components/JoinPage';
 import { initGA, trackPageView } from './services/analytics';
 import { usePageTracking } from './hooks/usePageTracking';
-
 import { ClaimProfile } from './components/ClaimProfile';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AutoScheduleModal } from './components/AutoScheduleModal';
-import { Lottery } from './components/Lottery';
 import { EmptyStateGuide } from './components/EmptyStateGuide';
-import { ConstraintsManager } from './components/ConstraintsManager';
 import { ToastProvider } from './contexts/ToastContext';
-import { ContactPage } from './pages/ContactPage';
-import { SupportTicketsPage } from './pages/SupportTicketsPage';
-import { SystemManagementPage } from './pages/SystemManagementPage'; // NEW
+
+
 
 // Disable console logs in production (non-localhost)
 if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -62,7 +65,21 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 const MainApp: React.FC = () => {
     const { organization, user, profile, checkAccess } = useAuth();
     const { showToast } = useToast();
-    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system'>('home');
+    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner'>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('miuim_active_view');
+            if (saved) return saved as any;
+        }
+        return 'home';
+    });
+
+    // Persistence & Scroll to Top Effect
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('miuim_active_view', view);
+            window.scrollTo(0, 0);
+        }
+    }, [view]);
 
     // Check for import wizard flag from onboarding
     useEffect(() => {
@@ -119,6 +136,8 @@ const MainApp: React.FC = () => {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduling_constraints', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'team_rotations', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'organization_settings', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW subscription
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
@@ -144,12 +163,103 @@ const MainApp: React.FC = () => {
             const { data: teamsData } = await supabase.from('teams').select('*').eq('organization_id', organization.id);
             const { data: constraintsData } = await supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id);
             const { data: rotationsData } = await supabase.from('team_rotations').select('*').eq('organization_id', organization.id); // NEW
-
-            console.log("DEBUG: Raw People Data:", peopleData);
+            const { data: settingsData } = await supabase.from('organization_settings').select('*').eq('organization_id', organization.id).maybeSingle(); // NEW
+            const { data: presenceData } = await supabase.from('daily_presence').select('*').eq('organization_id', organization.id); // NEW Fetch Presence
 
             let mappedPeople = (peopleData || []).map(mapPersonFromDB);
             let mappedShifts = (shiftsData || []).map(mapShiftFromDB);
             let mappedTeams = (teamsData || []).map(mapTeamFromDB);
+
+            // --- Merge Daily Presence into People ---
+            // Overlay the new "Truth Table" (daily_presence) onto the dailyAvailability map
+            // --- Merge Daily Presence into People ---
+            // Scaled Up: Smart Inference of Arrival/Departure based on Timeline
+            if (presenceData) {
+                // 1. Group by Person for timeline analysis
+                const presenceByPerson: Record<string, any[]> = {};
+                presenceData.forEach((pd: any) => {
+                    if (!presenceByPerson[pd.person_id]) presenceByPerson[pd.person_id] = [];
+                    presenceByPerson[pd.person_id].push(pd);
+                });
+
+                // 2. Process each person's timeline
+                Object.keys(presenceByPerson).forEach(personId => {
+                    const person = mappedPeople.find(p => p.id === personId);
+                    if (!person) return;
+
+                    // Sort chronologically
+                    const timeline = presenceByPerson[personId].sort((a, b) =>
+                        new Date(a.date).getTime() - new Date(b.date).getTime()
+                    );
+
+                    timeline.forEach((pd, index) => {
+                        const dateKey = pd.date;
+                        const isBase = pd.status === 'base';
+
+                        // Infer detailed status (Arrival/Departure/Full)
+                        let detailedStatus = pd.status;
+
+                        if (isBase) {
+                            // Check Neighbors
+                            console.log(`[StatusInference] Checking ${pd.person_id} on ${dateKey}. Prev: ${timeline[index - 1]?.status}, Next: ${timeline[index + 1]?.status}`);
+                            const prevRec = timeline[index - 1];
+                            const nextRec = timeline[index + 1];
+
+                            const d = new Date(pd.date);
+                            const prevD = prevRec ? new Date(prevRec.date) : null;
+                            const nextD = nextRec ? new Date(nextRec.date) : null;
+
+                            const isPrevContiguous = prevD && (d.getTime() - prevD.getTime() === 86400000);
+                            const isNextContiguous = nextD && (nextD.getTime() - d.getTime() === 86400000);
+
+                            const prevIsBase = isPrevContiguous && prevRec.status === 'base';
+                            const nextIsBase = isNextContiguous && nextRec.status === 'base';
+
+
+                            if (!prevIsBase && nextIsBase) detailedStatus = 'arrival';
+                            else if (prevIsBase && !nextIsBase) detailedStatus = 'departure';
+                            else if (!prevIsBase && !nextIsBase) detailedStatus = 'arrival';
+                            else detailedStatus = 'full';
+                        }
+
+                        // Set Hours based on Status
+                        let startHour = '00:00';
+                        let endHour = '00:00';
+
+                        if (isBase) {
+                            // Normalize DB times to "HH:MM" for comparison
+                            const dbStart = pd.start_time ? pd.start_time.slice(0, 5) : null;
+                            const dbEnd = pd.end_time ? pd.end_time.slice(0, 5) : null;
+
+                            if (dbStart && dbEnd && dbStart !== '00:00' && dbEnd !== '00:00') {
+                                // Prioritize DB-stored times (IF they are not the default 00:00)
+                                startHour = dbStart;
+                                endHour = dbEnd;
+                            } else {
+                                // Fallback: Smart Inference (Uses defaults: 10:00 Arrival, 14:00 Departure)
+                                if (detailedStatus === 'arrival') { startHour = '10:00'; endHour = '23:59'; }
+                                else if (detailedStatus === 'departure') { startHour = '00:00'; endHour = '14:00'; }
+                                else { startHour = '00:00'; endHour = '23:59'; } // Full Base Day
+                            }
+                        }
+
+                        // Create updated entry
+                        person.dailyAvailability = {
+                            ...person.dailyAvailability,
+                            [dateKey]: {
+                                ...(person.dailyAvailability?.[dateKey] || {}),
+                                isAvailable: isBase,
+                                startHour,
+                                endHour,
+                                status: detailedStatus,
+                                source: pd.source || 'algorithm'
+                            }
+                        };
+                    });
+                });
+            }
+
+            // ----------------------------------------
 
             // --- Data Scoping Logic ---
             const dataScope = profile?.permissions?.dataScope || 'organization';
@@ -195,7 +305,8 @@ const MainApp: React.FC = () => {
                 roles: (rolesData || []).map(mapRoleFromDB),
                 teams: mappedTeams,
                 constraints: (constraintsData || []).map(mapConstraintFromDB),
-                teamRotations: (rotationsData || []).map(mapRotationFromDB) // NEW
+                teamRotations: (rotationsData || []).map(mapRotationFromDB),
+                settings: (settingsData as any) || null
             });
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -395,17 +506,27 @@ const MainApp: React.FC = () => {
         setState(prev => ({ ...prev, taskTemplates: prev.taskTemplates.filter(t => t.id !== id), shifts: prev.shifts.filter(s => s.taskId !== id) }));
     };
 
-    const handleAddConstraint = async (c: SchedulingConstraint) => {
+    const handleAddConstraint = async (c: Omit<SchedulingConstraint, 'id'>) => {
         if (!organization) return;
         try {
-            await supabase.from('scheduling_constraints').insert(mapConstraintToDB({ ...c, organization_id: organization.id }));
-            setState(prev => ({ ...prev, constraints: [...prev.constraints, c] }));
-        } catch (e) { console.warn(e); }
+            const newConstraint = await import('./services/supabaseClient').then(m => m.addConstraint({ ...c, organization_id: organization.id }));
+            setState(prev => ({ ...prev, constraints: [...prev.constraints, newConstraint] }));
+            showToast('אילוץ נשמר בהצלחה', 'success');
+        } catch (e) {
+            console.warn(e);
+            showToast('שגיאה בשמירת אילוץ', 'error');
+        }
     };
 
     const handleDeleteConstraint = async (id: string) => {
-        try { await supabase.from('scheduling_constraints').delete().eq('id', id); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, constraints: prev.constraints.filter(c => c.id !== id) }));
+        try {
+            await import('./services/supabaseClient').then(m => m.deleteConstraint(id));
+            setState(prev => ({ ...prev, constraints: prev.constraints.filter(c => c.id !== id) }));
+            showToast('אילוץ נמחק בהצלחה', 'success');
+        } catch (e) {
+            console.warn(e);
+            showToast('שגיאה במחיקת אילוץ', 'error');
+        }
     };
 
     const handleUpdateConstraint = async (c: SchedulingConstraint) => {
@@ -723,19 +844,32 @@ const MainApp: React.FC = () => {
                 setView(view);
             }} />;
             case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onUpdatePerson={handleUpdatePerson} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} />;
-            case 'attendance': return <AttendanceManager people={state.people} teams={state.teams} teamRotations={state.teamRotations} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddRotation={handleAddRotation} onUpdateRotation={handleUpdateRotation} onDeleteRotation={handleDeleteRotation} isViewer={!checkAccess('attendance', 'edit')} />;
+            case 'attendance': return <AttendanceManager
+                people={state.people}
+                teams={state.teams}
+                teamRotations={state.teamRotations}
+                tasks={state.taskTemplates}
+                constraints={state.constraints}
+                settings={state.settings}
+                onUpdatePerson={handleUpdatePerson}
+                onUpdatePeople={handleUpdatePeople}
+                onAddRotation={handleAddRotation}
+                onUpdateRotation={handleUpdateRotation}
+                onDeleteRotation={handleDeleteRotation}
+                onAddShifts={(newShifts) => setState(prev => ({ ...prev, shifts: [...prev.shifts, ...newShifts] }))}
+                isViewer={!checkAccess('attendance', 'edit')}
+            />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
-            case 'settings': return <OrganizationSettings teams={state.teams} />;
+            case 'settings': return <OrganizationSettingsComponent organizationId={organization?.id || ''} />;
 
 
             case 'reports': return <ShiftReport shifts={state.shifts} people={state.people} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} />;
             case 'logs': return <AdminLogsViewer />;
             case 'lottery': return <Lottery people={state.people} teams={state.teams} roles={state.roles} />;
-            case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} onUpdateConstraint={handleUpdateConstraint} />;
+            case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} isViewer={!checkAccess('constraints', 'edit')} organizationId={organization?.id || ''} />;
             case 'contact': return <ContactPage />;
             case 'tickets': return <SystemManagementPage />; // Redirect legacy tickets route
-            case 'logs': return <SystemManagementPage />; // Redirect legacy logs route
             case 'system': return <SystemManagementPage />; // NEW
             default: return (
                 <div className="space-y-6">
@@ -810,7 +944,9 @@ const MainApp: React.FC = () => {
 
     return (
         <Layout currentView={view} setView={setView}>
-            {renderContent()}
+            <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><Loader2 className="animate-spin text-blue-500" /></div>}>
+                {renderContent()}
+            </React.Suspense>
         </Layout>
     );
 };

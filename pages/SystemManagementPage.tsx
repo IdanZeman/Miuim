@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { Shield, MessageSquare, AlertCircle } from 'lucide-react';
+import { Shield, MessageSquare, AlertCircle, LayoutDashboard } from 'lucide-react';
 import { BasePage } from '../components/BasePage'; // Assuming BasePage exists or using standard layout divs
 import { AdminLogsViewer } from '../components/AdminLogsViewer';
 import { SupportTicketsPage } from './SupportTicketsPage';
 import { useAuth } from '../contexts/AuthContext';
 
-type Tab = 'logs' | 'tickets';
+import { SystemStatsDashboard } from '../components/SystemStatsDashboard';
+
+type Tab = 'dashboard' | 'logs' | 'tickets';
 
 export const SystemManagementPage: React.FC = () => {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<Tab>('logs');
+    const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
     // Double check access (though App.tsx also gates it)
     if (!user?.email?.includes('idanzeman') && user?.email !== 'idanzman@gmail.com') {
@@ -35,10 +37,20 @@ export const SystemManagementPage: React.FC = () => {
                 {/* Tabs */}
                 <div className="flex gap-1 mt-6 border-b border-slate-100">
                     <button
+                        onClick={() => setActiveTab('dashboard')}
+                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 ${activeTab === 'dashboard'
+                            ? 'bg-slate-100 text-slate-900 border-b-2 border-slate-900'
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
+                    >
+                        <LayoutDashboard size={16} />
+                        דשבורד
+                    </button>
+                    <button
                         onClick={() => setActiveTab('logs')}
                         className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 ${activeTab === 'logs'
-                                ? 'bg-slate-100 text-slate-900 border-b-2 border-slate-900'
-                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            ? 'bg-slate-100 text-slate-900 border-b-2 border-slate-900'
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                             }`}
                     >
                         <Shield size={16} />
@@ -47,8 +59,8 @@ export const SystemManagementPage: React.FC = () => {
                     <button
                         onClick={() => setActiveTab('tickets')}
                         className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 ${activeTab === 'tickets'
-                                ? 'bg-red-50 text-red-700 border-b-2 border-red-600'
-                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            ? 'bg-red-50 text-red-700 border-b-2 border-red-600'
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                             }`}
                     >
                         <MessageSquare size={16} />
@@ -59,6 +71,7 @@ export const SystemManagementPage: React.FC = () => {
 
             {/* Content Area */}
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                {activeTab === 'dashboard' && <SystemStatsDashboard />}
                 {activeTab === 'logs' && <AdminLogsViewer />}
                 {activeTab === 'tickets' && <SupportTicketsPage />}
             </div>

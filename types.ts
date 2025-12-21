@@ -16,7 +16,10 @@ export interface OrganizationSettings {
   night_shift_start: string; // "HH:MM:SS"
   night_shift_end: string;   // "HH:MM:SS"
   viewer_schedule_days?: number; // Default 2
-  rotation_cycle_days?: number; // Global default cycle length (optional)
+  default_days_on?: number; // Global default days on base
+  default_days_off?: number; // Global default days at home
+  rotation_start_date?: string; // ISO Date YYYY-MM-DD
+  min_daily_staff?: number; // Minimum people required on base
 }
 
 
@@ -63,6 +66,8 @@ export interface AvailabilitySlot {
   isAvailable: boolean;
   startHour?: string; // "08:00"
   endHour?: string;   // "17:00"
+  source?: string;
+  status?: string; // 'arrival' | 'departure' | 'base' | 'home'
 }
 
 export interface DailyAvailability {
@@ -77,7 +82,7 @@ export interface Person {
   userId?: string;
   color: string;
   maxShiftsPerWeek: number;
-  dailyAvailability?: Record<string, { isAvailable: boolean; startHour?: string; endHour?: string; source?: string }>;
+  dailyAvailability?: Record<string, { isAvailable: boolean; startHour?: string; endHour?: string; source?: string; status?: string }>;
   personalRotation?: {
     isActive: boolean;
     daysOn: number;
@@ -88,6 +93,7 @@ export interface Person {
   email?: string;
   phone?: string; // NEW: Phone number
   isActive?: boolean; // NEW: Active status (default true)
+  organization_id?: string;
   unavailableDates?: string[];
   preferences?: {
     preferNight: boolean;
@@ -144,7 +150,7 @@ export interface Shift {
   };
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints';
+
 
 export type AccessLevel = 'view' | 'edit' | 'none';
 export type DataScope = 'organization' | 'team' | 'personal';
@@ -189,6 +195,7 @@ export interface AppState {
   shifts: Shift[];
   constraints: SchedulingConstraint[];
   teamRotations: TeamRotation[]; // NEW
+  settings: OrganizationSettings | null; // NEW
 }
 
 export type TicketStatus = 'new' | 'in_progress' | 'resolved';
@@ -205,4 +212,17 @@ export interface ContactMessage {
   status: TicketStatus; // New column
   admin_notes?: string; // New column
   updated_at?: string; // New column
+}
+
+export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system';
+
+export interface DailyPresence {
+  id?: string; // Optional for new entries
+  date: string; // ISO Date YYYY-MM-DD
+  person_id: string;
+  organization_id: string;
+  status: 'home' | 'base' | 'unavailable' | 'leave';
+  source: 'algorithm' | 'manual' | 'override';
+  created_at?: string;
+  updated_at?: string;
 }

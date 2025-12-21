@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Person, TeamRotation } from '../types';
-import { ChevronRight, ChevronLeft, X, ArrowRight, ArrowLeft, Home, Calendar as CalendarIcon, Trash2, Clock, RotateCcw } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, ArrowRight, ArrowLeft, Home, Calendar as CalendarIcon, Trash2, Clock, RotateCcw, Download } from 'lucide-react';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
@@ -198,14 +198,44 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                             <p className="text-sm text-slate-500">צפה וערוך את הנוכחות החודשית</p>
                         </div>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        icon={RotateCcw}
-                        onClick={() => setShowRotationSettings(true)}
-                    >
-                        הגדרת סבב אישי
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            icon={Download} // Requires import
+                            onClick={() => {
+                                const csvHeader = 'תאריך,סטטוס,שעות\n';
+                                const rows = [];
+                                for (let d = 1; d <= daysInMonth; d++) {
+                                    const date = new Date(year, month, d);
+                                    const avail = getDisplayAvailability(date);
+                                    const dateStr = date.toLocaleDateString('he-IL');
+                                    const status = avail.isAvailable ? 'נמצא' : 'בבית';
+                                    const hours = avail.isAvailable ? `${avail.startHour} - ${avail.endHour}` : '-';
+                                    rows.push(`${dateStr},${status},${hours}`);
+                                }
+                                const csvContent = csvHeader + rows.join('\n');
+                                const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                                const url = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `attendance_${person.name}_${month + 1}_${year}.csv`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }}
+                        >
+                            ייצוא
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            icon={RotateCcw}
+                            onClick={() => setShowRotationSettings(true)}
+                        >
+                            הגדרת סבב אישי
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Calendar Controls */}
@@ -228,100 +258,131 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         {renderCalendarDays()}
                     </div>
                 </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
+                    {(() => {
+                        let daysOnBase = 0;
+                        let daysAtHome = 0;
+                        for (let d = 1; d <= daysInMonth; d++) {
+                            const date = new Date(year, month, d);
+                            const avail = getDisplayAvailability(date);
+                            const status = (avail as any).status;
+
+                            if (!avail.isAvailable) {
+                                daysAtHome++;
+                            } else if (status === 'departure') {
+                                daysAtHome++; // Departure counts as Home
+                            } else {
+                                daysOnBase++; // Arrival, Base, Full
+                            }
+                        }
+                        return (
+                            <div className="flex gap-4">
+                                <span className="font-bold">סיכום חודשי:</span>
+                                <span className="text-green-600">ימים בבסיס: {daysOnBase}</span>
+                                <span className="text-red-600">ימים בבית: {daysAtHome}</span>
+                            </div>
+                        );
+                    })()}
+                    <div>* יום יציאה נספר כיום בבית</div>
+                </div>
             </div>
 
             {/* Rotation Settings Modal */}
-            {showRotationSettings && (
-                <PersonalRotationEditor
-                    person={person}
-                    isOpen={true}
-                    onClose={() => setShowRotationSettings(false)}
-                    onSave={handleSaveRotation}
-                />
-            )}
+            {
+                showRotationSettings && (
+                    <PersonalRotationEditor
+                        person={person}
+                        isOpen={true}
+                        onClose={() => setShowRotationSettings(false)}
+                        onSave={handleSaveRotation}
+                    />
+                )
+            }
 
             {/* Day Edit Modal */}
-            {editingDate && (
-                <Modal
-                    isOpen={true}
-                    onClose={() => setEditingDate(null)}
-                    title={`עריכה - ${editingDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })}`}
-                    size="sm"
-                >
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
-                            <span className="font-bold text-slate-700">סטטוס נוכחות</span>
-                            <div className="flex items-center gap-3">
-                                <span className={`text-sm font-bold ${editState.isAvailable ? 'text-green-600' : 'text-slate-500'}`}>
-                                    {editState.isAvailable ? 'נוכח' : 'בבית'}
-                                </span>
-                                <button
-                                    onClick={() => setEditState(prev => {
-                                        const nextAvailable = !prev.isAvailable;
-                                        // Always default to 00:00-23:59 when turning ON
-                                        if (nextAvailable) {
-                                            return { ...prev, isAvailable: nextAvailable, start: '00:00', end: '23:59' };
-                                        }
-                                        return { ...prev, isAvailable: nextAvailable };
-                                    })}
-                                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${editState.isAvailable ? 'bg-green-500' : 'bg-slate-200'}`}
-                                    dir="ltr"
-                                >
-                                    <span
-                                        className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transform transition-transform duration-200 ease-in-out ${editState.isAvailable ? 'translate-x-5' : 'translate-x-0'}`}
-                                    />
-                                </button>
-                            </div>
-                        </div>
-
-                        {editState.isAvailable && (
-                            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                                <div>
-                                    <label className="text-xs font-bold text-slate-500 mb-1 block">התחלה</label>
-                                    <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
-                                        <span className={`text-sm font-bold flex-1 text-center pointer-events-none ${editState.start ? 'text-slate-900' : 'text-slate-400'}`}>
-                                            {editState.start || '00:00'}
-                                        </span>
-                                        <input
-                                            type="time"
-                                            value={editState.start}
-                                            onChange={e => setEditState(prev => ({ ...prev, start: e.target.value }))}
-                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+            {
+                editingDate && (
+                    <Modal
+                        isOpen={true}
+                        onClose={() => setEditingDate(null)}
+                        title={`עריכה - ${editingDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })}`}
+                        size="sm"
+                    >
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <span className="font-bold text-slate-700">סטטוס נוכחות</span>
+                                <div className="flex items-center gap-3">
+                                    <span className={`text-sm font-bold ${editState.isAvailable ? 'text-green-600' : 'text-slate-500'}`}>
+                                        {editState.isAvailable ? 'נוכח' : 'בבית'}
+                                    </span>
+                                    <button
+                                        onClick={() => setEditState(prev => {
+                                            const nextAvailable = !prev.isAvailable;
+                                            // Always default to 00:00-23:59 when turning ON
+                                            if (nextAvailable) {
+                                                return { ...prev, isAvailable: nextAvailable, start: '00:00', end: '23:59' };
+                                            }
+                                            return { ...prev, isAvailable: nextAvailable };
+                                        })}
+                                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${editState.isAvailable ? 'bg-green-500' : 'bg-slate-200'}`}
+                                        dir="ltr"
+                                    >
+                                        <span
+                                            className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transform transition-transform duration-200 ease-in-out ${editState.isAvailable ? 'translate-x-5' : 'translate-x-0'}`}
                                         />
-                                        <Clock size={16} className="text-slate-400 absolute left-2 pointer-events-none" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-slate-500 mb-1 block">סיום</label>
-                                    <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
-                                        <span className={`text-sm font-bold flex-1 text-center pointer-events-none ${editState.end ? 'text-slate-900' : 'text-slate-400'}`}>
-                                            {editState.end || '23:59'}
-                                        </span>
-                                        <input
-                                            type="time"
-                                            value={editState.end}
-                                            onChange={e => setEditState(prev => ({ ...prev, end: e.target.value }))}
-                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                        />
-                                        <Clock size={16} className="text-slate-400 absolute left-2 pointer-events-none" />
-                                    </div>
+                                    </button>
                                 </div>
                             </div>
-                        )}
 
-                        <div className="flex gap-3 pt-2">
-                            {getDisplayAvailability(editingDate).source === 'manual' && (
-                                <Button onClick={handleClearDay} variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-600 px-3" title="נקה שינוי ידני">
-                                    <Trash2 size={18} />
-                                </Button>
+                            {editState.isAvailable && (
+                                <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 mb-1 block">התחלה</label>
+                                        <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
+                                            <span className={`text-sm font-bold flex-1 text-center pointer-events-none ${editState.start ? 'text-slate-900' : 'text-slate-400'}`}>
+                                                {editState.start || '00:00'}
+                                            </span>
+                                            <input
+                                                type="time"
+                                                value={editState.start}
+                                                onChange={e => setEditState(prev => ({ ...prev, start: e.target.value }))}
+                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                            />
+                                            <Clock size={16} className="text-slate-400 absolute left-2 pointer-events-none" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 mb-1 block">סיום</label>
+                                        <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
+                                            <span className={`text-sm font-bold flex-1 text-center pointer-events-none ${editState.end ? 'text-slate-900' : 'text-slate-400'}`}>
+                                                {editState.end || '23:59'}
+                                            </span>
+                                            <input
+                                                type="time"
+                                                value={editState.end}
+                                                onChange={e => setEditState(prev => ({ ...prev, end: e.target.value }))}
+                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                            />
+                                            <Clock size={16} className="text-slate-400 absolute left-2 pointer-events-none" />
+                                        </div>
+                                    </div>
+                                </div>
                             )}
-                            <Button onClick={handleSaveDay} variant="primary" className="flex-1">
-                                שמור שינויים
-                            </Button>
+
+                            <div className="flex gap-3 pt-2">
+                                {getDisplayAvailability(editingDate).source === 'manual' && (
+                                    <Button onClick={handleClearDay} variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-600 px-3" title="נקה שינוי ידני">
+                                        <Trash2 size={18} />
+                                    </Button>
+                                )}
+                                <Button onClick={handleSaveDay} variant="primary" className="flex-1">
+                                    שמור שינויים
+                                </Button>
+                            </div>
                         </div>
-                    </div>
-                </Modal>
-            )}
-        </Modal>
+                    </Modal>
+                )
+            }
+        </Modal >
     );
 };

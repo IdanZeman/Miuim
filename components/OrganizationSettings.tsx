@@ -152,62 +152,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 <p className="text-slate-400 text-xs md:text-sm mt-2">המשתמשים יוכלו לראות את הלו"ז להיום ולמספר הימים הבאים שהוגדר.</p>
             </div>
 
-            <div className="border-t border-slate-100 pt-4 md:pt-6">
-                <h3 className="font-bold text-slate-800 mb-4">הגדרות מחולל סבבים</h3>
-                <div className="flex flex-col gap-6">
-                    {/* Cycle Definition */}
-                    <div className="flex flex-wrap items-end gap-4">
-                        <Input
-                            type="number"
-                            label="ימים בבסיס"
-                            min={1}
-                            max={30}
-                            value={daysOn}
-                            onChange={e => setDaysOn(parseInt(e.target.value))}
-                            placeholder="11"
-                            containerClassName="w-32"
-                        />
-                        <div className="pb-3 text-slate-300 font-bold text-xl">+</div>
-                        <Input
-                            type="number"
-                            label="ימים בבית"
-                            min={1}
-                            max={30}
-                            value={daysOff}
-                            onChange={e => setDaysOff(parseInt(e.target.value))}
-                            placeholder="3"
-                            containerClassName="w-32"
-                        />
-                        <div className="pb-3 text-slate-500 font-bold text-sm">
-                            = סה"כ מחזור: {daysOn + daysOff} ימים
-                        </div>
-                    </div>
 
-                    {/* Constraints & Start Date */}
-                    <div className="flex flex-wrap gap-6 border-t border-slate-100 pt-4">
-                        <Input
-                            type="number"
-                            label="מינימום כוח אדם"
-                            min={0}
-                            max={100}
-                            value={minStaff}
-                            onChange={e => setMinStaff(parseInt(e.target.value))}
-                            placeholder="5"
-                            containerClassName="w-40"
-                        />
-
-                        <div className="w-64">
-                            <label className="block text-sm font-bold text-slate-700 mb-1">תאריך התחלת סבב</label>
-                            <Input
-                                type="date"
-                                value={rotationStart}
-                                onChange={e => setRotationStart(e.target.value)}
-                            />
-                            <p className="text-slate-400 text-[10px] mt-1">נקודת ייחוס לחישוב (מתי מתחיל יום 1).</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-3 md:gap-4 pt-2">
                 {showSuccess && (

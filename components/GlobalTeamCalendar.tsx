@@ -9,11 +9,17 @@ interface GlobalTeamCalendarProps {
     teamRotations: TeamRotation[];
     onManageTeam?: (teamId: string) => void;
     onToggleTeamAvailability?: (teamId: string, date: Date, isAvailable: boolean) => void;
-    onDateClick: (date: Date) => void; // New prop
+    onDateClick: (date: Date) => void;
+    currentDate: Date; // Lifted
+    onDateChange: (date: Date) => void; // Lifted
 }
 
-export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({ teams, people, teamRotations, onManageTeam, onToggleTeamAvailability, onDateClick }) => {
-    const [currentDate, setCurrentDate] = useState(new Date());
+export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
+    teams, people, teamRotations,
+    onManageTeam, onToggleTeamAvailability, onDateClick,
+    currentDate, onDateChange
+}) => {
+    // const [currentDate, setCurrentDate] = useState(new Date()); // Removed
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -26,16 +32,16 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({ teams, p
 
     const monthName = currentDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
 
-    const handlePrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
-    const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
-    const handleToday = () => setCurrentDate(new Date());
+    const handlePrevMonth = () => onDateChange(new Date(year, month - 1, 1));
+    const handleNextMonth = () => onDateChange(new Date(year, month + 1, 1));
+    const handleToday = () => onDateChange(new Date());
 
     const renderCalendarDays = () => {
         const days = [];
 
         // Empty slots
         for (let i = 0; i < firstDay; i++) {
-            days.push(<div key={`empty-${i}`} className="min-h-[100px] bg-slate-50/50 border border-slate-100"></div>);
+            days.push(<div key={`empty-${i}`} className="min-h-[60px] md:min-h-[100px] bg-slate-50/50 border border-slate-100"></div>);
         }
 
         // Days
@@ -56,7 +62,7 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({ teams, p
             });
 
             const percentage = totalPeople > 0 ? Math.round((presentPeople / totalPeople) * 100) : 0;
-            
+
             // Color coding based on percentage
             let statusColor = 'bg-slate-50';
             let textColor = 'text-slate-500';
@@ -68,26 +74,27 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({ teams, p
                 <div
                     key={d}
                     onClick={() => onDateClick(date)}
-                    className={`min-h-[100px] border border-slate-100 relative p-2 transition-all hover:bg-blue-50/50 cursor-pointer group flex flex-col justify-between ${isToday ? 'bg-blue-50/30 ring-1 ring-inset ring-blue-200' : 'bg-white'}`}
+                    className={`min-h-[60px] md:min-h-[100px] border border-slate-100 relative p-1 md:p-2 transition-all hover:bg-blue-50/50 cursor-pointer group flex flex-col justify-between ${isToday ? 'bg-blue-50/30 ring-1 ring-inset ring-blue-200' : 'bg-white'}`}
                 >
                     <div className={`flex justify-between items-start mb-1 ${isToday ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>
-                        <span className="text-sm">{d}</span>
-                        {isToday && <span className="text-[9px] bg-blue-100 px-1.5 py-0.5 rounded-full">היום</span>}
+                        <span className="text-xs md:text-sm">{d}</span>
+                        {isToday && <span className="text-[8px] md:text-[9px] bg-blue-100 px-1 md:px-1.5 py-0.5 rounded-full">היום</span>}
                     </div>
 
                     <div className="flex flex-col items-center justify-center flex-1 gap-1">
-                        <div className={`text-2xl font-bold ${textColor}`}>
+                        <div className={`text-lg md:text-2xl font-bold ${textColor}`}>
                             {presentPeople}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
-                            <Users size={10} />
-                            מתוך {totalPeople}
+                        <div className="text-[8px] md:text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                            <Users size={10} className="hidden md:block" />
+                            <span className="md:hidden">/</span>
+                            <span className="hidden md:inline">מתוך</span> {totalPeople}
                         </div>
                     </div>
 
                     {/* Mini progress bar */}
-                    <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
-                        <div 
+                    <div className="w-full h-1 md:h-1.5 bg-slate-100 rounded-full mt-1 md:mt-2 overflow-hidden">
+                        <div
                             className={`h-full rounded-full transition-all ${percentage > 80 ? 'bg-green-500' : percentage > 50 ? 'bg-yellow-400' : 'bg-red-400'}`}
                             style={{ width: `${percentage}%` }}
                         ></div>
@@ -129,8 +136,9 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({ teams, p
             <div className="flex-1 overflow-auto bg-slate-50/30">
                 <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
                     {weekDays.map(day => (
-                        <div key={day} className="py-2 text-center text-xs font-bold text-slate-500 border-r border-slate-100 last:border-0">
-                            {day}
+                        <div key={day} className="py-2 text-center text-[10px] md:text-xs font-bold text-slate-500 border-r border-slate-100 last:border-0">
+                            <span className="hidden md:inline">{day}</span>
+                            <span className="md:hidden">{day[0]}</span>
                         </div>
                     ))}
                 </div>

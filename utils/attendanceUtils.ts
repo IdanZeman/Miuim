@@ -26,13 +26,19 @@ export const getEffectiveAvailability = (person: Person, date: Date, teamRotatio
     // 1. Manual Override
     if (person.dailyAvailability && person.dailyAvailability[dateKey]) {
         const manual = person.dailyAvailability[dateKey];
-        // Infer status for manual overrides if not present
-        let status = 'full';
-        if (!manual.isAvailable) status = 'home';
-        else if (manual.startHour && manual.startHour !== '00:00') status = 'arrival';
-        else if (manual.endHour && manual.endHour !== '23:59') status = 'departure';
         
-        return { ...manual, status, source: 'manual' };
+        // Use existing status if available (e.g. calculated by App.tsx with timeline context)
+        // Otherwise try to infer based on hours/availability
+        let status = manual.status || 'full';
+        
+        if (!manual.status && manual.isAvailable) {
+            if (manual.startHour && manual.startHour !== '00:00') status = 'arrival';
+            else if (manual.endHour && manual.endHour !== '23:59') status = 'departure';
+        } else if (!manual.isAvailable) {
+            status = 'home';
+        }
+        
+        return { ...manual, status, source: manual.source || 'manual' };
     }
 
     // 2. Personal Rotation

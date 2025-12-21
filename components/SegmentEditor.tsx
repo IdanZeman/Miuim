@@ -179,7 +179,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                         />
                     )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         <Input
                             type="time"
                             label="שעת התחלה"
@@ -195,7 +195,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                             className="text-center"
                             min={1}
                         />
-                        <div className="flex items-center">
+                        <div className="flex items-center col-span-2 sm:col-span-1">
                             <label className="flex items-center gap-2 cursor-pointer mt-0 sm:mt-6 p-2 sm:p-0 bg-white sm:bg-transparent rounded-lg border sm:border-none border-slate-200 w-full sm:w-auto">
                                 <input type="checkbox" checked={isRepeat} onChange={e => setIsRepeat(e.target.checked)} className="w-4 h-4 text-blue-600 rounded" />
                                 <span className="text-xs font-bold text-slate-600">מחזור רציף (24ש)</span>
@@ -237,7 +237,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                     </div>
 
                     <button onClick={addRoleRow} className="text-xs font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-dashed border-blue-200 flex items-center gap-1">
-                        <Plus size={14} /> הוסף תפקיד
+                        <Plus size={14} /> הוסף חייל
                     </button>
                 </div>
 

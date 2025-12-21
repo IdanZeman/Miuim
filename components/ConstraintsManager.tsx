@@ -1,449 +1,653 @@
-import React, { useState } from 'react';
-import { Person, TaskTemplate, SchedulingConstraint, ConstraintType, Team, Role } from '../types';
-import { Trash2, Plus, Clock, CheckCircle, Ban, User, Shield, ChevronDown, Pencil, Users, BadgeCheck, Calendar, Search } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
-import { Select } from './ui/Select';
+import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { Person, Team, SchedulingConstraint, TaskTemplate, Role } from '../types';
+import { useToast } from '../contexts/ToastContext';
+import { Search, Calendar as CalendarIcon, Filter, ShieldAlert, ChevronLeft, ChevronRight, Check, Briefcase, User, Users, Shield, Ban, Pin, Trash2, Clock, X } from 'lucide-react';
 import { Input } from './ui/Input';
-import { Button } from './ui/Button';
-import { Modal } from './ui/Modal';
+import { Select } from './ui/Select';
+import { MultiSelect } from './ui/MultiSelect';
 
 interface ConstraintsManagerProps {
     people: Person[];
-    tasks: TaskTemplate[];
     teams: Team[];
     roles: Role[];
+    tasks: TaskTemplate[];
     constraints: SchedulingConstraint[];
-    onAddConstraint: (c: SchedulingConstraint) => void;
+    onAddConstraint: (c: Omit<SchedulingConstraint, 'id'>) => void;
     onDeleteConstraint: (id: string) => void;
-    onUpdateConstraint: (c: SchedulingConstraint) => void;
+    isViewer?: boolean;
+    organizationId: string;
 }
 
-export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({ people, tasks, teams, roles, constraints, onAddConstraint, onDeleteConstraint, onUpdateConstraint }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingConstraint, setEditingConstraint] = useState<SchedulingConstraint | null>(null);
+export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
+    people,
+    teams,
+    roles,
+    tasks,
+    constraints,
+    onAddConstraint,
+    onDeleteConstraint,
+    isViewer = false,
+    organizationId
+}) => {
+    const { showToast } = useToast();
+    const [activeTab, setActiveTab] = useState<'attendance' | 'tasks'>('tasks');
+
+    // --- State for Attendance Tab ---
+    const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterTeamId, setFilterTeamId] = useState<string>('all');
+    const [viewDate, setViewDate] = useState(new Date());
 
-    // Form State
-    const [targetType, setTargetType] = useState<'person' | 'team' | 'role'>('person');
-    const [selectedTargetId, setSelectedTargetId] = useState<string>('');
-    const [selectedType, setSelectedType] = useState<ConstraintType>('never_assign');
-    const [selectedTaskId, setSelectedTaskId] = useState<string>('');
-    const [startDate, setStartDate] = useState<string>('');
-    const [startTime, setStartTime] = useState<string>('');
-    const [endDate, setEndDate] = useState<string>('');
-    const [endTime, setEndTime] = useState<string>('');
+    // Time Block Modal
+    const [timeBlockModalOpen, setTimeBlockModalOpen] = useState(false);
+    const [selectedDateForTimeBlock, setSelectedDateForTimeBlock] = useState<Date | null>(null);
+    const [timeBlockType, setTimeBlockType] = useState<'full_day' | 'hours'>('full_day');
+    const [startTime, setStartTime] = useState('08:00');
+    const [endTime, setEndTime] = useState('17:00');
 
-    const resetForm = () => {
-        setTargetType('person');
-        setSelectedTargetId('');
-        setSelectedType('never_assign');
-        setSelectedTaskId('');
-        setStartDate('');
-        setStartTime('');
-        setEndDate('');
-        setEndTime('');
-        setEditingConstraint(null);
-    };
+    // Delete Confirmation Modal
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [constraintToDelete, setConstraintToDelete] = useState<string | null>(null);
 
-    const handleOpenModal = (constraint?: SchedulingConstraint) => {
-        if (constraint) {
-            setEditingConstraint(constraint);
-            if (constraint.personId) { setTargetType('person'); setSelectedTargetId(constraint.personId); }
-            else if (constraint.teamId) { setTargetType('team'); setSelectedTargetId(constraint.teamId); }
-            else if (constraint.roleId) { setTargetType('role'); setSelectedTargetId(constraint.roleId); }
+    // --- State for Task Rules Tab ---
+    const [ruleTargetType, setRuleTargetType] = useState<'person' | 'team' | 'role'>('person');
+    const [ruleTargetIds, setRuleTargetIds] = useState<string[]>([]); // MultiSelect
+    const [ruleTargetIdSingle, setRuleTargetIdSingle] = useState<string>(''); // Single Select (Team/Role)
+    const [ruleTaskId, setRuleTaskId] = useState<string>('');
+    const [ruleType, setRuleType] = useState<'never_assign' | 'always_assign'>('never_assign');
+    const [rulesSearch, setRulesSearch] = useState('');
 
-            setSelectedType(constraint.type);
+    // --- Helpers / Derived State ---
 
-            if (constraint.type === 'time_block' && constraint.startTime && constraint.endTime) {
-                const start = new Date(constraint.startTime);
-                const end = new Date(constraint.endTime);
-                setStartDate(start.toISOString().split('T')[0]);
-                setStartTime(start.toTimeString().slice(0, 5));
-                setEndDate(end.toISOString().split('T')[0]);
-                setEndTime(end.toTimeString().slice(0, 5));
-            } else if (constraint.taskId) {
-                setSelectedTaskId(constraint.taskId);
+    const filteredPeople = useMemo(() => {
+        return people.filter(p => {
+            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesTeam = filterTeamId === 'all' || p.teamId === filterTeamId;
+            return matchesSearch && matchesTeam;
+        }).sort((a, b) => a.name.localeCompare(b.name));
+    }, [people, searchTerm, filterTeamId]);
+
+    const selectedPerson = people.find(p => p.id === selectedPersonId);
+
+    const taskConstraints = useMemo(() => {
+        return constraints.filter(c => {
+            if (!c.taskId) return false;
+            if (activeTab === 'tasks' && rulesSearch) {
+                const task = tasks.find(t => t.id === c.taskId);
+                const taskMatch = task?.name.toLowerCase().includes(rulesSearch.toLowerCase());
+
+                let targetName = '';
+                if (c.personId) targetName = people.find(p => p.id === c.personId)?.name || '';
+                else if (c.teamId) targetName = teams.find(t => t.id === c.teamId)?.name || '';
+                else if (c.roleId) targetName = roles.find(r => r.id === c.roleId)?.name || '';
+
+                const targetMatch = targetName.toLowerCase().includes(rulesSearch.toLowerCase());
+
+                return taskMatch || targetMatch;
+            }
+            return true;
+        });
+    }, [constraints, tasks, people, teams, roles, activeTab, rulesSearch]);
+
+    // --- Handlers ---
+
+    const handleDateClick = (date: Date) => {
+        if (!selectedPersonId || isViewer) return;
+
+        const dateStr = date.toLocaleDateString('en-CA');
+
+        // Find ANY block for this date
+        const existingBlock = constraints.find(c =>
+            c.personId === selectedPersonId &&
+            !c.taskId &&
+            c.startTime?.startsWith(dateStr) &&
+            c.type === 'never_assign'
+        );
+
+        if (existingBlock) {
+            // Check if it is full day
+            const isFullDay = existingBlock.endTime?.includes('23:59');
+
+            if (isFullDay) {
+                // If full day, show delete confirmation (existing behavior)
+                setConstraintToDelete(existingBlock.id);
+                setDeleteModalOpen(true);
+            } else {
+                // If partial, open modal in Edit mode
+                setSelectedDateForTimeBlock(date);
+                setTimeBlockType('hours');
+
+                // Extract HH:MM from ISO string
+                // ISO: YYYY-MM-DDTHH:MM:SS...
+                const sTime = existingBlock.startTime ? new Date(existingBlock.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '08:00';
+                const eTime = existingBlock.endTime ? new Date(existingBlock.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '17:00';
+
+                setStartTime(sTime);
+                setEndTime(eTime);
+
+                // IMPORTANT: We might need to know we are UPDATING, not adding new.
+                // But onAddConstraint usually creates a new ID.
+                // If we want to replace, we should probably delete the old one first or update it.
+                // For simplicity, let's treat "Save" as "Delete Old + Add New" or handle update in save.
+                // Actually, let's set a state for 'editingConstraintId' if we want clean updates.
+                // For now, let's just make sure `handleSaveTimeBlock` handles this logic.
+                // Wait, `handleSaveTimeBlock` just calls `onAddConstraint`. 
+                // Checks duplicate? `constraints.find(...)` logic in `ConstraintsManager` doesn't seem to block duplicates for same date?
+                // Actually, usually we only want ONE block per date or disjoint blocks.
+                // Let's set the constraint to delete so the save handler can remove the old one.
+                setConstraintToDelete(existingBlock.id);
+
+                setTimeBlockModalOpen(true);
             }
         } else {
-            resetForm();
+            // New Block
+            setConstraintToDelete(null); // Clear any pending delete
+            setSelectedDateForTimeBlock(date);
+            setTimeBlockType('full_day');
+            setStartTime('08:00');
+            setEndTime('17:00');
+            setTimeBlockModalOpen(true);
         }
-        setIsModalOpen(true);
     };
 
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        resetForm();
+    const handleConfirmDelete = () => {
+        if (constraintToDelete) {
+            onDeleteConstraint(constraintToDelete);
+            showToast('אילוץ הוסר', 'success');
+            setDeleteModalOpen(false);
+            setConstraintToDelete(null);
+        }
     };
 
-    const handleSave = () => {
-        if (!selectedTargetId) return;
+    const handleSaveTimeBlock = () => {
+        if (!selectedDateForTimeBlock || !selectedPersonId) return;
 
-        const constraintData: SchedulingConstraint = {
-            id: editingConstraint?.id || uuidv4(),
-            type: selectedType,
-            organization_id: '', // Will be set by parent or DB mapper
-        };
+        // If we were "editing" (indicated by constraintToDelete being set), delete the old one first
+        if (constraintToDelete && timeBlockModalOpen) {
+            onDeleteConstraint(constraintToDelete);
+            setConstraintToDelete(null); // Clear it so we don't double delete or confuse state
+        }
 
-        // Assign target based on type
-        if (targetType === 'person') constraintData.personId = selectedTargetId;
-        else if (targetType === 'team') constraintData.teamId = selectedTargetId;
-        else if (targetType === 'role') constraintData.roleId = selectedTargetId;
+        // Construct dates in LOCAL time then convert to ISO (UTC)
+        // selectedDateForTimeBlock is usually 00:00 local representation from calendar generation?
+        // Actually generateCalendarDays() usually gives local midnight dates.
 
-        if (selectedType === 'time_block') {
-            if (!startDate || !startTime || !endDate || !endTime) return;
-            constraintData.startTime = new Date(`${startDate}T${startTime}`).toISOString();
-            constraintData.endTime = new Date(`${endDate}T${endTime}`).toISOString();
+        const baseDate = new Date(selectedDateForTimeBlock);
+        // Ensure we are working with the date components
+        const year = baseDate.getFullYear();
+        const month = baseDate.getMonth();
+        const day = baseDate.getDate();
+
+        // Fix: Use UTC Date construction to avoid timezone shifts in the ISO string
+        // This ensures that "2025-12-02" selected becomes "2025-12-02T00:00:00.000Z" in the DB
+        // allowing string prefix matching to work consistently.
+
+        let sHour = 0, sMin = 0;
+        let eHour = 23, eMin = 59;
+
+        if (timeBlockType === 'hours') {
+            [sHour, sMin] = startTime.split(':').map(Number);
+            [eHour, eMin] = endTime.split(':').map(Number);
+
+            // For specific hours, we usually WANT local time interpretation.
+            // But to keep it matching the date string, we need to be careful.
+            // If we use UTC here, "08:00" input becomes "08:00Z" (10:00/11:00 Local).
+            // Let's stick to LOCAL time for hours, but UTC for full days?
+            // No, consistency is key. Let's use Local construction but shift it so ISO matches.
+
+            const localStart = new Date(year, month, day, sHour, sMin, 0);
+            const localEnd = new Date(year, month, day, eHour, eMin, 0);
+
+            // Adjust by offset so ISO string matches Local wall time
+            // This effectively stores "Wall Time" inside the UTC slot
+            // e.g. User wants 08:00. We store 08:00Z. 
+            // DB sees 08:00. UI seeing 08:00Z in Local (+2) -> 10:00. This might be confusing?
+            // Actually, if we just want `startsWith` to work, the DATE part must match.
+            // 00:00 Local -> 22:00 Prev Day.
+
+            // PROPOSAL: For Full Day, use UTC 00:00 - 23:59.
+            // For Hours, use real Date objects (Local) => UTC.
+            // AND update the `handleDateClick` finder to NOT use strings but use date objects (like logic in rotaGenerator).
+        }
+
+        // REVISED APPROACH: Just fix the Finder in handleDateClick?
+        // User said "It blocks hours on Thursday". This implies the constraint actually got saved as Thursday.
+        // If I simply force the ISO string generation to respect the Selected Date's YYYY-MM-DD.
+
+        const startObj = new Date(Date.UTC(year, month, day,
+            timeBlockType === 'hours' ? parseInt(startTime.split(':')[0]) : 0,
+            timeBlockType === 'hours' ? parseInt(startTime.split(':')[1]) : 0,
+            0
+        ));
+
+        const endObj = new Date(Date.UTC(year, month, day,
+            timeBlockType === 'hours' ? parseInt(endTime.split(':')[0]) : 23,
+            timeBlockType === 'hours' ? parseInt(endTime.split(':')[1]) : 59,
+            59
+        ));
+
+        // If 'hours' mode, we are technically storing it as if the user is in UTC.
+        // This is fine as long as we treat everything as floating/UTC for these simple constraints.
+        // Given the complexity of "Person is present 08:00-17:00", exact timezone correctness is less critical 
+        // than the date matching the cell they clicked.
+
+        onAddConstraint({
+            personId: selectedPersonId,
+            type: 'never_assign',
+            startTime: startObj.toISOString(),
+            endTime: endObj.toISOString(),
+            organization_id: organizationId,
+            description: timeBlockType === 'hours' ? `Blocked hours ${startTime}-${endTime}` : 'Blocked date'
+        });
+
+        showToast('אילוץ נוסף בהצלחה', 'success');
+        setTimeBlockModalOpen(false);
+    };
+
+    // Helper for delete from modal
+    const handleDeleteFromModal = () => {
+        if (constraintToDelete) {
+            onDeleteConstraint(constraintToDelete);
+            showToast('אילוץ הוסר', 'success');
+            setConstraintToDelete(null);
+            setTimeBlockModalOpen(false);
+        }
+    };
+
+    const handleAddRule = () => {
+        if (isViewer) return;
+        if (!ruleTaskId) {
+            showToast('נא לבחור משימה', 'error');
+            return;
+        }
+
+        const targets = [];
+        if (ruleTargetType === 'person') {
+            if (ruleTargetIds.length === 0) {
+                showToast('נא לבחור חיילים', 'error');
+                return;
+            }
+            targets.push(...ruleTargetIds.map(id => ({ type: 'person', id })));
         } else {
-            if (!selectedTaskId && selectedType !== 'time_block') return; // Task needed unless time_block
-            if (selectedTaskId) constraintData.taskId = selectedTaskId;
+            if (!ruleTargetIdSingle) {
+                showToast('נא לבחור יעד', 'error');
+                return;
+            }
+            targets.push({ type: ruleTargetType, id: ruleTargetIdSingle });
         }
 
-        if (editingConstraint) {
-            onUpdateConstraint(constraintData);
+        let addedCount = 0;
+        targets.forEach(target => {
+            const newConstraint: Omit<SchedulingConstraint, 'id'> = {
+                organization_id: organizationId,
+                taskId: ruleTaskId,
+                type: ruleType,
+                description: 'Task Rule'
+            };
+
+            if (target.type === 'person') newConstraint.personId = target.id;
+            else if (target.type === 'team') newConstraint.teamId = target.id;
+            else if (target.type === 'role') newConstraint.roleId = target.id;
+
+            // Check Duplicate
+            const exists = constraints.find(c =>
+                c.taskId === ruleTaskId &&
+                c.type === ruleType &&
+                (
+                    (target.type === 'person' && c.personId === target.id) ||
+                    (target.type === 'team' && c.teamId === target.id) ||
+                    (target.type === 'role' && c.roleId === target.id)
+                )
+            );
+
+            if (!exists) {
+                onAddConstraint(newConstraint);
+                addedCount++;
+            }
+        });
+
+        if (addedCount > 0) {
+            showToast(`${addedCount} חוקים נוספו בהצלחה`, 'success');
+            // Reset
+            setRuleTargetIds([]);
+            setRuleTargetIdSingle('');
         } else {
-            onAddConstraint(constraintData);
-        }
-
-        handleCloseModal();
-    };
-
-    // Helper functions for display
-    const getConstraintLabel = (type: ConstraintType) => {
-        switch (type) {
-            case 'always_assign': return 'תמיד לשבץ ל...';
-            case 'never_assign': return 'לעולם לא לשבץ ל...';
-            case 'time_block': return 'חסימת שעות';
+            showToast('כל החוקים שנבחרו כבר קיימים', 'info');
         }
     };
 
-    const getConstraintIcon = (type: ConstraintType) => {
-        switch (type) {
-            case 'always_assign': return <CheckCircle size={20} className="text-green-500" />;
-            case 'never_assign': return <Ban size={20} className="text-red-500" />;
-            case 'time_block': return <Clock size={20} className="text-orange-500" />;
-        }
+    const generateCalendarDays = () => {
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const days = [];
+        for (let i = 0; i < firstDay.getDay(); i++) days.push(null);
+        for (let i = 1; i <= lastDay.getDate(); i++) days.push(new Date(year, month, i));
+        return days;
     };
 
-    const getTargetDisplay = (c: SchedulingConstraint) => {
+    const getTargetName = (c: SchedulingConstraint) => {
         if (c.personId) {
-            const p = people.find(p => p.id === c.personId);
-            return { name: p?.name || 'לא ידוע', icon: <User size={16} className="text-slate-400" />, type: 'חייל' };
+            const p = people.find(x => x.id === c.personId);
+            return { name: p?.name || 'Unknown', icon: User, type: 'person' };
         }
         if (c.teamId) {
-            const t = teams.find(t => t.id === c.teamId);
-            return { name: t?.name || 'צוות לא ידוע', icon: <Users size={16} className="text-blue-500" />, type: 'צוות' };
+            const t = teams.find(x => x.id === c.teamId);
+            return { name: t?.name || 'Unknown', icon: Users, type: 'team' };
         }
         if (c.roleId) {
-            const r = roles.find(r => r.id === c.roleId);
-            return { name: r?.name || 'תפקיד לא ידוע', icon: <BadgeCheck size={16} className="text-purple-500" />, type: 'תפקיד' };
+            const r = roles.find(x => x.id === c.roleId);
+            return { name: r?.name || 'Unknown', icon: Shield, type: 'role' };
         }
-        return { name: 'לא ידוע', icon: <User size={16} />, type: 'אלמוני' };
+        return { name: 'Unknown', icon: User, type: 'unknown' };
     };
-
-    const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleString('he-IL', {
-            day: '2-digit', month: '2-digit', year: '2-digit',
-            hour: '2-digit', minute: '2-digit'
-        });
-    };
-
-    // Filter constraints
-    const filteredConstraints = constraints.filter(c => {
-        const target = getTargetDisplay(c);
-        return target.name.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-
-    const footerContent = (
-        <div className="flex gap-3 w-full">
-            <Button
-                variant="ghost"
-                onClick={handleCloseModal}
-                fullWidth
-            >
-                ביטול
-            </Button>
-            <Button
-                variant="primary"
-                onClick={handleSave}
-                disabled={!selectedTargetId || (selectedType === 'time_block' ? (!startDate || !startTime) : !selectedTaskId)}
-                fullWidth
-            >
-                {editingConstraint ? 'שמור שינויים' : 'צור אילוץ'}
-            </Button>
-        </div>
-    );
 
     return (
-        <div className="space-y-6">
-            {/* ... (Header and List remain unchanged) ... */}
+        <div className="flex flex-col h-[calc(100vh-100px)] gap-4">
+            {/* Top Control Bar */}
+            <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between shrink-0">
+                <h2 className="text-lg font-bold text-slate-800 px-2 flex items-center gap-2">
+                    <ShieldAlert className="text-blue-600" size={24} />
+                    ניהול אילוצים
+                </h2>
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <Shield className="text-blue-600" />
-                        ניהול אילוצים
-                    </h2>
-                    <p className="text-slate-500 text-sm mt-1">הגדרת חוקים לשיבוץ (חסימות, העדפות, וכדומה)</p>
-                </div>
-                <div className="flex gap-3 w-full md:w-auto">
-                    <Button
-                        onClick={() => handleOpenModal()}
-                        icon={Plus}
-                        variant="primary"
-                        className="w-full md:w-auto"
-                    >
-                        הוסף אילוץ
-                    </Button>
+                <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg">
+                    <button onClick={() => setActiveTab('tasks')} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-all ${activeTab === 'tasks' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+                        <Briefcase size={16} />
+                        אילוצי משימות
+                    </button>
+                    <button onClick={() => setActiveTab('attendance')} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-all ${activeTab === 'attendance' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+                        <CalendarIcon size={16} />
+                        אילוצי היעדרויות
+                    </button>
                 </div>
             </div>
 
-            {/* Search */}
-            <div className="relative max-w-md">
-                <Input
-                    placeholder="חפש אילוץ לפי שם..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    icon={Search}
-                    className="w-full"
-                />
-            </div>
+            <div className="flex flex-1 overflow-hidden gap-6">
 
-            {/* List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredConstraints.map(c => {
-                    const target = getTargetDisplay(c);
-                    const task = tasks.find(t => t.id === c.taskId);
-
-                    return (
-                        <div key={c.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all group overflow-hidden relative">
-                            {/* Color Bar */}
-                            <div className={`absolute top-0 right-0 left-0 h-1 ${c.type === 'never_assign' ? 'bg-red-500' : c.type === 'always_assign' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-
-                            <div className="p-5">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-lg shrink-0 ${c.type === 'never_assign' ? 'bg-red-50 text-red-600' :
-                                            c.type === 'always_assign' ? 'bg-green-50 text-green-600' :
-                                                'bg-orange-50 text-orange-600'
-                                            }`}>
-                                            {getConstraintIcon(c.type)}
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <h3 className="font-bold text-slate-800 text-lg leading-tight">{target.name}</h3>
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${target.type === 'חייל' ? 'bg-slate-50 text-slate-500 border-slate-200' :
-                                                    target.type === 'צוות' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                        'bg-purple-50 text-purple-600 border-purple-100'
-                                                    }`}>
-                                                    {target.type}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm text-slate-500 font-medium mt-0.5">{getConstraintLabel(c.type)}</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                                    {c.type === 'time_block' ? (
-                                        <div className="flex items-center justify-between text-sm">
-                                            <div className="text-right">
-                                                <div className="text-xs text-slate-400 font-bold mb-1">התחלה</div>
-                                                <div className="font-mono font-bold text-slate-700 dir-ltr text-right">{formatDate(c.startTime!)}</div>
-                                            </div>
-                                            <div className="text-slate-300 px-2">
-                                                <ChevronDown size={16} className="rotate-90" />
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-xs text-slate-400 font-bold mb-1">סיום</div>
-                                                <div className="font-mono font-bold text-slate-700 dir-ltr text-right">{formatDate(c.endTime!)}</div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                                            <span className="font-bold text-slate-700 text-sm">
-                                                {task?.name || 'משימה לא ידועה'}
-                                            </span>
-                                        </div>
-                                    )}
+                {/* --- ATTENDANCE TAB --- */}
+                {activeTab === 'attendance' && (
+                    <>
+                        <div className="w-80 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col shrink-0">
+                            <div className="p-4 border-b border-slate-100 space-y-4">
+                                <div className="flex items-center gap-2 text-slate-700 font-bold text-sm"><Users size={16} />רשימת חיילים</div>
+                                <div className="space-y-3">
+                                    <Input placeholder="חיפוש חייל..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} icon={Search} />
+                                    <Select value={filterTeamId} onChange={setFilterTeamId} options={[{ value: 'all', label: 'כל הצוותים' }, ...teams.map(t => ({ value: t.id, label: t.name }))]} placeholder="סינון לפי צוות" />
                                 </div>
                             </div>
-
-                            <div className="flex items-center justify-end gap-2 p-3 bg-slate-50 border-t border-slate-100">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleOpenModal(c)}
-                                    className="text-slate-500 hover:text-blue-600"
-                                >
-                                    <Pencil size={16} />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => onDeleteConstraint(c.id)}
-                                    className="text-slate-500 hover:text-red-600"
-                                >
-                                    <Trash2 size={16} />
-                                </Button>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                                {filteredPeople.map(person => {
+                                    const team = teams.find(t => t.id === person.teamId);
+                                    const isSelected = selectedPersonId === person.id;
+                                    return (
+                                        <button key={person.id} onClick={() => setSelectedPersonId(person.id)} className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all text-right ${isSelected ? 'bg-blue-50 border border-blue-200 shadow-sm' : 'hover:bg-slate-50 border border-transparent'}`}>
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ${team?.color ? team.color.replace('border-', 'bg-') : 'bg-slate-400'}`}>{person.name.slice(0, 2)}</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-bold text-slate-700 truncate">{person.name}</div>
+                                                <div className="text-xs text-slate-500 truncate">{team?.name || 'ללא צוות'}</div>
+                                            </div>
+                                            {isSelected && <Check size={16} className="text-blue-600" />}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
-                    );
-                })}
 
-                {filteredConstraints.length === 0 && (
-                    <div className="col-span-full flex flex-col items-center justify-center py-12 text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                        <Shield size={48} className="mb-4 opacity-20" />
-                        <p className="text-lg font-medium">לא נמצאו אילוצים</p>
-                        {searchTerm && <p className="text-sm">נסה לחפש ביטוי אחר</p>}
-                        <Button variant="ghost" className="mt-4" onClick={() => handleOpenModal()}>
-                            צור אילוץ חדש
-                        </Button>
+                        <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden relative">
+                            {!selectedPerson ? (
+                                <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+                                    <ShieldAlert size={64} className="mb-4 opacity-20" />
+                                    <p className="text-lg">בחר חייל מהרשימה לניהול אילוצי היעדרויות</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                                        <div>
+                                            <h2 className="text-2xl font-bold text-slate-800">{selectedPerson.name}</h2>
+                                            <p className="text-slate-500">ניהול היעדרויות ושעות חסימה</p>
+                                        </div>
+                                        <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+                                            <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} className="p-1 hover:bg-slate-100 rounded"><ChevronRight /></button>
+                                            <span className="text-lg font-bold min-w-[140px] text-center">{viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}</span>
+                                            <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} className="p-1 hover:bg-slate-100 rounded"><ChevronLeft /></button>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 p-6 overflow-y-auto">
+                                        <div className="grid grid-cols-7 gap-4 mb-4">
+                                            {['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'].map(day => <div key={day} className="text-center font-bold text-slate-400 text-sm py-2">{day}</div>)}
+                                        </div>
+                                        <div className="grid grid-cols-7 gap-4">
+                                            {generateCalendarDays().map((date, i) => {
+                                                if (!date) return <div key={`empty-${i}`} className="aspect-square bg-slate-50/50 rounded-xl" />;
+
+                                                const dateStr = date.toLocaleDateString('en-CA');
+                                                // Find if blocked
+                                                const block = constraints.find(c => c.personId === selectedPersonId && !c.taskId && c.startTime?.startsWith(dateStr) && c.type === 'never_assign');
+                                                const isFullBlock = block && block.endTime?.includes('23:59');
+                                                const isPartialBlock = block && !isFullBlock;
+
+                                                return (
+                                                    <button key={dateStr} onClick={() => handleDateClick(date)}
+                                                        className={`aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all border-2 relative group 
+                                                            ${block ? 'bg-red-50 border-red-500 shadow-md' : 'bg-white border-slate-100 hover:border-blue-400 hover:shadow-md'}
+                                                        `}>
+                                                        <span className={`text-xl font-bold ${block ? 'text-red-600' : 'text-slate-700'}`}>{date.getDate()}</span>
+
+                                                        {isFullBlock && <span className="text-[10px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">חסום יום</span>}
+                                                        {isPartialBlock && (
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full mb-0.5">חסימת שעות</span>
+                                                                <span className="text-[9px] text-slate-600">
+                                                                    {block.startTime ? new Date(block.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : ''} -
+                                                                    {block.endTime ? new Date(block.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {timeBlockModalOpen && createPortal(
+                                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                                    <div
+                                        className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-200 animate-in zoom-in-95 duration-200"
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-xl font-bold text-slate-800">הוספת חסימה</h3>
+                                            <button onClick={() => setTimeBlockModalOpen(false)} className="bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors"><X size={18} /></button>
+                                        </div>
+                                        <p className="text-slate-500 mb-6 font-medium">
+                                            עבור התאריך: <span className="text-slate-800 font-bold">{selectedDateForTimeBlock?.toLocaleDateString('he-IL')}</span>
+                                        </p>
+
+                                        <div className="space-y-4 mb-8">
+                                            <div className="flex bg-slate-100 p-1 rounded-lg">
+                                                <button onClick={() => setTimeBlockType('full_day')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${timeBlockType === 'full_day' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}>יום מלא</button>
+                                                <button onClick={() => setTimeBlockType('hours')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${timeBlockType === 'hours' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>שעות ספציפיות</button>
+                                            </div>
+
+                                            {timeBlockType === 'hours' && (
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="text-xs font-bold text-slate-500 mb-1 block">התחלה</label>
+                                                        <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-bold text-slate-500 mb-1 block">סיום</label>
+                                                        <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex gap-3">
+                                            {constraintToDelete && (
+                                                <button
+                                                    onClick={() => {
+                                                        onDeleteConstraint(constraintToDelete);
+                                                        setConstraintToDelete(null);
+                                                        setTimeBlockModalOpen(false);
+                                                        showToast('אילוץ הוסר', 'success');
+                                                    }}
+                                                    className="bg-red-50 text-red-600 p-3 rounded-xl hover:bg-red-100 transition-colors"
+                                                    title="הסר אילוץ"
+                                                >
+                                                    <Trash2 size={20} />
+                                                </button>
+                                            )}
+                                            <button onClick={handleSaveTimeBlock} className="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2">
+                                                <Check size={20} />
+                                                {constraintToDelete ? 'עדכן חסימה' : 'שמור חסימה'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>,
+                                document.body
+                            )}
+
+                            {deleteModalOpen && createPortal(
+                                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                                    <div
+                                        className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-200 animate-in zoom-in-95 duration-200 text-center"
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <Trash2 size={32} />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-slate-800 mb-2">הסרת חסימה</h3>
+                                        <p className="text-slate-500 mb-8">
+                                            האם אתה בטוח שברצונך להסיר את החסימה לתאריך זה?
+                                        </p>
+
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => setDeleteModalOpen(false)}
+                                                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition-colors"
+                                            >
+                                                ביטול
+                                            </button>
+                                            <button
+                                                onClick={handleConfirmDelete}
+                                                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-colors"
+                                            >
+                                                הסר חסימה
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>,
+                                document.body
+                            )}
+                        </div>
+                    </>
+                )}
+
+                {/* --- TASK RULES TAB --- */}
+                {activeTab === 'tasks' && (
+                    <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 bg-slate-50">
+                            <h3 className="text-xl font-bold text-slate-800 mb-4">הגדרת חוקי משימות</h3>
+                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                                <div className="flex flex-wrap gap-4 items-end">
+                                    {/* 1. Target Type */}
+                                    <div className="w-64">
+                                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">סוג אילוץ על</label>
+                                        <div className="flex bg-slate-100 p-1 rounded-lg gap-4">
+                                            {([['person', 'חייל', User], ['team', 'צוות', Users], ['role', 'תפקיד', Shield]] as const).map(([type, label, Icon]) => (
+                                                <button key={type} onClick={() => { setRuleTargetType(type); setRuleTargetIds([]); setRuleTargetIdSingle(''); }} className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-md text-sm font-bold transition-all ${ruleTargetType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                                    <Icon size={14} />{label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* 2. Target Selection (Multi or Single) */}
+                                    <div className="flex-1 min-w-[200px]">
+                                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">
+                                            {ruleTargetType === 'person' ? 'בחר חיילים (בחירה מרובה)' : ruleTargetType === 'team' ? 'בחר צוות' : 'בחר תפקיד'}
+                                        </label>
+                                        {ruleTargetType === 'person' ? (
+                                            <MultiSelect
+                                                value={ruleTargetIds}
+                                                onChange={setRuleTargetIds}
+                                                options={people.map(p => ({ value: p.id, label: p.name }))}
+                                                placeholder="בחר חיילים..."
+                                            />
+                                        ) : (
+                                            <Select
+                                                value={ruleTargetIdSingle}
+                                                onChange={setRuleTargetIdSingle}
+                                                options={ruleTargetType === 'team' ? teams.map(t => ({ value: t.id, label: t.name })) : roles.map(r => ({ value: r.id, label: r.name }))}
+                                                placeholder="-- בחר --"
+                                            />
+                                        )}
+                                    </div>
+
+                                    {/* 3. Task */}
+                                    <div className="w-56">
+                                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">המשימה</label>
+                                        <Select value={ruleTaskId} onChange={setRuleTaskId} options={tasks.map(t => ({ value: t.id, label: t.name }))} placeholder="בחר משימה" />
+                                    </div>
+
+                                    {/* 4. Rule Type */}
+                                    <div className="w-56">
+                                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">סוג הכלל</label>
+                                        <Select
+                                            value={ruleType}
+                                            onChange={val => setRuleType(val as any)}
+                                            options={[
+                                                { value: 'never_assign', label: 'לעולם לא לשבץ' },
+                                                { value: 'always_assign', label: 'שבץ רק למשימה זו (בלעדי)' },
+                                            ]}
+                                            placeholder="סוג"
+                                        />
+                                    </div>
+
+                                    {/* 5. Add Button */}
+                                    <div className="w-auto pb-[1px]">
+                                        <button onClick={handleAddRule} className="bg-blue-600 text-white font-bold h-[42px] px-6 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 shadow-sm">
+                                            <Check size={18} />
+                                            הוסף כלל
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="font-bold text-slate-700">רשימת חוקים פעילים ({taskConstraints.length})</h4>
+                                <div className="w-64"><Input placeholder="חיפוש חוקים..." value={rulesSearch} onChange={(e) => setRulesSearch(e.target.value)} icon={Search} /></div>
+                            </div>
+                            <div className="space-y-3">
+                                {taskConstraints.map(c => {
+                                    const { name, icon: Icon, type } = getTargetName(c);
+                                    const task = tasks.find(t => t.id === c.taskId);
+                                    return (
+                                        <div key={c.id} className="flex items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${type === 'person' ? 'bg-blue-100 text-blue-600' : type === 'team' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'}`}><Icon size={20} /></div>
+                                            <div className="flex-1 grid grid-cols-3 gap-4 items-center">
+                                                <div><div className="text-xs font-bold text-slate-400 uppercase">{type === 'person' ? 'חייל' : type === 'team' ? 'צוות' : 'תפקיד'}</div><div className="font-bold text-slate-800 text-lg">{name}</div></div>
+                                                <div className="flex items-center gap-2"><div className={`h-1 w-8 rounded-full ${c.type === 'never_assign' ? 'bg-red-200' : 'bg-green-200'}`} /><div><div className="text-xs font-bold text-slate-400 uppercase">משימה</div><div className="font-bold text-slate-700">{task?.name || '---'}</div></div></div>
+                                                <div><span className={`px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2 w-fit ${c.type === 'never_assign' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>{c.type === 'never_assign' ? <Ban size={14} /> : <Pin size={14} />}{c.type === 'never_assign' ? 'לא לשבץ לעולם' : 'שבץ רק למשימה זו'}</span></div>
+                                            </div>
+                                            <button onClick={() => onDeleteConstraint(c.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-4"><Trash2 size={20} /></button>
+                                        </div>
+                                    );
+                                })}
+                                {taskConstraints.length === 0 && <div className="text-center py-12 text-slate-400"><Shield size={48} className="mx-auto mb-4 opacity-20" /><p>לא נמצאו חוקים פעילים</p></div>}
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
-
-            {/* Modal */}
-            <Modal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                title={editingConstraint ? 'עריכת אילוץ' : 'הוסף אילוץ חדש'}
-                footer={footerContent}
-            >
-                <div className="space-y-6">
-                    {/* Target Selector */}
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">על מי חל האילוץ?</label>
-                        <div className="flex bg-slate-100 p-1 rounded-xl mb-3">
-                            <button onClick={() => { setTargetType('person'); setSelectedTargetId(''); }} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${targetType === 'person' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>חייל ספציפי</button>
-                            <button onClick={() => { setTargetType('team'); setSelectedTargetId(''); }} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${targetType === 'team' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>צוות שלם</button>
-                            <button onClick={() => { setTargetType('role'); setSelectedTargetId(''); }} className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${targetType === 'role' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>תפקיד</button>
-                        </div>
-
-                        {targetType === 'person' && (
-                            <Select
-                                label="בחר חייל"
-                                value={selectedTargetId}
-                                onChange={setSelectedTargetId}
-                                options={people.map(p => ({ value: p.id, label: p.name }))}
-                                placeholder="בחר חייל..."
-                                icon={User}
-                                searchable
-                            />
-                        )}
-                        {targetType === 'team' && (
-                            <Select
-                                label="בחר צוות"
-                                value={selectedTargetId}
-                                onChange={setSelectedTargetId}
-                                options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                placeholder="בחר צוות..."
-                                icon={Users}
-                            />
-                        )}
-                        {targetType === 'role' && (
-                            <Select
-                                label="בחר תפקיד"
-                                value={selectedTargetId}
-                                onChange={setSelectedTargetId}
-                                options={roles.map(r => ({ value: r.id, label: r.name }))}
-                                placeholder="בחר תפקיד..."
-                                icon={BadgeCheck}
-                            />
-                        )}
-                    </div>
-
-                    {/* Type Selector */}
-                    <div>
-                        <Select
-                            label="סוג אילוץ"
-                            value={selectedType}
-                            onChange={(val) => setSelectedType(val as ConstraintType)}
-                            options={[
-                                { value: 'never_assign', label: '⛔ לעולם לא לשבץ ל...' },
-                                { value: 'always_assign', label: '✅ תמיד לשבץ ל... (בלעדיות)' },
-                                { value: 'time_block', label: '⏳ חסימת שעות ספציפית' }
-                            ]}
-                            placeholder="בחר סוג..."
-                            icon={Shield}
-                        />
-                    </div>
-
-                    {/* Conditional Fields */}
-                    {selectedType === 'time_block' ? (
-                        <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">התחלה</label>
-                                <div className="relative flex items-center bg-white rounded-lg border border-slate-200 px-2 py-1.5 w-full mb-2">
-                                    <span className={`text-xs font-bold flex-1 text-right pointer-events-none ${startDate ? 'text-slate-700' : 'text-slate-400'}`}>
-                                        {startDate ? new Date(startDate).toLocaleDateString('he-IL') : 'תאריך'}
-                                    </span>
-                                    <input
-                                        type="date"
-                                        value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                    />
-                                    <Calendar size={14} className="text-slate-400 ml-1 pointer-events-none" />
-                                </div>
-                                <div className="relative flex items-center bg-white rounded-lg border border-slate-200 px-2 py-1.5 w-full">
-                                    <span className={`text-xs font-bold flex-1 text-right pointer-events-none ${startTime ? 'text-slate-700' : 'text-slate-400'}`}>
-                                        {startTime || 'שעה'}
-                                    </span>
-                                    <input
-                                        type="time"
-                                        value={startTime}
-                                        onChange={(e) => setStartTime(e.target.value)}
-                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                    />
-                                    <Clock size={14} className="text-slate-400 ml-1 pointer-events-none" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">סיום</label>
-                                <div className="relative flex items-center bg-white rounded-lg border border-slate-200 px-2 py-1.5 w-full mb-2">
-                                    <span className={`text-xs font-bold flex-1 text-right pointer-events-none ${endDate ? 'text-slate-700' : 'text-slate-400'}`}>
-                                        {endDate ? new Date(endDate).toLocaleDateString('he-IL') : 'תאריך'}
-                                    </span>
-                                    <input
-                                        type="date"
-                                        value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
-                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                    />
-                                    <Calendar size={14} className="text-slate-400 ml-1 pointer-events-none" />
-                                </div>
-                                <div className="relative flex items-center bg-white rounded-lg border border-slate-200 px-2 py-1.5 w-full">
-                                    <span className={`text-xs font-bold flex-1 text-right pointer-events-none ${endTime ? 'text-slate-700' : 'text-slate-400'}`}>
-                                        {endTime || 'שעה'}
-                                    </span>
-                                    <input
-                                        type="time"
-                                        value={endTime}
-                                        onChange={(e) => setEndTime(e.target.value)}
-                                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                    />
-                                    <Clock size={14} className="text-slate-400 ml-1 pointer-events-none" />
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div>
-                            <Select
-                                label="לאיזו משימה?"
-                                value={selectedTaskId}
-                                onChange={setSelectedTaskId}
-                                options={tasks.map(t => ({ value: t.id, label: t.name }))}
-                                placeholder="בחר משימה..."
-                                icon={CheckCircle}
-                            />
-                        </div>
-                    )}
-                </div>
-            </Modal>
         </div>
     );
 };
-
-

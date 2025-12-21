@@ -12,6 +12,7 @@ import { getPersonInitials } from '../utils/nameUtils';
 import { RotateCcw, Sparkles } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown, Search } from 'lucide-react';
 import { ConfirmationModal } from './ConfirmationModal';
+import { MobileScheduleList } from './MobileScheduleList';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { analytics } from '../services/analytics';
@@ -1167,11 +1168,28 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 {/* Scrollable Grid Area */}
                 <div className="flex-1 overflow-y-auto relative border-t border-slate-200">
 
+                    {/* MOBILE VIEW */}
+                    <div className="block md:hidden h-full overflow-y-auto p-4">
+                        <MobileScheduleList
+                            shifts={shifts}
+                            people={people}
+                            taskTemplates={visibleTasks} // RESPECT FILTERS
+                            roles={roles}
+                            teams={teams}
+                            selectedDate={selectedDate}
+                            isViewer={isViewer}
+                            onSelectShift={handleShiftSelect}
+                            onToggleCancelShift={onToggleCancelShift}
+                        />
+                    </div>
+
+
+                    {/* DESKTOP VIEW */}
                     {/* ************************************************* */}
                     {/* GRID CONTAINER - הפריסה הדו-ממדית. אין גלילה כאן! */}
                     {/* ************************************************* */}
                     <div
-                        className="grid relative"
+                        className="hidden md:grid relative"
                         // Grid: עמודה 1 (ציר שעות) רוחב קבוע. עמודה 2 תופסת את השאר.
                         style={{ gridTemplateColumns: 'min-content 1fr' }}
                     >

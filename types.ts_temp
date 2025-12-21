@@ -1,0 +1,11 @@
+
+export interface DailyPresence {
+  id?: string; // Optional for new entries
+  date: string; // ISO Date YYYY-MM-DD
+  person_id: string; // TEXT FK
+  organization_id: string; // UUID FK
+  status: 'home' | 'base' | 'unavailable' | 'leave';
+  source: 'algorithm' | 'manual' | 'override';
+  created_at?: string;
+  updated_at?: string;
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, ChevronDown, ChevronLeft, User, Users, Shield, Pencil, Trash2, FileSpreadsheet, X, Check } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronLeft, User, Users, Shield, Pencil, Trash2, FileSpreadsheet, X, Check, Download, Archive } from 'lucide-react';
 import { Person, Team, Role } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -144,6 +144,57 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setNewItemName(role.name);
         setNewItemColor(role.color);
         setIsModalOpen(true);
+    };
+
+    const handleExport = () => {
+        let csvContent = '';
+        let fileName = '';
+
+        if (activeTab === 'people') {
+            const header = 'שם,צוות,תפקידים,טלפון,אימייל,סטטוס\n';
+            const rows = people.map(p => {
+                const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
+                const roleNames = (p.roleIds || [])
+                    .map(id => roles.find(r => r.id === id)?.name)
+                    .filter(Boolean)
+                    .join(' | ');
+                const status = p.isActive === false ? 'לא פעיל' : 'פעיל';
+                // Escape commas in fields
+                const safeName = p.name ? `"${p.name.replace(/"/g, '""')}"` : '';
+                const safeTeam = `"${teamName.replace(/"/g, '""')}"`;
+                const safeRoles = `"${roleNames.replace(/"/g, '""')}"`;
+
+                return `${safeName},${safeTeam},${safeRoles},${p.phone || ''},${p.email || ''},${status}`;
+            }).join('\n');
+            csvContent = header + rows;
+            fileName = `people_export_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.csv`;
+        } else if (activeTab === 'teams') {
+            const header = 'שם צוות,מספר חברים,צבע\n';
+            const rows = teams.map(t => {
+                const memberCount = people.filter(p => p.teamId === t.id).length;
+                return `"${t.name}",${memberCount},${t.color}`;
+            }).join('\n');
+            csvContent = header + rows;
+            fileName = `teams_export_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.csv`;
+        } else if (activeTab === 'roles') {
+            const header = 'שם תפקיד,מספר משובצים,צבע\n';
+            const rows = roles.map(r => {
+                const count = people.filter(p => (p.roleIds || []).includes(r.id)).length;
+                return `"${r.name}",${count},${r.color}`;
+            }).join('\n');
+            csvContent = header + rows;
+            fileName = `roles_export_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.csv`;
+        }
+
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', fileName);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleBulkImport = (importedPeople: Person[]) => {
@@ -349,7 +400,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             icon={FileSpreadsheet}
                             className="flex-1 md:flex-none"
                         >
-                            ייבוא
+                            <span className="hidden md:inline">ייבוא</span>
                         </Button>
                     )}
                     {canEdit && (
@@ -366,11 +417,30 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             icon={Plus}
                             className="flex-1 md:flex-none"
                         >
-                            הוסף חדש
+                            <span className="md:hidden">הוסף</span>
+                            <span className="hidden md:inline">הוסף חדש</span>
                         </Button>
                     )}
-                    <div className="flex items-center gap-2 mr-4">
-                        <label className="text-xs font-bold text-slate-500 flex items-center gap-2 cursor-pointer">
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium text-sm md:text-base"
+                        title="ייצוא ל-Excel"
+                    >
+                        <Download size={18} />
+                        <span className="hidden md:inline">ייצוא</span>
+                    </button>
+                    <div className="flex items-center gap-2 md:mr-4">
+                        {/* Mobile: Toggle Button */}
+                        <button
+                            onClick={() => setShowInactive(!showInactive)}
+                            className={`md:hidden p-2 rounded-lg transition-colors border ${showInactive ? 'bg-blue-100 text-blue-600 border-blue-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
+                            title="הצג לא פעילים"
+                        >
+                            <Archive size={18} />
+                        </button>
+
+                        {/* Desktop: Checkbox */}
+                        <label className="hidden md:flex text-xs font-bold text-slate-500 items-center gap-2 cursor-pointer">
                             <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
                             הצג לא פעילים
                         </label>

@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Team, Role } from '../types';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Label } from 'recharts';
-import { Users, Calendar, TrendingUp, AlertCircle, CheckCircle2, XCircle, LayoutGrid, List } from 'lucide-react';
+import { Users, Calendar, TrendingUp, AlertCircle, CheckCircle2, XCircle, LayoutGrid, List, Search, Download } from 'lucide-react';
 import { Select } from './ui/Select';
 import { Input } from './ui/Input';
+import { Modal } from './ui/Modal';
+import { useToast } from '../contexts/ToastContext';
 
 interface ManpowerReportsProps {
     people: Person[];
@@ -13,11 +15,15 @@ interface ManpowerReportsProps {
 
 export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams, roles }) => {
     // State
-    // State
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [viewMode, setViewMode] = useState<'daily' | 'trends'>('daily');
     const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
     const [selectedRoleId, setSelectedRoleId] = useState<string>('all');
+
+    // Modal State
+    const { showToast } = useToast();
+    const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; title: string; people: Person[]; type: 'present' | 'absent' | 'general' } | null>(null);
+    const [modalSearch, setModalSearch] = useState('');
 
     const dateKey = selectedDate.toLocaleDateString('en-CA');
 
@@ -25,17 +31,24 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
     const getAttendanceForDate = (dateIso: string, subsetPeople: Person[]) => {
         let present = 0;
         let absent = 0;
+        const presentPeople: Person[] = [];
+        const absentPeople: Person[] = [];
         let total = subsetPeople.length;
 
         subsetPeople.forEach(p => {
             const availability = p.dailyAvailability?.[dateIso];
             // Default is available if not marked otherwise
             const isAvailable = availability ? availability.isAvailable : true;
-            if (isAvailable) present++;
-            else absent++;
+            if (isAvailable) {
+                present++;
+                presentPeople.push(p);
+            } else {
+                absent++;
+                absentPeople.push(p);
+            }
         });
 
-        return { present, absent, total, percentage: total > 0 ? Math.round((present / total) * 100) : 0 };
+        return { present, absent, total, percentage: total > 0 ? Math.round((present / total) * 100) : 0, presentPeople, absentPeople };
     };
 
     // Derived Data
@@ -100,50 +113,52 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                    {/* View Toggle */}
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+                    {/* View Toggle - Full width on mobile */}
+                    <div className="flex bg-slate-100 p-1 rounded-lg w-full md:w-auto">
                         <button
                             onClick={() => setViewMode('daily')}
-                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'daily' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500'}`}
+                            className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'daily' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500'}`}
                         >
                             יומי
                         </button>
                         <button
                             onClick={() => setViewMode('trends')}
-                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'trends' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500'}`}
+                            className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'trends' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500'}`}
                         >
                             מגמות
                         </button>
                     </div>
 
-                    <div className="h-8 w-px bg-slate-200 mx-1"></div>
+                    <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block"></div>
 
-                    {/* Date Picker */}
-                    <div className="w-40">
-                        <div className="relative flex items-center bg-white rounded-lg border border-slate-300 px-3 py-2 w-full group hover:border-blue-500 transition-colors">
-                            <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${dateKey ? 'text-slate-900' : 'text-slate-400'}`}>
-                                {selectedDate ? selectedDate.toLocaleDateString('he-IL') : 'בחר תאריך'}
-                            </span>
-                            <input
-                                type="date"
-                                value={dateKey}
-                                onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                    {/* Controls Row on Mobile */}
+                    <div className="grid grid-cols-2 md:flex items-center gap-3 w-full md:w-auto">
+                        {/* Date Picker */}
+                        <div className="w-full md:w-40">
+                            <div className="relative flex items-center bg-white rounded-lg border border-slate-300 px-3 py-2 w-full group hover:border-blue-500 transition-colors">
+                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none truncate ${dateKey ? 'text-slate-900' : 'text-slate-400'}`}>
+                                    {selectedDate ? selectedDate.toLocaleDateString('he-IL') : 'בחר תאריך'}
+                                </span>
+                                <input
+                                    type="date"
+                                    value={dateKey}
+                                    onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                                />
+                                <Calendar size={18} className="text-slate-400 ml-2 pointer-events-none shrink-0" />
+                            </div>
+                        </div>
+
+                        {/* Team Filter */}
+                        <div className="w-full md:w-60">
+                            <Select
+                                value={selectedTeamId}
+                                onChange={setSelectedTeamId}
+                                options={[{ value: 'all', label: 'כל הארגון' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
                             />
-                            <Calendar size={18} className="text-slate-400 ml-2 pointer-events-none" />
                         </div>
                     </div>
-
-                    {/* Team Filter */}
-                    <div className="w-60 md:w-60">
-                        <Select
-                            value={selectedTeamId}
-                            onChange={setSelectedTeamId}
-                            options={[{ value: 'all', label: 'כל הארגון' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
-                        />
-                    </div>
-
                 </div>
             </div>
 
@@ -156,6 +171,12 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                             value={stats.dailyStats.total}
                             icon={<Users size={24} />}
                             color="blue"
+                            onClick={() => setModalConfig({
+                                isOpen: true,
+                                title: `מצבת כוח אדם (${stats.dailyStats.total})`,
+                                people: selectedTeamId === 'all' ? people : people.filter(p => p.teamId === selectedTeamId),
+                                type: 'general'
+                            })}
                         />
                         <KPICard
                             title='נוכחים'
@@ -163,12 +184,24 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                             subtext={`${stats.dailyStats.percentage}% מהכוח`}
                             icon={<CheckCircle2 size={24} />}
                             color="green"
+                            onClick={() => setModalConfig({
+                                isOpen: true,
+                                title: `רשימת נוכחים (${stats.dailyStats.present})`,
+                                people: stats.dailyStats.presentPeople,
+                                type: 'present'
+                            })}
                         />
                         <KPICard
                             title='חסרים'
                             value={stats.dailyStats.absent}
                             icon={<XCircle size={24} />}
                             color="red"
+                            onClick={() => setModalConfig({
+                                isOpen: true,
+                                title: `רשימת חסרים (${stats.dailyStats.absent})`,
+                                people: stats.dailyStats.absentPeople,
+                                type: 'absent'
+                            })}
                         />
                         <KPICard
                             title='כשירות מבצעית'
@@ -196,7 +229,16 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 {stats.roleBreakdown.map((role: any) => (
-                                    <div key={role.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                                    <div
+                                        key={role.id}
+                                        onClick={() => setModalConfig({
+                                            isOpen: true,
+                                            title: `זמינות - ${role.name}`,
+                                            people: [...role.presentPeople, ...role.absentPeople],
+                                            type: 'general'
+                                        })}
+                                        className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden active:scale-[0.98]"
+                                    >
                                         <div className={`absolute top-0 right-0 w-1 h-full bg-${role.percentage === 100 ? 'green' : role.percentage > 50 ? 'yellow' : 'red'}-500`}></div>
                                         <div className="flex justify-between items-start mb-2">
                                             <span className="font-bold text-slate-700">{role.name}</span>
@@ -320,12 +362,119 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                     </div>
                 </div>
             )}
+
+            {/* Detail Modal */}
+            {modalConfig && (
+                <Modal
+                    isOpen={modalConfig.isOpen}
+                    onClose={() => { setModalConfig(null); setModalSearch(''); }}
+                    title={modalConfig.title}
+                    size="lg"
+                    footer={
+                        <div className="flex justify-between items-center w-full">
+                            <span className="text-sm text-slate-500 font-bold">
+                                {modalConfig.people.length} רשומות
+                            </span>
+                            <button
+                                onClick={() => {
+                                    const dateStr = selectedDate.toLocaleDateString('he-IL').replace(/\./g, '-');
+                                    let csvContent = "שם,צוות,תפקיד,סטטוס\n";
+
+                                    modalConfig.people.forEach(p => {
+                                        const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
+                                        const roleName = roles.find(r => r.id === p.roleId)?.name || 'ללא תפקיד';
+
+                                        // Determine status text based on modal context, or fetch specifically 
+                                        let statusString = 'לא ידוע';
+                                        if (modalConfig.type === 'present') statusString = 'נוכח';
+                                        else if (modalConfig.type === 'absent') statusString = 'חסר';
+                                        else {
+                                            // Fallback logic if needed, though 'general' implies we might want real status
+                                            const avail = p.dailyAvailability?.[dateKey];
+                                            statusString = (avail?.isAvailable ?? true) ? 'נוכח' : 'חסר';
+                                        }
+
+                                        csvContent += `"${p.name}","${teamName}","${roleName}","${statusString}"\n`;
+                                    });
+
+                                    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                                    const link = document.createElement('a');
+                                    link.href = URL.createObjectURL(blob);
+                                    link.download = `report_${modalConfig.type}_${dateStr}.csv`;
+                                    link.click();
+                                    showToast('הקובץ הורד בהצלחה', 'success');
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-sm transition-colors"
+                            >
+                                <Download size={18} />
+                                ייצוא לאקסל
+                            </button>
+                        </div>
+                    }
+                >
+                    <div className="space-y-4">
+                        <Input
+                            placeholder="חיפוש לפי שם..."
+                            value={modalSearch}
+                            onChange={(e) => setModalSearch(e.target.value)}
+                            icon={Search}
+                            autoFocus
+                        />
+
+                        <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                            {modalConfig.people
+                                .filter(p => p.name.includes(modalSearch))
+                                .map(person => {
+                                    const team = teams.find(t => t.id === person.teamId);
+                                    const role = roles.find(r => r.id === person.roleId);
+
+                                    return (
+                                        <div key={person.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${modalConfig.type === 'present' ? 'bg-green-100 text-green-700' :
+                                                    modalConfig.type === 'absent' ? 'bg-red-100 text-red-700' :
+                                                        'bg-blue-100 text-blue-700'
+                                                    }`}>
+                                                    {person.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-slate-800">{person.name}</div>
+                                                    <div className="text-xs text-slate-500 flex items-center gap-2">
+                                                        <span>{team?.name || 'ללא צוות'}</span>
+                                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                        <span>{role?.name || 'ללא תפקיד'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {/* Status Badge inside list if 'general' */}
+                                            {modalConfig.type === 'general' && (
+                                                <div className="flex-shrink-0">
+                                                    {(person.dailyAvailability?.[dateKey]?.isAvailable ?? true) ? (
+                                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">נוכח</span>
+                                                    ) : (
+                                                        <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-bold">חסר</span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+
+                            {modalConfig.people.filter(p => p.name.includes(modalSearch)).length === 0 && (
+                                <div className="text-center py-8 text-slate-400">
+                                    לא נמצאו תוצאות
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div>
     );
 };
 
 // Helper Component for KPI Cards
-const KPICard: React.FC<{ title: string, value: string | number, subtext?: string, icon: React.ReactNode, color: string }> = ({ title, value, subtext, icon, color }) => {
+const KPICard: React.FC<{ title: string, value: string | number, subtext?: string, icon: React.ReactNode, color: string, onClick?: () => void }> = ({ title, value, subtext, icon, color, onClick }) => {
     const colorClasses: Record<string, string> = {
         blue: 'bg-blue-50 text-blue-600',
         green: 'bg-green-50 text-green-600',
@@ -335,7 +484,10 @@ const KPICard: React.FC<{ title: string, value: string | number, subtext?: strin
     };
 
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+        <div
+            onClick={onClick}
+            className={`bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between transition-all ${onClick ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] active:scale-[0.98]' : ''}`}
+        >
             <div>
                 <p className="text-slate-500 font-medium text-sm mb-1">{title}</p>
                 <h3 className="text-3xl font-bold text-slate-800">{value}</h3>

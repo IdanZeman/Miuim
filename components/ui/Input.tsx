@@ -44,6 +44,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                             ${className}
                         `}
                         {...props}
+                        dir={props.type === 'date' || props.type === 'time' || props.type === 'datetime-local' ? 'ltr' : props.dir}
                     />
                 </div>
                 {error && (

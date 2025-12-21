@@ -1,6 +1,7 @@
+
 import React, { useState, useRef } from 'react';
-import { Person, Team, TeamRotation } from '../types';
-import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X } from 'lucide-react';
+import { Person, Team, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence } from '../types';
+import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, Wand2, Sparkles } from 'lucide-react';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { GlobalTeamCalendar } from './GlobalTeamCalendar';
@@ -8,30 +9,39 @@ import { RotationEditor } from './RotationEditor';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
 import { Input } from './ui/Input';
 import { AttendanceRow } from './AttendanceRow';
+import { AttendanceTable } from './AttendanceTable';
 import { BulkAttendanceModal } from './BulkAttendanceModal';
 import { useToast } from '../contexts/ToastContext';
+import { RotaWizardModal } from './RotaWizardModal';
 
 interface AttendanceManagerProps {
     people: Person[];
     teams: Team[];
     teamRotations?: TeamRotation[];
+    tasks?: TaskTemplate[]; // NEW
+    constraints?: SchedulingConstraint[]; // NEW
+    settings?: OrganizationSettings | null; // NEW
     onUpdatePerson: (p: Person) => void;
     onUpdatePeople?: (people: Person[]) => void;
     onAddRotation?: (r: TeamRotation) => void;
     onUpdateRotation?: (r: TeamRotation) => void;
     onDeleteRotation?: (id: string) => void;
+    onAddShifts?: (shifts: Shift[]) => void; // NEW
     isViewer?: boolean;
 }
 
 export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     people, teams, teamRotations = [],
+    tasks = [], constraints = [], settings = null,
     onUpdatePerson, onUpdatePeople,
-    onAddRotation, onUpdateRotation, onDeleteRotation,
+    onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
     isViewer = false
 }) => {
     const { showToast } = useToast();
     const [viewMode, setViewMode] = useState<'calendar' | 'day_detail'>('calendar');
+    const [calendarViewType, setCalendarViewType] = useState<'grid' | 'table'>('grid'); // NEW: sub-view for calendar
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [viewDate, setViewDate] = useState(new Date()); // Lifted state for calendar view
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
     const [showRotationSettings, setShowRotationSettings] = useState<string | null>(null);
@@ -43,6 +53,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [isBulkMode, setIsBulkMode] = useState(false);
     const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
     const [showBulkModal, setShowBulkModal] = useState(false);
+    const [showRotaWizard, setShowRotaWizard] = useState(false); // NEW
 
     const getPersonAvailability = (person: Person) => {
         return getEffectiveAvailability(person, selectedDate, teamRotations);
@@ -218,6 +229,77 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הגדרות סבב אישי עודכנו', 'success');
     };
 
+    const handleExport = () => {
+        if (viewMode === 'calendar') {
+            // Export Month
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            let csvContent = `דוח נוכחות חודשי - ${viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })} \n`;
+            csvContent += 'תאריך,שם מלא,צוות,סטטוס,שעות,סיבה\n';
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const date = new Date(year, month, d);
+                const dateStr = date.toLocaleDateString('he-IL');
+
+                people.forEach(person => {
+                    const avail = getEffectiveAvailability(person, date, teamRotations);
+                    const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
+                    const status = avail.isAvailable ? 'נמצא' : 'בבית';
+                    const hours = avail.isAvailable ? `${avail.startHour} - ${avail.endHour} ` : '-';
+                    const reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'כרגיל'));
+
+                    // Safe strings
+                    const sName = `"${person.name.replace(/"/g, '""')}"`;
+                    const sTeam = `"${teamName.replace(/"/g, '""')}"`;
+
+                    csvContent += `${dateStr},${sName},${sTeam},${status},${hours},${reason}\n`;
+                });
+            }
+
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `attendance_month_${month + 1}_${year}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+        } else {
+            // Export Day (Existing logic)
+            const dateStr = selectedDate.toLocaleDateString('he-IL');
+            let csvContent = `דוח נוכחות ליום ${dateStr}\n`;
+            csvContent += 'שם מלא,צוות,סטטוס,שעות,סיבה/מקור\n';
+
+            people.forEach(person => {
+                const avail = getPersonAvailability(person);
+                const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
+                const status = avail.isAvailable ? 'נמצא' : 'לא נמצא';
+                const hours = avail.isAvailable ? `${avail.startHour} - ${avail.endHour}` : '-';
+                const reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'כרגיל'));
+
+                // Safe strings
+                const sName = `"${person.name.replace(/"/g, '""')}"`;
+                const sTeam = `"${teamName.replace(/"/g, '""')}"`;
+
+                csvContent += `${sName},${sTeam},${status},${hours},${reason}\n`;
+            });
+
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `attendance_${selectedDate.toLocaleDateString('en-CA')}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
     return (
         <div className="space-y-6 max-w-5xl mx-auto h-[calc(100vh-140px)] flex flex-col relative">
             {/* Header */}
@@ -227,7 +309,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         <Calendar className="text-idf-green" />
                         יומן נוכחות וזמינות
                     </h2>
-                    <p className="text-slate-500 text-sm mt-1">
+                    <p className="hidden md:block text-slate-500 text-sm mt-1">
                         {viewMode === 'calendar'
                             ? 'מבט על - נוכחות חודשית'
                             : `ניהול נוכחות ליום ${selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}`
@@ -236,6 +318,24 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {!isViewer && (
+                        <button
+                            onClick={() => setShowRotaWizard(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm hover:shadow transition-all font-medium"
+                            title="מחולל הסבבים"
+                        >
+                            <Sparkles size={18} />
+                            <span className="hidden md:inline">מחולל הסבבים</span>
+                        </button>
+                    )}
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium text-sm md:text-base border border-slate-200"
+                        title="ייצוא ל-Excel"
+                    >
+                        <Calendar size={18} />
+                        <span className="hidden md:inline">{viewMode === 'calendar' ? 'ייצוא חודשי' : 'ייצוא יומי'}</span>
+                    </button>
                     {/* Buttons moved to secondary toolbar */}
                 </div>
             </div>
@@ -289,13 +389,47 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             {/* Content */}
             <div className="flex-1 min-h-0">
                 {viewMode === 'calendar' ? (
-                    <GlobalTeamCalendar
-                        teams={teams}
-                        people={people}
-                        teamRotations={teamRotations}
-                        onManageTeam={(teamId) => setShowRotationSettings(teamId)}
-                        onDateClick={handleDateClick}
-                    />
+                    <div className="flex flex-col h-full gap-4">
+                        {/* View Switcher Tabs */}
+                        <div className="flex justify-end px-1">
+                            <div className="bg-slate-100 p-1 rounded-lg flex items-center gap-1">
+                                <button
+                                    onClick={() => setCalendarViewType('grid')}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${calendarViewType === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <CalendarDays size={16} />
+                                    <span className="hidden md:inline">תצוגת יומן</span>
+                                </button>
+                                <button
+                                    onClick={() => setCalendarViewType('table')}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${calendarViewType === 'table' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <ListChecks size={16} />
+                                    <span className="hidden md:inline">תצוגת טבלה</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {calendarViewType === 'grid' ? (
+                            <GlobalTeamCalendar
+                                teams={teams}
+                                people={people}
+                                teamRotations={teamRotations}
+                                onManageTeam={(teamId) => setShowRotationSettings(teamId)}
+                                onDateClick={handleDateClick}
+                                currentDate={viewDate}
+                                onDateChange={setViewDate}
+                            />
+                        ) : (
+                            <AttendanceTable
+                                teams={teams}
+                                people={people}
+                                teamRotations={teamRotations}
+                                currentDate={viewDate}
+                                onDateChange={setViewDate}
+                            />
+                        )}
+                    </div>
                 ) : (
                     /* Day Detail View */
                     <div className="h-full flex flex-col space-y-4">
@@ -505,6 +639,46 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 onApply={handleBulkApply}
                 selectedCount={selectedPersonIds.size}
             />
+
+            {showRotaWizard && (
+                <RotaWizardModal
+                    isOpen={showRotaWizard}
+                    onClose={() => setShowRotaWizard(false)}
+                    people={people}
+                    teams={teams}
+                    tasks={tasks}
+                    constraints={constraints}
+                    settings={settings}
+                    teamRotations={teamRotations}
+                    onSaveRoster={(roster: DailyPresence[]) => {
+                        // Convert Roster to Person updates for immediate UI reflection
+                        if (onUpdatePeople) {
+                            const updates = new Map<string, Person>();
+
+                            roster.forEach(entry => {
+                                const person = people.find(p => p.id === entry.person_id) || updates.get(entry.person_id);
+                                if (!person) return;
+
+                                const p = updates.get(entry.person_id) || { ...person, dailyAvailability: { ...person.dailyAvailability } };
+
+                                p.dailyAvailability = {
+                                    ...p.dailyAvailability,
+                                    [entry.date]: {
+                                        isAvailable: entry.status === 'base',
+                                        startHour: entry.status === 'base' ? '00:00' : '00:00', // Default full day
+                                        endHour: entry.status === 'base' ? '23:59' : '00:00',
+                                        source: 'algorithm'
+                                    }
+                                };
+                                updates.set(entry.person_id, p);
+                            });
+
+                            onUpdatePeople(Array.from(updates.values()));
+                            showToast('השיבוץ נטען לתצוגה', 'success');
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 };

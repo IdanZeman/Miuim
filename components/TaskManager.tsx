@@ -71,8 +71,9 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         setName(task.name);
         setDifficulty(task.difficulty);
         setSelectedColor(task.color);
-        setStartDate(task.startDate || '');
-        setEndDate(task.endDate || '');
+        // Ensure date is YYYY-MM-DD for input[type="date"]
+        setStartDate(task.startDate ? task.startDate.split('T')[0] : '');
+        setEndDate(task.endDate ? task.endDate.split('T')[0] : '');
         setAssignedTeamId(task.assignedTeamId || '');
         setSegments(task.segments || []);
         setIsAdding(false);
@@ -269,30 +270,28 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             <label className="block text-xs font-bold text-slate-500 mb-1">רמת קושי ({difficulty})</label>
                             <input type="range" value={difficulty} onChange={e => setDifficulty(Number(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg mt-2 accent-idf-yellow" min="1" max="5" />
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-slate-300 transition-colors">
-                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${startDate ? 'text-slate-700' : 'text-slate-400'}`}>
-                                    {startDate ? new Date(startDate).toLocaleDateString('he-IL') : 'תאריך התחלה'}
-                                </span>
-                                <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={e => setStartDate(e.target.value)}
-                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                />
-                                <Calendar size={16} className="text-slate-400 ml-2 pointer-events-none" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">תאריך התחלה</label>
+                                <div className="relative">
+                                    <input
+                                        type="date"
+                                        value={startDate.split('T')[0]}
+                                        onChange={e => setStartDate(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
+                                    />
+                                </div>
                             </div>
-                            <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-slate-300 transition-colors">
-                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${endDate ? 'text-slate-700' : 'text-slate-400'}`}>
-                                    {endDate ? new Date(endDate).toLocaleDateString('he-IL') : 'תאריך סיום'}
-                                </span>
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={e => setEndDate(e.target.value)}
-                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                />
-                                <Calendar size={16} className="text-slate-400 ml-2 pointer-events-none" />
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">תאריך סיום (אופציונלי)</label>
+                                <div className="relative">
+                                    <input
+                                        type="date"
+                                        value={endDate.split('T')[0]}
+                                        onChange={e => setEndDate(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
+                                    />
+                                </div>
                             </div>
                         </div>
                         <div className="col-span-1 md:col-span-2">

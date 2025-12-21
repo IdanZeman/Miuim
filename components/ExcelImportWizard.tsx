@@ -340,7 +340,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     <div>
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                             <FileSpreadsheet className="text-green-600" />
-                            אשף ייבוא מאקסל
+                            ייבוא לוחמים מאקסל
                         </h2>
                         <p className="text-sm text-slate-500 mt-1">
                             {step === 'upload' && 'שלב 1/4: העלאת קובץ'}
