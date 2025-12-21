@@ -249,7 +249,7 @@ export const SupportTicketsPage: React.FC = () => {
 
                                                 <button
                                                     onClick={() => {
-                                                        const subject = encodeURIComponent(`תגובה לפנייה: ${ticket.name} - Miuim Support`);
+                                                        const subject = encodeURIComponent(`תגובה לפנייה: ${ticket.name} - Support`);
                                                         const body = encodeURIComponent(`שלום ${ticket.name},\n\nבהמשך לפנייתך בנושא:\n"${ticket.message || ''}"\n\n[כתוב כאן את תשובתך]\n\nבברכה,\nצוות התמיכה`);
                                                         const recipient = ticket.email || '';
 

@@ -409,7 +409,8 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
             <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between shrink-0">
                 <h2 className="text-lg font-bold text-slate-800 px-2 flex items-center gap-2">
                     <ShieldAlert className="text-blue-600" size={24} />
-                    ניהול אילוצים
+                    <span className="hidden md:inline">ניהול אילוצים</span>
+                    <span className="md:hidden">אילוצים</span>
                 </h2>
 
                 <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg">
@@ -424,12 +425,12 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                 </div>
             </div>
 
-            <div className="flex flex-1 overflow-hidden gap-6">
+            <div className="flex flex-col md:flex-row flex-1 overflow-hidden gap-4 md:gap-6">
 
                 {/* --- ATTENDANCE TAB --- */}
                 {activeTab === 'attendance' && (
                     <>
-                        <div className="w-80 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col shrink-0">
+                        <div className={`w-full md:w-80 bg-white rounded-xl shadow-sm border border-slate-200 flex-col shrink-0 ${selectedPersonId ? 'hidden md:flex' : 'flex'}`}>
                             <div className="p-4 border-b border-slate-100 space-y-4">
                                 <div className="flex items-center gap-2 text-slate-700 font-bold text-sm"><Users size={16} />רשימת חיילים</div>
                                 <div className="space-y-3">
@@ -455,7 +456,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                             </div>
                         </div>
 
-                        <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden relative">
+                        <div className={`flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex-col overflow-hidden relative ${!selectedPersonId ? 'hidden md:flex' : 'flex'}`}>
                             {!selectedPerson ? (
                                 <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
                                     <ShieldAlert size={64} className="mb-4 opacity-20" />
@@ -463,10 +464,15 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                 </div>
                             ) : (
                                 <>
-                                    <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                                        <div>
-                                            <h2 className="text-2xl font-bold text-slate-800">{selectedPerson.name}</h2>
-                                            <p className="text-slate-500">ניהול היעדרויות ושעות חסימה</p>
+                                    <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between bg-slate-50 gap-4">
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={() => setSelectedPersonId(null)} className="md:hidden p-2 bg-white rounded-full shadow-sm border border-slate-200 text-slate-500">
+                                                <ChevronRight size={20} />
+                                            </button>
+                                            <div>
+                                                <h2 className="text-xl md:text-2xl font-bold text-slate-800">{selectedPerson.name}</h2>
+                                                <p className="text-sm text-slate-500">ניהול היעדרויות ושעות חסימה</p>
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
                                             <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} className="p-1 hover:bg-slate-100 rounded"><ChevronRight /></button>

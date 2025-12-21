@@ -114,7 +114,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
               </div>
               <span className="text-lg font-bold text-slate-800 tracking-tight hidden md:block whitespace-nowrap">
-                {isPublic ? 'Miuim' : (organization?.name || 'Miuim')}
+                {isPublic ? 'מערכת שיבוץ' : (organization?.name || 'מערכת שיבוץ')}
               </span>
             </button>
 
@@ -418,6 +418,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       {!isPublic && setView && (
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 pb-safe">
           <div className="flex justify-around items-center h-16">
+            <button
+              onClick={() => setView('home')}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'home' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <Home size={20} className={currentView === 'home' ? 'fill-blue-100' : ''} />
+              <span className="text-[10px] font-medium">בית</span>
+            </button>
+
             {checkAccess('dashboard') && (
               <button
                 onClick={() => setView('dashboard')}

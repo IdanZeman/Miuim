@@ -1,19 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Mail, CheckCircle, Sparkles, Shield, FileSpreadsheet, Upload } from 'lucide-react';
+import { Building2, Mail, CheckCircle, Sparkles, Shield, FileSpreadsheet, Upload, ArrowLeft, Users, Search } from 'lucide-react';
 import { analytics } from '../services/analytics';
-
 import { useToast } from '../contexts/ToastContext';
+import { ExcelImportWizard } from './ExcelImportWizard';
+import { Person, Team, Role } from '../types';
+import { v4 as uuidv4 } from 'uuid';
 
 export const Onboarding: React.FC = () => {
     const { user, refreshProfile, signOut } = useAuth();
     const { showToast } = useToast();
+    const [step, setStep] = useState<'org_name' | 'path_selection' | 'import_wizard' | 'claim_profile'>('org_name');
+    const [createdOrgId, setCreatedOrgId] = useState<string | null>(null);
     const [orgName, setOrgName] = useState('');
     const [loading, setLoading] = useState(false);
     const [checkingInvite, setCheckingInvite] = useState(true);
     const [pendingInvite, setPendingInvite] = useState<any>(null);
     const [error, setError] = useState('');
+
+    // Local state for the Import Wizard (before saving to DB)
+    const [localTeams, setLocalTeams] = useState<Team[]>([]);
+    const [localRoles, setLocalRoles] = useState<Role[]>([]);
+    const [createdPeople, setCreatedPeople] = useState<any[]>([]); // Store for Claim Profile step
+    const [claimSearchTerm, setClaimSearchTerm] = useState('');
+    const [selectedClaimPerson, setSelectedClaimPerson] = useState<any>(null);
 
     // Check for pending invites when component mounts
     useEffect(() => {
@@ -104,7 +115,7 @@ export const Onboarding: React.FC = () => {
         analytics.trackFormFieldEdit('create_organization', 'org_name');
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleCreateOrg = async (e: React.FormEvent) => {
         e.preventDefault();
         analytics.trackFormStart('create_organization');
 
@@ -128,29 +139,233 @@ export const Onboarding: React.FC = () => {
             if (orgError) throw orgError;
             if (!org) throw new Error('Failed to create organization');
 
+            setCreatedOrgId(org.id);
             analytics.trackSignup(orgName);
 
-            // 2. Update user profile with new organization and admin role
-            if (user) {
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .update({
-                        organization_id: org.id,
-                        role: 'admin'
-                    })
-                    .eq('id', user.id);
-
-                if (profileError) throw profileError;
-
-                // 3. Refresh profile to update global state and redirect
-                await refreshProfile();
-            }
+            // 2. Do NOT update profile yet. We wait until they choose a path or finish import.
+            // This ensures they don't get "in" before finishing all steps.
+            setStep('path_selection');
 
         } catch (error) {
             console.error('Error creating organization:', error);
             analytics.trackFormSubmit('create_organization', false);
             analytics.trackError((error as Error).message, 'CreateOrganization');
             setError('שגיאה ביצירת הארגון');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSelectPath = async (useImport: boolean) => {
+        if (useImport) {
+            setStep('import_wizard');
+            return;
+        }
+
+        // Manual setup - Update profile NOW to let them in
+        setLoading(true);
+        try {
+            if (user && createdOrgId) {
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .update({
+                        organization_id: createdOrgId,
+                        role: 'admin'
+                    })
+                    .eq('id', user.id);
+                if (profileError) throw profileError;
+            }
+
+            await refreshProfile();
+        } catch (error) {
+            console.error('Error finalizing onboarding:', error);
+            showToast('שגיאה בהשלמת ההרשמה', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Import Wizard Handlers
+    const handleAddTeam = (team: Team) => {
+        setLocalTeams(prev => [...prev, team]);
+    };
+
+    const handleAddRole = (role: Role) => {
+        setLocalRoles(prev => [...prev, role]);
+    };
+
+    const handleFinalImport = async (people: Person[], newTeams: Team[] = [], newRoles: Role[] = []) => {
+        if (!createdOrgId) return;
+        setLoading(true);
+
+        // Merge incoming new items with local state items to ensure we have everything
+        const allTeams = [...localTeams, ...newTeams];
+        const allRoles = [...localRoles, ...newRoles];
+
+        console.log(`🚀 Starting Final Import. Teams: ${allTeams.length}, Roles: ${allRoles.length}, People: ${people.length}`);
+
+        try {
+            // 1. Link User to Organization FIRST (to satisfy RLS for creating teams/roles)
+            if (user) {
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .update({
+                        organization_id: createdOrgId,
+                        role: 'admin'
+                    })
+                    .eq('id', user.id);
+
+                if (profileError) {
+                    console.error("Failed to link profile:", profileError);
+                    throw profileError;
+                }
+                // Refresh profile in context to reflect the change
+                // await refreshProfile(); // Commented out to prevent skipping 'Claim Profile' step. Context update will happen after claiming.
+            }
+
+            // 2. Map temp IDs to Real UUIDs & Deduplicate
+            const idMap = new Map<string, string>(); // 'temp-id' -> 'real-uuid'
+
+            // Deduplicate teams by ID (keep last)
+            const uniqueTeams = Array.from(new Map(allTeams.map((t: Team) => [t.id, t])).values());
+            const uniqueRoles = Array.from(new Map(allRoles.map((r: Role) => [r.id, r])).values());
+
+            console.log(`Processing ${uniqueTeams.length} unique teams and ${uniqueRoles.length} unique roles.`);
+
+            // Create Teams
+            for (const team of uniqueTeams) {
+                const t = team as Team;
+                const isTemp = t.id.startsWith('temp-') || t.id.startsWith('team-');
+
+                if (!isTemp) {
+                    idMap.set(t.id, t.id);
+                    continue;
+                }
+
+                // Check if we already mapped this exact temporary ID (in case of dupes in source)
+                if (idMap.has(team.id)) continue;
+
+                const realId = uuidv4();
+                idMap.set(team.id, realId);
+
+                const { error } = await supabase.from('teams').insert({
+                    id: realId,
+                    name: team.name,
+                    color: team.color,
+                    organization_id: createdOrgId
+                });
+                if (error) {
+                    console.error("Error creating team:", team.name, error);
+                    throw error;
+                }
+            }
+
+            // Create Roles
+            for (const role of uniqueRoles) {
+                const isTemp = role.id.startsWith('temp-') || role.id.startsWith('role-');
+
+                if (!isTemp) {
+                    idMap.set(role.id, role.id);
+                    continue;
+                }
+
+                if (idMap.has(role.id)) continue;
+
+                const realId = uuidv4();
+                idMap.set(role.id, realId);
+
+                const { error } = await supabase.from('roles').insert({
+                    id: realId,
+                    name: role.name,
+                    color: role.color,
+                    organization_id: createdOrgId
+                });
+                if (error) {
+                    console.error("Error creating role:", role.name, error);
+                    throw error;
+                }
+            }
+
+            // 3. Prepare People
+            const insertedPeople: any[] = [];
+
+            for (const p of people) {
+                // Map teamId
+                let teamId = p.teamId;
+                if (teamId) {
+                    if (idMap.has(teamId)) {
+                        teamId = idMap.get(teamId)!;
+                    } else if (teamId.startsWith('temp-') || teamId.startsWith('team-')) {
+                        teamId = undefined; // Unmapped temp ID -> Null
+                    }
+                }
+
+                // Map roleIds
+                const roleIds = (p.roleIds || [])
+                    .map(rid => {
+                        if (idMap.has(rid)) return idMap.get(rid);
+                        if (rid.startsWith('temp-') || rid.startsWith('role-')) return null;
+                        return rid;
+                    })
+                    .filter(Boolean) as string[];
+
+                // IMPORTANT: DB Schema uses 'role_ids' (array), NOT 'role_id'
+                try {
+                    const newId = uuidv4();
+                    const { error } = await supabase.from('people').insert({
+                        id: newId,
+                        name: p.name,
+                        organization_id: createdOrgId,
+                        team_id: teamId || null,
+                        role_ids: roleIds,
+                        email: p.email || null,
+                        phone: p.phone || null,
+                        color: p.color
+                    });
+                    if (error) {
+                        if (error.code === '23505') { // Unique violation
+                            console.warn(`Duplicate person skipped: ${p.name} (${p.email})`);
+                            continue;
+                        }
+                        throw error;
+                    }
+                    // Add to success list with the ID we generated
+                    insertedPeople.push({ ...p, id: newId });
+
+                } catch (insertError: any) {
+                    console.error("Error inserting person:", p.name, insertError);
+                    if (insertError.code !== '23505') throw insertError;
+                }
+            }
+
+            setCreatedPeople(insertedPeople);
+            showToast('הייבוא הושלם בהצלחה! כעת בחר מי אתה מהרשימה.', 'success');
+
+            // Move to Claim Step instead of refreshing immediately
+            setStep('claim_profile');
+            // await refreshProfile(); 
+            // window.location.reload();
+
+
+        } catch (error: any) {
+            console.error('Import error full:', error);
+            showToast('שגיאה בייבוא הנתונים: ' + (error.details || error.message || error), 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleClaimProfile = async () => {
+        if (!selectedClaimPerson || !user) return;
+        setLoading(true);
+        try {
+            await supabase.from('people').update({ user_id: user.id }).eq('id', selectedClaimPerson.id);
+            // NOW we finish
+            await refreshProfile();
+            // Optional: window.location.reload() if needed, but refreshProfile might suffice.
+        } catch (error) {
+            console.error(error);
+            showToast('שגיאה בקישור הפרופיל', 'error');
         } finally {
             setLoading(false);
         }
@@ -170,7 +385,7 @@ export const Onboarding: React.FC = () => {
             <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 flex items-center justify-center">
                 <div className="text-center">
                     <div className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg mb-4 mx-auto animate-pulse overflow-hidden p-3 border border-slate-100">
-                        <img src="/favicon.png" alt="Miuim Logo" className="w-full h-full object-contain" />
+                        <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
                     </div>
                     <p className="text-slate-600 font-medium">בודק הזמנות...</p>
                 </div>
@@ -181,94 +396,86 @@ export const Onboarding: React.FC = () => {
     // If user has a pending invite, show accept invite screen
     if (pendingInvite) {
         return (
-            <div className="h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 overflow-y-auto">
-                {/* Header with Logo */}
-                <div className="bg-white border-b border-slate-200 shadow-sm">
-                    <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
-                        <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
-                            <img src="/favicon.png" alt="Miuim Logo" className="w-full h-full object-contain" />
+            <div className="h-screen bg-[#f8fafc] overflow-y-auto font-sans">
+                {/* Minimal Navigation */}
+                <header className="bg-white border-b border-slate-200 h-16 flex items-center shadow-sm sticky top-0 z-50">
+                    <div className="max-w-7xl mx-auto px-4 w-full flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 p-1.5">
+                                <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
+                            </div>
+                            <span className="text-xl font-black text-slate-900 tracking-tight">מערכת שיבוץ</span>
                         </div>
-                        <span className="text-xl font-bold text-slate-800">מערכת שיבוץ משימות </span>
                     </div>
-                </div>
+                </header>
 
-                <div className="min-h-[calc(100vh-80px)] flex items-center justify-center p-4 md:p-8">
-                    <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden border border-slate-200">
-                        {/* Header Section */}
-                        <div className="bg-gradient-to-r from-green-600 to-teal-600 p-8 md:p-12 text-center relative overflow-hidden">
-                            <div className="absolute inset-0 opacity-10">
-                                <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-                                <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
-                            </div>
-
-                            <div className="relative z-10">
-                                <div className="flex justify-center mb-4">
-                                    <div className="bg-white/20 backdrop-blur-sm p-4 rounded-2xl">
-                                        <Mail size={48} className="text-white" />
-                                    </div>
+                <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 md:p-12">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200/60 flex flex-col md:flex-row">
+                        {/* Branding Side */}
+                        <div className="md:w-1/3 bg-slate-900 p-12 text-white flex flex-col justify-center relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400 opacity-5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                            <div className="relative z-10 text-center md:text-right">
+                                <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto md:mr-0 mb-8 border border-white/10">
+                                    <Mail size={40} className="text-amber-400" />
                                 </div>
-                                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">קיבלת הזמנה!</h1>
-                                <p className="text-green-50 text-lg">הוזמנת להצטרף לארגון</p>
+                                <h1 className="text-4xl font-black mb-4 leading-tight">קיבלת הזמנה!</h1>
+                                <p className="text-slate-400 text-lg">מישהו רוצה שתצטרף לצוות שלו.</p>
                             </div>
                         </div>
 
-                        {/* Content Section */}
-                        <div className="p-8 md:p-12">
-                            {/* Invite Details Card */}
-                            <div className="bg-gradient-to-br from-green-50 to-teal-50 border-2 border-green-200 rounded-xl p-6 md:p-8 mb-8">
-                                <div className="flex items-center justify-center mb-4">
-                                    <Building2 size={32} className="text-green-600" />
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-sm text-slate-600 mb-2 font-medium">ארגון:</p>
-                                    <p className="text-2xl md:text-3xl font-bold text-slate-900 mb-6">
-                                        {pendingInvite.organizations?.name || 'ארגון'}
-                                    </p>
+                        {/* Content Side */}
+                        <div className="flex-1 p-8 md:p-16 flex flex-col justify-center bg-white">
+                            <div className="space-y-10 animate-in fade-in slide-in-from-left-10 duration-700">
+                                <div className="bg-slate-50 border-2 border-slate-100 rounded-3xl p-8 text-center md:text-right">
+                                    <div className="flex items-center justify-center md:justify-start gap-4 mb-6">
+                                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-200">
+                                            <Building2 size={24} className="text-slate-900" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">ארגון</p>
+                                            <h3 className="text-2xl font-black text-slate-900">{pendingInvite.organizations?.name || 'ארגון'}</h3>
+                                        </div>
+                                    </div>
 
-                                    <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 inline-block">
-                                        <p className="text-sm text-slate-600 mb-1 font-medium">תפקיד:</p>
-                                        <div className="flex items-center justify-center gap-2">
-                                            <Shield size={18} className="text-green-600" />
-                                            <p className="text-lg font-bold text-green-700">
+                                    <div className="bg-white rounded-2xl p-6 border border-slate-200 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Shield size={20} className="text-amber-500" />
+                                            <span className="text-lg font-bold text-slate-700">
                                                 {pendingInvite.role === 'admin' && 'מנהל מערכת'}
                                                 {pendingInvite.role === 'editor' && 'עורך'}
                                                 {pendingInvite.role === 'shift_manager' && 'מנהל משמרות'}
                                                 {pendingInvite.role === 'viewer' && 'צופה'}
                                                 {pendingInvite.role === 'attendance_only' && 'נוכחות בלבד'}
                                                 {!['admin', 'editor', 'shift_manager', 'viewer', 'attendance_only'].includes(pendingInvite.role) && (pendingInvite.role || 'צופה')}
-                                            </p>
+                                            </span>
                                         </div>
+                                        <p className="text-sm font-bold text-slate-400 uppercase">תפקיד</p>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Accept Button */}
-                            <button
-                                onClick={handleAcceptInvite}
-                                disabled={loading}
-                                className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed text-lg flex items-center justify-center gap-3"
-                            >
-                                {loading ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        מצטרף...
-                                    </>
-                                ) : (
-                                    <>
-                                        <CheckCircle size={24} />
-                                        קבל הזמנה והצטרף
-                                    </>
-                                )}
-                            </button>
+                                <div className="space-y-4">
+                                    <button
+                                        onClick={handleAcceptInvite}
+                                        disabled={loading}
+                                        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 px-8 rounded-2xl transition-all shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 hover:-translate-y-1 flex items-center justify-center gap-4 text-xl disabled:opacity-50 disabled:translate-y-0 active:scale-95"
+                                    >
+                                        {loading ? (
+                                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            <>
+                                                <CheckCircle size={24} />
+                                                קבל הזמנה והצטרף
+                                            </>
+                                        )}
+                                    </button>
 
-                            {/* Alternative Option */}
-                            <div className="mt-6 text-center">
-                                <button
-                                    onClick={() => setPendingInvite(null)}
-                                    className="text-slate-600 hover:text-slate-800 font-medium text-sm transition-colors"
-                                >
-                                    או צור ארגון חדש משלך →
-                                </button>
+                                    <button
+                                        onClick={() => setPendingInvite(null)}
+                                        className="w-full text-slate-400 hover:text-slate-600 font-bold transition-all text-sm py-2"
+                                    >
+                                        או צור ארגון חדש משלך →
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -279,128 +486,221 @@ export const Onboarding: React.FC = () => {
 
     // Default: Create new organization
     return (
-        <div className="h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 overflow-y-auto">
-            {/* Header with Logo */}
-            <div className="bg-white border-b border-slate-200 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="h-screen bg-[#f8fafc] overflow-y-auto font-sans">
+            {/* Minimal Navigation */}
+            <header className="bg-white border-b border-slate-200 h-16 flex items-center shadow-sm sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 w-full flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
-                            <img src="/favicon.png" alt="Miuim Logo" className="w-full h-full object-contain" />
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 p-1.5">
+                            <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
                         </div>
-                        <span className="text-xl font-bold text-slate-800">Miuim</span>
+                        <span className="text-xl font-black text-slate-900 tracking-tight">מערכת שיבוץ</span>
                     </div>
                     <button
                         onClick={handleLogout}
-                        className="text-slate-500 hover:text-red-600 font-medium text-sm transition-colors flex items-center gap-2"
+                        className="text-slate-500 hover:text-red-600 font-bold text-sm transition-colors flex items-center gap-2 group"
                     >
-                        <span className="hidden md:inline">התנתק</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity">התנתק</span>
+                        <div className="p-2 hover:bg-red-50 rounded-lg transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
+                        </div>
                     </button>
                 </div>
-            </div>
+            </header>
 
-            <div className="min-h-[calc(100vh-80px)] flex items-center justify-center p-4 md:p-8">
-                <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full overflow-hidden border border-slate-200">
-                    {/* Header Section */}
-                    <div className="bg-gradient-to-r from-green-600 to-teal-600 p-8 md:p-12 text-center relative overflow-hidden">
-                        <div className="absolute inset-0 opacity-10">
-                            <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-                            <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
-                        </div>
+            <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 md:p-12">
+                <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-5xl w-full overflow-hidden border border-slate-200/60 flex flex-col md:flex-row">
+
+                    {/* Dark Side Branding (Mobile Top, Desktop Left) */}
+                    <div className="md:w-[400px] bg-slate-900 p-6 md:p-12 text-white flex flex-col justify-between relative overflow-hidden">
+                        {/* Decorative background elements */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-400 opacity-[0.03] rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-green-400 opacity-[0.03] rounded-full translate-y-1/2 -translate-x-1/2"></div>
 
                         <div className="relative z-10">
-                            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">ברוך הבא!</h1>
-                            <p className="text-green-50 text-lg">בוא נתחיל בהקמת הארגון שלך. איך תרצה להתחיל?</p>
+                            <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/10">
+                                <Shield size={32} className="text-amber-400" />
+                            </div>
+                            <h1 className="text-4xl font-black mb-6 leading-tight">
+                                {step === 'org_name' ? 'יוצאים לדרך חדשה.' :
+                                    step === 'import_wizard' ? 'ייבוא נתונים.' :
+                                        'הקמה חכמה.'}
+                            </h1>
+                            <p className="text-slate-400 text-lg leading-relaxed">
+                                {step === 'org_name'
+                                    ? 'אנחנו כאן כדי לעזור לך לנהל את הפלוגה בצורה מקצועית, שקופה ואפקטיבית יותר.'
+                                    : step === 'import_wizard'
+                                        ? 'אנא עקוב אחר שלבי הייבוא כדי להכניס את כל הלוחמים למערכת.'
+                                        : 'הארגון נוצר! השלב הבא הוא להכניס את האנשים והמשימות למערכת.'}
+                            </p>
+                        </div>
+
+                        <div className="relative z-10 pt-12">
+                            <div className="flex items-center gap-4 text-sm text-slate-500 font-bold uppercase tracking-widest bg-white/5 p-4 rounded-2xl border border-white/5">
+                                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                                {step === 'org_name' ? 'שלב 1: פרטי ארגון' : 'שלב 2: בחירת מסלול'}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Setup Options */}
-                    <div className="p-8 md:p-12">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-
-                            {/* Option 1: Manual Setup */}
-                            <div className="flex flex-col h-full bg-white border-2 border-slate-100 rounded-2xl p-6 hover:border-green-500 hover:shadow-lg transition-all group relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-slate-200 to-slate-300 group-hover:from-green-400 group-hover:to-teal-500 transition-all"></div>
-                                <div className="mb-6 bg-slate-100 w-16 h-16 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Building2 size={32} className="text-slate-600 group-hover:text-green-600 transition-colors" />
+                    {/* Content Section */}
+                    <div className="flex-1 p-6 md:p-16 bg-white">
+                        {step === 'org_name' ? (
+                            <div className="max-w-xl mx-auto space-y-10 animate-in fade-in slide-in-from-right-10 duration-700">
+                                <div>
+                                    <h2 className="text-3xl font-black text-slate-900 mb-4">איך תרצו לקרוא לארגון?</h2>
+                                    <p className="text-slate-500 text-lg">שם הפלוגה, הגדוד או היחידה שלך. תמיד תוכל לשנות זאת בהמשך.</p>
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-800 mb-2">הקמה ידנית</h3>
-                                <p className="text-slate-500 text-sm mb-6 flex-1">
-                                    להתחיל מאפס. תן שם לארגון והתחל להוסיף צוותים, תפקידים ומשתמשים באופן ידני דרך הממשק.
-                                </p>
 
-                                <form onSubmit={(e) => {
-                                    e.preventDefault();
-                                    // Manual setup logic handles creating org and proceeding
-                                    handleSubmit(e);
-                                }} className="space-y-4">
-                                    <input
-                                        type="text"
-                                        value={orgName}
-                                        onChange={handleOrgNameChange}
-                                        placeholder="שם הארגון (לדוגמה: פלוגה א׳)"
-                                        className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:border-green-500 focus:bg-white focus:outline-none text-slate-800 text-sm transition-colors"
-                                        required
-                                        disabled={loading}
-                                    />
+                                <form onSubmit={handleCreateOrg} className="space-y-8">
+                                    <div className="space-y-4">
+                                        <div className="relative">
+                                            <Building2 className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400" size={24} />
+                                            <input
+                                                type="text"
+                                                value={orgName}
+                                                onChange={handleOrgNameChange}
+                                                placeholder="לדוגמה: פלוגה א׳, גדוד 101..."
+                                                className="w-full pr-14 pl-4 py-4 md:pl-6 md:py-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-slate-900 focus:bg-white focus:outline-none text-slate-900 text-lg md:text-xl transition-all font-bold placeholder:font-normal placeholder:text-slate-300 shadow-inner"
+                                                required
+                                                disabled={loading}
+                                                autoFocus
+                                            />
+                                        </div>
+                                        {error && (
+                                            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-red-100">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                                                {error}
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <button
                                         type="submit"
                                         disabled={loading || !orgName.trim()}
-                                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 group-hover:bg-green-600 group-hover:text-white"
+                                        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 px-8 rounded-2xl transition-all shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 hover:-translate-y-1 flex items-center justify-center gap-4 text-xl disabled:opacity-50 disabled:translate-y-0 active:scale-95"
                                     >
-                                        {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Sparkles size={18} />}
-                                        צור והתחל
+                                        יצירת ארגון והמשך
+                                        {loading ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <ArrowLeft size={24} />}
                                     </button>
                                 </form>
                             </div>
+                        ) : (step === 'path_selection' || step === 'import_wizard') ? (
+                            <div className="space-y-12 animate-in fade-in slide-in-from-left-10 duration-700">
+                                {step === 'import_wizard' && (
+                                    <ExcelImportWizard
+                                        isOpen={true}
+                                        onClose={() => setStep('path_selection')}
+                                        onImport={handleFinalImport}
+                                        teams={localTeams}
+                                        roles={localRoles}
+                                        onAddTeam={handleAddTeam}
+                                        onAddRole={handleAddRole}
+                                        isSaving={loading}
+                                    />
+                                )}
 
-                            {/* Option 2: Import Setup */}
-                            <div className="flex flex-col h-full bg-white border-2 border-slate-100 rounded-2xl p-6 hover:border-blue-500 hover:shadow-lg transition-all group relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-slate-200 to-slate-300 group-hover:from-blue-400 group-hover:to-indigo-500 transition-all"></div>
-                                <div className="mb-6 bg-slate-100 w-16 h-16 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <FileSpreadsheet size={32} className="text-slate-600 group-hover:text-blue-600 transition-colors" />
+                                <div className="text-center md:text-right">
+                                    <h2 className="text-3xl font-black text-slate-900 mb-4">איך תרצו להקים את הסד"כ?</h2>
+                                    <p className="text-slate-500 text-lg">יש שתי דרכים להתחיל. בחר את המתאימה לך ביותר.</p>
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-800 mb-2">ייבוא מאקסל</h3>
-                                <p className="text-slate-500 text-sm mb-6 flex-1">
-                                    יש לך כבר קובץ עם רשימת חיילים? ייבא אותם ישירות. אנחנו נקים את הצוותים והתפקידים אוטומטית.
-                                </p>
 
-                                <form onSubmit={(e) => {
-                                    e.preventDefault();
-                                    // Set flag for import flow
-                                    localStorage.setItem('open_import_wizard', 'true');
-                                    handleSubmit(e);
-                                }} className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {/* Path 1: Manual */}
+                                    <button
+                                        onClick={() => handleSelectPath(false)}
+                                        disabled={loading}
+                                        className="flex flex-col text-right bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 hover:border-slate-900 hover:shadow-2xl transition-all group relative"
+                                    >
+                                        <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm">
+                                            <Users size={28} />
+                                        </div>
+                                        <h3 className="text-2xl font-black text-slate-900 mb-3">הקמה ידנית</h3>
+                                        <p className="text-slate-500 leading-relaxed mb-8 flex-1">
+                                            להתחיל מאפס. הוספת צוותים וחיילים אחד-אחד דרך הממשק. מעולה ליחידות קטנות או לדיוק מקסימלי.
+                                        </p>
+                                        <div className="flex items-center gap-2 text-slate-900 font-black group-hover:translate-x-[-10px] transition-transform">
+                                            <span>התחל הקמה</span>
+                                            <ArrowLeft size={20} />
+                                        </div>
+                                    </button>
+
+                                    {/* Path 2: Import */}
+                                    <button
+                                        onClick={() => handleSelectPath(true)}
+                                        disabled={loading}
+                                        className="flex flex-col text-right bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 hover:border-amber-500 hover:shadow-2xl transition-all group relative"
+                                    >
+                                        <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-amber-400 group-hover:text-slate-900 transition-all shadow-sm">
+                                            <Upload size={28} />
+                                        </div>
+                                        <h3 className="text-2xl font-black text-slate-900 mb-3">ייבוא מאקסל</h3>
+                                        <p className="text-slate-500 leading-relaxed mb-8 flex-1">
+                                            יש לכם כבר רשימות? העלו קובץ CSV/Excel והמערכת תבנה את הכל עבורכם בשניות. הכי מהיר.
+                                        </p>
+                                        <div className="flex items-center gap-2 text-amber-600 font-black group-hover:translate-x-[-10px] transition-transform">
+                                            <span>להעלאת קובץ</span>
+                                            <ArrowLeft size={20} />
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                        ) : step === 'claim_profile' ? (
+                            <div className="max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-right-10 duration-700">
+                                <div>
+                                    <h2 className="text-3xl font-black text-slate-900 mb-4">מי אתה מהרשימה?</h2>
+                                    <p className="text-slate-500 text-lg">כדי לסיים את ההקמה, אנא בחר את השם שלך מתוך הרשימה שייבאת.</p>
+                                </div>
+
+                                <div className="relative">
+                                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                                     <input
                                         type="text"
-                                        value={orgName}
-                                        onChange={handleOrgNameChange}
-                                        placeholder="שם הארגון (לדוגמה: גדוד 101)"
-                                        className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white focus:outline-none text-slate-800 text-sm transition-colors"
-                                        required
-                                        disabled={loading}
+                                        placeholder="חפש את השם שלך..."
+                                        value={claimSearchTerm}
+                                        onChange={e => setClaimSearchTerm(e.target.value)}
+                                        className="w-full pr-12 pl-4 py-4 rounded-xl bg-slate-50 border border-slate-200 focus:border-slate-900 focus:outline-none transition-all font-bold text-lg"
                                     />
-                                    <button
-                                        type="submit"
-                                        disabled={loading || !orgName.trim()}
-                                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 group-hover:bg-blue-600 group-hover:text-white"
-                                    >
-                                        {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Upload size={18} />}
-                                        צור וייבא נתונים
-                                    </button>
-                                </form>
+                                </div>
+
+                                <div className="border border-slate-100 rounded-2xl bg-slate-50 overflow-hidden max-h-[300px] overflow-y-auto">
+                                    {createdPeople.length === 0 && (
+                                        <div className="p-8 text-center text-slate-400">
+                                            לא נמצאו רשומות. משהו השתבש בייבוא?
+                                        </div>
+                                    )}
+                                    {createdPeople
+                                        .filter(p => p.name.toLowerCase().includes(claimSearchTerm.toLowerCase()))
+                                        .map(p => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => setSelectedClaimPerson(p)}
+                                                className={`w-full p-4 text-right flex items-center justify-between hover:bg-white transition-all border-b border-slate-100 last:border-0 ${selectedClaimPerson?.id === p.id ? 'bg-white ring-inset ring-2 ring-slate-900 z-10' : ''}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ${p.color?.replace('border-', 'bg-') || 'bg-slate-400'}`}>
+                                                        {p.name.slice(0, 2)}
+                                                    </div>
+                                                    <div>
+                                                        <div className={`font-bold text-lg ${selectedClaimPerson?.id === p.id ? 'text-slate-900' : 'text-slate-700'}`}>{p.name}</div>
+                                                        <div className="text-sm text-slate-500">{p.email || 'ללא אימייל'}</div>
+                                                    </div>
+                                                </div>
+                                                {selectedClaimPerson?.id === p.id && <CheckCircle size={24} className="text-slate-900" />}
+                                            </button>
+                                        ))}
+                                </div>
+
+                                <button
+                                    onClick={handleClaimProfile}
+                                    disabled={!selectedClaimPerson || loading}
+                                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 px-8 rounded-2xl mt-6 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {loading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles size={24} />}
+                                    סיום וכניסה למערכת
+                                </button>
                             </div>
-
-                        </div>
-
-                        <div className="mt-8 text-center md:hidden">
-                            <button
-                                onClick={handleLogout}
-                                className="text-slate-400 hover:text-red-500 text-sm font-medium transition-colors"
-                            >
-                                התנתק ויצא
-                            </button>
-                        </div>
+                        ) : null}
                     </div>
                 </div>
             </div>

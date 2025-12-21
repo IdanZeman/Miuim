@@ -44,7 +44,7 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
                     {/* Logo */}
                     <div className="flex justify-center mb-8">
                         <div className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center shadow-lg overflow-hidden p-3 border border-slate-100">
-                            <img src="/favicon.png" alt="Miuim Logo" className="w-full h-full object-contain" />
+                            <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
                         </div>
                     </div>
 

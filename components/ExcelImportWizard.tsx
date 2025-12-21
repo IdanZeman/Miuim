@@ -9,11 +9,12 @@ import { Button } from './ui/Button';
 interface ExcelImportWizardProps {
     isOpen: boolean;
     onClose: () => void;
-    onImport: (people: Person[]) => void;
+    onImport: (people: Person[], newTeams?: Team[], newRoles?: Role[]) => Promise<void>;
     teams: Team[];
     roles: Role[];
     onAddTeam: (t: Team) => void;
     onAddRole: (r: Role) => void;
+    isSaving?: boolean; // New prop for loading status
 }
 
 type Step = 'upload' | 'mapping' | 'resolution' | 'preview';
@@ -42,7 +43,8 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
     teams,
     roles,
     onAddTeam,
-    onAddRole
+    onAddRole,
+    isSaving = false // Default to false
 }) => {
     const { showToast } = useToast();
     const [step, setStep] = useState<Step>('upload');
@@ -157,6 +159,25 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 }
             }
         });
+
+        // If system is empty (Onboarding), auto-resolve all as 'create' and skip step
+        if (teams.length === 0 && roles.length === 0) {
+            const autoResolutions: ResolutionItem[] = [
+                ...Array.from(unknownTeams).map(name => ({
+                    originalName: name,
+                    type: 'team' as const,
+                    action: 'create' as const
+                })),
+                ...Array.from(unknownRoles).map(name => ({
+                    originalName: name,
+                    type: 'role' as const,
+                    action: 'create' as const
+                }))
+            ];
+            setResolutions(autoResolutions);
+            generatePreview(autoResolutions);
+            return;
+        }
 
         if (unknownTeams.size === 0 && unknownRoles.size === 0) {
             generatePreview([]); // No conflicts
@@ -274,17 +295,24 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         setStep('preview');
     };
 
-    const handleFinalImport = () => {
+    const handleFinalImport = async () => {
         // 1. Create real items for conflicts marked as 'create'
         const resolutionMap = new Map<string, string>(); // entries: 'type-name' -> 'real-id'
+
+        const teamsToCreate: Team[] = [];
+        const rolesToCreate: Role[] = [];
 
         resolutions.forEach(res => {
             if (res.action === 'create') {
                 const newId = `${res.type}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
                 if (res.type === 'team') {
-                    onAddTeam({ id: newId, name: res.originalName, color: 'border-slate-500' });
+                    const t = { id: newId, name: res.originalName, color: 'border-slate-500' };
+                    // onAddTeam(t); // No need to update parent state blindly, pass explicitly
+                    teamsToCreate.push(t);
                 } else {
-                    onAddRole({ id: newId, name: res.originalName, color: 'bg-slate-200' });
+                    const r = { id: newId, name: res.originalName, color: 'bg-slate-200' };
+                    // onAddRole(r);
+                    rolesToCreate.push(r);
                 }
                 resolutionMap.set(`${res.type}-${res.originalName}`, newId);
             }
@@ -299,7 +327,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 if (resolutionMap.has(`team-${originalName}`)) {
                     finalTeamId = resolutionMap.get(`team-${originalName}`)!;
                 } else {
-                    finalTeamId = ''; // Should be mapped already or ignored, but fallback
+                    finalTeamId = '';
                 }
             }
 
@@ -318,22 +346,14 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             };
         });
 
-        onImport(finalPeople);
-        onClose();
-
-        // Cleanup
-        setStep('upload');
-        setParsedData(null);
-        setMappings([]);
-        setResolutions([]);
-        setPreviewData([]);
+        await onImport(finalPeople, teamsToCreate, rolesToCreate);
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 bg-slate-900/50 backdrop-blur-sm">
+            <div className="bg-white md:rounded-2xl shadow-xl w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
 
                 {/* Header */}
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -343,10 +363,21 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                             ייבוא לוחמים מאקסל
                         </h2>
                         <p className="text-sm text-slate-500 mt-1">
-                            {step === 'upload' && 'שלב 1/4: העלאת קובץ'}
-                            {step === 'mapping' && 'שלב 2/4: מיפוי עמודות'}
-                            {step === 'resolution' && 'שלב 3/4: פתרון התנגשויות'}
-                            {step === 'preview' && 'שלב 4/4: בדיקה ואישור'}
+                            {/* Dynamic Step Counter based on Onboarding (3 steps) vs Existing (4 steps) */}
+                            {teams.length === 0 && roles.length === 0 ? (
+                                <>
+                                    {step === 'upload' && 'שלב 1/3: העלאת קובץ'}
+                                    {step === 'mapping' && 'שלב 2/3: מיפוי עמודות'}
+                                    {step === 'preview' && 'שלב 3/3: בדיקה ואישור'}
+                                </>
+                            ) : (
+                                <>
+                                    {step === 'upload' && 'שלב 1/4: העלאת קובץ'}
+                                    {step === 'mapping' && 'שלב 2/4: מיפוי עמודות'}
+                                    {step === 'resolution' && 'שלב 3/4: פתרון התנגשויות'}
+                                    {step === 'preview' && 'שלב 4/4: בדיקה ואישור'}
+                                </>
+                            )}
                         </p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
@@ -355,10 +386,10 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 text-right" dir="rtl">
+                <div className="flex-1 overflow-y-auto text-right" dir="rtl">
 
                     {step === 'upload' && (
-                        <div className="flex flex-col items-center justify-center h-full py-10 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                        <div className="flex flex-col items-center justify-center h-full py-10 m-6 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
                             onClick={() => fileInputRef.current?.click()}>
                             <input
                                 type="file"
@@ -376,36 +407,36 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     )}
 
                     {step === 'mapping' && (
-                        <div className="space-y-4">
-                            <div className="bg-blue-50 p-4 rounded-lg flex gap-3 text-blue-800 text-sm">
+                        <div className="pb-6">
+                            <div className="bg-blue-50 p-4 rounded-lg flex gap-3 text-blue-800 text-sm mx-6 mt-6 mb-4">
                                 <AlertCircle size={20} className="flex-shrink-0" />
                                 <p>המערכת זיהתה את העמודות הבאות. אנא התאם כל עמודה באקסל לשדה המתאים במערכת.</p>
                             </div>
 
                             {/* Header Row */}
-                            <div className="flex items-center gap-4 px-4 text-xs font-bold text-slate-400">
-                                <div className="w-1/3 flex items-center gap-1">
+                            <div className="sticky top-0 z-20 bg-white flex items-center gap-2 md:gap-4 px-4 md:px-6 py-3 text-xs font-bold text-slate-500 shadow-sm border-y border-slate-100">
+                                <div className="w-5/12 md:w-1/3 flex items-center gap-1">
                                     <FileSpreadsheet size={14} />
-                                    עמודה באקסל (מקור)
+                                    <span>עמודה באקסל (מקור)</span>
                                 </div>
-                                <div className="w-8"></div>
+                                <div className="w-6 md:w-8"></div>
                                 <div className="flex-1">שדה במערכת (יעד)</div>
                             </div>
 
-                            <div className="grid gap-3">
+                            <div className="grid gap-3 px-4 md:px-6 pt-4">
                                 {mappings.map((mapping, idx) => (
-                                    <div key={idx} className="flex items-center gap-4 p-3 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-shadow">
+                                    <div key={idx} className="flex items-center gap-2 md:gap-4 p-2 md:p-3 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-shadow">
 
                                         {/* Excel Source (Right side in RTL) */}
-                                        <div className="w-1/3 flex items-center gap-2 overflow-hidden bg-slate-50 px-3 py-2 rounded-md border border-slate-200 group">
-                                            <FileSpreadsheet size={16} className="text-green-600 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                                            <div className="font-bold text-slate-700 truncate" title={mapping.excelColumn}>
+                                        <div className="w-5/12 md:w-1/3 flex items-center gap-2 overflow-hidden bg-slate-50 px-2 py-2 md:px-3 rounded-md border border-slate-200 group">
+                                            <FileSpreadsheet className="text-green-600 flex-shrink-0 group-hover:scale-110 transition-transform w-4 h-4 md:w-5 md:h-5" />
+                                            <div className="font-bold text-slate-700 truncate text-xs md:text-sm" title={mapping.excelColumn}>
                                                 {mapping.excelColumn}
                                             </div>
                                         </div>
 
                                         {/* Arrow (Pointing Left in RTL) */}
-                                        <ArrowLeft size={20} className="text-slate-300" />
+                                        <ArrowLeft className="text-slate-300 w-4 h-4 md:w-5 md:h-5 flex-shrink-0" />
 
                                         {/* System Target (Left side in RTL) */}
                                         <div className="flex-1">
@@ -423,7 +454,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     )}
 
                     {step === 'resolution' && (
-                        <div className="space-y-6">
+                        <div className="space-y-6 p-4 md:p-6">
                             <div className="bg-yellow-50 p-4 rounded-lg flex gap-3 text-yellow-800 text-sm">
                                 <AlertCircle size={20} className="flex-shrink-0" />
                                 <p>נמצאו נתונים בקובץ שלא קיימים במערכת. אנא בחר כיצד לטפל בהם.</p>
@@ -498,7 +529,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     )}
 
                     {step === 'preview' && (
-                        <div>
+                        <div className="p-4 md:p-6">
                             <div className="bg-green-50 p-4 rounded-lg flex gap-3 text-green-800 text-sm mb-4">
                                 <Check size={20} className="flex-shrink-0" />
                                 <p>נמצאו {previewData.length} רשומות לייבוא. הנתונים יוצגו כך:</p>
@@ -558,7 +589,16 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     {step !== 'upload' ? (
                         <Button
                             onClick={() => {
-                                if (step === 'preview') setStep(resolutions.length > 0 ? 'resolution' : 'mapping');
+                                const isOnboarding = teams.length === 0 && roles.length === 0;
+                                if (step === 'preview') {
+                                    // If onboarding (skipped resolution) OR no conflicts -> Go to mapping
+                                    // But actually, if distinct "resolution" step was shown (resolutions.length > 0 && !isOnboarding), go there.
+                                    if (isOnboarding) {
+                                        setStep('mapping');
+                                    } else {
+                                        setStep(resolutions.length > 0 ? 'resolution' : 'mapping');
+                                    }
+                                }
                                 else if (step === 'resolution') setStep('mapping');
                                 else setStep('upload');
                             }}
@@ -592,9 +632,19 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     {step === 'preview' && (
                         <Button
                             onClick={handleFinalImport}
-                            className="bg-green-600 hover:bg-green-700 text-white border-transparent"
+                            className="bg-green-600 hover:bg-green-700 text-white border-transparent disabled:opacity-70"
+                            disabled={isSaving}
                         >
-                            הוסף {previewData.length} חיילים <Check size={16} />
+                            {isSaving ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-2"></div>
+                                    מוסיף...
+                                </>
+                            ) : (
+                                <>
+                                    הוסף {previewData.length} חיילים <Check size={16} />
+                                </>
+                            )}
                         </Button>
                     )}
                 </div>
