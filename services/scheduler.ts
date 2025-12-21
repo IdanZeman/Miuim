@@ -1,4 +1,4 @@
-import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint, TeamRotation } from "../types";
+import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint, TeamRotation, Absence } from "../types";
 import { getEffectiveAvailability } from "../utils/attendanceUtils";
 
 // --- Internal Types for the Algorithm ---
@@ -192,7 +192,8 @@ const initializeUsers = (
   allShifts: Shift[],
   roleCounts: Map<string, number>, // NEW: Pass roleCounts as parameter
   constraints: SchedulingConstraint[] = [],
-  teamRotations: TeamRotation[] = [] // NEW
+  teamRotations: TeamRotation[] = [], // NEW
+  absences: Absence[] = [] // NEW
 ): AlgoUser[] => {
   const dateKey = targetDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
@@ -226,6 +227,22 @@ const initializeUsers = (
             
             if (cStart < dayEnd.getTime() && cEnd > dayStart.getTime()) {
                 addToTimeline(algoUser, cStart, cEnd, 'EXTERNAL_CONSTRAINT');
+            }
+        }
+    });
+
+    // 0.5 Absences - Create EXTERNAL_CONSTRAINT for any absence overlapping this day
+    absences.forEach(a => {
+        if (a.person_id === p.id) {
+            const aStart = new Date(a.start_date).getTime();
+            const aEnd = new Date(a.end_date).getTime();
+            
+            // Check overlap with target day
+            const dayStart = new Date(targetDate); dayStart.setHours(0,0,0,0);
+            const dayEnd = new Date(targetDate); dayEnd.setHours(23,59,59,999);
+            
+            if (aStart < dayEnd.getTime() && aEnd > dayStart.getTime()) {
+                addToTimeline(algoUser, Math.max(aStart, dayStart.getTime()), Math.min(aEnd, dayEnd.getTime()), 'EXTERNAL_CONSTRAINT');
             }
         }
     });
@@ -435,7 +452,7 @@ export const solveSchedule = (
   // NEW: Add fixedShiftsOnDay to futureAssignments so they are treated as constraints
   const effectiveConstraints = [...futureAssignments, ...fixedShiftsOnDay];
   
-  const algoUsers = initializeUsers(people, startDate, historyScores, effectiveConstraints, taskTemplates, shifts, roleCounts, constraints || [], currentState.teamRotations || []);
+  const algoUsers = initializeUsers(people, startDate, historyScores, effectiveConstraints, taskTemplates, shifts, roleCounts, constraints || [], currentState.teamRotations || [], currentState.absences || []);
 
   // Map Shifts to AlgoTasks with DYNAMIC DIFFICULTY
   const algoTasks: AlgoTask[] = shiftsToSolve.map(s => {

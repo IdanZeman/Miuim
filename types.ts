@@ -198,6 +198,7 @@ export interface AppState {
   constraints: SchedulingConstraint[];
   teamRotations: TeamRotation[]; // NEW
   settings: OrganizationSettings | null; // NEW
+  absences: Absence[]; // NEW
 }
 
 export type TicketStatus = 'new' | 'in_progress' | 'resolved';
@@ -229,4 +230,14 @@ export interface DailyPresence {
   updated_at?: string;
   start_time?: string; // HH:MM
   end_time?: string;   // HH:MM
+}
+
+export interface Absence {
+  id: string;
+  person_id: string;
+  organization_id: string;
+  start_date: string; // ISO Date "YYYY-MM-DD"
+  end_date: string;   // ISO Date "YYYY-MM-DD"
+  reason?: string;
+  created_at?: string;
 }

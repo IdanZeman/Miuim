@@ -1,4 +1,4 @@
-import { Person, Team, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence } from '../types';
+import { Person, Team, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence } from '../types';
 
 // --- CONFIGURATION ---
 const WEIGHTS = {
@@ -23,6 +23,7 @@ export interface RosterGenerationParams {
     settings: OrganizationSettings;
     teamRotations: TeamRotation[];
     constraints: SchedulingConstraint[];
+    absences: Absence[]; // NEW
     customMinStaff?: number;
     customRotation?: { daysBase: number; daysHome: number; };
 }
@@ -56,6 +57,7 @@ class RosterOptimizer {
         endDate: Date, 
         rotations: Map<string, TeamRotation>, 
         rawConstraints: SchedulingConstraint[],
+        absences: Absence[],
         targetCapacity: number
     ) {
         this.people = people;
@@ -91,6 +93,16 @@ class RosterOptimizer {
                     for (let i = s; i <= e; i++) pConstraints.add(i);
                 }
             });
+
+            // Absences (Treat as Hard Constraints)
+            absences.forEach(a => {
+                if (a.person_id === p.id) {
+                    const s = Math.max(0, this.getDateIndex(new Date(a.start_date)));
+                    const e = Math.min(this.totalDays - 1, this.getDateIndex(new Date(a.end_date)));
+                    for (let i = s; i <= e; i++) pConstraints.add(i);
+                }
+            });
+
             this.constraints.set(p.id, pConstraints);
             
             // Initialize Schedule Array
@@ -374,7 +386,7 @@ class RosterOptimizer {
 
 // --- MAIN WRAPPER ---
 export const generateRoster = (params: RosterGenerationParams): RosterGenerationResult => {
-    const { startDate, endDate, people, teamRotations, constraints, settings, customMinStaff, customRotation } = params;
+    const { startDate, endDate, people, teamRotations, constraints, absences, settings, customMinStaff, customRotation } = params;
     
     const minDailyStaff = customMinStaff ?? settings.min_daily_staff ?? 0;
 
@@ -416,7 +428,7 @@ export const generateRoster = (params: RosterGenerationParams): RosterGeneration
     }
 
     // 2. Initialize Optimizer
-    const optimizer = new RosterOptimizer(people, startDate, endDate, rotMap, constraints, targetCapacity);
+    const optimizer = new RosterOptimizer(people, startDate, endDate, rotMap, constraints, absences, targetCapacity);
     
     // 3. Run Optimization
     console.time('SimulatedAnnealing');
@@ -448,8 +460,9 @@ export const generateRoster = (params: RosterGenerationParams): RosterGeneration
                 new Date(c.startTime) <= d && new Date(c.endTime) >= d
              );
              const isManual = p.dailyAvailability?.[dateKey]?.isAvailable === false && p.dailyAvailability?.[dateKey]?.source !== 'algorithm';
+             const isAbsence = absences.some(a => a.person_id === p.id && new Date(a.start_date) <= d && new Date(a.end_date) >= d);
 
-             if (isStrict || isManual) {
+             if (isStrict || isManual || isAbsence) {
                  label = 'unavailable';
              }
 

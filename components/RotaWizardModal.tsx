@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence } from '../types';
+import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence } from '../types';
 import { generateRoster, RosterGenerationResult } from '../utils/rotaGenerator';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
@@ -19,11 +19,12 @@ interface RotaWizardModalProps {
     settings: OrganizationSettings | null;
     teamRotations: TeamRotation[];
     constraints: SchedulingConstraint[];
+    absences: Absence[];
     onSaveRoster?: (data: DailyPresence[]) => void;
 }
 
 export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
-    isOpen, onClose, people, teams, tasks, settings, teamRotations, constraints, onSaveRoster
+    isOpen, onClose, people, teams, tasks, settings, teamRotations, constraints, absences, onSaveRoster
 }) => {
     const { showToast } = useToast();
     // Default to Today -> One Month Ahead
@@ -104,6 +105,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 settings,
                 teamRotations,
                 constraints,
+                absences,
                 customMinStaff,
                 customRotation: { daysBase, daysHome }
             });
@@ -223,7 +225,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             if (error) throw error;
 
             if (onSaveRoster) onSaveRoster(result.roster);
-            showToast(`נוצרו ${result.roster.length} רשומות נוכחות בהצלחה`, 'success');
+            showToast('השיבוץ נשמר בהצלחה', 'success');
             onClose();
         } catch (e) {
             console.error(e);
@@ -545,8 +547,35 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                         let presentCount = 0;
                                                         relevantPeople.forEach(p => {
                                                             const status = result?.personStatuses?.[dateKey]?.[p.id];
+
+                                                            // Check if on base
                                                             if (status !== 'home' && status !== 'unavailable') {
-                                                                presentCount++;
+                                                                // It IS base (or undefined/null which defaults to base usually, but let's stick to explicit non-home)
+
+                                                                // Check for Departure (Base today, Home tomorrow)
+                                                                // If last day of roster, treat as FULL BASE (not departing)
+                                                                let isDeparture = false;
+
+                                                                if (d.getTime() < end.getTime()) {
+                                                                    // We need to look up tomorrow's status
+                                                                    const nextDay = new Date(d);
+                                                                    nextDay.setDate(d.getDate() + 1);
+                                                                    const nextKey = nextDay.toLocaleDateString('en-CA');
+                                                                    const nextStatus = result?.personStatuses?.[nextKey]?.[p.id];
+
+                                                                    // Also check DB availability for next day fallback if not in results
+                                                                    let resolvedNextStatus = nextStatus;
+                                                                    if (!resolvedNextStatus) {
+                                                                        const dbAvail = p.dailyAvailability?.[nextKey];
+                                                                        if (dbAvail) resolvedNextStatus = dbAvail.isAvailable ? 'base' : 'home';
+                                                                        else resolvedNextStatus = 'base';
+                                                                    }
+                                                                    isDeparture = resolvedNextStatus === 'home' || resolvedNextStatus === 'unavailable';
+                                                                }
+
+                                                                if (!isDeparture) {
+                                                                    presentCount++;
+                                                                }
                                                             }
                                                         });
 
@@ -611,6 +640,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                                                                 // Helper to resolve status (Result > Existing DB)
                                                                 const resolveStatus = (key: string) => {
+                                                                    if (d.getTime() >= end.getTime() && key === nextDateKey) return 'base'; // End of roster = Base
+
                                                                     const resStatus = result?.personStatuses?.[key]?.[person.id];
                                                                     if (resStatus) return resStatus;
                                                                     const dbAvail = person.dailyAvailability?.[key];
@@ -618,7 +649,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                         if (dbAvail.status) return dbAvail.status;
                                                                         return dbAvail.isAvailable ? 'base' : 'home';
                                                                     }
-                                                                    return undefined;
+                                                                    return 'base'; // Default to base to prevent false "Departures" at end of range
                                                                 };
 
                                                                 const prevStatus = resolveStatus(prevDateKey);
@@ -630,10 +661,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                 if (status === 'home' || status === 'unavailable') {
                                                                     // Standard Home Day
                                                                     cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
+
                                                                     const isConstraint = status === 'unavailable';
+                                                                    // Show '(אילוץ)' if unavailable, otherwise standard 'בית'
+
                                                                     content = (
                                                                         <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
-                                                                            <span>בית</span>
+                                                                            <span>{isConstraint ? 'לא זמין' : 'בית'}</span>
                                                                             {isConstraint && <span className="text-[8px] font-normal">(אילוץ)</span>}
                                                                         </div>
                                                                     );
@@ -690,17 +724,36 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                             let baseCount = 0;
                                                             const startD = new Date(startDate);
                                                             const endD = new Date(endDate);
+
+                                                            // Helper to resolve status for any date
+                                                            const getStatusForDate = (dateObj: Date) => {
+                                                                const k = dateObj.toLocaleDateString('en-CA');
+                                                                const resStatus = result?.personStatuses?.[k]?.[person.id];
+                                                                if (resStatus) return resStatus;
+                                                                const dbAvail = person.dailyAvailability?.[k];
+                                                                if (dbAvail) return dbAvail.isAvailable ? 'base' : 'home';
+                                                                return 'base'; // Default
+                                                            };
+
                                                             for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-                                                                const k = d.toLocaleDateString('en-CA');
-                                                                const status = result?.personStatuses?.[k]?.[person.id];
-                                                                let resolved = status;
-                                                                if (!resolved) {
-                                                                    const dbAvail = person.dailyAvailability?.[k];
-                                                                    if (dbAvail) resolved = dbAvail.isAvailable ? 'base' : 'home';
-                                                                    else resolved = 'base';
+                                                                const currentStatus = getStatusForDate(d);
+
+                                                                if (currentStatus === 'home' || currentStatus === 'unavailable') {
+                                                                    homeCount++;
+                                                                } else {
+                                                                    // It IS base. Check if it's a departure (Tomorrow is home)
+                                                                    const nextDay = new Date(d);
+                                                                    nextDay.setDate(d.getDate() + 1);
+                                                                    const nextStatus = getStatusForDate(nextDay);
+
+                                                                    const isDeparture = nextStatus !== 'base';
+
+                                                                    if (isDeparture) {
+                                                                        homeCount++; // User wants Departure to count as Home
+                                                                    } else {
+                                                                        baseCount++;
+                                                                    }
                                                                 }
-                                                                if (resolved === 'home' || resolved === 'unavailable') homeCount++;
-                                                                else baseCount++;
                                                             }
 
                                                             cells.push(

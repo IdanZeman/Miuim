@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Person, Team, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence } from '../types';
+import { Person, Team, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '../types';
 import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, Wand2, Sparkles } from 'lucide-react';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
@@ -20,6 +20,7 @@ interface AttendanceManagerProps {
     teamRotations?: TeamRotation[];
     tasks?: TaskTemplate[]; // NEW
     constraints?: SchedulingConstraint[]; // NEW
+    absences?: Absence[]; // NEW
     settings?: OrganizationSettings | null; // NEW
     onUpdatePerson: (p: Person) => void;
     onUpdatePeople?: (people: Person[]) => void;
@@ -32,7 +33,7 @@ interface AttendanceManagerProps {
 
 export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     people, teams, teamRotations = [],
-    tasks = [], constraints = [], settings = null,
+    tasks = [], constraints = [], absences = [], settings = null,
     onUpdatePerson, onUpdatePeople,
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
     isViewer = false
@@ -303,13 +304,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     return (
         <div className="space-y-6 max-w-5xl mx-auto h-[calc(100vh-140px)] flex flex-col relative">
             {/* Header */}
-            <div className="bg-white rounded-xl shadow-portal p-6 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 transition-all">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <div className="bg-white rounded-xl shadow-portal p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 transition-all">
+                <div className="text-center md:text-right w-full md:w-auto">
+                    <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center justify-center md:justify-start gap-2">
                         <Calendar className="text-idf-green" />
                         יומן נוכחות וזמינות
                     </h2>
-                    <p className="hidden md:block text-slate-500 text-sm mt-1">
+                    <p className="text-slate-500 text-xs md:text-sm mt-1">
                         {viewMode === 'calendar'
                             ? 'מבט על - נוכחות חודשית'
                             : `ניהול נוכחות ליום ${selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}`
@@ -317,24 +318,24 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     </p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap justify-center md:justify-end items-center gap-2 md:gap-3 w-full md:w-auto">
                     {!isViewer && (
                         <button
                             onClick={() => setShowRotaWizard(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm hover:shadow transition-all font-medium"
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm hover:shadow transition-all font-medium text-sm"
                             title="מחולל הסבבים"
                         >
-                            <Sparkles size={18} />
-                            <span className="hidden md:inline">מחולל הסבבים</span>
+                            <Sparkles size={16} />
+                            <span>מחולל הסבבים</span>
                         </button>
                     )}
                     <button
                         onClick={handleExport}
-                        className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium text-sm md:text-base border border-slate-200"
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium text-sm border border-slate-200"
                         title="ייצוא ל-Excel"
                     >
-                        <Calendar size={18} />
-                        <span className="hidden md:inline">{viewMode === 'calendar' ? 'ייצוא חודשי' : 'ייצוא יומי'}</span>
+                        <Calendar size={16} />
+                        <span>{viewMode === 'calendar' ? 'ייצוא חודשי' : 'ייצוא יומי'}</span>
                     </button>
                     {/* Buttons moved to secondary toolbar */}
                 </div>
@@ -427,6 +428,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 teamRotations={teamRotations}
                                 currentDate={viewDate}
                                 onDateChange={setViewDate}
+                                onSelectPerson={(p) => {
+                                    if (isBulkMode) {
+                                        handleToggleSelectPerson(p.id);
+                                    } else {
+                                        setSelectedPersonForCalendar(p);
+                                    }
+                                }}
                             />
                         )}
                     </div>
@@ -648,6 +656,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     teams={teams}
                     tasks={tasks}
                     constraints={constraints}
+                    absences={absences}
                     settings={settings}
                     teamRotations={teamRotations}
                     onSaveRoster={(roster: DailyPresence[]) => {

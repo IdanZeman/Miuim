@@ -12,6 +12,7 @@ const ShiftReport = React.lazy(() => import('./components/ShiftReport').then(mod
 const AdminLogsViewer = React.lazy(() => import('./components/AdminLogsViewer').then(module => ({ default: module.AdminLogsViewer })));
 const Lottery = React.lazy(() => import('./components/Lottery').then(module => ({ default: module.Lottery })));
 const ConstraintsManager = React.lazy(() => import('./components/ConstraintsManager').then(module => ({ default: module.ConstraintsManager })));
+const AbsenceManager = React.lazy(() => import('./components/AbsenceManager').then(module => ({ default: module.AbsenceManager }))); // NEW
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
 const SystemManagementPage = React.lazy(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
 
@@ -21,7 +22,7 @@ import { LandingPage } from './components/LandingPage';
 import { Onboarding } from './components/Onboarding';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useToast } from './contexts/ToastContext';
-import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint } from './types';
+import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence } from './types'; // Updated imports
 import { supabase } from './services/supabaseClient';
 import {
     mapShiftFromDB, mapShiftToDB,
@@ -30,7 +31,8 @@ import {
     mapRoleFromDB, mapRoleToDB,
     mapTaskFromDB, mapTaskToDB,
     mapConstraintFromDB, mapConstraintToDB,
-    mapRotationFromDB, mapRotationToDB
+    mapRotationFromDB, mapRotationToDB,
+    mapAbsenceFromDB, mapAbsenceToDB // Added imports
 } from './services/supabaseClient';
 import { solveSchedule } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
@@ -65,7 +67,7 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 const MainApp: React.FC = () => {
     const { organization, user, profile, checkAccess } = useAuth();
     const { showToast } = useToast();
-    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner'>(() => {
+    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences'>(() => { // Added 'absences'
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('miuim_active_view');
             if (saved) return saved as any;
@@ -108,6 +110,7 @@ const MainApp: React.FC = () => {
         teams: Team[];
         constraints: SchedulingConstraint[];
         teamRotations: import('./types').TeamRotation[]; // NEW
+        absences: Absence[]; // NEW
     }>({
         people: [],
         shifts: [],
@@ -115,7 +118,8 @@ const MainApp: React.FC = () => {
         roles: [],
         teams: [],
         constraints: [],
-        teamRotations: [] // NEW
+        teamRotations: [], // NEW
+        absences: [] // NEW
     });
 
     const isLinkedToPerson = React.useMemo(() => {
@@ -136,6 +140,7 @@ const MainApp: React.FC = () => {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduling_constraints', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'team_rotations', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'absences', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW subscription
             .on('postgres_changes', { event: '*', schema: 'public', table: 'organization_settings', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW
             .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW subscription
             .subscribe();
@@ -163,6 +168,7 @@ const MainApp: React.FC = () => {
             const { data: teamsData } = await supabase.from('teams').select('*').eq('organization_id', organization.id);
             const { data: constraintsData } = await supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id);
             const { data: rotationsData } = await supabase.from('team_rotations').select('*').eq('organization_id', organization.id); // NEW
+            const { data: absencesData } = await supabase.from('absences').select('*').eq('organization_id', organization.id); // NEW
             const { data: settingsData } = await supabase.from('organization_settings').select('*').eq('organization_id', organization.id).maybeSingle(); // NEW
             const { data: presenceData } = await supabase.from('daily_presence').select('*').eq('organization_id', organization.id); // NEW Fetch Presence
 
@@ -306,6 +312,7 @@ const MainApp: React.FC = () => {
                 teams: mappedTeams,
                 constraints: (constraintsData || []).map(mapConstraintFromDB),
                 teamRotations: (rotationsData || []).map(mapRotationFromDB),
+                absences: (absencesData || []).map(mapAbsenceFromDB), // NEW
                 settings: (settingsData as any) || null
             });
         } catch (error) {
@@ -551,6 +558,19 @@ const MainApp: React.FC = () => {
     const handleDeleteRotation = async (id: string) => {
         try { await supabase.from('team_rotations').delete().eq('id', id); } catch (e) { console.warn(e); }
         setState(prev => ({ ...prev, teamRotations: prev.teamRotations.filter(r => r.id !== id) }));
+    };
+
+    // ABSENCE HANDLERS
+    const handleAddAbsence = async (a: Absence) => {
+        setState(prev => ({ ...prev, absences: [...prev.absences, a] }));
+    };
+
+    const handleUpdateAbsence = async (a: Absence) => {
+        setState(prev => ({ ...prev, absences: prev.absences.map(absence => absence.id === a.id ? a : absence) }));
+    };
+
+    const handleDeleteAbsence = async (id: string) => {
+        setState(prev => ({ ...prev, absences: prev.absences.filter(a => a.id !== id) }));
     };
 
     const handleAssign = async (shiftId: string, personId: string) => {
@@ -850,6 +870,7 @@ const MainApp: React.FC = () => {
                 teamRotations={state.teamRotations}
                 tasks={state.taskTemplates}
                 constraints={state.constraints}
+                absences={state.absences}
                 settings={state.settings}
                 onUpdatePerson={handleUpdatePerson}
                 onUpdatePeople={handleUpdatePeople}
@@ -871,66 +892,80 @@ const MainApp: React.FC = () => {
             case 'contact': return <ContactPage />;
             case 'tickets': return <SystemManagementPage />; // Redirect legacy tickets route
             case 'system': return <SystemManagementPage />; // NEW
-            default: return (
-                <div className="space-y-6">
-                    {checkAccess('dashboard', 'edit') && (
-                        state.taskTemplates.length === 0 && state.people.length === 0 && state.roles.length === 0 ? (
-                            <EmptyStateGuide
-                                hasTasks={state.taskTemplates.length > 0}
-                                hasPeople={state.people.length > 0}
-                                hasRoles={state.roles.length > 0}
-                                onNavigate={handleNavigate}
-                                onImport={() => {
-                                    localStorage.setItem('open_import_wizard', 'true');
-                                    setView('personnel');
-                                }}
-                            />
-                        ) : (
-                            <>
-                                {state.taskTemplates.length > 0 && (
-                                    <div className="fixed bottom-20 md:bottom-8 left-4 md:left-8 z-50">
-                                        <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-3 md:px-5 md:py-3 rounded-full shadow-xl flex items-center justify-center gap-0 md:gap-2 font-bold hover:scale-105 transition-all">
-                                            <Sparkles size={20} className="md:w-5 md:h-5" />
-                                            <span className="hidden md:inline whitespace-nowrap text-base">שיבוץ אוטומטי</span>
-                                        </button>
-                                    </div>
-                                )}
-                                <ScheduleBoard
-                                    shifts={state.shifts}
-                                    people={state.people}
-                                    taskTemplates={state.taskTemplates}
-                                    roles={state.roles}
-                                    teams={state.teams}
-                                    constraints={state.constraints}
-                                    selectedDate={selectedDate}
-                                    onDateChange={setSelectedDate}
-                                    onSelect={() => { }}
-                                    onDelete={handleDeleteShift}
-                                    isViewer={false}
-                                    onClearDay={handleClearDay}
-                                    onNavigate={handleNavigate}
-                                    onAssign={handleAssign}
-                                    onUnassign={handleUnassign}
-                                    onAddShift={handleAddShift}
-                                    onUpdateShift={handleUpdateShift}
-                                    onToggleCancelShift={handleToggleCancelShift}
-                                    teamRotations={state.teamRotations}
-                                />
-                            </>
-                        )
-                    )}
-                    <AutoScheduleModal
-                        isOpen={showScheduleModal}
-                        onClose={() => setShowScheduleModal(false)}
-                        onSchedule={handleAutoSchedule}
-                        tasks={state.taskTemplates}
+            case 'absences':
+                return checkAccess('attendance') ? (
+                    <AbsenceManager
                         people={state.people}
-                        roles={state.roles}
-                        startDate={scheduleStartDate}
-                        endDate={scheduleEndDate}
+                        absences={state.absences}
+                        onAddAbsence={handleAddAbsence}
+                        onUpdateAbsence={handleUpdateAbsence}
+                        onDeleteAbsence={handleDeleteAbsence}
                     />
-                </div>
-            );
+                ) : <Navigate to="/" />;
+            case 'planner':
+                return <Navigate to="/dashboard" />; // Deprecated
+            case 'home':
+            default:
+                return (
+                    <div className="space-y-6">
+                        {checkAccess('dashboard', 'edit') && (
+                            state.taskTemplates.length === 0 && state.people.length === 0 && state.roles.length === 0 ? (
+                                <EmptyStateGuide
+                                    hasTasks={state.taskTemplates.length > 0}
+                                    hasPeople={state.people.length > 0}
+                                    hasRoles={state.roles.length > 0}
+                                    onNavigate={setView}
+                                    onImport={() => {
+                                        localStorage.setItem('open_import_wizard', 'true');
+                                        setView('personnel');
+                                    }}
+                                />
+                            ) : (
+                                <>
+                                    {state.taskTemplates.length > 0 && (
+                                        <div className="fixed bottom-20 md:bottom-8 left-4 md:left-8 z-50">
+                                            <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-3 md:px-5 md:py-3 rounded-full shadow-xl flex items-center justify-center gap-0 md:gap-2 font-bold hover:scale-105 transition-all">
+                                                <Sparkles size={20} className="md:w-5 md:h-5" />
+                                                <span className="hidden md:inline whitespace-nowrap text-base">שיבוץ אוטומטי</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                    <ScheduleBoard
+                                        shifts={state.shifts}
+                                        people={state.people}
+                                        taskTemplates={state.taskTemplates}
+                                        roles={state.roles}
+                                        teams={state.teams}
+                                        constraints={state.constraints}
+                                        selectedDate={selectedDate}
+                                        onDateChange={setSelectedDate}
+                                        onSelect={() => { }}
+                                        onDelete={handleDeleteShift}
+                                        isViewer={false}
+                                        onClearDay={handleClearDay}
+                                        onNavigate={handleNavigate}
+                                        onAssign={handleAssign}
+                                        onUnassign={handleUnassign}
+                                        onAddShift={handleAddShift}
+                                        onUpdateShift={handleUpdateShift}
+                                        onToggleCancelShift={handleToggleCancelShift}
+                                        teamRotations={state.teamRotations}
+                                    />
+                                </>
+                            )
+                        )}
+                        <AutoScheduleModal
+                            isOpen={showScheduleModal}
+                            onClose={() => setShowScheduleModal(false)}
+                            onSchedule={handleAutoSchedule}
+                            tasks={state.taskTemplates}
+                            people={state.people}
+                            roles={state.roles}
+                            startDate={scheduleStartDate}
+                            endDate={scheduleEndDate}
+                        />
+                    </div >
+                );
         }
 
     };

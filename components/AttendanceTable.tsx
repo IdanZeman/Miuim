@@ -9,10 +9,11 @@ interface AttendanceTableProps {
     teamRotations: TeamRotation[];
     currentDate: Date;
     onDateChange: (date: Date) => void;
+    onSelectPerson: (person: Person) => void; // NEW
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
-    teams, people, teamRotations, currentDate, onDateChange
+    teams, people, teamRotations, currentDate, onDateChange, onSelectPerson
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
 
@@ -122,14 +123,17 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         {teamPeople.map((person, idx) => (
                                             <div key={person.id} className={`flex border-b border-slate-100 hover:bg-slate-50 transition-colors h-12 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/20'}`}>
                                                 {/* Sticky Name Cell */}
-                                                <div className={`w-48 shrink-0 px-3 py-2 border-l border-slate-100 sticky right-0 z-10 flex items-center gap-2 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                                <div
+                                                    className={`w-48 shrink-0 px-3 py-2 border-l border-slate-100 sticky right-0 z-10 flex items-center gap-2 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] cursor-pointer hover:bg-slate-100 transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
+                                                    onClick={() => onSelectPerson(person)}
+                                                >
                                                     <div
                                                         className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white shadow-sm"
                                                         style={{ backgroundColor: team.color || '#94a3b8' }}
                                                     >
                                                         {person.name.charAt(0)}
                                                     </div>
-                                                    <span className="text-sm font-medium text-slate-700 truncate" title={person.name}>
+                                                    <span className="text-sm font-medium text-slate-700 truncate group-hover:text-blue-600 transition-colors" title={person.name}>
                                                         {person.name}
                                                     </span>
                                                 </div>

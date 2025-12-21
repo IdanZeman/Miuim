@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint } from '../types';
+import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence } from '../types';
 
 const supabaseUrl = 'https://rfqkkzhhvytkkgrnyarm.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmcWtremhodnl0a2tncm55YXJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwNjgxMjMsImV4cCI6MjA3NzY0NDEyM30.4kMkKtzq4eowtOQvQXVxwBU5iiEfNqw0f2JYBrVXR4E';
@@ -192,6 +192,26 @@ export const mapRotationToDB = (rot: import('../types').TeamRotation) => ({
     departure_time: rot.departure_time
 });
 
+// Absences
+export const mapAbsenceFromDB = (dbAbsence: any): Absence => ({
+    id: dbAbsence.id,
+    person_id: dbAbsence.person_id,
+    organization_id: dbAbsence.organization_id,
+    start_date: dbAbsence.start_date,
+    end_date: dbAbsence.end_date,
+    reason: dbAbsence.reason,
+    created_at: dbAbsence.created_at
+});
+
+export const mapAbsenceToDB = (absence: Absence) => ({
+    id: absence.id,
+    person_id: absence.person_id,
+    organization_id: absence.organization_id,
+    start_date: absence.start_date,
+    end_date: absence.end_date,
+    reason: absence.reason
+});
+
 // Constraints
 export const fetchConstraints = async (organizationId: string): Promise<SchedulingConstraint[]> => {
     const { data, error } = await supabase
@@ -255,6 +275,57 @@ export const addConstraint = async (constraint: Omit<SchedulingConstraint, 'id'>
 export const deleteConstraint = async (id: string) => {
     const { error } = await supabase
         .from('scheduling_constraints')
+        .delete()
+        .eq('id', id);
+    
+    if (error) throw error;
+};
+
+// Absences CRUD
+export const fetchAbsences = async (organizationId: string): Promise<Absence[]> => {
+    const { data, error } = await supabase
+        .from('absences')
+        .select('*')
+        .eq('organization_id', organizationId);
+    
+    if (error) throw error;
+    
+    return data.map(mapAbsenceFromDB);
+};
+
+export const addAbsence = async (absence: Omit<Absence, 'id'>) => {
+    const dbAbsence = {
+        person_id: absence.person_id,
+        organization_id: absence.organization_id,
+        start_date: absence.start_date,
+        end_date: absence.end_date,
+        reason: absence.reason
+    };
+
+    const { data, error } = await supabase
+        .from('absences')
+        .insert([dbAbsence])
+        .select()
+        .single();
+    
+    if (error) throw error;
+
+    return mapAbsenceFromDB(data);
+};
+
+export const updateAbsence = async (absence: Absence) => {
+    const dbAbsence = mapAbsenceToDB(absence);
+    const { error } = await supabase
+        .from('absences')
+        .update(dbAbsence)
+        .eq('id', absence.id);
+    
+    if (error) throw error;
+};
+
+export const deleteAbsence = async (id: string) => {
+    const { error } = await supabase
+        .from('absences')
         .delete()
         .eq('id', id);
     
