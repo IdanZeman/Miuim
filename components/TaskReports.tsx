@@ -30,7 +30,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
             const { data } = await supabase
                 .from('organization_settings')
                 .select('*')
-                .single();
+                .maybeSingle();
 
             if (data) {
                 setNightShiftStart(data.night_shift_start.slice(0, 5));
