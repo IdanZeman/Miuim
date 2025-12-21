@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, MessageSquare, AlertCircle, LayoutDashboard } from 'lucide-react';
-import { BasePage } from '../components/BasePage'; // Assuming BasePage exists or using standard layout divs
+
 import { AdminLogsViewer } from '../components/AdminLogsViewer';
 import { SupportTicketsPage } from './SupportTicketsPage';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,11 +10,12 @@ import { SystemStatsDashboard } from '../components/SystemStatsDashboard';
 type Tab = 'dashboard' | 'logs' | 'tickets';
 
 export const SystemManagementPage: React.FC = () => {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
     // Double check access (though App.tsx also gates it)
-    if (!user?.email?.includes('idanzeman') && user?.email !== 'idanzman@gmail.com') {
+    // Double check access (though App.tsx also gates it)
+    if (!profile?.is_super_admin) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-500">
                 <AlertCircle size={48} className="mb-4 text-red-400" />

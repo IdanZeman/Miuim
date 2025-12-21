@@ -22,13 +22,13 @@ const STATUS_COLORS: Record<TicketStatus, string> = {
 };
 
 export const SupportTicketsPage: React.FC = () => {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
 
     // Auth check - hardcoded for 'idanzeman' as requested or admins generally if preferred
     // Using a more generic "isSystemAdmin" check or email check
-    const isAuthorized = user?.email?.includes('idanzeman') || user?.email === 'idanzman@gmail.com'; // Adjust based on exact email or add more
+    const isAuthorized = profile?.is_super_admin; // Adjust based on exact email or add more
 
     const [tickets, setTickets] = useState<ContactMessage[]>([]);
     const [loading, setLoading] = useState(true);

@@ -170,7 +170,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 )}
 
                 {/* System Management (Admin Only) */}
-                {(isAdmin && (user?.email?.includes('idanzeman') || user?.email === 'idanzman@gmail.com')) && (
+                {(isAdmin && profile?.is_super_admin) && (
                   <TopNavLink
                     active={currentView === 'system' || currentView === 'logs' || currentView === 'tickets'}
                     onClick={() => setView('system')}
@@ -388,7 +388,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 </button>
               )}
 
-              {isAdmin && user?.email === 'idanzeman@gmail.com' && checkAccess('logs') && (
+              {isAdmin && profile?.is_super_admin && checkAccess('logs') && (
                 <button
                   className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'logs'
                     ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'

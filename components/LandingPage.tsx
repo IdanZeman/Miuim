@@ -2,12 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Zap, X, Calendar, Users, CheckCircle, ArrowLeft, Menu, Bell, User, Mail, Phone, Send, MessageSquare, Upload, Loader2, Heart } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
+import { TermsModal } from './TermsModal'; // Import TermsModal
 import { v4 as uuidv4 } from 'uuid';
 
 export const LandingPage: React.FC = () => {
     const { showToast } = useToast();
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const [showTermsModal, setShowTermsModal] = useState(false); // NEW
+    const [termsAccepted, setTermsAccepted] = useState(false); // NEW
     const [scrolled, setScrolled] = useState(false);
 
     // Contact Form State
@@ -43,6 +46,9 @@ export const LandingPage: React.FC = () => {
     }, []);
 
     const handleGoogleLogin = async () => {
+        if (!termsAccepted) return; // Guard
+        localStorage.setItem('terms_accepted_timestamp', new Date().toISOString()); // Save timestamp
+
         setIsLoggingIn(true);
         try {
             const { error } = await supabase.auth.signInWithOAuth({
@@ -458,10 +464,37 @@ export const LandingPage: React.FC = () => {
                                 <p className="text-slate-500 text-xs md:text-sm">התחבר כדי להמשיך למערכת שיבוץ משימות</p>
                             </div>
 
+                            {/* Terms Checkbox - NEW */}
+                            <div className="flex items-start gap-3 mb-6 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                                <div className="pt-0.5">
+                                    <input
+                                        type="checkbox"
+                                        id="terms-check"
+                                        checked={termsAccepted}
+                                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                    />
+                                </div>
+                                <label htmlFor="terms-check" className="text-xs text-slate-600 leading-relaxed cursor-pointer select-none">
+                                    אני מאשר/ת שקראתי והבנתי את{" "}
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setShowTermsModal(true);
+                                        }}
+                                        className="text-blue-600 font-bold hover:underline"
+                                    >
+                                        תנאי השימוש ומדיניות הפרטיות
+                                    </button>
+                                    , ומצהיר/ה כי לא אעלה למערכת מידע מסווג (מעל רמת בלמ"ס).
+                                </label>
+                            </div>
+
                             {/* Google Login Button */}
                             <button
                                 onClick={handleGoogleLogin}
-                                disabled={isLoggingIn}
+                                disabled={isLoggingIn || !termsAccepted} // Disable if not accepted
                                 className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 hover:border-slate-300 hover:shadow-md px-4 md:px-6 py-2.5 md:py-3 rounded-xl font-bold text-sm md:text-base text-slate-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoggingIn ? (
@@ -490,6 +523,7 @@ export const LandingPage: React.FC = () => {
                     </div>
                 )
             }
+            <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
         </div>
     );
 };

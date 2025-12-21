@@ -170,6 +170,8 @@ export interface Profile {
   organization_id: string | null;
   role: UserRole;
   permissions?: UserPermissions; // JSONB storage for custom permissions
+  is_super_admin?: boolean;
+  terms_accepted_at?: string; // ISO timestamp
 }
 
 export type ConstraintType = 'always_assign' | 'never_assign' | 'time_block';

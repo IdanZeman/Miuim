@@ -27,7 +27,7 @@ interface AdminLogsViewerProps {
 }
 
 export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId, limit: initialLimit = 100 }) => {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('');
@@ -35,10 +35,10 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
     const [limit, setLimit] = useState(initialLimit);
 
     useEffect(() => {
-        if (user?.email === 'idanzeman@gmail.com') {
+        if (profile?.is_super_admin) {
             fetchLogs();
         }
-    }, [user, limit]);
+    }, [user, limit, profile]);
 
     const fetchLogs = async () => {
         setLoading(true);
@@ -87,7 +87,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
             log.entity_type?.toLowerCase().includes(filter.toLowerCase()) ||
             (log.org_name && log.org_name.toLowerCase().includes(filter.toLowerCase()));
 
-        const matchesUser = hideMyLogs ? log.user_email !== 'idanzeman@gmail.com' : true;
+        const matchesUser = hideMyLogs ? log.user_email !== user?.email : true;
         const matchesExclude = excludeUserId ? log.user_id !== excludeUserId : true;
 
         return matchesSearch && matchesUser && matchesExclude;
@@ -102,7 +102,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
         }
     };
 
-    if (user?.email !== 'idanzeman@gmail.com') {
+    if (!profile?.is_super_admin) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
                 <Shield size={64} className="mb-4 opacity-20" />

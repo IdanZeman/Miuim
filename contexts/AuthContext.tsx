@@ -49,6 +49,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // 2. Fallback to Role-Based Defaults
+    if (profile.is_super_admin) return true;
+
+    if (screen === 'system' || screen === 'logs') return false;
+
     const role = profile.role;
     if (role === 'admin') return true;
 
@@ -84,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const dbPromise = supabase
         .from('profiles')
-        .select('*')
+        .select('*, is_super_admin')
         .eq('id', userId)
         .maybeSingle();
 

@@ -40,7 +40,7 @@ interface TopUser {
 }
 
 export const SystemStatsDashboard: React.FC = () => {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const [loading, setLoading] = useState(true);
 
     // Stats State
@@ -69,24 +69,24 @@ export const SystemStatsDashboard: React.FC = () => {
 
     // Initial Load
     useEffect(() => {
-        if (user?.email === 'idanzeman@gmail.com') {
+        if (profile?.is_super_admin) {
             fetchAllData();
         }
-    }, [user]);
+    }, [user, profile]);
 
     // Leaderboard Effect - Re-fetch when filter changes
     useEffect(() => {
-        if (user?.email === 'idanzeman@gmail.com') {
+        if (profile?.is_super_admin) {
             fetchTopUsers(userLeaderboardTimeframe);
         }
-    }, [userLeaderboardTimeframe, user]);
+    }, [userLeaderboardTimeframe, user, profile]);
 
     // Activity Chart Effect - Re-fetch when filter changes
     useEffect(() => {
-        if (user?.email === 'idanzeman@gmail.com') {
+        if (profile?.is_super_admin) {
             fetchActivityChart(activityTimeframe);
         }
-    }, [activityTimeframe, user]);
+    }, [activityTimeframe, user, profile]);
 
     const fetchAllData = async () => {
         setLoading(true);

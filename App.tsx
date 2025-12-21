@@ -957,6 +957,7 @@ const AppContent: React.FC = () => {
     const [isProcessingInvite, setIsProcessingInvite] = useState(true);
 
     // Check for pending invite after login
+    // Check for pending invite and terms acceptance after login
     useEffect(() => {
         const checkPendingInvite = async () => {
             const pendingToken = localStorage.getItem('pending_invite_token');
@@ -993,9 +994,19 @@ const AppContent: React.FC = () => {
             }
         };
 
+        const checkTerms = async () => {
+            const timestamp = localStorage.getItem('terms_accepted_timestamp');
+            if (user && timestamp) {
+                console.log("📝 App: Saving terms acceptance...", timestamp);
+                await supabase.from('profiles').update({ terms_accepted_at: timestamp }).eq('id', user.id);
+                localStorage.removeItem('terms_accepted_timestamp');
+            }
+        };
+
         if (!loading) {
             if (user) {
                 checkPendingInvite();
+                checkTerms();
             } else {
                 setIsProcessingInvite(false);
             }

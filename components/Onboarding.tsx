@@ -18,6 +18,18 @@ export const Onboarding: React.FC = () => {
     // Check for pending invites when component mounts
     useEffect(() => {
         checkForInvite();
+
+        // Check for terms acceptance from Landing Page
+        const saveTerms = async () => {
+            const timestamp = localStorage.getItem('terms_accepted_timestamp');
+            if (user && timestamp) {
+                console.log("📝 Onboarding: Saving terms acceptance...", timestamp);
+                await supabase.from('profiles').update({ terms_accepted_at: timestamp }).eq('id', user.id);
+                localStorage.removeItem('terms_accepted_timestamp');
+            }
+        };
+        saveTerms();
+
     }, [user]);
 
     const checkForInvite = async () => {
