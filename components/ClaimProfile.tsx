@@ -87,8 +87,8 @@ export const ClaimProfile: React.FC = () => {
             {/* Header */}
             <div className="bg-white border-b border-slate-200 shadow-sm flex-none">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
-                        <img src="/images/app_icon.png" alt="Miuim Logo" className="w-full h-full object-cover" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
+                        <img src="/favicon.png" alt="Miuim Logo" className="w-full h-full object-contain" />
                     </div>
                     <span className="text-xl font-bold text-slate-800">מערכת שיבוץ משימות</span>
                 </div>

@@ -169,8 +169,8 @@ export const Onboarding: React.FC = () => {
         return (
             <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-24 h-24 rounded-2xl flex items-center justify-center shadow-lg mb-4 mx-auto animate-pulse overflow-hidden">
-                        <img src="/images/app_icon.png" alt="Miuim Logo" className="w-full h-full object-cover" />
+                    <div className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg mb-4 mx-auto animate-pulse overflow-hidden p-3 border border-slate-100">
+                        <img src="/favicon.png" alt="Miuim Logo" className="w-full h-full object-contain" />
                     </div>
                     <p className="text-slate-600 font-medium">בודק הזמנות...</p>
                 </div>
@@ -185,8 +185,8 @@ export const Onboarding: React.FC = () => {
                 {/* Header with Logo */}
                 <div className="bg-white border-b border-slate-200 shadow-sm">
                     <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
-                            <img src="/images/app_icon.png" alt="Miuim Logo" className="w-full h-full object-cover" />
+                        <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
+                            <img src="/favicon.png" alt="Miuim Logo" className="w-full h-full object-contain" />
                         </div>
                         <span className="text-xl font-bold text-slate-800">מערכת שיבוץ משימות </span>
                     </div>
@@ -284,8 +284,8 @@ export const Onboarding: React.FC = () => {
             <div className="bg-white border-b border-slate-200 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
-                            <img src="/images/app_icon.png" alt="Miuim Logo" className="w-full h-full object-cover" />
+                        <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
+                            <img src="/favicon.png" alt="Miuim Logo" className="w-full h-full object-contain" />
                         </div>
                         <span className="text-xl font-bold text-slate-800">Miuim</span>
                     </div>

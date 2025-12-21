@@ -110,8 +110,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               onClick={() => setView && setView('home')}
               className="flex items-center gap-1 hover:opacity-80 transition-opacity flex-shrink-0"
             >
-              <div className="w-10 h-10 md:w-20 md:h-20 rounded-full flex items-center justify-center shadow-sm overflow-hidden">
-                <img src="/images/app_icon.png" alt="App Logo" className="w-full h-full object-cover" />
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
+                <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
               </div>
               <span className="text-lg font-bold text-slate-800 tracking-tight hidden md:block whitespace-nowrap">
                 {isPublic ? 'Miuim' : (organization?.name || 'Miuim')}

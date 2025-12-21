@@ -377,8 +377,8 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
             {/* Organization Info */}
             <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-yellow-200">
                 <div className="flex items-center gap-3 md:gap-4 mb-4">
-                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        <img src="/images/app_icon.png" alt="Organization Logo" className="w-full h-full object-cover" />
+                    <div className="w-20 h-20 md:w-24 md:h-24 bg-white border border-slate-100 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden p-3 shadow-inner">
+                        <img src="/favicon.png" alt="Organization Logo" className="w-full h-full object-contain" />
                     </div>
                     <div className="min-w-0 flex-1">
                         <h1 className="text-xl md:text-3xl font-bold text-slate-800 truncate">{organization?.name}</h1>
