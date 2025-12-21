@@ -184,18 +184,27 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
           {/* Left: User Profile - Hidden in Public Mode */}
           {!isPublic && (
-            <div className="flex items-center justify-end gap-3 pl-2 flex-shrink-0 min-w-[180px] max-w-[250px]">
-              <span className="text-sm font-medium text-slate-600 hidden md:block truncate text-ellipsis dir-ltr text-right" title={user?.email || ''}>
+            <div className="flex items-center justify-end gap-2 pl-2 flex-shrink-0">
+              {/* Profile name - Hidden on small mobile */}
+              <span className="text-sm font-medium text-slate-600 hidden sm:block md:block truncate text-ellipsis dir-ltr text-right" title={user?.email || ''}>
                 {user?.email?.split('@')[0] || 'משתמש'}
               </span>
+
+              {/* Logout button - Only visible on Desktop header */}
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors flex-shrink-0"
+                className="hidden md:flex items-center gap-2 p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors flex-shrink-0"
                 title="התנתק"
               >
                 <LogOut size={20} />
               </button>
-              <button className="hidden md:hidden p-2 flex-shrink-0" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+
+              {/* Hamburger Menu - Visible on Mobile only */}
+              <button
+                className="flex md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label="פתח תפריט"
+              >
                 <Menu size={24} />
               </button>
             </div>

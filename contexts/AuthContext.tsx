@@ -88,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const dbPromise = supabase
         .from('profiles')
-        .select('*, is_super_admin')
+        .select('*')
         .eq('id', userId)
         .maybeSingle();
 

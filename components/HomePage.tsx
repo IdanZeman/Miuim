@@ -34,7 +34,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, onNav
                     .from('organization_settings')
                     .select('viewer_schedule_days')
                     .eq('organization_id', organization.id)
-                    .single();
+                    .maybeSingle();
 
                 if (data) {
                     setViewerDays(data.viewer_schedule_days || 7);
