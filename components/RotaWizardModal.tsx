@@ -3,7 +3,7 @@ import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, Schedul
 import { generateRoster, RosterGenerationResult } from '../utils/rotaGenerator';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
-import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Sparkles, ArrowRight, Users, ChevronDown } from 'lucide-react';
+import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Sparkles, ArrowRight, Users, ChevronDown, Clock } from 'lucide-react';
 import { Input } from './ui/Input';
 import { MultiSelect, MultiSelectOption } from './ui/MultiSelect';
 import { useToast } from '../contexts/ToastContext';
@@ -351,76 +351,60 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             />
                         </div>
 
-                        <div className="flex flex-col md:flex-row gap-4 mt-6">
-                            <div className="flex-1">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">מתאריך</label>
-                                <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={e => setStartDate(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
-                                />
-                            </div>
-                            <div className="flex-1">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">עד תאריך</label>
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={e => setEndDate(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
-                                />
-                            </div>
+                        <div className="grid grid-cols-2 gap-3 mt-6">
+                            <Input
+                                type="date"
+                                label="מתאריך"
+                                value={startDate}
+                                onChange={e => setStartDate(e.target.value)}
+                            />
+                            <Input
+                                type="date"
+                                label="עד תאריך"
+                                value={endDate}
+                                onChange={e => setEndDate(e.target.value)}
+                            />
                         </div>
 
-                        <div className="flex flex-col md:flex-row gap-4 mt-4">
-                            <div className="w-full md:w-1/3">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">מינימום חיילים בבסיס</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={customMinStaff}
-                                    onChange={e => setCustomMinStaff(Number(e.target.value))}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
-                                />
-                            </div>
-                            <div className="w-full md:w-1/3">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">שעת הגעה לבסיס</label>
-                                <Input
-                                    type="time"
-                                    value={userArrivalHour}
-                                    onChange={(e) => setUserArrivalHour(e.target.value)}
-                                />
-                            </div>
-                            <div className="w-full md:w-1/3">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">שעת יציאה הביתה</label>
-                                <Input
-                                    type="time"
-                                    value={userDepartureHour}
-                                    onChange={(e) => setUserDepartureHour(e.target.value)}
-                                />
-                            </div>
+                        <div className="mt-4">
+                            <Input
+                                type="number"
+                                label="מינימום חיילים בבסיס (סד״כ)"
+                                min="0"
+                                value={customMinStaff}
+                                onChange={e => setCustomMinStaff(Number(e.target.value))}
+                                icon={Users}
+                            />
                         </div>
-                        <div className="flex flex-col md:flex-row gap-4 mt-4">
-                            <div className="w-full md:w-1/2">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">ימי בסיס (סבב)</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={daysBase}
-                                    onChange={e => setDaysBase(Number(e.target.value))}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
-                                />
-                            </div>
-                            <div className="w-full md:w-1/2">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">ימי בית (סבב)</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={daysHome}
-                                    onChange={e => setDaysHome(Number(e.target.value))}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
-                                />
-                            </div>
+                        <div className="grid grid-cols-2 gap-3 mt-4">
+                            <Input
+                                type="time"
+                                label="שעת הגעה"
+                                value={userArrivalHour}
+                                onChange={(e) => setUserArrivalHour(e.target.value)}
+                            />
+                            <Input
+                                type="time"
+                                label="שעת יציאה"
+                                value={userDepartureHour}
+                                onChange={(e) => setUserDepartureHour(e.target.value)}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 mt-4">
+                            <Input
+                                type="number"
+                                label="ימי בסיס (סבב)"
+                                min="1"
+                                value={daysBase}
+                                onChange={e => setDaysBase(Number(e.target.value))}
+                            />
+                            <Input
+                                type="number"
+                                label="ימי בית (סבב)"
+                                min="1"
+                                value={daysHome}
+                                onChange={e => setDaysHome(Number(e.target.value))}
+                            />
                         </div>
 
                         <div className="flex flex-col-reverse gap-3 pt-4 mt-auto sm:flex-row sm:justify-end">
