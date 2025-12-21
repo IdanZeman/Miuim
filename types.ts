@@ -227,4 +227,6 @@ export interface DailyPresence {
   source: 'algorithm' | 'manual' | 'override';
   created_at?: string;
   updated_at?: string;
+  start_time?: string; // HH:MM
+  end_time?: string;   // HH:MM
 }

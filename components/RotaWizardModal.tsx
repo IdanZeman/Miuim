@@ -201,15 +201,18 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         }
                     }
 
+                    // Log times for debugging
+                    // console.log(`Processing ${r.person_id} for ${r.date}: status=${r.status}, times=${startTime}-${endTime}`);
+
                     payload.push({
                         date: r.date,
                         person_id: r.person_id,
                         organization_id: r.organization_id,
                         status: r.status,
                         source: 'algorithm',
-                        start_time: startTime,
-                        end_time: endTime
-                    });
+                        start_time: startTime, // NOW using correct variable
+                        end_time: endTime     // NOW using correct variable
+                    } as DailyPresence);
                 });
             });
 
@@ -269,11 +272,30 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא';
                 const rowData = [p.name, teamName];
 
-                dateKeys.forEach(dateKey => {
+                dateKeys.forEach((dateKey, idx) => {
                     const status = result.personStatuses?.[dateKey]?.[p.id];
                     let cellVal = 'בבסיס';
                     if (status === 'home') cellVal = 'בית';
-                    if (status === 'unavailable') cellVal = 'בית (אילוץ)';
+                    else if (status === 'unavailable') cellVal = 'בית (אילוץ)';
+                    else if (status === 'base') {
+                        // Check neighbors for arrival/departure
+                        // This logic mirrors the preview rendering
+                        const prevKey = idx > 0 ? dateKeys[idx - 1] : null; // In-export neighbor
+                        const nextKey = idx < dateKeys.length - 1 ? dateKeys[idx + 1] : null;
+
+                        const prevStatus = prevKey ? result.personStatuses?.[prevKey]?.[p.id] : null; // (Simplified: only looking inside export range)
+                        const nextStatus = nextKey ? result.personStatuses?.[nextKey]?.[p.id] : null;
+
+                        // Logic: If prev was not base, it's arrival. If next is not base, it's departure.
+                        // Note: This is an approximation for the CSV since we don't look outside the range.
+                        const isPrevBase = prevStatus === 'base';
+                        const isNextBase = nextStatus === 'base';
+
+                        if (!isPrevBase && isNextBase) cellVal = `הגעה (${userArrivalHour})`;
+                        else if (isPrevBase && !isNextBase) cellVal = `יציאה (${userDepartureHour})`;
+                        else if (!isPrevBase && !isNextBase) cellVal = `יום בודד (${userArrivalHour}-${userDepartureHour})`;
+                    }
+
                     rowData.push(cellVal);
                 });
                 return rowData;
@@ -315,7 +337,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             <Sparkles className="text-blue-600 shrink-0" size={20} />
                             <div className="text-sm text-blue-900 leading-tight">
                                 <span className="font-bold">מחולל סבבים אוטומטי: </span>
-                                המערכת תייצר לוח נוכחות אופטימלי בהתבסס על מחזורי יציאות (11/3), אילוצים אישיים ושמירה על סד״כ מינימלי בבסיס.
+                                המערכת תייצר לוח נוכחות אופטימלי בהתבסס על מחזורי יציאות, אילוצים אישיים ושמירה על סד״כ מינימלי בבסיס.
                             </div>
                         </div>
 
@@ -599,6 +621,10 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                 prevDate.setDate(prevDate.getDate() - 1);
                                                                 const prevDateKey = prevDate.toLocaleDateString('en-CA');
 
+                                                                const nextDate = new Date(d);
+                                                                nextDate.setDate(nextDate.getDate() + 1);
+                                                                const nextDateKey = nextDate.toLocaleDateString('en-CA');
+
                                                                 // Helper to resolve status (Result > Existing DB)
                                                                 const resolveStatus = (key: string) => {
                                                                     const resStatus = result?.personStatuses?.[key]?.[person.id];
@@ -612,24 +638,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                 };
 
                                                                 const prevStatus = resolveStatus(prevDateKey);
-
-                                                                const isDeparture = (status === 'home' || status === 'unavailable') && prevStatus === 'base';
+                                                                const nextStatus = resolveStatus(nextDateKey);
 
                                                                 let content = null;
                                                                 let cellClass = "bg-white";
 
-                                                                if (isDeparture) {
-                                                                    // Departure Day (First day of Home block)
-                                                                    cellClass = "bg-orange-50 text-orange-800 border-orange-100 border-l border-slate-100";
-                                                                    const isConstraint = status === 'unavailable';
-                                                                    content = (
-                                                                        <div className="w-full h-full flex flex-col items-center justify-center">
-                                                                            <span className="text-[10px] font-bold leading-none">יציאה</span>
-                                                                            <span className="text-[8px] opacity-75 leading-none mt-0.5">(בית)</span>
-                                                                            {isConstraint && <span className="text-[8px] font-normal leading-none mt-0.5">(אילוץ)</span>}
-                                                                        </div>
-                                                                    );
-                                                                } else if (status === 'home' || status === 'unavailable') {
+                                                                if (status === 'home' || status === 'unavailable') {
                                                                     // Standard Home Day
                                                                     cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
                                                                     const isConstraint = status === 'unavailable';
@@ -639,18 +653,49 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                             {isConstraint && <span className="text-[8px] font-normal">(אילוץ)</span>}
                                                                         </div>
                                                                     );
-                                                                } else {
-                                                                    // Base Day
-                                                                    cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
-                                                                    content = (
-                                                                        <div className="w-full h-full flex items-center justify-center text-[10px] font-bold">
-                                                                            בבסיס
-                                                                        </div>
-                                                                    );
+                                                                } else if (status === 'base') {
+                                                                    // Base Day - Check for edges
+                                                                    const isArrival = prevStatus !== 'base';
+                                                                    const isDeparture = nextStatus !== 'base';
+
+                                                                    if (isArrival && isDeparture) {
+                                                                        // Single Day
+                                                                        cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
+                                                                        content = (
+                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                <span className="font-bold">יום בודד</span>
+                                                                                <span className="text-[9px] mt-0.5">{userArrivalHour}-{userDepartureHour}</span>
+                                                                            </div>
+                                                                        );
+                                                                    } else if (isArrival) {
+                                                                        cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
+                                                                        content = (
+                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                <span className="font-bold mb-0.5">הגעה</span>
+                                                                                <span className="text-[9px]">{userArrivalHour}</span>
+                                                                            </div>
+                                                                        );
+                                                                    } else if (isDeparture) {
+                                                                        cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
+                                                                        content = (
+                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                <span className="font-bold mb-0.5">יציאה</span>
+                                                                                <span className="text-[9px]">{userDepartureHour}</span>
+                                                                            </div>
+                                                                        );
+                                                                    } else {
+                                                                        // Full Base
+                                                                        cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
+                                                                        content = (
+                                                                            <div className="w-full h-full flex items-center justify-center text-[10px] font-bold">
+                                                                                בבסיס
+                                                                            </div>
+                                                                        );
+                                                                    }
                                                                 }
 
                                                                 cells.push(
-                                                                    <div key={`${person.id}-${dateKey}`} className={`w-24 shrink-0 p-1 border-l border-slate-100 h-12 flex items-center justify-center ${cellClass}`}>
+                                                                    <div key={`${person.id}-${dateKey}`} className={`w-24 shrink-0 p-1 border-l border-slate-100 h-12 flex items-center justify-center transition-colors ${cellClass}`}>
                                                                         {content}
                                                                     </div>
                                                                 );
