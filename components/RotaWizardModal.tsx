@@ -231,15 +231,15 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     };
 
     const previewFooter = (
-        <div className="flex justify-between items-center w-full">
-            <Button variant="ghost" onClick={() => setStep('config')} icon={ArrowRight}>חזור להגדרות</Button>
-            <div className="flex gap-2">
-                <Button variant="ghost" onClick={onClose}>ביטול</Button>
+        <div className="flex flex-col-reverse gap-4 sm:flex-row sm:justify-between sm:items-center w-full">
+            <Button variant="ghost" onClick={() => setStep('config')} icon={ArrowRight} className="w-full sm:w-auto justify-center sm:justify-start">חזור להגדרות</Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+                <Button variant="ghost" onClick={onClose} className="flex-1 sm:flex-none justify-center">ביטול</Button>
                 <Button
                     onClick={handleSave}
                     isLoading={saving}
                     icon={Save}
-                    className="bg-green-600 text-white hover:bg-green-700 shadow-md"
+                    className="bg-green-600 text-white hover:bg-green-700 shadow-md flex-1 sm:flex-none justify-center"
                 >
                     שמור וסיים
                 </Button>
@@ -329,7 +329,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             />
                         </div>
 
-                        <div className="flex gap-4 mt-6">
+                        <div className="flex flex-col md:flex-row gap-4 mt-6">
                             <div className="flex-1">
                                 <label className="block text-sm font-bold text-slate-700 mb-1">מתאריך</label>
                                 <input
@@ -350,8 +350,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             </div>
                         </div>
 
-                        <div className="flex gap-4 mt-4">
-                            <div className="w-1/3">
+                        <div className="flex flex-col md:flex-row gap-4 mt-4">
+                            <div className="w-full md:w-1/3">
                                 <label className="block text-sm font-bold text-slate-700 mb-1">מינימום חיילים בבסיס</label>
                                 <input
                                     type="number"
@@ -361,7 +361,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
                                 />
                             </div>
-                            <div className="w-1/3">
+                            <div className="w-full md:w-1/3">
                                 <label className="block text-sm font-bold text-slate-700 mb-1">שעת הגעה לבסיס</label>
                                 <Input
                                     type="time"
@@ -369,7 +369,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     onChange={(e) => setUserArrivalHour(e.target.value)}
                                 />
                             </div>
-                            <div className="w-1/3">
+                            <div className="w-full md:w-1/3">
                                 <label className="block text-sm font-bold text-slate-700 mb-1">שעת יציאה הביתה</label>
                                 <Input
                                     type="time"
@@ -378,8 +378,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 />
                             </div>
                         </div>
-                        <div className="flex gap-4 mt-4">
-                            <div className="w-1/2">
+                        <div className="flex flex-col md:flex-row gap-4 mt-4">
+                            <div className="w-full md:w-1/2">
                                 <label className="block text-sm font-bold text-slate-700 mb-1">ימי בסיס (סבב)</label>
                                 <input
                                     type="number"
@@ -389,7 +389,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
                                 />
                             </div>
-                            <div className="w-1/2">
+                            <div className="w-full md:w-1/2">
                                 <label className="block text-sm font-bold text-slate-700 mb-1">ימי בית (סבב)</label>
                                 <input
                                     type="number"
@@ -401,13 +401,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-3 pt-4 mt-auto">
-                            <Button variant="ghost" onClick={onClose}>ביטול</Button>
+                        <div className="flex flex-col-reverse gap-3 pt-4 mt-auto sm:flex-row sm:justify-end">
+                            <Button variant="ghost" onClick={onClose} className="w-full sm:w-auto">ביטול</Button>
                             <Button
                                 onClick={handleGenerate}
                                 isLoading={generating}
                                 icon={Sparkles}
-                                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md hover:shadow-lg"
+                                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md hover:shadow-lg w-full sm:w-auto justify-center"
                             >
                                 צור הצעה לשיבוץ
                             </Button>
