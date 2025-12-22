@@ -23,6 +23,7 @@ const SCREENS: { id: ViewMode; label: string }[] = [
     { id: 'constraints', label: 'ניהול אילוצים' },
     { id: 'lottery', label: 'הגרלות' },
     { id: 'equipment', label: 'ניהול אמצעים' },
+    { id: 'logs', label: 'יומן פעילות' },
     { id: 'settings', label: 'הגדרות ארגון' },
 ];
 

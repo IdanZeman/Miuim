@@ -248,16 +248,16 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                                     <span className="text-lg font-bold min-w-[140px] text-center">{viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}</span>
                                     <button onClick={handleNextMonth} className="p-1 hover:bg-slate-100 rounded"><ChevronLeft /></button>
                                 </div>
-                                <div className="text-sm text-slate-500">
+                                <div className="text-sm text-slate-500 hidden md:block">
                                     <span className="font-bold">{people.find(p => p.id === selectedPersonId)?.name}</span>
                                 </div>
                             </div>
 
-                            <div className="flex-1 p-6 overflow-y-auto">
-                                <div className="grid grid-cols-7 gap-4 mb-4">
-                                    {['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'].map(day => <div key={day} className="text-center font-bold text-slate-400 text-sm py-2">{day}</div>)}
+                            <div className="flex-1 p-2 md:p-6 overflow-y-auto">
+                                <div className="grid grid-cols-7 gap-1 md:gap-4 mb-2 md:mb-4">
+                                    {['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'].map(day => <div key={day} className="text-center font-bold text-slate-400 text-xs md:text-sm py-1 md:py-2">{day}</div>)}
                                 </div>
-                                <div className="grid grid-cols-7 gap-4">
+                                <div className="grid grid-cols-7 gap-1 md:gap-4">
                                     {getMonthDays(viewDate).map((date, i) => {
                                         if (!date) return <div key={`empty-${i}`} className="aspect-square bg-slate-50/50 rounded-xl" />;
 

@@ -337,10 +337,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             // If Manually marked "Present" (available), we explicitly show them
             if (availability.source === 'manual' && availability.isAvailable) {
                 // Keep them, ignore legacy unavailableDates
-            } else {
-                // Otherwise check legacy unavailableDates
-                if (p.unavailableDates?.includes(selectedDate.toLocaleDateString('en-CA'))) return false;
-                // And check calculated availability
+                // Otherwise check calculated availability
                 if (!availability.isAvailable) return false;
             }
 
@@ -395,7 +392,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                 // Basic Availability Checks
                 if (selectedShift.assignedPersonIds.includes(p.id)) score -= 10000;
-                if (p.unavailableDates?.includes(selectedDate.toLocaleDateString('en-CA'))) score -= 10000;
+
 
                 // Reconstruct variables for orphaned code
                 const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id));

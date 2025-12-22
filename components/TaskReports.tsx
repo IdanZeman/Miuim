@@ -62,7 +62,6 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
         return {
             name: person.name.split(' ')[0],
             hours: totalHours,
-            max: person.maxHoursPerWeek,
         };
     });
 
@@ -173,7 +172,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                                         <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
                                         <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                                         <Bar dataKey="hours" fill="#3b82f6" radius={[4, 4, 0, 0]} name="שעות בפועל" />
-                                        <Bar dataKey="max" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="תקרה" />
+
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>

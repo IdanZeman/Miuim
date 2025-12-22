@@ -1,5 +1,8 @@
 import { supabase } from './supabaseClient';
 
+// Log Levels (from most verbose to least)
+export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
+
 export type LogAction = 
     | 'LOGIN' | 'LOGOUT' | 'SIGNUP'
     | 'CREATE' | 'UPDATE' | 'DELETE'
@@ -11,9 +14,10 @@ export type EntityType =
     | 'person' | 'shift' | 'task' | 'role' | 'team' 
     | 'organization' | 'profile' | 'attendance' | 'button' | 'page';
 
-export type EventCategory = 'auth' | 'data' | 'scheduling' | 'settings' | 'system' | 'navigation' | 'ui';
+export type EventCategory = 'auth' | 'data' | 'scheduling' | 'settings' | 'system' | 'navigation' | 'ui' | 'security';
 
 interface LogEntry {
+    level?: LogLevel;  // NEW: Log level
     action: LogAction;
     entityType?: EntityType;
     entityId?: string;
@@ -21,14 +25,69 @@ interface LogEntry {
     oldData?: any;
     newData?: any;
     metadata?: Record<string, any>;
+    actionDescription?: string; // NEW: Human readable description
     category?: EventCategory;
+    component?: string;  // NEW: Component name
+    performanceMs?: number;  // NEW: Performance tracking
 }
+
+// Log level hierarchy (lower number = more verbose)
+const LOG_LEVELS: Record<LogLevel, number> = {
+    'TRACE': 0,
+    'DEBUG': 1,
+    'INFO': 2,
+    'WARN': 3,
+    'ERROR': 4,
+    'FATAL': 5
+};
 
 class LoggingService {
     private organizationId: string | null = null;
     private userId: string | null = null;
     private userEmail: string | null = null;
     private userName: string | null = null;
+    private minLevel: LogLevel = 'INFO';  // Default minimum level
+
+    constructor() {
+        // Set log level based on environment
+        this.initializeLogLevel();
+    }
+
+    private initializeLogLevel() {
+        // Check localStorage override first
+        const storedLevel = localStorage.getItem('miuim_log_level') as LogLevel;
+        if (storedLevel && LOG_LEVELS[storedLevel] !== undefined) {
+            this.minLevel = storedLevel;
+            console.log(`📝 Log level set to: ${storedLevel} (from localStorage)`);
+            return;
+        }
+
+        // Environment-based defaults
+        const hostname = window.location.hostname;
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            this.minLevel = 'DEBUG';  // Development
+            console.log('📝 Log level set to: DEBUG (development mode)');
+        } else {
+            this.minLevel = 'INFO';  // Production
+            console.log('📝 Log level set to: INFO (production mode)');
+        }
+    }
+
+    /**
+     * Check if a log should be recorded based on its level
+     */
+    private shouldLog(level: LogLevel): boolean {
+        return LOG_LEVELS[level] >= LOG_LEVELS[this.minLevel];
+    }
+
+    /**
+     * Set minimum log level (can be called by admin UI)
+     */
+    setLogLevel(level: LogLevel) {
+        this.minLevel = level;
+        localStorage.setItem('miuim_log_level', level);
+        console.log(`📝 Log level changed to: ${level}`);
+    }
 
     setContext(orgId: string | null, userId: string | null, email: string | null, name?: string | null) {
         this.organizationId = orgId;
@@ -38,12 +97,20 @@ class LoggingService {
     }
 
     async log(entry: LogEntry) {
+        const level = entry.level || this.getDefaultLevel(entry.action);
+        
+        // Check if we should log this level
+        if (!this.shouldLog(level)) {
+            return;  // Skip logging
+        }
+
         try {
             const { error } = await supabase.from('audit_logs').insert({
                 organization_id: this.organizationId,
                 user_id: this.userId,
                 user_email: this.userEmail,
                 user_name: this.userName,
+                log_level: level,  // NEW
                 event_type: entry.action,
                 event_category: entry.category || this.getCategoryFromAction(entry.action),
                 action_description: this.getDescription(entry),
@@ -52,17 +119,65 @@ class LoggingService {
                 entity_name: entry.entityName,
                 before_data: entry.oldData || null,
                 after_data: entry.newData || null,
+                component_name: entry.component,  // NEW
+                performance_ms: entry.performanceMs,  // NEW
                 user_agent: navigator.userAgent,
-                ip_address: null, // Will be filled by DB trigger if needed
-                session_id: null, // Can be added if you track sessions
+                ip_address: null,
+                session_id: null,
                 created_at: new Date().toISOString()
             });
 
             if (error) {
                 console.error('Failed to log action:', error);
             }
+
+            // Also log to console in development
+            if (this.minLevel === 'DEBUG' || this.minLevel === 'TRACE') {
+                this.consoleLog(level, entry);
+            }
         } catch (err) {
             console.error('Logging service error:', err);
+        }
+    }
+
+    /**
+     * Log to console with color coding
+     */
+    private consoleLog(level: LogLevel, entry: LogEntry) {
+        const colors = {
+            'TRACE': 'color: gray',
+            'DEBUG': 'color: blue',
+            'INFO': 'color: green',
+            'WARN': 'color: orange',
+            'ERROR': 'color: red',
+            'FATAL': 'color: darkred; font-weight: bold'
+        };
+
+        console.log(
+            `%c[${level}] ${entry.action}${entry.component ? ` (${entry.component})` : ''}`,
+            colors[level],
+            entry
+        );
+    }
+
+    /**
+     * Get default log level for an action
+     */
+    private getDefaultLevel(action: LogAction): LogLevel {
+        switch (action) {
+            case 'VIEW':
+            case 'CLICK':
+                return 'TRACE';  // Very verbose
+            case 'LOGIN':
+            case 'LOGOUT':
+            case 'CREATE':
+            case 'UPDATE':
+            case 'DELETE':
+                return 'INFO';  // Important events
+            case 'ERROR':
+                return 'ERROR';  // Errors
+            default:
+                return 'DEBUG';  // Everything else
         }
     }
 

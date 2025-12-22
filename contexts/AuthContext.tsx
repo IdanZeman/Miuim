@@ -3,6 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { Profile, Organization, ViewMode, AccessLevel, UserPermissions } from '../types';
 import { analytics } from '../services/analytics';
+import { logger } from '../services/loggingService';
 
 interface AuthContextType {
   user: User | null;
@@ -237,6 +238,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } finally {
       setIsFetchingProfile(false);
+
+      // Log successful login activity
+      if (organization?.id) {
+        logger.logLogin();
+      }
     }
   };
 
@@ -392,6 +398,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       analytics.trackLogout();
+
+      // Log logout activity before clearing state
+      if (organization?.id) {
+        logger.logLogout();
+      }
 
       // Clear all auth-related storage to prevent auto-login
       if (typeof window !== 'undefined') {

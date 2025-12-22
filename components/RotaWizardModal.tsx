@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence } from '../types';
 import { generateRoster, RosterGenerationResult, PersonHistory } from '../utils/rotaGenerator';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
-import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Sparkles, ArrowRight, Users, ChevronDown, Clock } from 'lucide-react';
+import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Sparkles, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock } from 'lucide-react';
 import { Input } from './ui/Input';
 import { MultiSelect, MultiSelectOption } from './ui/MultiSelect';
 import { useToast } from '../contexts/ToastContext';
@@ -65,34 +66,75 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     // NEW: Manual Overrides
     const [optimizationMode, setOptimizationMode] = useState<'ratio' | 'min_staff' | 'tasks'>('ratio');
     const [manualOverrides, setManualOverrides] = useState<Record<string, { status: string; startTime?: string; endTime?: string }>>({});
-    const [editingCell, setEditingCell] = useState<{ personId: string; date: string; position: { top: number; left: number } } | null>(null);
+    const [showConstraints, setShowConstraints] = useState(false);
+    const [editingCell, setEditingCell] = useState<{ personId: string; date: string; position: { top: number; left: number }; isMobile?: boolean } | null>(null);
 
     // Temp state for custom hours in popup
     const [customStart, setCustomStart] = useState('08:00');
     const [customEnd, setCustomEnd] = useState('17:00');
-    const [showCustomHours, setShowCustomHours] = useState(false);
+    const [customType, setCustomType] = useState<null | 'arrival' | 'departure' | 'custom'>(null); // NEW
 
     const handleCellClick = (e: React.MouseEvent, personId: string, date: string) => {
         e.stopPropagation(); // Prevent modal close or other clicks
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const isMobile = window.innerWidth < 768;
 
-        // Smart Positioning
-        let top = rect.bottom + 5;
-        let left = rect.left;
+        if (isMobile) {
+            setEditingCell({
+                personId,
+                date,
+                position: { top: 0, left: 0 },
+                isMobile: true
+            });
+        } else {
+            // Desktop: Position relative to cell center
+            const popoverW = 280;
+            const popoverH = 420; // Slightly larger for safety
 
-        // Check overflow
-        if (top + 250 > window.innerHeight) top = rect.top - 250; // Flip up
-        if (left + 200 > window.innerWidth) left = window.innerWidth - 210; // Shift left
+            const cellCenterY = rect.top + (rect.height / 2);
+            const cellCenterX = rect.left + (rect.width / 2);
 
-        setEditingCell({
-            personId,
-            date,
-            position: { top, left }
-        });
-        setShowCustomHours(false); // Reset view
+            let top = cellCenterY - (popoverH / 2); // Center vertically? No, user said "Above or Below"
+            // Let's try "Above" by default
+            top = rect.top - popoverH - 5;
+
+            // If not enough space above, put below
+            if (top < 10) {
+                top = rect.bottom + 5;
+            }
+
+            // Center Horizontally
+            let left = cellCenterX - (popoverW / 2);
+
+            // Horizontal Safety
+            if (left + popoverW > window.innerWidth) {
+                left = window.innerWidth - popoverW - 10;
+            }
+            if (left < 10) left = 10;
+
+            // Vertical Safety (if Below is also OOB?)
+            if (top + popoverH > window.innerHeight) {
+                // If both Above and Below fail, Center vertically?
+                // Or force Top if space allows better?
+                // Stick to "Below" if it fits better, or clamp.
+                if (top < 10) top = 10;
+            }
+
+            setEditingCell({
+                personId,
+                date,
+                position: { top, left },
+                isMobile: false
+            });
+        }
+
+        setCustomType(null); // Reset view
+        // Set defaults based on user settings
+        setCustomStart(userArrivalHour);
+        setCustomEnd(userDepartureHour);
     };
 
-    const applyOverride = (status: string, customTimes?: { start: string, end: string }) => {
+    const applyOverride = (status: string, customTimes?: { start?: string, end?: string }) => {
         if (!editingCell) return;
         const key = `${editingCell.personId}-${editingCell.date}`;
 
@@ -105,10 +147,18 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         } else if (status === 'home' || status === 'unavailable') {
             override.startTime = '00:00';
             override.endTime = '00:00';
+        } else if (status === 'arrival') {
+            // Status IS arrival. Time is start->23:59
+            override.startTime = customTimes?.start || userArrivalHour;
+            override.endTime = '23:59';
+        } else if (status === 'departure') {
+            // Status IS departure. Time is 00:00->end
+            override.startTime = '00:00';
+            override.endTime = customTimes?.end || userDepartureHour;
         } else if (status === 'custom' && customTimes) {
-            override.status = 'base'; // DB status is base
-            override.startTime = customTimes.start;
-            override.endTime = customTimes.end;
+            override.status = 'base'; // DB status is base (custom hours)
+            override.startTime = customTimes.start || '08:00';
+            override.endTime = customTimes.end || '17:00';
         }
 
         setManualOverrides(prev => ({
@@ -166,7 +216,18 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             dateRange.push(d.toLocaleDateString('en-CA'));
         }
 
+        // 0. Algorithm Warnings (Critical)
+        if (result?.warnings && result.warnings.length > 0) {
+            result.warnings.forEach(w => issues.push(`אזהרת מערכת: ${w}`));
+        }
+
         const relevantPeople = targetTeamIds.length === 0 ? people : people.filter(p => targetTeamIds.includes(p.teamId));
+
+        // Calculate Task Demand
+        const totalTaskDemand = tasks.reduce((sum, t) => sum + t.users_required, 0);
+
+        // Track stats per day
+        const dailyStaffCounts: Record<string, number> = {};
 
         // Helper: Get Effective Status
         const getEffectiveStatus = (pid: string, dateKey: string) => {
@@ -178,34 +239,48 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             return 'base'; // Default
         };
 
-        // 1. Min Staff Check (Relevant ONLY for 'min_staff' mode where input is visible)
-        if (customMinStaff > 0 && optimizationMode === 'min_staff') {
-            let minStaffViolations = 0;
-            dateRange.forEach(dateKey => {
-                let dailyStaff = 0;
-                relevantPeople.forEach(p => {
-                    const s = getEffectiveStatus(p.id, dateKey);
-                    if (s === 'base' || s === 'arrival' || s === 'departure') dailyStaff++;
-                });
+        // 1. Min Staff & Task Coverage Check
+        let minStaffViolations = 0;
+        let taskCoverageViolations = 0;
 
-                if (dailyStaff < customMinStaff) {
-                    minStaffViolations++;
-                    // Cap detailed listing to avoid spam
-                    if (minStaffViolations <= 5) {
-                        // Format date for display
-                        const dispDate = new Date(dateKey).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
-                        issues.push(`בתאריך ${dispDate}: ${dailyStaff} חיילים (המינימום: ${customMinStaff})`);
-                    }
-                }
+        dateRange.forEach(dateKey => {
+            let dailyStaff = 0;
+            relevantPeople.forEach(p => {
+                const s = getEffectiveStatus(p.id, dateKey);
+                // "Base presence" logic: Base, Arrival, Departure (partial), or logic says Departure is Home? 
+                // Usually Departure is leaving, so partially there. Arrival is arriving, partially there.
+                // Let's count them for now as staff present.
+                if (s === 'base' || s === 'arrival') dailyStaff++;
             });
-            if (minStaffViolations > 5) {
-                issues.push(`...ועוד ${minStaffViolations - 5} ימים עם חריגת סד״כ`);
-            }
-        }
+            dailyStaffCounts[dateKey] = dailyStaff;
 
-        // 2. Ratio Check (Relevant for 'ratio' mode mostly, but user asked to see "If ratio changed")
-        // If mode is Ratio, strict check. If others, maybe informative? User said "according to rules defined per tab".
+            // Min Staff Warning
+            if (customMinStaff > 0 && dailyStaff < customMinStaff) {
+                minStaffViolations++;
+                if (minStaffViolations <= 5) {
+                    const dispDate = new Date(dateKey).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+                    issues.push(`בתאריך ${dispDate}: ${dailyStaff} חיילים (מינימום נדרש: ${customMinStaff})`);
+                }
+            }
+
+            // Task Coverage Warning
+            if (dailyStaff < totalTaskDemand) {
+                taskCoverageViolations++;
+                if (taskCoverageViolations <= 5) {
+                    const dispDate = new Date(dateKey).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+                    issues.push(`בתאריך ${dispDate}: ${dailyStaff} חיילים (נדרשים למשימות: ${totalTaskDemand})`);
+                }
+            }
+        });
+
+        if (minStaffViolations > 5) issues.push(`...ועוד ${minStaffViolations - 5} ימים עם חריגת סד״כ מינימלי`);
+        if (taskCoverageViolations > 5) issues.push(`...ועוד ${taskCoverageViolations - 5} ימים עם חוסר כוח אדם למשימות`);
+
+        // 2. Ratio Check
+        // Only if we are optimizing for Ratio
         if (optimizationMode === 'ratio') {
+            const targetRatioStr = getArmyRatio(daysBase, daysHome);
+
             relevantPeople.forEach(p => {
                 let baseCount = 0;
                 let homeCount = 0;
@@ -215,17 +290,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     if (status === 'home' || status === 'unavailable') {
                         homeCount++;
                     } else {
-                        // Check for departure (Tomorrow is home/unavailable)
+                        // Check Departure Logic for Counting
                         const nextKey = idx < dateRange.length - 1 ? dateRange[idx + 1] : null;
                         const nextStatus = nextKey ? getEffectiveStatus(p.id, nextKey) : 'base';
+
+                        // Is Departure?
                         if (nextStatus !== 'base' && nextStatus !== 'arrival') {
-                            homeCount++; // Departure counts as home in our logic?
-                            // Wait, existing logic in previewFooter uses: if (isDeparture) homeCount++;
-                            // Let's mirror that logic.
-                            // isDeparture = nextStatus !== 'base'
-                            // Logic in footer: 
-                            // if current==base: if next!=base => Departure => HomeCount++ else BaseCount++
-                            // Let's stick to this.
+                            homeCount++;
                         } else {
                             baseCount++;
                         }
@@ -233,26 +304,17 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 });
 
                 const currentRatio = getArmyRatio(baseCount, homeCount);
-                const targetRatio = `${daysBase} - ${daysHome}`;
 
-                // Only flag if different AND manual overrides affected this person? 
-                // Or just if different period (which might happen due to algorithm imperfections too)?
-                // User said "show if 10-4 became 11-3... due to manual changes".
-                // Let's filter to people who have at least one manual override OR were affected.
-                // Actually, simple diff is safer.
-
-                // Normalization check: getArmyRatio handles standardizing.
-                if (currentRatio !== targetRatio) {
-                    // Check if this person actually has an override?
-                    const hasOverride = dateRange.some(d => manualOverrides[`${p.id}-${d}`]);
-                    if (hasOverride) {
-                        issues.push(`${p.name}: יחס היציאות השתנה ל-${currentRatio} (הוגדר: ${targetRatio})`);
-                    }
+                if (currentRatio !== targetRatioStr) {
+                    issues.push(`${p.name}: יחס היציאות השתנה ל-${currentRatio} (יעד: ${targetRatioStr})`);
                 }
             });
         }
 
-        // 3. Check for manual overrides (always relevant)
+        // Cap ratio warnings if too many
+        // (Hard to do with simple push array, but UI handles scroll)
+
+        // 3. Manual Overrides Count
         const overrideCount = Object.keys(manualOverrides).length;
         if (overrideCount > 0) {
             issues.push(`בוצעו ${overrideCount} שינויים ידניים בלוח`);
@@ -365,7 +427,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 absences,
                 customMinStaff: optimizationMode === 'min_staff' ? customMinStaff : 0, // Only enforce floor in 'min_staff' mode
                 customRotation: { daysBase, daysHome },
-                history
+                history,
+                tasks // NEW: Pass tasks for 'tasks' mode calculation
             });
             console.log('Generation Result:', res);
             setResult(res);
@@ -424,11 +487,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     const override = manualOverrides[overrideKey];
 
                     if (override) {
-                        r.status = override.status as any; // Mutate for this scope or use local var? Mutating roster item safely as we are processing to payload
-                        // Mapping for logic below (Base/Home)
-                        // But wait, if override is 'arrival', we need to handle that.
-                        // The logic below relies on 'status === base' to calculate times.
-                        // Better to fully handle overrides here.
+                        r.status = override.status as any; // Temporary override for sorting/logic
 
                         if (override.status === 'base') {
                             startTime = '00:00';
@@ -439,71 +498,63 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             startTime = '00:00';
                             endTime = '00:00';
                         } else if (override.status === 'arrival') {
-                            r.status = 'base'; // Treat as base for DB, time makes it arrival
+                            r.status = 'base'; // DB status is base
                             startTime = override.startTime || userArrivalHour;
                             endTime = '23:59';
                         } else if (override.status === 'departure') {
-                            r.status = 'base'; // Treat as base for DB, time makes it departure
+                            r.status = 'base'; // DB status is base
                             startTime = '00:00';
                             endTime = override.endTime || userDepartureHour;
+                        } else if (override.status === 'custom') {
+                            // Should be caught by 'base' usually, but just in case
+                            r.status = 'base';
+                            startTime = override.startTime || '00:00';
+                            endTime = override.endTime || '23:59';
                         }
                     }
 
-                    if (r.status === 'base' && !override) { // Only run auto-logic if NO override
-                        // Check neighbors within the generated batch
+                    if (!override) {
+                        // LOGIC:
+                        // 1. Base Days:
+                        //    - If Prev is NOT Base -> Arrival (Start: ArrivalHour, End: 23:59)
+                        //    - Otherwise -> Full Base (Start: 00:00, End: 23:59)
+                        //    - WE DO NOT INFER DEPARTURE ON BASE DAYS ANYMORE.
+                        //
+                        // 2. Home/Unavailable Days:
+                        //    - If Prev IS Base -> Departure (Status: Base, Start: 00:00, End: DepartureHour)
+                        //    - Otherwise -> Full Home (Status: Home, Start: 00:00, End: 00:00)
+
                         const prev = rosterItems[idx - 1];
-                        const next = rosterItems[idx + 1];
-
                         let isPrevBase = prev && prev.status === 'base';
-                        let isNextBase = next && next.status === 'base';
 
-                        // --- Boundary Handling: Look up history/future in existing data if not in batch ---
-                        const person = people.find(p => p.id === r.person_id);
-                        const currentDate = new Date(r.date);
-
-                        if (!prev && person) {
-                            // Start of batch: Check Previous Day in existing availability
-                            const prevDate = new Date(currentDate);
-                            prevDate.setDate(prevDate.getDate() - 1);
-                            const prevKey = prevDate.toLocaleDateString('en-CA');
-                            const prevAvail = person.dailyAvailability?.[prevKey];
-                            if (prevAvail) {
-                                if (prevAvail.status === 'base' || prevAvail.status === 'arrival' || prevAvail.status === 'departure' || prevAvail.isAvailable) {
+                        // Look up history if start of batch
+                        if (!prev) {
+                            const person = people.find(p => p.id === r.person_id);
+                            if (person) {
+                                const currentDate = new Date(r.date);
+                                const prevDate = new Date(currentDate);
+                                prevDate.setDate(prevDate.getDate() - 1);
+                                const prevKey = prevDate.toLocaleDateString('en-CA');
+                                const prevAvail = person.dailyAvailability?.[prevKey];
+                                if (prevAvail && (prevAvail.status === 'base' || prevAvail.status === 'arrival' || prevAvail.status === 'departure' || prevAvail.isAvailable)) {
                                     isPrevBase = true;
                                 }
                             }
                         }
 
-                        if (!next && person) {
-                            // End of batch: Check Next Day in existing availability
-                            const nextDate = new Date(currentDate);
-                            nextDate.setDate(nextDate.getDate() + 1);
-                            const nextKey = nextDate.toLocaleDateString('en-CA');
-                            const nextAvail = person.dailyAvailability?.[nextKey];
-                            if (nextAvail) {
-                                if (nextAvail.status === 'base' || nextAvail.status === 'arrival' || nextAvail.status === 'departure' || nextAvail.isAvailable) {
-                                    isNextBase = true;
-                                }
+                        if (r.status === 'base') {
+                            // Full Base (No Arrival/Departure inference)
+                            startTime = '00:00';
+                            endTime = '23:59';
+                        } else if (r.status === 'home' || r.status === 'unavailable') {
+                            if (isPrevBase) {
+                                // Departure (The first day of "Home" is actually the Departure day)
+                                // CHANGE STATUS TO BASE for DB
+                                r.status = 'base';
+                                startTime = '00:00';
+                                endTime = userDepartureHour;
                             }
-                        }
-                        // ---------------------------------------------------------------------------------
-
-                        if (!isPrevBase && isNextBase) {
-                            // Arrival
-                            startTime = userArrivalHour;
-                            endTime = '23:59';
-                        } else if (isPrevBase && !isNextBase) {
-                            // Departure
-                            startTime = '00:00';
-                            endTime = userDepartureHour;
-                        } else if (!isPrevBase && !isNextBase) {
-                            // Single Day (Arrival -> Departure)
-                            startTime = userArrivalHour;
-                            endTime = userDepartureHour;
-                        } else {
-                            // Full base
-                            startTime = '00:00';
-                            endTime = '23:59';
+                            // Else remains Home/Unavailable details (00:00)
                         }
                     }
 
@@ -621,6 +672,52 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
     const previewFooter = (
         <div className="flex flex-col w-full gap-4">
+            {/* Constraint Stats */}
+            {result && result.stats.constraintStats && (
+                <div className={`flex flex-col gap-2 rounded-lg border p-3 ${result.stats.constraintStats.percentage === 100 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            {result.stats.constraintStats.percentage === 100 ? (
+                                <CheckCircle size={18} className="text-green-600" />
+                            ) : (
+                                <AlertTriangle size={18} className="text-amber-600" />
+                            )}
+                            <span className="font-bold text-slate-800 text-sm">
+                                {result.stats.constraintStats.percentage === 100
+                                    ? 'כל האילוצים נענו בהצלחה!'
+                                    : `נענו ${result.stats.constraintStats.met} מתוך ${result.stats.constraintStats.total} אילוצים (${result.stats.constraintStats.percentage}%)`}
+                            </span>
+                        </div>
+                        {result.unfulfilledConstraints && result.unfulfilledConstraints.length > 0 && (
+                            <button
+                                onClick={() => setShowConstraints(!showConstraints)}
+                                className="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                            >
+                                {showConstraints ? 'הסתר פירוט' : 'הצג פירוט'}
+                                {showConstraints ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Unfulfilled List */}
+                    {showConstraints && result.unfulfilledConstraints && result.unfulfilledConstraints.length > 0 && (
+                        <div className="mt-2 bg-white rounded border border-slate-200 p-2 max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
+                            {result.unfulfilledConstraints.map((c, idx) => (
+                                <div key={idx} className="text-xs flex items-start gap-2 p-1.5 hover:bg-slate-50 rounded">
+                                    <XCircle size={12} className="text-red-500 shrink-0 mt-0.5" />
+                                    <div>
+                                        <span className="font-bold text-slate-700">{c.personName}</span>
+                                        <span className="text-slate-400 mx-1">•</span>
+                                        <span className="font-mono text-slate-500">{c.date}</span>
+                                        <div className="text-slate-500 opacity-80">{c.reason}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Stats Summary */}
             <div className="flex flex-wrap items-center justify-center gap-4 bg-slate-50 p-2 rounded-lg border border-slate-200 text-sm shadow-sm">
                 <div className="font-bold text-slate-700">ממוצע ללוחם:</div>
@@ -678,27 +775,77 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 const rowData = [p.name, teamName];
 
                 dateKeys.forEach((dateKey, idx) => {
-                    const status = result.personStatuses?.[dateKey]?.[p.id];
+                    const override = manualOverrides[`${p.id}-${dateKey}`];
                     let cellVal = 'בבסיס';
-                    if (status === 'home') cellVal = 'בית';
-                    else if (status === 'unavailable') cellVal = 'בית (אילוץ)';
-                    else if (status === 'base') {
-                        // Check neighbors for arrival/departure
-                        // This logic mirrors the preview rendering
-                        const prevKey = idx > 0 ? dateKeys[idx - 1] : null; // In-export neighbor
-                        const nextKey = idx < dateKeys.length - 1 ? dateKeys[idx + 1] : null;
+                    let status = result.personStatuses?.[dateKey]?.[p.id] || 'base';
+                    // Re-resolve status if override exists (similar to preview)
+                    if (override) {
+                        if (override.status === 'arrival') {
+                            cellVal = `הגעה (${override.startTime || userArrivalHour})`;
+                            rowData.push(cellVal);
+                            return;
+                        }
+                        if (override.status === 'departure') {
+                            cellVal = `יציאה (${override.endTime || userDepartureHour})`;
+                            rowData.push(cellVal);
+                            return;
+                        }
+                        status = override.status;
+                    }
 
-                        const prevStatus = prevKey ? result.personStatuses?.[prevKey]?.[p.id] : null; // (Simplified: only looking inside export range)
-                        const nextStatus = nextKey ? result.personStatuses?.[nextKey]?.[p.id] : null;
+                    // Standard Logic (Override or Algorithm)
+                    if (status === 'home') {
+                        // Check if it's implicitly Departure (Home following Base)
+                        // ONLY if NOT overridden? No, if manually set to Home, it IS Home.
+                        // If manually set to Base/Arrival/Departure, we handled it above.
+                        // If manually set to Home, we want explicit Home.
+                        // If Algorithm Home, we apply inference.
 
-                        // Logic: If prev was not base, it's arrival. If next is not base, it's departure.
-                        // Note: This is an approximation for the CSV since we don't look outside the range.
-                        const isPrevBase = prevStatus === 'base';
-                        const isNextBase = nextStatus === 'base';
+                        if (override) {
+                            cellVal = 'בית';
+                        } else {
+                            const prevKey = idx > 0 ? dateKeys[idx - 1] : null;
+                            // Need effective prev status
+                            let prevStatus = 'base';
+                            if (prevKey) {
+                                const prevOv = manualOverrides[`${p.id}-${prevKey}`];
+                                if (prevOv) prevStatus = prevOv.status === 'arrival' || prevOv.status === 'departure' ? 'base' : prevOv.status;
+                                else prevStatus = result.personStatuses?.[prevKey]?.[p.id] || 'base';
+                            }
 
-                        if (!isPrevBase && isNextBase) cellVal = `הגעה (${userArrivalHour})`;
-                        else if (isPrevBase && !isNextBase) cellVal = `יציאה (${userDepartureHour})`;
-                        else if (!isPrevBase && !isNextBase) cellVal = `יום בודד (${userArrivalHour}-${userDepartureHour})`;
+                            if (prevStatus === 'base') cellVal = `יציאה (${userDepartureHour})`;
+                            else cellVal = 'בית';
+                        }
+                    } else if (status === 'unavailable') {
+                        if (override) {
+                            cellVal = 'בית (אילוץ)';
+                        } else {
+                            const prevKey = idx > 0 ? dateKeys[idx - 1] : null;
+                            // Need effective prev status
+                            let prevStatus = 'base';
+                            if (prevKey) {
+                                const prevOv = manualOverrides[`${p.id}-${prevKey}`];
+                                if (prevOv) prevStatus = prevOv.status === 'arrival' || prevOv.status === 'departure' ? 'base' : prevOv.status;
+                                else prevStatus = result.personStatuses?.[prevKey]?.[p.id] || 'base';
+                            }
+
+                            if (prevStatus === 'base') cellVal = `יציאה (${userDepartureHour})`;
+                            else cellVal = 'בית (אילוץ)';
+                        }
+                    } else if (status === 'base') {
+                        // Check Arrival
+                        if (override) {
+                            // If base override, checks custom times
+                            if (override.startTime && override.startTime !== '00:00' && override.startTime !== '23:59') {
+                                // Maybe custom?
+                                cellVal = `בבסיס (${override.startTime}-${override.endTime})`;
+                            } else {
+                                cellVal = 'בבסיס';
+                            }
+                        } else {
+                            // Standard Base (Full Day)
+                            cellVal = 'בבסיס';
+                        }
                     }
 
                     rowData.push(cellVal);
@@ -730,11 +877,11 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 isOpen={isOpen}
                 onClose={onClose}
                 title="מחולל הסבבים האוטומטי"
-                size={step === 'preview' ? '2xl' : 'lg'}
+                size={step === 'preview' ? '2xl' : 'lg'} // Note: modal content needs to handle full width
                 scrollableContent={step === 'config'}
                 footer={step === 'preview' ? previewFooter : undefined}
             >
-                <div className={`flex flex-col h-full ${step === 'preview' ? 'h-[65vh] shrink min-h-0' : ''}`}>
+                <div className={`flex flex-col h-full ${step === 'preview' ? 'h-[80vh] md:h-[65vh] shrink min-h-0' : ''}`}>
                     {step === 'config' ? (
                         <>
                             {/* ... config content ... */}
@@ -758,7 +905,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3 mt-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
                                 <Input
                                     type="date"
                                     label="מתאריך"
@@ -775,7 +922,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                             <div className="mt-4">
                                 <label className="text-sm font-bold text-slate-700 block mb-2">מטרת השיבוץ (אופטימיזציה)</label>
-                                <div className="flex bg-slate-100 p-1 rounded-lg gap-1">
+                                <div className="flex flex-col sm:flex-row bg-slate-100 p-1 rounded-lg gap-1">
                                     <button
                                         onClick={() => setOptimizationMode('ratio')}
                                         className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'ratio' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
@@ -815,7 +962,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             )}
 
                             {optimizationMode === 'ratio' && (
-                                <div className="grid grid-cols-2 gap-3 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
                                     <Input
                                         type="number"
                                         label="ימי בסיס (סבב)"
@@ -833,7 +980,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-3 mt-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
                                 <Input
                                     type="time"
                                     label="שעת הגעה"
@@ -971,59 +1118,32 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                     {(() => {
                                                         const start = new Date(startDate);
                                                         const end = new Date(endDate);
+                                                        const relevantPeople = targetTeamIds.length > 0 ? people.filter(p => targetTeamIds.includes(p.teamId)) : people;
                                                         const cells = [];
                                                         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                                                             const dateKey = d.toLocaleDateString('en-CA');
-
-                                                            // Calculate Total Present (Base)
-                                                            // Anyone NOT 'home' and NOT 'unavailable'
-                                                            // Respect targetTeamId filter
-                                                            let relevantPeople = people;
-                                                            if (targetTeamIds.length > 0) {
-                                                                relevantPeople = people.filter(p => targetTeamIds.includes(p.teamId));
-                                                            }
-
                                                             let presentCount = 0;
                                                             relevantPeople.forEach(p => {
-                                                                const status = result?.personStatuses?.[dateKey]?.[p.id];
+                                                                // Check for Override
+                                                                const override = manualOverrides[`${p.id}-${dateKey}`];
+                                                                let status = 'base';
 
-                                                                // Check if on base
-                                                                if (status !== 'home' && status !== 'unavailable') {
-                                                                    // It IS base (or undefined/null which defaults to base usually, but let's stick to explicit non-home)
+                                                                if (override) {
+                                                                    status = override.status;
+                                                                } else {
+                                                                    status = result?.personStatuses?.[dateKey]?.[p.id] || 'base';
+                                                                }
 
-                                                                    // Check for Departure (Base today, Home tomorrow)
-                                                                    // If last day of roster, treat as FULL BASE (not departing)
-                                                                    let isDeparture = false;
-
-                                                                    if (d.getTime() < end.getTime()) {
-                                                                        // We need to look up tomorrow's status
-                                                                        const nextDay = new Date(d);
-                                                                        nextDay.setDate(d.getDate() + 1);
-                                                                        const nextKey = nextDay.toLocaleDateString('en-CA');
-                                                                        const nextStatus = result?.personStatuses?.[nextKey]?.[p.id];
-
-                                                                        // Also check DB availability for next day fallback if not in results
-                                                                        let resolvedNextStatus = nextStatus;
-                                                                        if (!resolvedNextStatus) {
-                                                                            const dbAvail = p.dailyAvailability?.[nextKey];
-                                                                            if (dbAvail) resolvedNextStatus = dbAvail.isAvailable ? 'base' : 'home';
-                                                                            else resolvedNextStatus = 'base';
-                                                                        }
-                                                                        isDeparture = resolvedNextStatus === 'home' || resolvedNextStatus === 'unavailable';
-                                                                    }
-
-                                                                    if (!isDeparture) {
-                                                                        presentCount++;
-                                                                    }
+                                                                // Count as present if Base, Arrival, or Departure
+                                                                // (Departure is leaving, so was present part of day. Arrival is arriving, so present part.)
+                                                                // "Home" and "Unavailable" are absent.
+                                                                if (status === 'base' || status === 'arrival') {
+                                                                    presentCount++;
                                                                 }
                                                             });
 
-                                                            // If single team selected, maybe use customMinStaff? 
-                                                            // But really, "Total Possible" is relevantPeople.length.
-                                                            // The user wants "Present / Total".
-
-                                                            const minStaff = customMinStaff; // The threshold set in config
-                                                            const isUnderstaffed = presentCount < minStaff;
+                                                            const minStaff = customMinStaff;
+                                                            const isUnderstaffed = customMinStaff > 0 && presentCount < minStaff;
 
                                                             cells.push(
                                                                 <div key={`total-${dateKey}`} className={`shrink-0 w-24 flex items-center justify-center border-l border-indigo-100 text-xs font-bold ${isUnderstaffed ? 'text-amber-600 bg-amber-50' : 'text-indigo-600'}`}>
@@ -1031,6 +1151,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                 </div>
                                                             );
                                                         }
+                                                        cells.push(<div key="total-summary-pad" className="shrink-0 w-24 bg-indigo-50 border-l border-indigo-100"></div>);
                                                         return cells;
                                                     })()}
                                                 </div>
@@ -1105,41 +1226,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                     let cellClass = "bg-white";
 
                                                                     if (status === 'home' || status === 'unavailable') {
-                                                                        // Standard Home Day
-                                                                        cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
 
-                                                                        const isConstraint = status === 'unavailable';
-                                                                        // Show '(אילוץ)' if unavailable, otherwise standard 'בית'
+                                                                        // Check for Implicit Departure (Home day following Base)
+                                                                        // ONLY if not explicitly overridden to Home/Unavailable
+                                                                        const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
 
-                                                                        content = (
-                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
-                                                                                <span>{isConstraint ? 'לא זמין' : 'בית'}</span>
-                                                                                {isConstraint && <span className="text-[8px] font-normal">(אילוץ)</span>}
-                                                                            </div>
-                                                                        );
-                                                                    } else if (status === 'base') {
-                                                                        // Base Day - Check for edges
-                                                                        const isArrival = prevStatus !== 'base';
-                                                                        const isDeparture = nextStatus !== 'base';
-
-                                                                        if (isArrival && isDeparture) {
-                                                                            // Single Day
-                                                                            cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
-                                                                            content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                    <span className="font-bold">יום בודד</span>
-                                                                                    <span className="text-[9px] mt-0.5">{userArrivalHour}-{userDepartureHour}</span>
-                                                                                </div>
-                                                                            );
-                                                                        } else if (isArrival) {
-                                                                            cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
-                                                                            content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                    <span className="font-bold mb-0.5">הגעה</span>
-                                                                                    <span className="text-[9px]">{userArrivalHour}</span>
-                                                                                </div>
-                                                                            );
-                                                                        } else if (isDeparture) {
+                                                                        if (!isOverridden && prevStatus === 'base' && status !== 'unavailable') {
+                                                                            // DEPARTURE (Home day following Base)
                                                                             cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
                                                                             content = (
                                                                                 <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
@@ -1148,30 +1241,69 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                                 </div>
                                                                             );
                                                                         } else {
-                                                                            // Full Base OR Custom Times
-                                                                            // If we have specific times (that aren't 00:00-23:59), show them
-                                                                            const overrideKey = `${person.id}-${dateKey}`;
-                                                                            const override = manualOverrides[overrideKey];
+                                                                            // Standard Home Day (Explicit or Middle of Home Block)
+                                                                            cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
 
-                                                                            let label = "בבסיס";
-                                                                            let subLabel = "";
+                                                                            const isConstraint = status === 'unavailable';
+                                                                            // Show '(אילוץ)' if unavailable, otherwise standard 'בית'
 
-                                                                            // We can check resolution logic again or pass overrides down?
-                                                                            // If it's a manual override with specific times, allow showing them
-                                                                            if (override && override.status === 'base' && (override.startTime !== '00:00' || override.endTime !== '23:59')) {
-                                                                                label = "בבסיס";
-                                                                                subLabel = `${override.startTime}-${override.endTime}`;
-                                                                            }
-
-
-                                                                            cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
                                                                             content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center">
-                                                                                    <span className="font-bold">{label}</span>
-                                                                                    {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
+                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
+                                                                                    <span>{isConstraint ? 'לא זמין' : 'בית'}</span>
+                                                                                    {isConstraint && <span className="text-[8px] font-normal">(אילוץ)</span>}
                                                                                 </div>
                                                                             );
                                                                         }
+                                                                    } else if (status === 'arrival') {
+                                                                        // Explicit Arrival
+                                                                        const ov = manualOverrides[`${person.id}-${dateKey}`];
+                                                                        const time = ov?.startTime || userArrivalHour;
+
+                                                                        cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
+                                                                        content = (
+                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                <span className="font-bold mb-0.5">הגעה</span>
+                                                                                <span className="text-[9px]">{time}</span>
+                                                                            </div>
+                                                                        );
+                                                                    } else if (status === 'departure') {
+                                                                        // Explicit Departure
+                                                                        const ov = manualOverrides[`${person.id}-${dateKey}`];
+                                                                        const time = ov?.endTime || userDepartureHour;
+
+                                                                        cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
+                                                                        content = (
+                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                <span className="font-bold mb-0.5">יציאה</span>
+                                                                                <span className="text-[9px]">{time}</span>
+                                                                            </div>
+                                                                        );
+                                                                    } else if (status === 'base') {
+                                                                        // Base Day 
+                                                                        // User requested NO automatic Arrival inference.
+                                                                        // Always Full Base unless overridden with custom times.
+
+                                                                        // Check for Custom Times override
+                                                                        const overrideKey = `${person.id}-${dateKey}`;
+                                                                        const override = manualOverrides[overrideKey];
+
+                                                                        let label = "בבסיס";
+                                                                        let subLabel = "";
+
+                                                                        if (override && override.status === 'base' && override.startTime && override.endTime) {
+                                                                            if (override.startTime !== '00:00' || override.endTime !== '23:59') {
+                                                                                // Maybe custom?
+                                                                                subLabel = `${override.startTime}-${override.endTime}`;
+                                                                            }
+                                                                        }
+
+                                                                        cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
+                                                                        content = (
+                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center">
+                                                                                <span className="font-bold">{label}</span>
+                                                                                {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
+                                                                            </div>
+                                                                        );
                                                                     }
 
                                                                     cells.push(
@@ -1253,14 +1385,17 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     )}
                 </div>
                 {/* Manual Edit Popover */}
-                {editingCell && (
+                {editingCell && createPortal(
                     <div
-                        className="fixed inset-0 z-50 flex cursor-default"
+                        className="fixed inset-0 z-[9999] flex cursor-default bg-black/5" // Dim background slightly? No, keeping transparent as before or maybe just handling click.
                         onClick={() => setEditingCell(null)}
                     >
                         <div
-                            className="absolute bg-white rounded-lg shadow-xl border border-slate-200 p-2 flex flex-col gap-1 min-w-[160px] animate-in fade-in zoom-in-95 duration-100"
-                            style={{
+                            className={`bg-white rounded-lg shadow-xl border border-slate-200 p-2 flex flex-col gap-1 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 ${editingCell.isMobile
+                                ? 'fixed top-[30%] left-0 right-0 mx-auto w-[280px] shadow-2xl' // Centered Mobile 
+                                : 'absolute' // Desktop
+                                }`}
+                            style={editingCell.isMobile ? {} : {
                                 top: editingCell.position.top,
                                 left: editingCell.position.left
                             }}
@@ -1271,41 +1406,66 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 <button onClick={() => setEditingCell(null)} className="hover:bg-slate-100 rounded p-0.5"><X size={12} /></button>
                             </div>
 
-                            {!showCustomHours ? (
+                            {!customType ? (
                                 <>
                                     <button onClick={() => applyOverride('base')} className="flex items-center gap-2 px-2 py-2 hover:bg-green-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
                                         <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm" /> בבסיס (מלא)
                                     </button>
                                     <button onClick={() => applyOverride('home')} className="flex items-center gap-2 px-2 py-2 hover:bg-red-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
-                                        <div className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-sm" /> בבית
+                                        <div className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-sm" /> בבית (מלא)
                                     </button>
-                                    <button onClick={() => setShowCustomHours(true)} className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
-                                        <Clock size={12} className="text-blue-500" /> שעות מסוימות...
-                                    </button>
-                                    <button onClick={() => applyOverride('unavailable')} className="flex items-center gap-2 px-2 py-2 hover:bg-slate-100 rounded text-xs text-slate-700 w-full text-right border-t mt-1 pt-2 transition-colors">
-                                        אילוץ / לא זמין
+
+                                    <div className="flex gap-1">
+                                        <button onClick={() => setCustomType('departure')} className="flex-1 flex items-center justify-center gap-1 px-1 py-2 hover:bg-amber-50 rounded text-xs text-slate-700 border border-slate-100 transition-colors">
+                                            <div className="w-2 h-2 rounded-full bg-amber-400" /> יציאה...
+                                        </button>
+                                        <button onClick={() => setCustomType('arrival')} className="flex-1 flex items-center justify-center gap-1 px-1 py-2 hover:bg-teal-50 rounded text-xs text-slate-700 border border-slate-100 transition-colors">
+                                            <div className="w-2 h-2 rounded-full bg-teal-400" /> הגעה...
+                                        </button>
+                                    </div>
+
+                                    <button onClick={() => setCustomType('custom')} className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded text-xs text-slate-700 w-full text-right transition-colors mt-1">
+                                        <Clock size={12} className="text-blue-500" /> שעות מותאמות...
                                     </button>
                                 </>
                             ) : (
                                 <div className="flex flex-col gap-2 p-1">
-                                    <div className="flex items-center gap-2">
+                                    {customType === 'departure' && (
                                         <div className="flex flex-col">
-                                            <label className="text-[9px] text-slate-400">התחלה</label>
-                                            <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
+                                            <label className="text-[9px] text-slate-400 mb-1">שעת יציאה:</label>
+                                            <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-1 text-sm w-full text-center" />
                                         </div>
+                                    )}
+
+                                    {customType === 'arrival' && (
                                         <div className="flex flex-col">
-                                            <label className="text-[9px] text-slate-400">סיום</label>
-                                            <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
+                                            <label className="text-[9px] text-slate-400 mb-1">שעת הגעה:</label>
+                                            <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-1 text-sm w-full text-center" />
                                         </div>
-                                    </div>
+                                    )}
+
+                                    {customType === 'custom' && (
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex flex-col">
+                                                <label className="text-[9px] text-slate-400">התחלה</label>
+                                                <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <label className="text-[9px] text-slate-400">סיום</label>
+                                                <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="flex gap-2 mt-1">
-                                        <button onClick={() => setShowCustomHours(false)} className="flex-1 bg-slate-100 text-slate-600 text-[10px] py-1 rounded hover:bg-slate-200">ביטול</button>
-                                        <button onClick={() => applyOverride('custom', { start: customStart, end: customEnd })} className="flex-1 bg-blue-600 text-white text-[10px] py-1 rounded hover:bg-blue-700 font-medium">שמור</button>
+                                        <button onClick={() => setCustomType(null)} className="flex-1 bg-slate-100 text-slate-600 text-[10px] py-1 rounded hover:bg-slate-200">ביטול</button>
+                                        <button onClick={() => applyOverride(customType, { start: customStart, end: customEnd })} className="flex-1 bg-blue-600 text-white text-[10px] py-1 rounded hover:bg-blue-700 font-medium">שמור</button>
                                     </div>
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </Modal>
 

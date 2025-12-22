@@ -3,6 +3,7 @@ import { Search, Plus, ChevronDown, ChevronLeft, User, Users, Shield, Pencil, Tr
 import { Person, Team, Role } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { logger } from '../services/loggingService';
 import { Modal } from './ui/Modal';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
@@ -48,6 +49,17 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     onUpdateRole,
     initialTab = 'people'
 }) => {
+    // Log component view
+    useEffect(() => {
+        logger.log({
+            level: 'DEBUG',
+            action: 'VIEW',
+            entityType: 'page',
+            entityName: 'Personnel Manager',
+            component: 'PersonnelManager',
+            category: 'navigation'
+        });
+    }, []);
     const { checkAccess } = useAuth();
     const canEdit = checkAccess('personnel', 'edit');
     const { showToast } = useToast();
@@ -326,9 +338,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             isActive: newItemActive,
             teamId: newTeamId,
             roleIds: newRoleIds,
-            maxHoursPerWeek: 40,
-            unavailableDates: [],
-            preferences: { preferNight: false, avoidWeekends: false },
             customFields: newCustomFields, // NEW
             isCommander: newIsCommander, // NEW
             color: 'bg-blue-500' // Default

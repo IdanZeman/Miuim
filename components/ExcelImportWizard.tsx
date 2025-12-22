@@ -419,7 +419,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 isCommander: rowData.is_commander !== undefined ? parseBoolean(rowData.is_commander) : (basePerson.isCommander || false),
                 isActive: rowData.is_active !== undefined ? parseBoolean(rowData.is_active) : (basePerson.isActive ?? true),
                 maxShiftsPerWeek: basePerson.maxShiftsPerWeek || 7,
-                unavailableDates: basePerson.unavailableDates || [],
+
                 preferences: basePerson.preferences || { preferNight: false, avoidWeekends: false },
                 color: color !== 'bg-slate-500' ? color : (basePerson.color || 'bg-slate-500')
             } as Person;

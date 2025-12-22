@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
-import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw, Settings, Plus, Gavel, Layout, UserCircle, Globe, Anchor } from 'lucide-react';
+import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw, Settings, Plus, Gavel, Layout, UserCircle, Globe, Anchor, Activity } from 'lucide-react';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode } from '../types';
@@ -46,6 +46,7 @@ const SCREENS: { id: ViewMode; label: string; icon: any }[] = [
     { id: 'constraints', label: 'ניהול אילוצים', icon: Anchor },
     { id: 'lottery', label: 'הגרלות', icon: Gavel },
     { id: 'equipment', label: 'ניהול אמצעים', icon: Shield },
+    { id: 'logs', label: 'יומן פעילות', icon: Activity },
     { id: 'settings', label: 'הגדרות ארגון', icon: Settings },
 ];
 
@@ -344,6 +345,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
     const [daysOn, setDaysOn] = useState(11);
     const [daysOff, setDaysOff] = useState(3);
     const [minStaff, setMinStaff] = useState(0);
+    const [optimizationMode, setOptimizationMode] = useState<'ratio' | 'min_staff' | 'tasks'>('ratio');
     const [rotationStart, setRotationStart] = useState('');
 
     useEffect(() => {
@@ -372,6 +374,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 setDaysOff(data.default_days_off || 3);
                 setMinStaff(data.min_daily_staff || 0);
                 setRotationStart(data.rotation_start_date || '');
+                setOptimizationMode(data.optimization_mode || 'ratio');
             }
         } catch (err) {
             console.warn('Failed to fetch settings, using defaults');
@@ -392,7 +395,8 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 default_days_on: daysOn,
                 default_days_off: daysOff,
                 rotation_start_date: rotationStart || null,
-                min_daily_staff: minStaff
+                min_daily_staff: minStaff,
+                optimization_mode: optimizationMode
             });
 
         if (error) {
@@ -445,6 +449,31 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
             <p className="text-slate-400 text-xs md:text-sm -mt-2">הגדרת משמרת לילה מסייעת לאלגוריתם לחשב את קושי המשימות בשיבוץ.</p>
 
             <div className="border-t border-slate-100 pt-4 md:pt-6">
+                <label className="text-sm font-bold text-slate-700 block mb-2">מטרת השיבוץ (ברירת מחדל)</label>
+                <div className="flex bg-slate-50 p-1 rounded-lg gap-2 mb-4 max-w-2xl">
+                    <button
+                        onClick={() => setOptimizationMode('ratio')}
+                        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'ratio' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
+                    >
+                        <span>⚖️ שמירה על יחס</span>
+                        <span className="text-[10px] font-normal opacity-70">חלוקה הוגנת (11-3)</span>
+                    </button>
+                    <button
+                        onClick={() => setOptimizationMode('min_staff')}
+                        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'min_staff' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
+                    >
+                        <span>🛡️ סד״כ מינימלי</span>
+                        <span className="text-[10px] font-normal opacity-70">מקסימום בבית</span>
+                    </button>
+                    <button
+                        onClick={() => setOptimizationMode('tasks')}
+                        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'tasks' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
+                    >
+                        <span>📋 נגזרת משימות</span>
+                        <span className="text-[10px] font-normal opacity-70">איוש כל המשימות</span>
+                    </button>
+                </div>
+
                 <Input
                     type="number"
                     label="חשיפת לו&quot;ז לצופים (ימים קדימה)"
@@ -656,6 +685,9 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
             .update({ permissions: permissions as any })
             .eq('id', userId);
 
+        // Fetch old permissions for log diff (optional, but good)
+        const oldPerms = members.find(m => m.id === userId)?.permissions;
+
         if (error) {
             console.error('Error saving permissions:', error);
             if (error.code === 'PGRST204') {
@@ -666,6 +698,18 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         } else {
             showToast('הרשאות עודכנו בהצלחה', 'success');
             setMembers(prev => prev.map(m => m.id === userId ? { ...m, permissions } : m));
+
+            logger.log({
+                level: 'INFO',
+                action: 'UPDATE',
+                entityType: 'person',
+                entityId: userId,
+                component: 'OrganizationSettings',
+                category: 'security',
+                actionDescription: 'עדכן הרשאות משתמש מותאמות אישית',
+                oldData: { permissions: oldPerms },
+                newData: { permissions: permissions }
+            });
         }
         setEditingPermissionsFor(null);
     };

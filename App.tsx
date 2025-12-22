@@ -10,6 +10,7 @@ const StatsDashboard = React.lazy(() => import('./components/StatsDashboard').th
 const OrganizationSettingsComponent = React.lazy(() => import('./components/OrganizationSettings').then(module => ({ default: module.OrganizationSettings })));
 
 const AdminLogsViewer = React.lazy(() => import('./components/AdminLogsViewer'));
+const OrganizationLogsViewer = React.lazy(() => import('./components/OrganizationLogsViewer').then(module => ({ default: module.OrganizationLogsViewer })));
 const Lottery = React.lazy(() => import('./components/Lottery').then(module => ({ default: module.Lottery })));
 const ConstraintsManager = React.lazy(() => import('./components/ConstraintsManager').then(module => ({ default: module.ConstraintsManager })));
 const AbsenceManager = React.lazy(() => import('./components/AbsenceManager').then(module => ({ default: module.AbsenceManager })));
@@ -23,6 +24,7 @@ import { LandingPage } from './components/LandingPage';
 import { Onboarding } from './components/Onboarding';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useToast } from './contexts/ToastContext';
+import { logger } from './services/loggingService';
 import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence, Equipment } from './types'; // Updated imports
 import { supabase } from './services/supabaseClient';
 import {
@@ -41,7 +43,6 @@ import { fetchUserHistory, calculateHistoricalLoad } from './services/historySer
 import { Wand2, Loader2, Sparkles, Shield } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { generateShiftsForTask } from './utils/shiftUtils';
-import { logger } from './services/loggingService';
 import JoinPage from './components/JoinPage';
 import { initGA, trackPageView } from './services/analytics';
 import { usePageTracking } from './hooks/usePageTracking';
@@ -69,7 +70,7 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 const MainApp: React.FC = () => {
     const { organization, user, profile, checkAccess } = useAuth();
     const { showToast } = useToast();
-    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment'>(() => {
+    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs'>(() => {
         // Always start at home, but check for import wizard flag
         if (typeof window !== 'undefined') {
             const shouldOpenImport = localStorage.getItem('open_import_wizard');
@@ -927,6 +928,7 @@ const MainApp: React.FC = () => {
 
 
             case 'logs': return <AdminLogsViewer />;
+            case 'org-logs': return <OrganizationLogsViewer limit={100} />;
             case 'lottery': return <Lottery people={state.people} teams={state.teams} roles={state.roles} />;
             case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} isViewer={!checkAccess('constraints', 'edit')} organizationId={organization?.id || ''} />;
             case 'contact': return <ContactPage />;

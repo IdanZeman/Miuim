@@ -540,14 +540,14 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                 return (
                                     <div key={cIdx} className="relative mb-8" style={{ height: `${Math.max(height, 80)}px` }}>
                                         {/* Time Label */}
-                                        <div className="hidden md:flex flex-col items-end w-20 flex-shrink-0 absolute right-0 -top-3 text-right">
-                                            <span className="font-mono font-bold text-lg text-slate-600">
+                                        <div className="flex flex-col items-end w-12 md:w-20 flex-shrink-0 absolute right-0 -top-2 md:-top-3 text-right">
+                                            <span className="font-mono font-bold text-xs md:text-lg text-slate-600">
                                                 {cluster.items[0].startTime}
                                             </span>
                                         </div>
 
                                         {/* Items Grid */}
-                                        <div className="mr-24 relative h-full">
+                                        <div className="mr-14 md:mr-24 relative h-full">
                                             {columns.map((col, colIdx) => (
                                                 col.map(item => {
                                                     const itemStart = minutesFromMidnight(item.startTime);

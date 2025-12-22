@@ -112,8 +112,111 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                 </div>
             </div>
 
-            {/* Table Area */}
-            <div className="flex-1 overflow-auto bg-slate-50/10 relative custom-scrollbar" ref={scrollContainerRef}>
+            {/* Mobile View (Daily List) */}
+            <div className="flex-1 flex flex-col md:hidden bg-slate-50 relative">
+                {/* Mobile Date Nav */}
+                <div className="bg-white p-4 border-b border-slate-200 sticky top-0 z-30 shadow-sm flex items-center justify-between">
+                    <button
+                        onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 1); onDateChange(d); }}
+                        className="p-2 bg-slate-50 rounded-full border border-slate-200 text-slate-600 active:scale-95 transition-transform"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
+                    <div className="flex flex-col items-center">
+                        <span className="text-sm font-bold text-slate-500">{currentDate.toLocaleDateString('he-IL', { weekday: 'long' })}</span>
+                        <span className="text-lg font-black text-slate-800">{currentDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })}</span>
+                    </div>
+                    <button
+                        onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 1); onDateChange(d); }}
+                        className="p-2 bg-slate-50 rounded-full border border-slate-200 text-slate-600 active:scale-95 transition-transform"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                </div>
+
+                {/* Mobile Content (Teams List) */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {teams.map(team => {
+                        const teamPeople = people.filter(p => p.teamId === team.id);
+                        if (teamPeople.length === 0) return null;
+
+                        return (
+                            <div key={team.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
+                                    <h3 className="font-bold text-slate-800">{team.name}</h3>
+                                    <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">{teamPeople.length}</span>
+                                </div>
+                                <div className="divide-y divide-slate-100">
+                                    {teamPeople.map(person => {
+                                        const avail = getEffectiveAvailability(person, currentDate, teamRotations);
+
+                                        // Status Styling
+                                        let statusText = 'בבסיס';
+                                        let statusColor = 'text-emerald-600 bg-emerald-50 border-emerald-100';
+                                        let Icon = MapPin;
+
+                                        if (avail.status === 'home') {
+                                            statusText = 'בבית';
+                                            statusColor = 'text-slate-500 bg-slate-50 border-slate-100';
+                                            Icon = Home;
+                                        } else if (avail.status === 'unavailable') {
+                                            statusText = 'אילוץ';
+                                            statusColor = 'text-red-600 bg-red-50 border-red-100';
+                                            Icon = XCircle;
+                                        } else {
+                                            // Check arrival/departure times if base
+                                            if (avail.startHour !== '00:00' && avail.endHour !== '00:00') {
+                                                statusText = `${avail.startHour} - ${avail.endHour}`;
+                                                statusColor = 'text-blue-600 bg-blue-50 border-blue-100';
+                                                Icon = Clock;
+                                            } else if (avail.startHour !== '00:00') {
+                                                statusText = `הגעה: ${avail.startHour}`;
+                                                statusColor = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+                                                Icon = MapPin;
+                                            } else if (avail.endHour !== '00:00') {
+                                                statusText = `יציאה: ${avail.endHour}`;
+                                                statusColor = 'text-amber-700 bg-amber-50 border-amber-200';
+                                                Icon = MapPin;
+                                            }
+                                        }
+
+                                        const isSelected = editingCell?.personId === person.id && editingCell.date === currentDate.toLocaleDateString('en-CA');
+
+                                        return (
+                                            <div
+                                                key={person.id}
+                                                className={`p-3 flex items-center justify-between active:bg-blue-50 transition-colors ${isSelected ? 'bg-blue-50 ring-2 ring-inset ring-blue-200' : ''}`}
+                                                onClick={(e) => handleCellClick(e, person, currentDate)}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div
+                                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black text-white shadow-sm"
+                                                        style={{ backgroundColor: team.color || '#94a3b8' }}
+                                                    >
+                                                        {person.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-slate-800 text-sm">{person.name}</div>
+                                                        <div className="text-[10px] text-slate-400">{person.roleId ? 'לוחם' : 'אחר'}</div>
+                                                    </div>
+                                                </div>
+
+                                                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${statusColor}`}>
+                                                    <Icon size={12} />
+                                                    <span className="text-xs font-bold">{statusText}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Table Area (Desktop Only) */}
+            <div className="hidden md:flex flex-1 overflow-auto bg-slate-50/10 relative custom-scrollbar" ref={scrollContainerRef}>
                 <div className="min-w-max">
                     {/* Floating Header (Dates) */}
                     <div className="flex sticky top-0 z-40 shadow-md">

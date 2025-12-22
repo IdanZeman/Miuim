@@ -103,7 +103,7 @@ export interface Person {
   phone?: string; // NEW: Phone number
   isActive?: boolean; // NEW: Active status (default true)
   organization_id?: string;
-  unavailableDates?: string[];
+
   preferences?: {
     preferNight: boolean;
     avoidWeekends: boolean;
@@ -235,7 +235,7 @@ export interface ContactMessage {
   updated_at?: string; // New column
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'equipment';
+export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs';
 
 export interface DailyPresence {
   id?: string; // Optional for new entries

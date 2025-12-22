@@ -1,13 +1,6 @@
-import { Person, Team, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence } from '../types';
+import { Person, Team, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence, TaskTemplate } from '../types';
 
-// --- CONFIGURATION ---
-// Move WEIGHTS to be dynamic based on mode
-
-const SIMULATION_PARAMS = {
-    ITERATIONS: 20000,
-    INITIAL_TEMP: 100,
-    COOLING_RATE: 0.9995
-};
+// --- TYPES & INTERFACES ---
 
 export interface PersonHistory {
     lastStatus: 'base' | 'home';
@@ -26,6 +19,15 @@ export interface RosterGenerationParams {
     customMinStaff?: number;
     customRotation?: { daysBase: number; daysHome: number; };
     history?: Map<string, PersonHistory>;
+    tasks?: TaskTemplate[];
+}
+
+export interface UnfulfilledConstraint {
+    personId: string;
+    personName: string;
+    date: string;
+    type: 'assignment' | 'constraint';
+    reason: string;
 }
 
 export interface RosterGenerationResult {
@@ -33,511 +35,445 @@ export interface RosterGenerationResult {
     stats: {
         totalDays: number;
         avgStaffPerDay: number;
+        constraintStats?: {
+            total: number;
+            met: number;
+            percentage: number;
+        };
     };
     personStatuses: Record<string, Record<string, string>>;
     warnings?: string[];
+    unfulfilledConstraints?: UnfulfilledConstraint[];
+}
+
+interface SchedulingContext {
+    startDate: Date;
+    endDate: Date;
+    totalDays: number;
+    people: Person[];
+    constraints: Map<string, Set<number>>; // PersonID -> Set of Day Indices (Unavailable)
+    config: Map<string, { daysBase: number, daysHome: number }>; // For Ratio mode
+    minStaff: number;
+    history?: Map<string, PersonHistory>;
+    warnings: string[];
+}
+
+interface ISchedulingStrategy {
+    generate(context: SchedulingContext): Record<string, boolean[]>; // PersonID -> Array of booleans (true=Base, false=Home)
 }
 
 const toDateKey = (d: Date) => d.toLocaleDateString('en-CA');
+const getDayIndex = (d: Date, start: Date) => Math.floor((d.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
-// --- OPTIMIZER CLASS ---
-class RosterOptimizer {
-    private schedule: Map<string, boolean[]>; // true = Base, false = Home
-    private dailyCapacity: number[];
-    private totalDays: number;
-    private people: Person[];
-    private personConfigs: Map<string, { daysBase: number, daysHome: number }>;
-    private constraints: Map<string, Set<number>>; // Set of day indices that MUST be home
-    private startDate: Date;
-    private targetCapacity: number;
-    private weights: { CONSTRAINT: number; FATIGUE: number; FRAGMENTATION: number; CAPACITY: number; EQUITY: number };
-    private history?: Map<string, PersonHistory>;
+// --- STRATEGIES ---
 
-    constructor(
-        people: Person[], 
-        startDate: Date, 
-        endDate: Date, 
-        rotations: Map<string, TeamRotation>, 
-        rawConstraints: SchedulingConstraint[],
-        absences: Absence[],
-        targetCapacity: number,
-        weights: { CONSTRAINT: number; FATIGUE: number; FRAGMENTATION: number; CAPACITY: number; EQUITY: number },
-        history?: Map<string, PersonHistory>
-    ) {
-        this.people = people;
-        this.startDate = startDate;
-        this.targetCapacity = targetCapacity;
-        this.weights = weights; // Store custom weights
-        this.history = history;
-        this.totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+/**
+ * STRATEGY 1: FIXED RATIO ("The Morale Strategy")
+ * Goal: Maintain rigid Base/Home cycles (e.g. 11/3).
+ * Prioritizes pattern stability over perfect coverage, but adapts for constraints.
+ * REFACTORED: Now uses Greedy Load-Balancing to flatten daily headcount.
+ */
+class FixedRatioStrategy implements ISchedulingStrategy {
+    generate(ctx: SchedulingContext): Record<string, boolean[]> {
+        const schedule: Record<string, boolean[]> = {};
+        const totalDays = ctx.totalDays;
+
+        // 1. Initialize Global Counters for Load Balancing
+        const dailyStaffCounts = new Array(totalDays).fill(0);
+
+        // Sort: Most constrained first
+        const sortedPeople = [...ctx.people].sort((a, b) => {
+            const sizeA = ctx.constraints.get(a.id)?.size || 0;
+            const sizeB = ctx.constraints.get(b.id)?.size || 0;
+            return sizeB - sizeA; 
+        });
+
+        sortedPeople.forEach(p => {
+             const config = ctx.config.get(p.id) || { daysBase: 11, daysHome: 3 };
+             const cycleLen = config.daysBase + config.daysHome;
+             const hardConstraints = ctx.constraints.get(p.id) || new Set();
+             const hist = ctx.history?.get(p.id);
+
+             // Exit Day Logic
+             let effectiveBase = config.daysBase;
+             let effectiveHome = config.daysHome;
+             if (effectiveHome > 0) {
+                 effectiveBase += 1;
+                 effectiveHome -= 1;
+             }
+
+             // History Offset
+             let historyOffset = -1;
+             if (hist) {
+                  if (hist.lastStatus === 'base') {
+                        historyOffset = hist.consecutiveDays % cycleLen;
+                  } else {
+                        historyOffset = (effectiveBase + hist.consecutiveDays) % cycleLen;
+                  }
+             }
+
+             // 2. Evaluate All Possible Offsets (Smart Placement)
+             let bestOffset = 0;
+             let maxScore = -Infinity;
+
+             for (let offset = 0; offset < cycleLen; offset++) {
+                 let score = 0;
+
+                 if (offset === historyOffset) score += 500; 
+
+                 for (let i = 0; i < totalDays; i++) {
+                     const pos = (i + offset) % cycleLen;
+                     const isHome = pos >= effectiveBase;
+                     const isBase = !isHome;
+
+                     if (hardConstraints.has(i)) {
+                         if (isHome) score += 1000; 
+                         else score -= 5000; 
+                     }
+
+                     // Load Balancing: Penalize peaks
+                     if (isBase) {
+                         score -= Math.pow(dailyStaffCounts[i], 2); 
+                     }
+                 }
+
+                 if (score > maxScore) {
+                     maxScore = score;
+                     bestOffset = offset;
+                 }
+             }
+
+             // 3. Commit Best Offset
+             const finalSched = new Array(totalDays).fill(true);
+             for (let i = 0; i < totalDays; i++) {
+                 const pos = (i + bestOffset) % cycleLen;
+                 const isHome = pos >= effectiveBase;
+                 
+                 finalSched[i] = !isHome; 
+
+                 if (finalSched[i]) dailyStaffCounts[i]++;
+
+                 // Spot Release if unavoidable
+                 if (hardConstraints.has(i) && finalSched[i]) {
+                     finalSched[i] = false; 
+                     dailyStaffCounts[i]--; 
+                 }
+             }
+             
+             schedule[p.id] = finalSched;
+        });
         
-        this.schedule = new Map();
-        this.dailyCapacity = new Array(this.totalDays).fill(0);
-        this.constraints = new Map();
-        this.personConfigs = new Map();
-
-        // 1. Setup Person Configs & Constraints
-        people.forEach(p => {
-            // Config
-            const rot = rotations.get(p.id) || { days_on_base: 11, days_at_home: 3 };
-            this.personConfigs.set(p.id, { daysBase: rot.days_on_base, daysHome: rot.days_at_home });
-            
-            // Constraints
-            const pConstraints = new Set<number>();
-            if (p.dailyAvailability) {
-                Object.entries(p.dailyAvailability).forEach(([dateStr, avail]) => {
-                    if (!avail.isAvailable && avail.source !== 'algorithm') {
-                        const idx = this.getDateIndex(new Date(dateStr));
-                        if (idx >= 0 && idx < this.totalDays) pConstraints.add(idx);
-                    }
-                });
-            }
-            rawConstraints.forEach(c => {
-                if (c.personId === p.id && c.type !== 'always_assign') {
-                    const s = Math.max(0, this.getDateIndex(new Date(c.startTime)));
-                    const e = Math.min(this.totalDays - 1, this.getDateIndex(new Date(c.endTime)));
-                    for (let i = s; i <= e; i++) pConstraints.add(i);
-                }
-            });
-
-            // Absences (Treat as Hard Constraints)
-            absences.forEach(a => {
-                if (a.person_id === p.id) {
-                    const s = Math.max(0, this.getDateIndex(new Date(a.start_date)));
-                    const e = Math.min(this.totalDays - 1, this.getDateIndex(new Date(a.end_date)));
-                    for (let i = s; i <= e; i++) pConstraints.add(i);
-                }
-            });
-
-            this.constraints.set(p.id, pConstraints);
-            
-            // Initialize Schedule Array
-            this.schedule.set(p.id, new Array(this.totalDays).fill(true)); // Default to Base
-        });
-    }
-
-    private getDateIndex(d: Date): number {
-        return Math.floor((d.getTime() - this.startDate.getTime()) / (1000 * 60 * 60 * 24));
-    }
-
-    // --- PHASE 1: SMART SEEDING (CORRECTED) ---
-    public initialize() {
-        this.people.forEach(p => {
-            const sched = this.schedule.get(p.id)!;
-            const hardConstraints = this.constraints.get(p.id)!;
-            const config = this.personConfigs.get(p.id)!;
-            
-            const cycleLength = config.daysBase + config.daysHome;
-
-            // 1. Generate Ideal Pattern (The Rhythm)
-            // We stagger the start based on person ID or random to avoid everyone having same cycle initially
-            let offset = Math.floor(Math.random() * cycleLength);
-
-            // Respect History (Seeding)
-            if (this.history && this.history.has(p.id)) {
-                const h = this.history.get(p.id)!;
-                if (h.lastStatus === 'base') {
-                    offset = h.consecutiveDays;
-                } else {
-                    offset = config.daysBase + h.consecutiveDays;
-                }
-                offset = offset % cycleLength;
-            }
-
-            for (let i = 0; i < this.totalDays; i++) {
-                const cyclePos = (i + offset) % cycleLength;
-                
-                // First part of cycle is Base, last part is Home
-                if (cyclePos < config.daysBase) {
-                    sched[i] = true; // Base
-                } else {
-                    sched[i] = false; // Home
-                }
-            }
-
-            // 2. Overlay Hard Constraints
-            // Constraints ALWAYS win.
-            hardConstraints.forEach(dayIdx => {
-                sched[dayIdx] = false; // Force Home
-            });
-            
-            // Note: This might create "double homes" (pattern home + constraint home)
-            // or "short bases". The optimization loop will fix the fragmentation later.
-        });
-
-        this.recalculateCapacity();
-    }
-
-    private recalculateCapacity() {
-        this.dailyCapacity.fill(0);
-        this.schedule.forEach((sched) => {
-            for (let i = 0; i < this.totalDays; i++) {
-                if (sched[i]) this.dailyCapacity[i]++;
-            }
-        });
-    }
-
-    // --- COST FUNCTION ---
-    public calculateCost(): number {
-        let cost = 0;
-        const W = this.weights; // Use instance weights
-
-        // 1. Capacity Variance
-        for (let i = 0; i < this.totalDays; i++) {
-            const diff = this.dailyCapacity[i] - this.targetCapacity;
-            cost += (diff * diff) * W.CAPACITY;
-        }
-
-        // 2. Person Costs (Fatigue, Fragmentation, Constraints)
-        this.schedule.forEach((sched, pid) => {
-            const config = this.personConfigs.get(pid)!;
-            const hard = this.constraints.get(pid)!;
-
-            let fatigue = 0;
-            let homeBlockLen = 0;
-            let actualHomeDays = 0;
-
-            for (let i = 0; i < this.totalDays; i++) {
-                // Constraint Check
-                if (hard.has(i) && sched[i]) {
-                    cost += W.CONSTRAINT; // Should not happen in Smart Seed + Valid Mutations
-                }
-
-                if (sched[i]) { // Base
-                    fatigue++;
-                    if (homeBlockLen > 0 && homeBlockLen < config.daysHome) {
-                        cost += W.FRAGMENTATION;
-                    }
-                    homeBlockLen = 0;
-
-                    if (fatigue > config.daysBase) {
-                        cost += W.FATIGUE;
-                    }
-                } else { // Home
-                    actualHomeDays++;
-                    fatigue = Math.max(0, fatigue - 1); // Slow decay or fast reset?
-                    // User logic: Full reset only on full block. 
-                    // Let's simplify cost: just penalize streak > limit.
-                    homeBlockLen++;
-                    
-                    if (homeBlockLen >= config.daysHome) fatigue = 0;
-                }
-            }
-            // Check last block
-            if (homeBlockLen > 0 && homeBlockLen < config.daysHome) {
-                 cost += W.FRAGMENTATION;
-            }
-
-            // 3. Equity Cost (Fairness)
-            // Target = TotalDays * (Home / Cycle)
-            const cycle = config.daysBase + config.daysHome;
-            const expectedHomeDays = (this.totalDays * config.daysHome) / cycle;
-            const diff = actualHomeDays - expectedHomeDays;
-            cost += (diff * diff) * W.EQUITY;
-        });
-
-        return cost;
-    }
-
-    // --- OPTIMIZATION LOOP ---
-    public optimize() {
-        let currentCost = this.calculateCost();
-        let bestCost = currentCost;
-        // We can backup best schedule if needed, but for now just modify in place.
-        
-        // Temperature Schedule
-        let temp = SIMULATION_PARAMS.INITIAL_TEMP;
-
-        for (let iter = 0; iter < SIMULATION_PARAMS.ITERATIONS; iter++) {
-            // Pick a random person
-            const pIdx = Math.floor(Math.random() * this.people.length);
-            const person = this.people[pIdx];
-            const pid = person.id;
-            const sched = this.schedule.get(pid)!;
-            const hard = this.constraints.get(pid)!;
-
-            // Pick a Move: Shift or Resize a home block
-            // 1. Identify Home Blocks
-            const blocks: {start: number, end: number}[] = [];
-            let start = -1;
-            for(let i=0; i<this.totalDays; i++) {
-                if(!sched[i]) {
-                    if(start === -1) start = i;
-                } else {
-                    if(start !== -1) {
-                        blocks.push({start, end: i-1});
-                        start = -1;
-                    }
-                }
-            }
-            if (start !== -1) blocks.push({start, end: this.totalDays-1});
-
-            if (blocks.length === 0) continue; // No home blocks to move (unlikely)
-
-            const blockIdx = Math.floor(Math.random() * blocks.length);
-            const block = blocks[blockIdx];
-            const moveType = Math.random() > 0.5 ? 'SHIFT' : 'RESIZE';
-
-            // Backup State
-            const originalBlock = {...block};
-            const originalSchedFragment: boolean[] = []; // Store only changed days? 
-            // Simpler: Snapshot is expensive. We just reverse the move if rejected.
-            // But we need to apply move first.
-            
-            // Proposed Mutation
-            let newStart = block.start;
-            let newEnd = block.end;
-
-            if (moveType === 'SHIFT') {
-                const shift = Math.random() > 0.5 ? 1 : -1;
-                newStart += shift;
-                newEnd += shift;
-            } else {
-                // Resize (Expand/Contract)
-                if (Math.random() > 0.5) { // Expand
-                     if (Math.random() > 0.5) newEnd++; else newStart--;
-                } else { // Shrink
-                    if (newEnd > newStart) { // Don't vanish fully
-                        if (Math.random() > 0.5) newEnd--; else newStart++;
-                    }
-                }
-            }
-
-            // Bounds Check
-            if (newStart < 0 || newEnd >= this.totalDays) continue;
-
-            // Constraint Validity Check (Crucial: Don't move Base onto a Constraint)
-            // If we are changing a day from Home -> Base, we must ensure it's not a Constraint.
-            // "Home -> Base" happens when we shrink or shift away.
-            // Old Range: [block.start, block.end] is Home.
-            // New Range: [newStart, newEnd] is Home.
-            // Days becoming Base: (Old - New). Check if any are in `hard`.
-            
-            let invalidMove = false;
-            // Check days changing from Home to Base
-            for (let i = block.start; i <= block.end; i++) {
-                if (i < newStart || i > newEnd) { // Was Home, Now Base
-                    if (hard.has(i)) { invalidMove = true; break; }
-                }
-            }
-            if (invalidMove) continue;
-
-            // Apply Move (Temporarily)
-            const oldDays: {[key:number]: boolean} = {};
-            // Determine affected range
-            const min = Math.min(block.start, newStart);
-            const max = Math.max(block.end, newEnd);
-            
-            for (let i = min; i <= max; i++) {
-                oldDays[i] = sched[i];
-                // Set New State
-                if (i >= newStart && i <= newEnd) {
-                    if (sched[i]) { // Was Base, Now Home
-                        sched[i] = false;
-                        this.dailyCapacity[i]--;
-                    }
-                } else {
-                    if (!sched[i]) { // Was Home, Now Base
-                        sched[i] = true;
-                        this.dailyCapacity[i]++;
-                    }
-                }
-            }
-
-            // Calculate New Cost
-            // Optimization: Delta calculation is better but full calc is safer for now.
-            // Given iteration count (20k) and simple cost logic, full calc might be acceptable (~1-2ms).
-            // Let's try full calc first.
-            const newCost = this.calculateCost();
-            const delta = newCost - currentCost;
-
-            // Acceptance Probability
-            if (delta < 0 || Math.random() < Math.exp(-delta / temp)) {
-                // Accept
-                currentCost = newCost;
-                if (currentCost < bestCost) bestCost = currentCost;
-            } else {
-                // Reject - Revert
-                for (let i = min; i <= max; i++) {
-                    const wasBase = oldDays[i];
-                    const isBase = sched[i];
-                    if (wasBase !== isBase) {
-                        sched[i] = wasBase;
-                        if (wasBase) this.dailyCapacity[i]++;
-                        else this.dailyCapacity[i]--;
-                    }
-                }
-            }
-
-            // Cool down
-            temp *= SIMULATION_PARAMS.COOLING_RATE;
-        }
-    }
-
-    public getResult(): Record<string, Record<string, string>> {
-        const result: Record<string, Record<string, string>> = {};
-        const msPerDay = 1000*60*60*24;
-        
-        for(let i=0; i<this.totalDays; i++) {
-            const d = new Date(this.startDate.getTime() + (i * msPerDay));
-            const key = toDateKey(d);
-            result[key] = {};
-            
-            this.schedule.forEach((sched, pid) => {
-                const hard = this.constraints.get(pid)!;
-                if (hard.has(i)) {
-                    // Was it manual unavailable or task? We treat all 'hard' as unavailable if they came from constraints?
-                    // Actually, the wrapper maps them properly. We just say 'home'.
-                    // Wait, the wrapper needs 'home', 'base', or 'unavailable'.
-                    // Our optimizer treated hard constraints as 'home' to satisfy them.
-                    // The wrapper logic will re-check the source constraints to label 'unavailable'.
-                    // So here we stick to 'home'/'base'.
-                    result[key][pid] = 'home'; 
-                } else {
-                    result[key][pid] = sched[i] ? 'base' : 'home';
-                }
-            });
-        }
-        return result;
+        return schedule;
     }
 }
 
-// --- MAIN WRAPPER ---
-export const generateRoster = (params: RosterGenerationParams): RosterGenerationResult => {
-    const { startDate, endDate, people, teamRotations, constraints, absences, settings, customMinStaff, customRotation } = params;
-    
-    const minDailyStaff = customMinStaff ?? settings.min_daily_staff ?? 0;
-    const mode = settings.optimizationMode || 'ratio';
+/**
+ * STRATEGY 2: MIN HEADCOUNT ("The Iterative Repair Strategy")
+ * פתרון מבוסס חיפוש מקומי למניעת חריגות מהמינימום.
+ */
+class MinHeadcountStrategy implements ISchedulingStrategy {
+    generate(ctx: SchedulingContext): Record<string, boolean[]> {
+        const { totalDays, people, minStaff, constraints, warnings } = ctx;
+        const schedule: Record<string, boolean[]> = {};
+        
+        if (people.length === 0) return {};
 
-    // 1. Define Weights based on Mode
-    let weights = {
-        CONSTRAINT: 1_000_000,
-        FATIGUE: 10_000,       // Increased to punish long base stints severely
-        FRAGMENTATION: 5_000,  // Increased to force 3-day blocks (prevents 1-day leaves)
-        CAPACITY: 100,         // Increased to flatten the curve
-        EQUITY: 200            // Penalize deviation from target total home days
-    };
+        // 1. הגדרת מחזור בסיס (מחזור אופטימלי סביב 50-60% נוכחות)
+        const baseDays = 8;
+        const homeDays = 6; // מחזור 8/6 נותן גמישות טובה יותר מ-8/8
+        const cycleLen = baseDays + homeDays;
 
-    if (mode === 'min_staff') {
-        // Punish being over-capacity? Or punish variance from Min Staff?
-        // We will set targetCapacity = minDailyStaff later.
-        // Increase Capacity Weight to strict
-        weights.CAPACITY = 1000; 
-        // Reduce Equity slightly if needed, but keeping it helps fairness
-        // Fatigue same
-    } else if (mode === 'tasks') {
-        // Focus on coverage. If targetCapacity covers tasks, just adhere to it.
-        // Maybe relax Equity to allow "best man for job" (though this solver has no individual skill matching yet)
-        weights.EQUITY = 50; 
-        weights.FATIGUE = 5000; // Allow longer stints if needed
-    }
+        // 2. הצבה ראשונית מדורגת (Initial Draft)
+        people.forEach((p, i) => {
+            schedule[p.id] = new Array(totalDays).fill(false);
+            // דירוג מושלם (Spreading)
+            const offset = Math.floor(i * (cycleLen / people.length));
+            for (let d = 0; d < totalDays; d++) {
+                if ((d + offset) % cycleLen < baseDays) {
+                    schedule[p.id][d] = true;
+                }
+            }
+        });
 
-    // 2. Prepare Data
-    const rotMap = new Map<string, TeamRotation>();
-    const effectiveRotations = teamRotations.length > 0 ? teamRotations : []; 
-    // If custom rotation provided (Wizard Mode)
-    people.forEach(p => {
-        let r: TeamRotation | undefined;
-        if (customRotation) {
-            r = {
-                id: 'custom', organization_id: settings.organization_id, team_id: p.teamId || 'global',
-                days_on_base: customRotation.daysBase, days_at_home: customRotation.daysHome, cycle_length: customRotation.daysBase + customRotation.daysHome,
-                start_date: startDate.toISOString(), arrival_time: '10:00', departure_time: '14:00'
-            };
-        } else {
-            r = effectiveRotations.find(rt => rt.team_id === p.teamId);
+        // 3. לולאת תיקון איטרטיבית (Iterative Repair)
+        // אנחנו ננסה לתקן את הלוח עד 200 פעמים
+        for (let iter = 0; iter < 200; iter++) {
+            let changesInIter = 0;
+
+            for (let d = 0; d < totalDays; d++) {
+                const currentCount = people.filter(p => schedule[p.id][d]).length;
+                
+                if (currentCount < minStaff) {
+                    // חסרים אנשים! נחפש את הלוחם שהכי כדאי להזיז את הסבב שלו
+                    const candidates = people.filter(p => !schedule[p.id][d]);
+                    
+                    candidates.sort((a, b) => {
+                        // עדיפות למי שאין לו אילוץ היום
+                        const conA = constraints.get(a.id)?.has(d) ? 1 : 0;
+                        const conB = constraints.get(b.id)?.has(d) ? 1 : 0;
+                        return conA - conB;
+                    });
+
+                    if (candidates.length > 0) {
+                        const bestChoice = candidates[0];
+                        schedule[bestChoice.id][d] = true; // הקפצה נקודתית
+                        changesInIter++;
+                    }
+                }
+
+                if (currentCount > minStaff + 2) {
+                    // יש יותר מדי אנשים! ננסה לשחרר מישהו שיש לו אילוץ
+                    const canRelease = people.filter(p => schedule[p.id][d] && constraints.get(p.id)?.has(d));
+                    if (canRelease.length > 0) {
+                        schedule[canRelease[0].id][d] = false;
+                        changesInIter++;
+                    }
+                }
+            }
+            if (changesInIter === 0) break; // הפתרון יציב
         }
-        if(!r) r = { id: 'def', organization_id: '', team_id: '', days_on_base: 11, days_at_home: 3, cycle_length: 14, start_date: '', arrival_time:'', departure_time:''};
-        rotMap.set(p.id, r);
-    });
 
-    // Target Capacity Calculation
-    let totalTheoreticalCapacity = 0;
+        // 4. בדיקת ביטחון סופית (The Iron Floor) - מוודא 100% שאין יום מתחת ל-13
+        for (let d = 0; d < totalDays; d++) {
+            let count = people.filter(p => schedule[p.id][d]).length;
+            while (count < minStaff) {
+                const stayers = people.filter(p => !schedule[p.id][d]);
+                if (stayers.length === 0) break;
+
+                // בוחרים את מי שהכי פחות יפגע (הוגנות)
+                stayers.sort((a, b) => {
+                    const workA = schedule[a.id].filter(Boolean).length;
+                    const workB = schedule[b.id].filter(Boolean).length;
+                    return workA - workB;
+                });
+
+                schedule[stayers[0].id][d] = true;
+                count++;
+                
+                if (constraints.get(stayers[0].id)?.has(d)) {
+                    warnings.push(`אילוץ נשבר ביום ${d+1} עבור ${stayers[0].name} כדי להבטיח מינימום 13.`);
+                }
+            }
+        }
+
+        return schedule;
+    }
+}
+/**
+ * STRATEGY 3: TASK DERIVED
+ * Calculates requirements then delegates to MinHeadcount.
+ */
+class TaskDerivedStrategy implements ISchedulingStrategy {
+    constructor(private tasks: TaskTemplate[]) {}
+
+    generate(ctx: SchedulingContext): Record<string, boolean[]> {
+        // 1. Calculate Required Headcount
+        const required = this.calculateRequired(this.tasks);
+        console.log(`[TaskDerived] Calculated Min Staff: ${required}`);
+        
+        // 2. Delegate
+        const strategy = new MinHeadcountStrategy();
+        // Update context with new min
+        const newCtx = { ...ctx, minStaff: Math.max(ctx.minStaff, required) };
+        return strategy.generate(newCtx);
+    }
+
+    private calculateRequired(tasks: TaskTemplate[]): number {
+        let total = 0;
+        tasks.forEach(t => {
+            t.segments.forEach(seg => {
+                if (seg.frequency === 'daily' || seg.isRepeat) {
+                    // Formula: (Shift + Rest) / Shift * People
+                    const cycle = seg.durationHours + seg.minRestHoursAfter;
+                    const req = Math.ceil((cycle / seg.durationHours) * seg.requiredPeople);
+                    total += req;
+                }
+            });
+        });
+        return total;
+    }
+}
+
+// --- MAIN SERVICE ---
+
+const generateRoster = (params: RosterGenerationParams): RosterGenerationResult => {
+    const { startDate, endDate, people, settings, constraints, absences, history, tasks, customMinStaff } = params;
+
+    // 1. Build Context
+    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    const constraintMap = new Map<string, Set<number>>();
     people.forEach(p => {
-        const r = rotMap.get(p.id)!;
-        const cycle = r.days_on_base + r.days_at_home;
-        totalTheoreticalCapacity += (r.days_on_base / cycle);
+        const set = new Set<number>();
+        // Add manual availability
+         if (p.dailyAvailability) {
+            Object.entries(p.dailyAvailability).forEach(([dStr, avail]) => {
+                if (!avail.isAvailable && avail.source !== 'algorithm') {
+                    set.add(getDayIndex(new Date(dStr), startDate));
+                }
+            });
+        }
+        // Add Constraints
+        constraints.forEach(c => {
+            if (c.personId === p.id && c.type !== 'always_assign') {
+                const s = Math.max(0, getDayIndex(new Date(c.startTime), startDate));
+                const e = Math.min(totalDays - 1, getDayIndex(new Date(c.endTime), startDate));
+                for(let i=s; i<=e; i++) set.add(i);
+            }
+        });
+        // Add Absences
+        absences.forEach(a => {
+            if (a.person_id === p.id) {
+                const s = Math.max(0, getDayIndex(new Date(a.start_date), startDate));
+                const e = Math.min(totalDays - 1, getDayIndex(new Date(a.end_date), startDate));
+                for(let i=s; i<=e; i++) set.add(i);
+            }
+        });
+        constraintMap.set(p.id, set);
     });
 
-    let targetCapacity = 0;
-    if (mode === 'min_staff') {
-        targetCapacity = minDailyStaff; // Strict Min
-    } else {
-        // 'ratio' and 'tasks' defaults to Theoretical Average
-        targetCapacity = Math.round(totalTheoreticalCapacity); 
-        // Ensure at least minDailyStaff
-        if (targetCapacity < minDailyStaff) targetCapacity = minDailyStaff;
-    }
-
-    const warnings: string[] = [];
-
-    // Feasibility Check
-    if (totalTheoreticalCapacity < minDailyStaff) {
-        warnings.push('בהינתן היחס יציאות הביתה ובהינתן הסד"כ הקיים לא ניתן לעמוד במינימום הנדרש');
-    }
-
-    // 2. Initialize Optimizer with Weights
-    const optimizer = new RosterOptimizer(people, startDate, endDate, rotMap, constraints, absences, targetCapacity, weights, params.history);
+    const configMap = new Map<string, { daysBase: number, daysHome: number }>();
     
-    // 3. Run Optimization
-    console.time('SimulatedAnnealing');
-    optimizer.initialize();
-    optimizer.optimize();
-    console.timeEnd('SimulatedAnnealing');
+    console.log('[RotaGenerator] Params received:', { 
+        mode: settings.optimizationMode, 
+        hasCustomRotation: !!params.customRotation,
+        customRotationVals: params.customRotation 
+    });
 
-    // 4. Format Result
-    const optimizationResult = optimizer.getResult();
-    
-    // Convert to App Format
-    // We need to re-layer 'unavailable' status for display purposes
-    const resultPersonStatuses: Record<string, Record<string, string>> = {};
-    const roster: DailyPresence[] = [];
-    let totalPresence = 0;
-    let daysCount = 0;
-
-    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dateKey = toDateKey(d);
-        resultPersonStatuses[dateKey] = {};
-        let dailyCount = 0;
+    if (params.customRotation && settings.optimizationMode === 'ratio') {
+        const base = Number(params.customRotation.daysBase);
+        const home = Number(params.customRotation.daysHome);
+        console.log(`[RotaGenerator] Applying Custom Ratio: ${base}/${home}`);
 
         people.forEach(p => {
-             // Check manual unavailability for distinct label
-             let label = optimizationResult[dateKey]?.[p.id] || 'base';
-             
-             // Check if strict constraint (never_assign) or manual unavailable
-             const isStrict = constraints.some(c => c.personId === p.id && c.type === 'never_assign' && 
-                new Date(c.startTime) <= d && new Date(c.endTime) >= d
-             );
-             const isManual = p.dailyAvailability?.[dateKey]?.isAvailable === false && p.dailyAvailability?.[dateKey]?.source !== 'algorithm';
-             const isAbsence = absences.some(a => a.person_id === p.id && new Date(a.start_date) <= d && new Date(a.end_date) >= d);
-
-             if (isStrict || isManual || isAbsence) {
-                 label = 'unavailable';
-             }
-
-             resultPersonStatuses[dateKey][p.id] = label;
-             
-             roster.push({
-                 date: dateKey,
-                 person_id: p.id,
-                 organization_id: settings.organization_id,
-                 status: label === 'base' ? 'base' : (label === 'unavailable' ? 'unavailable' : 'home'),
-                 source: 'algorithm'
-             });
-
-             if (label === 'base') dailyCount++;
+             configMap.set(p.id, { daysBase: base, daysHome: home });
         });
-        totalPresence += dailyCount;
-        daysCount++;
+    } else if (params.teamRotations) {
+        console.log('[RotaGenerator] Using Team Rotations fallback');
+        people.forEach(p => {
+            const rot = params.teamRotations.find(r => r.team_id === p.teamId);
+            if (rot) configMap.set(p.id, { daysBase: rot.days_on_base, daysHome: rot.days_at_home });
+            else configMap.set(p.id, { daysBase: 11, daysHome: 3 });
+        });
+    } else {
+        console.log('[RotaGenerator] Using Absolute Default 11/3');
+        people.forEach(p => configMap.set(p.id, { daysBase: 11, daysHome: 3 }));
     }
+
+    const ctx: SchedulingContext = {
+        startDate,
+        endDate,
+        totalDays,
+        people,
+        constraints: constraintMap,
+        config: configMap,
+        minStaff: customMinStaff || settings.min_daily_staff || 0,
+        history,
+        warnings: []
+    };
+
+    // 2. Select Strategy
+    let strategy: ISchedulingStrategy;
+    const mode = settings.optimizationMode || 'ratio';
+
+    if (mode === 'min_staff') {
+        strategy = new MinHeadcountStrategy();
+    } else if (mode === 'tasks') {
+        strategy = new TaskDerivedStrategy(tasks || []);
+    } else {
+        strategy = new FixedRatioStrategy();
+    }
+
+    // 3. Execute
+    console.log('[RotaGenerator] Mode:', mode);
+    
+    const schedule = strategy.generate(ctx);
+
+    // 4. Format Output
+    const roster: DailyPresence[] = [];
+    const personStatuses: Record<string, Record<string, string>> = {};
+    let totalPresence = 0;
+
+
+    for (let i = 0; i < totalDays; i++) {
+        const d = new Date(startDate.getTime() + i * 86400000);
+        const dateKey = toDateKey(d);
+        personStatuses[dateKey] = {};
+        
+        people.forEach(p => {
+            const isBase = schedule[p.id]?.[i] ?? true; 
+            
+            // Determine final label
+            let label = isBase ? 'base' : 'home';
+            
+            // Overlay hard constraint label
+            if (constraintMap.get(p.id)?.has(i)) {
+                if (!isBase) label = 'unavailable'; 
+            }
+            
+            personStatuses[dateKey][p.id] = label === 'unavailable' ? 'unavailable' : (label === 'base' ? 'base' : 'home');
+
+            roster.push({
+                date: dateKey,
+                person_id: p.id,
+                organization_id: settings.organization_id,
+                status: label === 'base' ? 'base' : (label === 'unavailable' ? 'unavailable' : 'home'),
+                source: 'algorithm'
+            });
+
+            if (label === 'base') totalPresence++;
+        });
+    }
+
+    // 5. Verify Constraints & Calculate Stats
+    const unfulfilledConstraints: UnfulfilledConstraint[] = [];
+    let totalConstraintsToCheck = 0;
+    let metConstraints = 0;
+
+    people.forEach(p => {
+        const pConstraints = constraintMap.get(p.id);
+        if (pConstraints && pConstraints.size > 0) {
+            totalConstraintsToCheck += pConstraints.size;
+            
+            pConstraints.forEach(dayIndex => {
+                const isAssignedBase = schedule[p.id]?.[dayIndex]; // true = base
+                
+                if (isAssignedBase) {
+                    // Violation! Constraint said "No Base" (Home/Unavailable), but Schedule said "Base"
+                    const dateObj = new Date(startDate.getTime() + dayIndex * 86400000);
+                    unfulfilledConstraints.push({
+                        personId: p.id,
+                        personName: p.name,
+                        date: dateObj.toLocaleDateString('he-IL'),
+                        type: 'constraint',
+                        reason: 'סומן כאילוץ/בית אך שובץ בבסיס'
+                    });
+                } else {
+                    metConstraints++;
+                }
+            });
+        }
+    });
+
+    const constraintPercentage = totalConstraintsToCheck > 0 
+        ? Math.round((metConstraints / totalConstraintsToCheck) * 100) 
+        : 100;
 
     return {
         roster,
         stats: {
-            totalDays: daysCount,
-            avgStaffPerDay: daysCount > 0 ? (totalPresence / daysCount) : 0
+             totalDays,
+             avgStaffPerDay: totalPresence / (totalDays * people.length || 1),
+             constraintStats: {
+                 total: totalConstraintsToCheck,
+                 met: metConstraints,
+                 percentage: constraintPercentage
+             }
         },
-        personStatuses: resultPersonStatuses,
-        warnings
+        personStatuses,
+        warnings: ctx.warnings,
+        unfulfilledConstraints
     };
 };
+
+export { generateRoster };

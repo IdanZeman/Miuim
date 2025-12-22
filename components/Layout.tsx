@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX, Package } from 'lucide-react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX, Package, Activity } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
@@ -157,6 +157,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 )}
 
                 {/* Stats */}
+                {(profile?.role === 'admin' || profile?.is_super_admin) && (
+                  <TopNavLink active={currentView === 'org-logs'} onClick={() => setView('org-logs')} label="יומן פעילות" icon={Activity} />
+                )}
+
                 {checkAccess('stats') && (
                   <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label={(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'} icon={FileText} />
                 )}
@@ -372,7 +376,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {/* Equipment */}
               {checkAccess('equipment') && (
                 <button
-                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'equipment'
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'stats'
                     ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
                     : 'hover:bg-slate-50 text-slate-700'
                     }`}
