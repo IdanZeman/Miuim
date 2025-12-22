@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence } from '../types';
+import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment } from '../types';
 
 const supabaseUrl = 'https://rfqkkzhhvytkkgrnyarm.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmcWtremhodnl0a2tncm55YXJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwNjgxMjMsImV4cCI6MjA3NzY0NDEyM30.4kMkKtzq4eowtOQvQXVxwBU5iiEfNqw0f2JYBrVXR4E';
@@ -43,7 +43,8 @@ export const mapPersonFromDB = (p: any): Person => {
     dailyAvailability,
     personalRotation,
     organization_id: p.organization_id, // NEW: Map organization_id
-    customFields
+    customFields,
+    isCommander: !!p.is_commander // NEW
 };
 };
 
@@ -62,7 +63,8 @@ user_id: p.userId,
     daily_availability: p.dailyAvailability,
     personal_rotation: p.personalRotation === undefined ? null : p.personalRotation,
     organization_id: p.organization_id,
-    custom_fields: p.customFields || {}
+    custom_fields: p.customFields || {},
+    is_commander: p.isCommander || false // NEW
 });
 
 // Teams
@@ -340,3 +342,28 @@ export const deleteAbsence = async (id: string) => {
     
     if (error) throw error;
 };
+
+// Equipment Mappers
+export const mapEquipmentFromDB = (e: any): Equipment => ({
+    id: e.id,
+    organization_id: e.organization_id,
+    type: e.type,
+    serial_number: e.serial_number,
+    assigned_to_id: e.assigned_to_id,
+    signed_at: e.signed_at,
+    last_verified_at: e.last_verified_at,
+    status: e.status,
+    notes: e.notes
+});
+
+export const mapEquipmentToDB = (e: Equipment) => ({
+    id: e.id,
+    organization_id: e.organization_id,
+    type: e.type,
+    serial_number: e.serial_number,
+    assigned_to_id: e.assigned_to_id,
+    signed_at: e.signed_at,
+    last_verified_at: e.last_verified_at,
+    status: e.status,
+    notes: e.notes
+});

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Shield, Check, Info, Users, Globe, Lock } from 'lucide-react';
-import { Profile, ViewMode, AccessLevel, DataScope, UserPermissions, Team, UserRole } from '../types';
+import { X, Save, Shield, Check, Info, Users, Globe, Lock, Plus } from 'lucide-react';
+import { Profile, ViewMode, AccessLevel, DataScope, UserPermissions, Team, UserRole, PermissionTemplate } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseClient';
 
@@ -10,6 +10,8 @@ interface PermissionEditorProps {
     user: Profile;
     onSave: (userId: string, permissions: UserPermissions) => Promise<void>;
     teams: Team[];
+    templates?: PermissionTemplate[];
+    onManageTemplates?: () => void;
 }
 
 const SCREENS: { id: ViewMode; label: string }[] = [
@@ -18,24 +20,22 @@ const SCREENS: { id: ViewMode; label: string }[] = [
     { id: 'tasks', label: 'משימות' },
     { id: 'attendance', label: 'נוכחות' },
     { id: 'stats', label: 'דוחות ונתונים' },
-    { id: 'settings', label: 'הגדרות ארגון' },
-    { id: 'reports', label: 'ייצוא נתונים' },
+    { id: 'constraints', label: 'ניהול אילוצים' },
     { id: 'lottery', label: 'הגרלות' },
-    { id: 'constraints', label: 'אילוצים' },
+    { id: 'equipment', label: 'ניהול אמצעים' },
+    { id: 'settings', label: 'הגדרות ארגון' },
 ];
 
 const DEFAULT_PERMISSIONS: UserPermissions = {
     dataScope: 'organization',
     allowedTeamIds: [],
     screens: {},
-    canManageUsers: false,
-    canManageSettings: false
 };
 
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 
-export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onClose, user: targetUser, onSave, teams }) => {
+export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onClose, user: targetUser, onSave, teams, templates = [], onManageTemplates }) => {
     const [permissions, setPermissions] = useState<UserPermissions>(targetUser.permissions || DEFAULT_PERMISSIONS);
     const [saving, setSaving] = useState(false);
 
@@ -49,20 +49,20 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
         }
     }, [targetUser]);
 
+    const applyTemplate = (template: PermissionTemplate) => {
+        setPermissions(template.permissions);
+    };
+
     const applyRolePreset = (role: UserRole) => {
         const newPerms: UserPermissions = { ...DEFAULT_PERMISSIONS, screens: {} };
 
         switch (role) {
             case 'admin':
                 newPerms.dataScope = 'organization';
-                newPerms.canManageUsers = true;
-                newPerms.canManageSettings = true;
                 SCREENS.forEach(s => newPerms.screens[s.id] = 'edit');
                 break;
             case 'editor':
                 newPerms.dataScope = 'organization';
-                newPerms.canManageUsers = true;
-                newPerms.canManageSettings = false;
                 SCREENS.forEach(s => {
                     if (s.id === 'settings' || s.id === 'logs') newPerms.screens[s.id] = 'none';
                     else newPerms.screens[s.id] = 'edit';
@@ -70,8 +70,6 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                 break;
             case 'viewer':
                 newPerms.dataScope = 'organization';
-                newPerms.canManageUsers = false;
-                newPerms.canManageSettings = false;
                 SCREENS.forEach(s => {
                     if (['settings', 'logs', 'personnel', 'tasks'].includes(s.id)) newPerms.screens[s.id] = 'none';
                     else newPerms.screens[s.id] = 'view';
@@ -97,6 +95,14 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                 [screenId]: level
             }
         }));
+    };
+
+    const handleSetAllScreens = (level: AccessLevel) => {
+        const newScreens: Partial<Record<ViewMode, AccessLevel>> = {};
+        SCREENS.forEach(s => {
+            newScreens[s.id] = level;
+        });
+        setPermissions(prev => ({ ...prev, screens: newScreens }));
     };
 
     const handleSave = async () => {
@@ -162,13 +168,62 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
             <div className="space-y-6 md:space-y-8">
                 {/* Presets */}
                 <section>
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">תבניות מהירות</h3>
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">תבניות מהירות (System Presets)</h3>
                     <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3">
-                        <button onClick={() => applyRolePreset('admin')} className="px-3 py-2 md:px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs md:text-sm font-bold transition-colors">מנהל מלא</button>
-                        <button onClick={() => applyRolePreset('editor')} className="px-3 py-2 md:px-4 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs md:text-sm font-bold transition-colors">עורך תוכן</button>
-                        <button onClick={() => applyRolePreset('viewer')} className="px-3 py-2 md:px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs md:text-sm font-bold transition-colors">צפייה בלבד</button>
-                        <button onClick={() => applyRolePreset('attendance_only')} className="px-3 py-2 md:px-4 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs md:text-sm font-bold transition-colors">נוכחות בלבד</button>
+                        <button onClick={() => applyRolePreset('admin')} className="px-3 py-2 md:px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-sm border border-purple-100">מנהל מלא</button>
+                        <button onClick={() => applyRolePreset('editor')} className="px-3 py-2 md:px-4 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-sm border border-blue-100">עורך תוכן</button>
+                        <button onClick={() => applyRolePreset('viewer')} className="px-3 py-2 md:px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-sm border border-slate-200">צפייה בלבד</button>
+                        <button onClick={() => applyRolePreset('attendance_only')} className="px-3 py-2 md:px-4 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-sm border border-amber-100">נוכחות בלבד</button>
                     </div>
+                </section>
+
+                <section>
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <Shield size={14} />
+                            תבניות ארגוניות (Custom Roles)
+                        </h3>
+                        {onManageTemplates && (
+                            <button
+                                onClick={() => {
+                                    onClose();
+                                    onManageTemplates();
+                                }}
+                                className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors px-1 underline"
+                            >
+                                נהל תבניות...
+                            </button>
+                        )}
+                    </div>
+                    {templates.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                            {templates.map(tmp => (
+                                <button
+                                    key={tmp.id}
+                                    onClick={() => applyTemplate(tmp)}
+                                    className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-sm font-black border border-indigo-100 transition-all flex items-center gap-2 shadow-sm"
+                                >
+                                    {tmp.name}
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
+                            <p className="text-xs text-slate-500 font-medium mb-2">לא הוגדרו עדיין תבניות מותאמות אישית לארגון.</p>
+                            {onManageTemplates && (
+                                <button
+                                    onClick={() => {
+                                        onClose();
+                                        onManageTemplates();
+                                    }}
+                                    className="text-xs font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-all"
+                                >
+                                    <Plus size={12} />
+                                    צור תבנית חדשה בניהול תפקידים
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </section>
 
                 {/* Data Scope */}
@@ -177,7 +232,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                         <Globe size={14} />
                         היקף נתונים
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                         <label className={`cursor-pointer p-3 md:p-4 rounded-xl border-2 transition-all ${permissions.dataScope === 'organization' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
                             <input type="radio" name="scope" className="sr-only" checked={permissions.dataScope === 'organization'} onChange={() => setPermissions(p => ({ ...p, dataScope: 'organization' }))} />
                             <div className="flex items-center gap-2 mb-1">
@@ -187,13 +242,22 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                             <p className="text-xs text-slate-500">גישה לכל נתוני הארגון, הצוותים והמשתמשים.</p>
                         </label>
 
+                        <label className={`cursor-pointer p-3 md:p-4 rounded-xl border-2 transition-all ${permissions.dataScope === 'my_team' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
+                            <input type="radio" name="scope" className="sr-only" checked={permissions.dataScope === 'my_team'} onChange={() => setPermissions(p => ({ ...p, dataScope: 'my_team' }))} />
+                            <div className="flex items-center gap-2 mb-1">
+                                <Shield className={`w-5 h-5 ${permissions.dataScope === 'my_team' ? 'text-blue-600' : 'text-slate-400'}`} />
+                                <span className="font-bold text-slate-800 text-sm md:text-base">הצוות שלי</span>
+                            </div>
+                            <p className="text-xs text-slate-500">גישה אוטומטית לצוות המשויך למשתמש.</p>
+                        </label>
+
                         <label className={`cursor-pointer p-3 md:p-4 rounded-xl border-2 transition-all ${permissions.dataScope === 'team' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
                             <input type="radio" name="scope" className="sr-only" checked={permissions.dataScope === 'team'} onChange={() => setPermissions(p => ({ ...p, dataScope: 'team' }))} />
                             <div className="flex items-center gap-2 mb-1">
                                 <Users className={`w-5 h-5 ${permissions.dataScope === 'team' ? 'text-blue-600' : 'text-slate-400'}`} />
                                 <span className="font-bold text-slate-800 text-sm md:text-base">צוותים ספציפיים</span>
                             </div>
-                            <p className="text-xs text-slate-500">גישה מוגבלת לנתוני הצוותים הנבחרים בלבד.</p>
+                            <p className="text-xs text-slate-500">בחירה ידנית של צוותים מורשים.</p>
                         </label>
 
                         <label className={`cursor-pointer p-3 md:p-4 rounded-xl border-2 transition-all ${permissions.dataScope === 'personal' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
@@ -202,7 +266,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                                 <Lock className={`w-5 h-5 ${permissions.dataScope === 'personal' ? 'text-blue-600' : 'text-slate-400'}`} />
                                 <span className="font-bold text-slate-800 text-sm md:text-base">אישי בלבד</span>
                             </div>
-                            <p className="text-xs text-slate-500">המשתמש רואה רק את הנתונים המשויכים אליו אישית.</p>
+                            <p className="text-xs text-slate-500">המשתמש רואה רק את הנתונים המשויכים אליו.</p>
                         </label>
                     </div>
 
@@ -238,9 +302,19 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                             <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
                                 <tr>
                                     <th className="px-4 py-3 border-b whitespace-nowrap">מסך</th>
-                                    <th className="px-4 py-3 border-b text-center w-24 md:w-32 whitespace-nowrap">הסתרה מלאה</th>
-                                    <th className="px-4 py-3 border-b text-center w-24 md:w-32 whitespace-nowrap">צפייה בלבד</th>
-                                    <th className="px-4 py-3 border-b text-center w-24 md:w-32 whitespace-nowrap">עריכה מלאה</th>
+                                    {['none', 'view', 'edit'].map(lvl => (
+                                        <th key={lvl} className="px-4 py-3 border-b text-center w-24 md:w-32 whitespace-nowrap">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <span>{lvl === 'none' ? 'הסתרה מלאה' : lvl === 'view' ? 'צפייה בלבד' : 'עריכה מלאה'}</span>
+                                                <button
+                                                    onClick={() => handleSetAllScreens(lvl as any)}
+                                                    className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] text-blue-600 hover:bg-blue-50 transition-colors shadow-sm font-black"
+                                                >
+                                                    בחר הכל
+                                                </button>
+                                            </div>
+                                        </th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -285,6 +359,6 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                     </div>
                 </section>
             </div>
-        </Modal>
+        </Modal >
     );
 };

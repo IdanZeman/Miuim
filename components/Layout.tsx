@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX } from 'lucide-react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX, Package } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
@@ -73,7 +73,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
     if (profile?.role === 'editor') return screen !== 'settings' && screen !== 'logs' && screen !== 'system'; // Editors can access planner
 
 
-    if (profile?.role === 'viewer') return ['home', 'dashboard', 'contact', 'lottery', 'stats'].includes(screen);
+    if (profile?.role === 'viewer') return ['home', 'dashboard', 'contact'].includes(screen);
     if (profile?.role === 'attendance_only') return ['home', 'attendance', 'contact'].includes(screen);
 
     return false;
@@ -159,6 +159,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 {/* Stats */}
                 {checkAccess('stats') && (
                   <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label={(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'} icon={FileText} />
+                )}
+
+                {/* Equipment / Tzelem */}
+                {checkAccess('equipment') && (
+                  <TopNavLink active={currentView === 'equipment'} onClick={() => setView('equipment')} label="ניהול אמצעים" icon={Package} />
                 )}
 
                 {/* Lottery */}
@@ -364,6 +369,20 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 </button>
               )}
 
+              {/* Equipment */}
+              {checkAccess('equipment') && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'equipment'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('equipment'); setIsMobileMenuOpen(false) }}
+                >
+                  <Package size={22} className={currentView === 'equipment' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>ניהול אמצעים (צלם)</span>
+                </button>
+              )}
+
               {/* Lottery - Visible to everyone */}
               {checkAccess('lottery') && (
                 <button
@@ -524,6 +543,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'lottery' && 'הגרלות ופרסים'}
               {currentView === 'constraints' && 'ניהול אילוצים'}
               {currentView === 'absences' && 'ניהול היעדרויות'}
+              {currentView === 'equipment' && 'דוח צלם / אמצעים'}
             </h1>
             <div className="w-12 md:w-16 h-1 md:h-1.5 bg-white/40 rounded-full mt-2 md:mt-3"></div>
           </div>

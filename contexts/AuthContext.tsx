@@ -37,37 +37,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Always allow home and contact for authenticated users
     if (screen === 'home' || screen === 'contact') return true;
 
-    // 1. Check Custom Permissions Override
-    if (profile.permissions && profile.permissions.screens) {
-      const access = profile.permissions.screens[screen] || 'view';
-      if (profile.permissions.screens[screen]) {
-        const level = profile.permissions.screens[screen];
+    // Super Admin has access to everything
+    if (profile.is_super_admin) return true;
+
+    // 1. Check Custom Permissions Override (New RBAC)
+    if (profile.permissions?.screens) {
+      const level = profile.permissions.screens[screen];
+      if (level) {
         if (level === 'none') return false;
         if (requiredLevel === 'edit' && level !== 'edit') return false;
         return true;
       }
     }
 
-    // 2. Fallback to Role-Based Defaults
-    if (profile.is_super_admin) return true;
-
+    // 2. Fallback to Role-Based Defaults (Backward Compatibility)
     if (screen === 'system' || screen === 'logs') return false;
 
     const role = profile.role;
     if (role === 'admin') return true;
 
-    if (role === 'attendance_only') {
-      return screen === 'attendance';
+    if (role === 'editor') {
+      if (screen === 'settings') return false;
+      return requiredLevel === 'view' || screen !== 'settings'; // editors can edit mostly everything else
     }
 
     if (role === 'viewer') {
       if (requiredLevel === 'edit') return false;
-      return true;
+      return ['dashboard', 'stats', 'lottery', 'equipment'].includes(screen);
     }
 
-    if (role === 'editor') {
-      if (screen === 'settings') return false;
-      return true;
+    if (role === 'attendance_only') {
+      if (screen === 'attendance') return true;
+      if (screen === 'dashboard' && requiredLevel === 'view') return true;
+      return false;
     }
 
     return false;

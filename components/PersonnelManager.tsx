@@ -92,6 +92,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const [newTeamId, setNewTeamId] = useState('');
     const [newRoleIds, setNewRoleIds] = useState<string[]>([]);
     const [newCustomFields, setNewCustomFields] = useState<Record<string, any>>({});
+    const [newIsCommander, setNewIsCommander] = useState(false); // NEW
     const [tempCustomKey, setTempCustomKey] = useState(''); // NEW // NEW
 
     // Generic Items (Team/Role)
@@ -170,6 +171,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setNewTeamId('');
         setNewRoleIds([]);
         setNewCustomFields({});
+        setNewIsCommander(false);
         setTempCustomKey('');
         setNewItemName('');
     };
@@ -184,6 +186,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setNewTeamId(person.teamId);
         setNewRoleIds(person.roleIds || []);
         setNewCustomFields(person.customFields || {});
+        setNewIsCommander(!!person.isCommander);
         setIsModalOpen(true);
     };
 
@@ -327,6 +330,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             unavailableDates: [],
             preferences: { preferNight: false, avoidWeekends: false },
             customFields: newCustomFields, // NEW
+            isCommander: newIsCommander, // NEW
             color: 'bg-blue-500' // Default
         };
 
@@ -459,15 +463,26 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             direction="top" // NEW
                         />
                     </div>
-                    {/* Active Toggle */}
-                    {editingPersonId && (
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                            <div className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors ${newItemActive ? 'bg-green-500' : 'bg-slate-300'}`} onClick={() => setNewItemActive(!newItemActive)}>
-                                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${newItemActive ? 'translate-x-(-4)' : 'translate-x-0'}`} />
+                    {/* Toggles */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {editingPersonId && (
+                            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                <div className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors ${newItemActive ? 'bg-green-500' : 'bg-slate-300'}`} onClick={() => setNewItemActive(!newItemActive)}>
+                                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${newItemActive ? 'translate-x-4' : 'translate-x-0'}`} />
+                                </div>
+                                <span className="font-bold text-slate-700">{newItemActive ? 'פעיל' : 'לא פעיל'}</span>
                             </div>
-                            <span className="font-bold text-slate-700">{newItemActive ? 'פעיל' : 'לא פעיל (בארכיון)'}</span>
+                        )}
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <div className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors ${newIsCommander ? 'bg-indigo-500' : 'bg-slate-300'}`} onClick={() => setNewIsCommander(!newIsCommander)}>
+                                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${newIsCommander ? 'translate-x-4' : 'translate-x-0'}`} />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="font-bold text-slate-700 leading-none">מפקד צוות</span>
+                                <span className="text-[10px] text-slate-500 font-bold">הגדרת סמכות פיקודית</span>
+                            </div>
                         </div>
-                    )}
+                    </div>
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">תפקידים</label>
                         <div className="flex flex-wrap gap-2">

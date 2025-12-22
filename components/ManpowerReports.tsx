@@ -17,12 +17,13 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
     // State
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [viewMode, setViewMode] = useState<'daily' | 'trends'>('daily');
+    const [trendPeriod, setTrendPeriod] = useState<7 | 30 | 90>(30);
     const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
     const [selectedRoleId, setSelectedRoleId] = useState<string>('all');
 
     // Modal State
     const { showToast } = useToast();
-    const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; title: string; people: Person[]; type: 'present' | 'absent' | 'general' } | null>(null);
+    const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; title: string; people: Person[]; type: 'present' | 'absent' | 'general' | 'role_risk_detail'; riskDetails?: any[] } | null>(null);
     const [modalSearch, setModalSearch] = useState('');
 
     const dateKey = selectedDate.toLocaleDateString('en-CA');
@@ -80,22 +81,67 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
             return { name: team.name, ...teamStats, color: team.color };
         }).filter(Boolean);
 
-        // 4. Trend Data (Last 14 Days)
+        // 4. Trend Data
         const trendData = [];
-        for (let i = 13; i >= 0; i--) {
+        const roleTrends: Record<string, any[]> = {};
+        let totalPercentage = 0;
+
+        for (let i = trendPeriod - 1; i >= 0; i--) {
             const d = new Date(selectedDate);
             d.setDate(d.getDate() - i);
             const dKey = d.toLocaleDateString('en-CA');
             const dStats = getAttendanceForDate(dKey, filteredPeople);
+
+            totalPercentage += dStats.percentage;
+
             trendData.push({
-                date: dKey.slice(5), // MM-DD
+                date: dKey.slice(5),
+                fullDate: dKey,
                 percentage: dStats.percentage,
-                present: dStats.present
+                present: dStats.present,
+                dayName: d.toLocaleDateString('he-IL', { weekday: 'short' })
             });
         }
 
-        return { dailyStats, roleBreakdown, teamBreakdown, trendData };
-    }, [people, selectedDate, selectedTeamId, selectedRoleId, roles, teams]);
+        const avgAttendance = Math.round(totalPercentage / trendPeriod);
+
+        // 5. Insights & Hazards
+        const roleRisks = roles.map(role => {
+            const peopleWithRole = filteredPeople.filter(p => (p.roleIds || [p.roleId]).includes(role.id));
+            if (peopleWithRole.length === 0) return null;
+
+            const lowDaysInfo = trendData.filter(d => {
+                const dayStats = getAttendanceForDate(d.fullDate, peopleWithRole);
+                return dayStats.percentage < 50;
+            }).map(d => ({
+                date: d.fullDate,
+                absentPeople: getAttendanceForDate(d.fullDate, peopleWithRole).absentPeople
+            }));
+
+            return {
+                id: role.id,
+                name: role.name,
+                riskLevel: lowDaysInfo.length > trendPeriod * 0.3 ? 'high' : lowDaysInfo.length > 0 ? 'medium' : 'low',
+                lowDays: lowDaysInfo.length,
+                details: lowDaysInfo
+            };
+        }).filter(r => r && (r.riskLevel === 'high' || r.riskLevel === 'medium'))
+            .sort((a, b) => b!.lowDays - a!.lowDays);
+
+        // 6. Day of Week Analysis
+        const dayOfWeekStats: Record<string, { total: number, count: number }> = {};
+        trendData.forEach(d => {
+            if (!dayOfWeekStats[d.dayName]) dayOfWeekStats[d.dayName] = { total: 0, count: 0 };
+            dayOfWeekStats[d.dayName].total += d.percentage;
+            dayOfWeekStats[d.dayName].count += 1;
+        });
+        const weekdayAnalysis = Object.entries(dayOfWeekStats).map(([name, s]) => ({
+            name,
+            avg: Math.round(s.total / s.count)
+        }));
+
+        return { dailyStats, roleBreakdown, teamBreakdown, trendData, avgAttendance, roleRisks, weekdayAnalysis };
+    }, [people, selectedDate, selectedTeamId, selectedRoleId, roles, teams, trendPeriod]);
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -158,6 +204,20 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                                 options={[{ value: 'all', label: 'כל הארגון' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
                             />
                         </div>
+
+                        {viewMode === 'trends' && (
+                            <div className="w-full md:w-32">
+                                <Select
+                                    value={trendPeriod.toString()}
+                                    onChange={(val) => setTrendPeriod(parseInt(val) as any)}
+                                    options={[
+                                        { value: '7', label: '7 ימים' },
+                                        { value: '30', label: '30 ימים' },
+                                        { value: '90', label: '90 ימים' }
+                                    ]}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -328,37 +388,125 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
             )}
 
             {viewMode === 'trends' && (
-                <div className="bg-white p-6 rounded-xl shadow-portal">
-                    <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                        <TrendingUp className="text-blue-500" size={20} />
-                        מגמת נוכחות (14 ימים אחרונים)
-                    </h3>
-                    <div className="h-[400px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={stats.trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                                <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} unit="%" />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                    formatter={(value: number) => [`${value}%`, 'נוכחות']}
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="percentage"
-                                    stroke="#3b82f6"
-                                    strokeWidth={3}
-                                    fillOpacity={1}
-                                    fill="url(#colorAttendance)"
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                <div className="space-y-6">
+                    {/* Trend Overview Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <KPICard
+                            title="ממוצע נוכחות לתקופה"
+                            value={`${stats.avgAttendance}%`}
+                            icon={<TrendingUp size={24} />}
+                            color={stats.avgAttendance > 80 ? 'green' : stats.avgAttendance > 60 ? 'yellow' : 'red'}
+                            subtext={`מבוסס על ${trendPeriod} הימים האחרונים`}
+                        />
+                        <KPICard
+                            title="יציבות כוח אדם"
+                            value={stats.trendData.filter(d => d.percentage > 70).length > trendPeriod * 0.8 ? 'גבוהה' : 'בינונית'}
+                            icon={<CheckCircle2 size={24} />}
+                            color="blue"
+                            subtext="עקביות במצבת הנוכחים"
+                        />
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                            <h4 className="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">
+                                <AlertCircle size={16} className="text-red-500" />
+                                סיכונים בתפקידי ליבה
+                            </h4>
+                            <div className="space-y-3">
+                                {stats.roleRisks.slice(0, 3).map((risk: any) => (
+                                    <button
+                                        key={risk.id}
+                                        onClick={() => {
+                                            setModalConfig({
+                                                isOpen: true,
+                                                title: `פירוט סיכון: ${risk.name} (${risk.lowDays} ימים מתחת ל-50%)`,
+                                                people: [],
+                                                type: 'role_risk_detail',
+                                                riskDetails: risk.details
+                                            });
+                                        }}
+                                        className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-red-50 transition-colors group text-right"
+                                    >
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-slate-700">{risk.name}</span>
+                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">לחץ לפירוט מפורט לפי תאריכים</span>
+                                        </div>
+                                        <span className={`text-red-600 bg-red-50 px-2.5 py-1 rounded-lg font-black text-xs border border-red-100 group-hover:bg-red-100 transition-colors`}>
+                                            {risk.lowDays} ימי חוסר
+                                        </span>
+                                    </button>
+                                ))}
+                                {stats.roleRisks.length === 0 && <p className="text-xs text-slate-400 italic">לא זוהו סיכונים משמעותיים</p>}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Main Trend Chart */}
+                        <div className="bg-white p-6 rounded-xl shadow-portal border border-slate-100">
+                            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                                <TrendingUp className="text-blue-500" size={20} />
+                                גרף נוכחות - {trendPeriod} ימים
+                            </h3>
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={stats.trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                        <defs>
+                                            <linearGradient id="colorAttendanceTrends" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b', fontWeight: 'bold' }} axisLine={false} tickLine={false} interval={Math.floor(trendPeriod / 7)} />
+                                        <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} unit="%" />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', fontWeight: 'bold' }}
+                                            formatter={(value: number) => [`${value}%`, 'נוכחות']}
+                                        />
+                                        <Area
+                                            type="monotone"
+                                            dataKey="percentage"
+                                            stroke="#3b82f6"
+                                            strokeWidth={4}
+                                            fillOpacity={1}
+                                            fill="url(#colorAttendanceTrends)"
+                                            animationDuration={1500}
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Weekday Analysis */}
+                        <div className="bg-white p-6 rounded-xl shadow-portal border border-slate-100">
+                            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                                <Calendar className="text-emerald-500" size={20} />
+                                ניתוח נוכחות לפי ימי שבוע
+                            </h3>
+                            <div className="h-[300px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={stats.weekdayAnalysis} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b', fontWeight: 'bold' }} axisLine={false} tickLine={false} />
+                                        <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} unit="%" />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                                            cursor={{ fill: '#f8fafc' }}
+                                        />
+                                        <Bar dataKey="avg" radius={[6, 6, 0, 0]} barSize={40}>
+                                            {stats.weekdayAnalysis.map((entry: any, index: number) => (
+                                                <Cell
+                                                    key={`cell-${index}`}
+                                                    fill={entry.avg > 80 ? '#10b981' : entry.avg > 60 ? '#f59e0b' : '#ef4444'}
+                                                />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <p className="text-xs text-center text-slate-400 mt-4 font-bold italic">
+                                * מציג את ממוצע הנוכחות לאורך תקופת הדיווח (ללא סופי שבוע שאינם פעילים)
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
@@ -413,59 +561,118 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                     }
                 >
                     <div className="space-y-4">
-                        <Input
-                            placeholder="חיפוש לפי שם..."
-                            value={modalSearch}
-                            onChange={(e) => setModalSearch(e.target.value)}
-                            icon={Search}
-                            autoFocus
-                        />
+                        {modalConfig.type === 'role_risk_detail' ? (
+                            // Special view for role risk details - grouped by date
+                            <div className="space-y-4">
+                                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-800">
+                                    <strong>הסבר:</strong> להלן רשימת הימים בהם רמת הכשירות של תפקיד זה ירדה מתחת ל-50%, עם פירוט האנשים שהיו חסרים בכל יום.
+                                </div>
+                                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                                    {modalConfig.riskDetails?.map((dayDetail: any, idx: number) => {
+                                        const dateObj = new Date(dayDetail.date);
+                                        const dateStr = dateObj.toLocaleDateString('he-IL', {
+                                            weekday: 'long',
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        });
 
-                        <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-                            {modalConfig.people
-                                .filter(p => p.name.includes(modalSearch))
-                                .map(person => {
-                                    const team = teams.find(t => t.id === person.teamId);
-                                    const role = roles.find(r => r.id === person.roleId);
-
-                                    return (
-                                        <div key={person.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${modalConfig.type === 'present' ? 'bg-green-100 text-green-700' :
-                                                    modalConfig.type === 'absent' ? 'bg-red-100 text-red-700' :
-                                                        'bg-blue-100 text-blue-700'
-                                                    }`}>
-                                                    {person.name.charAt(0)}
+                                        return (
+                                            <div key={idx} className="bg-white border-2 border-red-100 rounded-xl p-4 shadow-sm">
+                                                <div className="flex items-center justify-between mb-3 pb-2 border-b border-red-100">
+                                                    <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                                                        <Calendar size={16} className="text-red-500" />
+                                                        {dateStr}
+                                                    </h4>
+                                                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-bold">
+                                                        {dayDetail.absentPeople.length} חסרים
+                                                    </span>
                                                 </div>
-                                                <div>
-                                                    <div className="font-bold text-slate-800">{person.name}</div>
-                                                    <div className="text-xs text-slate-500 flex items-center gap-2">
-                                                        <span>{team?.name || 'ללא צוות'}</span>
-                                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                                        <span>{role?.name || 'ללא תפקיד'}</span>
-                                                    </div>
+                                                <div className="space-y-2">
+                                                    {dayDetail.absentPeople.map((person: Person) => {
+                                                        const team = teams.find(t => t.id === person.teamId);
+                                                        const role = roles.find(r => r.id === person.roleId);
+
+                                                        return (
+                                                            <div key={person.id} className="flex items-center gap-3 p-2 bg-red-50 rounded-lg">
+                                                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs bg-red-100 text-red-700">
+                                                                    {person.name.charAt(0)}
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <div className="font-bold text-slate-800 text-sm">{person.name}</div>
+                                                                    <div className="text-xs text-slate-500 flex items-center gap-2">
+                                                                        <span>{team?.name || 'ללא צוות'}</span>
+                                                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                                        <span>{role?.name || 'ללא תפקיד'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
-                                            {/* Status Badge inside list if 'general' */}
-                                            {modalConfig.type === 'general' && (
-                                                <div className="flex-shrink-0">
-                                                    {(person.dailyAvailability?.[dateKey]?.isAvailable ?? true) ? (
-                                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">נוכח</span>
-                                                    ) : (
-                                                        <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-bold">חסר</span>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : (
+                            // Original people list view
+                            <>
+                                <Input
+                                    placeholder="חיפוש לפי שם..."
+                                    value={modalSearch}
+                                    onChange={(e) => setModalSearch(e.target.value)}
+                                    icon={Search}
+                                    autoFocus
+                                />
+
+                                <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                                    {modalConfig.people
+                                        .filter(p => p.name.includes(modalSearch))
+                                        .map(person => {
+                                            const team = teams.find(t => t.id === person.teamId);
+                                            const role = roles.find(r => r.id === person.roleId);
+
+                                            return (
+                                                <div key={person.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition-colors">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${modalConfig.type === 'present' ? 'bg-green-100 text-green-700' :
+                                                            modalConfig.type === 'absent' ? 'bg-red-100 text-red-700' :
+                                                                'bg-blue-100 text-blue-700'
+                                                            }`}>
+                                                            {person.name.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-bold text-slate-800">{person.name}</div>
+                                                            <div className="text-xs text-slate-500 flex items-center gap-2">
+                                                                <span>{team?.name || 'ללא צוות'}</span>
+                                                                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                                <span>{role?.name || 'ללא תפקיד'}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {/* Status Badge inside list if 'general' */}
+                                                    {modalConfig.type === 'general' && (
+                                                        <div className="flex-shrink-0">
+                                                            {(person.dailyAvailability?.[dateKey]?.isAvailable ?? true) ? (
+                                                                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">נוכח</span>
+                                                            ) : (
+                                                                <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-bold">חסר</span>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                            );
+                                        })}
 
-                            {modalConfig.people.filter(p => p.name.includes(modalSearch)).length === 0 && (
-                                <div className="text-center py-8 text-slate-400">
-                                    לא נמצאו תוצאות
+                                    {modalConfig.people.filter(p => p.name.includes(modalSearch)).length === 0 && (
+                                        <div className="text-center py-8 text-slate-400">
+                                            לא נמצאו תוצאות
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                        </div>
+                            </>
+                        )}
                     </div>
                 </Modal>
             )}

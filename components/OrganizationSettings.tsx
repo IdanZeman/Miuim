@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
-import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw } from 'lucide-react';
+import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw, Settings, Plus, Gavel, Layout, UserCircle, Globe, Anchor } from 'lucide-react';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
-import { Team, Profile, UserPermissions, UserRole, OrganizationInvite } from '../types';
+import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode } from '../types';
 import { PermissionEditor } from './PermissionEditor';
 import { Modal } from './ui/Modal';
 import { ConfirmationModal } from './ConfirmationModal';
@@ -27,6 +27,311 @@ const getRoleDisplayName = (role: UserRole) => {
     }
 };
 
+const getRoleDescription = (role: UserRole) => {
+    switch (role) {
+        case 'admin': return 'גישה מלאה לכל הגדרות הארגון, המשתמשים והנתונים.';
+        case 'editor': return 'יכולת עריכת שיבוצים, ניהול משימות וצפייה בדוחות.';
+        case 'viewer': return 'צפייה בלוח השיבוצים ובנתונים בלבד, ללא יכולת עריכה.';
+        case 'attendance_only': return 'גישה לדיווח נוכחות בלבד.';
+        default: return 'הרשאות בסיסיות.';
+    }
+};
+
+const SCREENS: { id: ViewMode; label: string; icon: any }[] = [
+    { id: 'dashboard', label: 'לוח שיבוצים', icon: Layout },
+    { id: 'personnel', label: 'ניהול כוח אדם', icon: Users },
+    { id: 'tasks', label: 'משימות', icon: CheckCircle },
+    { id: 'attendance', label: 'נוכחות', icon: UserCircle },
+    { id: 'stats', label: 'דוחות ונתונים', icon: Info },
+    { id: 'constraints', label: 'ניהול אילוצים', icon: Anchor },
+    { id: 'lottery', label: 'הגרלות', icon: Gavel },
+    { id: 'equipment', label: 'ניהול אמצעים', icon: Shield },
+    { id: 'settings', label: 'הגדרות ארגון', icon: Settings },
+];
+
+const RoleTemplateManager: React.FC<{
+    organizationId: string;
+    templates: PermissionTemplate[];
+    teams: Team[];
+    onRefresh: () => void;
+}> = ({ organizationId, templates, teams, onRefresh }) => {
+    const { showToast } = useToast();
+    const { confirm, modalProps } = useConfirmation();
+    const [isCreating, setIsCreating] = useState(false);
+    const [editingTemplate, setEditingTemplate] = useState<PermissionTemplate | null>(null);
+
+    const handleDeleteTemplate = async (id: string) => {
+        confirm({
+            title: 'מחיקת תבנית',
+            message: 'האם אתה בטוח שברצונך למחוק תבנית זו? משתמשים שמשויכים אליה ישמרו את ההרשאות האחרונות שלהם כהרשאות מותאמות אישית.',
+            confirmText: 'מחק',
+            type: 'danger',
+            onConfirm: async () => {
+                const { error } = await supabase.from('permission_templates').delete().eq('id', id);
+                if (error) {
+                    showToast('שגיאה במחיקת התבנית', 'error');
+                } else {
+                    showToast('התבנית נמחקה', 'success');
+                    onRefresh();
+                }
+            }
+        });
+    };
+
+    const handleSaveTemplate = async (templateId: string | null, name: string, permissions: UserPermissions) => {
+        const payload = {
+            organization_id: organizationId,
+            name,
+            permissions
+        };
+
+        let error;
+        if (templateId) {
+            const { error: err } = await supabase.from('permission_templates').update(payload).eq('id', templateId);
+            error = err;
+        } else {
+            const { error: err } = await supabase.from('permission_templates').insert(payload);
+            error = err;
+        }
+
+        if (error) {
+            showToast('שגיאה בשמירת התבנית', 'error');
+        } else {
+            showToast('התבנית נשמרה בהצלחה', 'success');
+            setIsCreating(false);
+            setEditingTemplate(null);
+            onRefresh();
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 md:gap-3">
+                    <Shield className="text-indigo-600 flex-shrink-0" size={24} />
+                    <div>
+                        <h2 className="text-lg md:text-xl font-black text-slate-800">תבניות הרשאות</h2>
+                        <p className="text-xs md:text-sm text-slate-500 font-bold">הגדר תפקידים מובנים כמו "מפקד מחלקה", "חייל" וכו'</p>
+                    </div>
+                </div>
+                <Button
+                    variant="primary"
+                    icon={Plus}
+                    onClick={() => setIsCreating(true)}
+                    className="shadow-md"
+                >
+                    תבנית חדשה
+                </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {templates.map(tmp => (
+                    <div key={tmp.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-blue-300 transition-all group shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="font-black text-slate-800 text-lg">{tmp.name}</h3>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="sm" icon={Pencil} onClick={() => setEditingTemplate(tmp)} />
+                                <Button variant="ghost" size="sm" icon={Trash2} className="text-red-500 hover:bg-red-50" onClick={() => handleDeleteTemplate(tmp.id)} />
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
+                                {tmp.permissions.dataScope === 'organization' ? 'כל הארגון' : tmp.permissions.dataScope === 'team' ? 'צוותי' : 'אישי'}
+                            </span>
+                            {Object.entries(tmp.permissions.screens).filter(([_, level]) => level !== 'none').length > 0 && (
+                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold">
+                                    {Object.entries(tmp.permissions.screens).filter(([_, level]) => level !== 'none').length} מסכים מורשים
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {(isCreating || editingTemplate) && (
+                <TemplateEditorModal
+                    isOpen={true}
+                    onClose={() => { setIsCreating(false); setEditingTemplate(null); }}
+                    template={editingTemplate}
+                    onSave={handleSaveTemplate}
+                    teams={teams}
+                />
+            )}
+            <ConfirmationModal {...modalProps} />
+        </div>
+    );
+};
+
+const TemplateEditorModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    template: PermissionTemplate | null;
+    onSave: (id: string | null, name: string, permissions: UserPermissions) => void;
+    teams: Team[];
+}> = ({ isOpen, onClose, template, onSave, teams }) => {
+    const [name, setName] = useState(template?.name || '');
+    const [permissions, setPermissions] = useState<UserPermissions>(template?.permissions || {
+        dataScope: 'organization',
+        screens: {},
+        canManageUsers: false,
+        canManageSettings: false
+    });
+
+    const handleSave = () => {
+        if (!name.trim()) return;
+        onSave(template?.id || null, name, permissions);
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={template ? 'עריכת תבנית' : 'יצירת תבנית חדשה'} size="2xl">
+            <div className="space-y-6">
+                <Input
+                    label="שם התבנית"
+                    placeholder="למשל: מפקד מחלקה"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="font-black text-lg"
+                />
+
+                <div className="border-t border-slate-100 pt-6">
+                    <PermissionEditorContent
+                        permissions={permissions}
+                        setPermissions={setPermissions}
+                        teams={teams}
+                    />
+                </div>
+
+                <div className="flex justify-end gap-3 mt-8">
+                    <Button variant="ghost" onClick={onClose}>ביטול</Button>
+                    <Button variant="primary" icon={Save} onClick={handleSave} disabled={!name.trim()}>שמור תבנית</Button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+// Extracted Permission Editor Logic to share between Profile and Template
+const PermissionEditorContent: React.FC<{
+    permissions: UserPermissions;
+    setPermissions: React.Dispatch<React.SetStateAction<UserPermissions>>;
+    teams: Team[];
+}> = ({ permissions, setPermissions, teams }) => {
+    const setAllScreens = (lvl: 'none' | 'view' | 'edit') => {
+        const nextScreens: any = {};
+        SCREENS.forEach(s => {
+            nextScreens[s.id] = lvl;
+        });
+        setPermissions(prev => ({
+            ...prev,
+            screens: nextScreens
+        }));
+    };
+
+    const toggleTeam = (teamId: string) => {
+        const current = permissions.allowedTeamIds || [];
+        setPermissions(prev => ({
+            ...prev,
+            allowedTeamIds: current.includes(teamId)
+                ? current.filter(id => id !== teamId)
+                : [...current, teamId]
+        }));
+    };
+
+    return (
+        <div className="space-y-8">
+            <section className="space-y-4">
+                <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <Globe size={14} />
+                    היקף נתונים (Scope)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    {['organization', 'my_team', 'team', 'personal'].map((s) => (
+                        <label key={s} className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${permissions.dataScope === s ? 'border-blue-500 bg-blue-50' : 'border-slate-100'}`}>
+                            <input type="radio" className="sr-only" checked={permissions.dataScope === s} onChange={() => setPermissions(p => ({ ...p, dataScope: s as any }))} />
+                            <div className="font-black text-slate-800 mb-1">
+                                {s === 'organization' && 'כל הארגון'}
+                                {s === 'my_team' && 'הצוות שלי'}
+                                {s === 'team' && 'צוותים נבחרים'}
+                                {s === 'personal' && 'אישי'}
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-bold leading-tight">
+                                {s === 'organization' && 'גישה לכל נתוני היחידה'}
+                                {s === 'my_team' && 'גישה אוטומטית לצוות המשויך'}
+                                {s === 'team' && 'ניהול ידני של הרשאות צוות'}
+                                {s === 'personal' && 'רק המידע המשויך למשתמש'}
+                            </p>
+                        </label>
+                    ))}
+                </div>
+                {permissions.dataScope === 'team' && (
+                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 min-h-[60px] items-center">
+                        {teams.length > 0 ? (
+                            teams.map(t => (
+                                <button key={t.id} onClick={() => toggleTeam(t.id)} className={`px-4 py-1.5 rounded-full text-xs font-black transition-all border ${permissions.allowedTeamIds?.includes(t.id) ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}>
+                                    {t.name}
+                                </button>
+                            ))
+                        ) : (
+                            <p className="text-sm text-slate-400 font-bold italic w-full text-center">לא נמצאו צוותים בארגון...</p>
+                        )}
+                    </div>
+                )}
+            </section>
+
+            <section>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider">הרשאות מסכים</h3>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <table className="w-full text-right">
+                        <thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase">
+                            <tr>
+                                <th className="px-4 py-3 border-b">מסך</th>
+                                {['none', 'view', 'edit'].map(lvl => (
+                                    <th key={lvl} className="px-4 py-3 border-b text-center">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span>{lvl === 'none' ? 'חסום' : lvl === 'view' ? 'צפייה' : 'עריכה'}</span>
+                                            <button
+                                                onClick={() => setAllScreens(lvl as any)}
+                                                className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
+                                            >
+                                                בחר הכל
+                                            </button>
+                                        </div>
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {SCREENS.map(screen => (
+                                <tr key={screen.id}>
+                                    <td className="px-4 py-3 flex items-center gap-2 font-bold text-slate-700">
+                                        <screen.icon size={16} className="text-slate-400" />
+                                        {screen.label}
+                                    </td>
+                                    {['none', 'view', 'edit'].map(lvl => (
+                                        <td key={lvl} className="px-4 py-3 text-center">
+                                            <input
+                                                type="radio"
+                                                className="w-4 h-4"
+                                                checked={(permissions.screens[screen.id] || 'none') === lvl}
+                                                onChange={() => setPermissions(prev => ({
+                                                    ...prev,
+                                                    screens: { ...prev.screens, [screen.id]: lvl as any }
+                                                }))}
+                                            />
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div>
+    );
+};
 const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId }) => {
     const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
@@ -60,8 +365,8 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
             }
 
             if (data) {
-                setStart(data.night_shift_start.slice(0, 5));
-                setEnd(data.night_shift_end.slice(0, 5));
+                setStart((data.night_shift_start || '22:00').slice(0, 5));
+                setEnd((data.night_shift_end || '06:00').slice(0, 5));
                 setViewerDays(data.viewer_schedule_days || 2);
                 setDaysOn(data.default_days_on || 11);
                 setDaysOff(data.default_days_off || 3);
@@ -152,8 +457,6 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 <p className="text-slate-400 text-xs md:text-sm mt-2">המשתמשים יוכלו לראות את הלו"ז להיום ולמספר הימים הבאים שהוגדר.</p>
             </div>
 
-
-
             <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-3 md:gap-4 pt-2">
                 {showSuccess && (
                     <div className="flex items-center justify-center gap-2 text-green-600 animate-fadeIn">
@@ -184,6 +487,8 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const [inviteRole, setInviteRole] = useState<UserRole>('viewer');
     const [sending, setSending] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
+    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles'>('general');
 
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
@@ -194,8 +499,21 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         if (organization) {
             fetchMembers();
             fetchInvites();
+            fetchTemplates();
         }
     }, [organization]);
+
+    const fetchTemplates = async () => {
+        if (!organization) return;
+        const { data, error } = await supabase
+            .from('permission_templates')
+            .select('*')
+            .eq('organization_id', organization.id);
+
+        if (!error && data) {
+            setTemplates(data);
+        }
+    };
 
     const fetchMembers = async () => {
         if (!organization) return;
@@ -373,105 +691,145 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     }
 
     return (
-        <div className="space-y-4 md:space-y-6 max-w-3xl mx-auto">
-            {/* Organization Info */}
-            <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-yellow-200">
-                <div className="flex items-center gap-3 md:gap-4 mb-4">
-                    <div className="w-20 h-20 md:w-24 md:h-24 bg-white border border-slate-100 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden p-3 shadow-inner">
-                        <img src="/favicon.png" alt="Organization Logo" className="w-full h-full object-contain" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <h1 className="text-xl md:text-3xl font-bold text-slate-800 truncate">{organization?.name}</h1>
-                        <p className="text-sm md:text-base text-slate-600">{members.length} משתמשים במערכת</p>
-                    </div>
-                </div>
+        <div className="space-y-4 md:space-y-6 max-w-4xl mx-auto pb-20">
+            {/* Tab Navigation */}
+            <div className="sticky top-0 z-20 flex bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-lg border border-slate-200/50 mb-6 mt-[-4px]">
+                <button
+                    onClick={() => setActiveTab('general')}
+                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 ${activeTab === 'general' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                >
+                    <Settings size={18} />
+                    הגדרות כלליות
+                </button>
+                <button
+                    onClick={() => setActiveTab('roles')}
+                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 ${activeTab === 'roles' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                >
+                    <Shield size={18} />
+                    ניהול תפקידים (RBAC)
+                </button>
+                <button
+                    onClick={() => setActiveTab('members')}
+                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 ${activeTab === 'members' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                >
+                    <Users size={18} />
+                    חברי ארגון
+                </button>
             </div>
 
-            {/* Invite Link Settings */}
-            <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-blue-200">
-                <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-                    <LinkIcon className="text-blue-600 flex-shrink-0" size={20} />
-                    <h2 className="text-lg md:text-2xl font-bold text-slate-800">קישור הצטרפות</h2>
-                </div>
-                <InviteLinkSettings organization={organization} onUpdate={fetchMembers} />
-            </div>
-
-            {/* Night Shift Settings */}
-            <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-indigo-200">
-                <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-                    <Moon className="text-indigo-600 flex-shrink-0" size={20} />
-                    <h2 className="text-lg md:text-2xl font-bold text-slate-800">הגדרות כלליות</h2>
-                </div>
-                <GeneralSettings organizationId={organization?.id || ''} />
-            </div>
-
-            {/* Invite Form REMOVED as per user request */}
-
-
-
-            {/* Members List */}
-            <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-lg border-2 border-emerald-200">
-                <div className="flex items-center justify-between mb-4 md:mb-6">
-                    <div className="flex items-center gap-2 md:gap-3">
-                        <Users className="text-emerald-600 flex-shrink-0" size={20} />
-                        <h2 className="text-lg md:text-2xl font-bold text-slate-800">משתמשים במערכת</h2>
-                    </div>
-                    <div className="w-full max-w-xs">
-                        <Input
-                            placeholder="חפש משתמש..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            icon={Search}
-                            className="rounded-full"
-                            containerClassName="max-w-xs"
-                        />
-                    </div>
-                </div>
-
-                <div className="space-y-2 md:space-y-3">
-                    {members.filter(m =>
-                    (m.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        m.email.toLowerCase().includes(searchTerm.toLowerCase()))
-                    ).map((member) => (
-                        <div key={member.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 md:p-4 bg-slate-50 rounded-lg md:rounded-xl border border-slate-200 gap-3">
-                            <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
-                                <div className="w-9 h-9 md:w-10 md:h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                    <span className="text-emerald-700 font-bold text-sm md:text-base">
-                                        {member.email.charAt(0).toUpperCase()}
-                                    </span>
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="font-medium text-slate-800 text-sm md:text-base truncate">
-                                        {member.full_name || member.email.split('@')[0]}
-                                        {member.id === user?.id && <span className="text-emerald-600 mr-2 text-xs md:text-sm">(אתה)</span>}
-                                    </p>
-                                    <p className="text-xs md:text-sm text-slate-500 truncate">{member.email}</p>
-                                </div>
+            {activeTab === 'general' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {/* Organization Info */}
+                    <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200">
+                        <div className="flex items-center gap-3 md:gap-4 mb-4">
+                            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center flex-shrink-0 animate-pulse-slow">
+                                <img src="/favicon.png" alt="Logo" className="w-10 h-10 object-contain opacity-50" />
                             </div>
-
-                            <div className="flex items-center gap-3 sm:flex-shrink-0">
-                                {member.id === user?.id ? (
-                                    <span className="px-3 md:px-4 py-1.5 md:py-2 bg-emerald-100 text-emerald-700 rounded-lg font-medium text-xs md:text-sm text-center">
-                                        {getRoleDisplayName(member.role)}
-                                    </span>
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            onClick={() => handleOpenPermissionEditor(member)}
-                                            variant="ghost"
-                                            size="sm"
-                                            icon={Pencil}
-                                            className="bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600"
-                                        >
-                                            ערוך הרשאות
-                                        </Button>
-                                    </div>
-                                )}
+                            <div className="min-w-0 flex-1">
+                                <h1 className="text-xl md:text-2xl font-black text-slate-800 truncate">{organization?.name}</h1>
+                                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">ניהול הגדרות ארגון</p>
                             </div>
                         </div>
-                    ))}
+                    </div>
+
+                    <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200">
+                        <div className="flex items-center gap-2 md:gap-3 mb-6">
+                            <LinkIcon className="text-blue-600 flex-shrink-0" size={20} />
+                            <h2 className="text-lg md:text-xl font-black text-slate-800">קישור הצטרפות</h2>
+                        </div>
+                        <InviteLinkSettings
+                            organization={organization}
+                            onUpdate={fetchMembers}
+                            templates={templates}
+                            onViewTemplates={() => setActiveTab('roles')}
+                        />
+                    </div>
+
+                    <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200">
+                        <div className="flex items-center gap-2 md:gap-3 mb-6">
+                            <Moon className="text-indigo-600 flex-shrink-0" size={20} />
+                            <h2 className="text-lg md:text-xl font-black text-slate-800">הגדרות מערכת</h2>
+                        </div>
+                        <GeneralSettings organizationId={organization?.id || ''} />
+                    </div>
                 </div>
-            </div>
+            )}
+
+            {activeTab === 'roles' && (
+                <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <RoleTemplateManager
+                        organizationId={organization?.id || ''}
+                        templates={templates}
+                        teams={teams}
+                        onRefresh={fetchTemplates}
+                    />
+                </div>
+            )}
+
+            {activeTab === 'members' && (
+                <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center justify-between mb-4 md:mb-6">
+                        <div className="flex items-center gap-2 md:gap-3">
+                            <Users className="text-emerald-600 flex-shrink-0" size={20} />
+                            <h2 className="text-lg md:text-2xl font-bold text-slate-800">משתמשים במערכת</h2>
+                        </div>
+                        <div className="w-full max-w-xs">
+                            <Input
+                                placeholder="חפש משתמש..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                icon={Search}
+                                className="rounded-full"
+                                containerClassName="max-w-xs"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2 md:space-y-3">
+                        {members.filter(m =>
+                        (m.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            m.email.toLowerCase().includes(searchTerm.toLowerCase()))
+                        ).map((member) => (
+                            <div key={member.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 md:p-4 bg-slate-50 rounded-lg md:rounded-xl border border-slate-200 gap-3">
+                                <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
+                                    <div className="w-9 h-9 md:w-10 md:h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <span className="text-emerald-700 font-bold text-sm md:text-base">
+                                            {member.email.charAt(0).toUpperCase()}
+                                        </span>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-medium text-slate-800 text-sm md:text-base truncate">
+                                            {member.full_name || member.email.split('@')[0]}
+                                            {member.id === user?.id && <span className="text-emerald-600 mr-2 text-xs md:text-sm">(אתה)</span>}
+                                        </p>
+                                        <p className="text-xs md:text-sm text-slate-500 truncate">{member.email}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 sm:flex-shrink-0">
+                                    {member.id === user?.id ? (
+                                        <span className="px-3 md:px-4 py-1.5 md:py-2 bg-emerald-100 text-emerald-700 rounded-lg font-medium text-xs md:text-sm text-center">
+                                            {getRoleDisplayName(member.role)}
+                                        </span>
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                onClick={() => handleOpenPermissionEditor(member)}
+                                                variant="ghost"
+                                                size="sm"
+                                                icon={Pencil}
+                                                className="bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600"
+                                            >
+                                                ערוך הרשאות
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
             {editingPermissionsFor && (
                 <PermissionEditor
                     isOpen={true}
@@ -479,6 +837,8 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                     user={editingPermissionsFor}
                     onSave={handleSavePermissions}
                     teams={teams}
+                    templates={templates}
+                    onManageTemplates={() => setActiveTab('roles')}
                 />
             )}
             <ConfirmationModal {...modalProps} />
@@ -486,19 +846,24 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     );
 };
 
-const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> = ({ organization, onUpdate }) => {
+const InviteLinkSettings: React.FC<{
+    organization: any;
+    onUpdate: () => void;
+    templates: PermissionTemplate[],
+    onViewTemplates: () => void
+}> = ({ organization, onUpdate, templates, onViewTemplates }) => {
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
     const [isActive, setIsActive] = useState(organization?.is_invite_link_active || false);
-    const [defaultRole, setDefaultRole] = useState<UserRole>(organization?.invite_link_role || 'member');
+    const [templateId, setTemplateId] = useState<string | null>(organization?.invite_link_template_id || null);
     const [inviteToken, setInviteToken] = useState(organization?.invite_token || '');
 
     useEffect(() => {
         if (organization) {
             setIsActive(organization.is_invite_link_active);
-            setDefaultRole(organization.invite_link_role || 'member');
+            setTemplateId(organization.invite_link_template_id || null);
             setInviteToken(organization.invite_token);
         }
     }, [organization]);
@@ -559,33 +924,22 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
         });
     };
 
-    const handleRoleChange = async (newRole: UserRole) => {
-        console.log(' [DEBUG] handleRoleChange triggered with:', newRole);
-        const previousRole = defaultRole;
-        setDefaultRole(newRole); // Optimistic update
+    const handleTemplateChange = async (tid: string) => {
+        setTemplateId(tid);
         setLoading(true);
         try {
-            console.log(' [DEBUG] Sending update to Supabase...', {
-                id: organization.id,
-                invite_link_role: newRole
-            });
-
-            const { data, error } = await supabase
+            const { error } = await supabase
                 .from('organizations')
-                .update({ invite_link_role: newRole })
-                .eq('id', organization.id)
-                .select(); // Add select to see what happened
+                .update({
+                    invite_link_template_id: tid || null
+                })
+                .eq('id', organization.id);
 
-            if (error) {
-                console.error(' [DEBUG] Supabase Update Error:', error);
-                throw error;
-            }
-            console.log(' [DEBUG] Supabase Update Success. Returned data:', data);
-
+            if (error) throw error;
+            showToast('הגדרות הקישור עודכנו', 'success');
         } catch (error) {
-            console.error('Error updating default role:', error);
-            showToast('שגיאה בעדכון הרשאת ברירת מחדל', 'error');
-            setDefaultRole(previousRole); // Revert on error
+            console.error('Error updating invite template:', error);
+            showToast('שגיאה בעדכון התבנית', 'error');
         } finally {
             setLoading(false);
         }
@@ -601,16 +955,6 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
         } else {
             // Fallback
             showToast('שגיאה בהעתקה, נא להעתיק ידנית', 'error');
-        }
-    };
-
-    const getRoleDescription = (role: UserRole) => {
-        switch (role) {
-            case 'admin': return 'גישה מלאה לכל הגדרות הארגון, המשתמשים והנתונים.';
-            case 'editor': return 'יכולת עריכת שיבוצים, ניהול משימות וצפייה בדוחות.';
-            case 'viewer': return 'צפייה בלוח השיבוצים ובנתונים בלבד, ללא יכולת עריכה.';
-            case 'attendance_only': return 'גישה לדיווח נוכחות בלבד.';
-            default: return 'הרשאות בסיסיות.';
         }
     };
 
@@ -632,22 +976,60 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                     </span>
                 </label>
 
-                {/* Role Selector */}
-                <div className="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 w-full sm:w-auto">
-                    <span className="text-sm font-medium text-slate-600 whitespace-nowrap hidden sm:inline">הרשאה למצטרפים:</span>
-                    <div className="w-full sm:w-48">
-                        <Select
-                            value={defaultRole}
-                            onChange={(val) => handleRoleChange(val as UserRole)}
-                            options={[
-                                { value: 'viewer', label: 'צופה (Viewer)' },
-                                { value: 'editor', label: 'עורך (Editor)' },
-                                { value: 'admin', label: 'מנהל (Admin)' },
-                                { value: 'attendance_only', label: 'נוכחות בלבד' }
-                            ]}
-                            disabled={loading}
-                            placeholder="בחר הרשאה"
-                        />
+                {/* Selection Area */}
+                <div className="flex-1 space-y-4">
+                    <div className="flex items-center gap-2">
+                        <Shield size={16} className="text-indigo-600" />
+                        <span className="text-sm font-black text-slate-700">תבנית הרשאות למצטרפים</span>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-2xl border-2 border-slate-100 transition-all focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-50 shadow-sm overflow-hidden relative group">
+                        <div className="absolute top-0 right-0 w-2 h-full bg-indigo-500 opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
+
+                        <label className="text-[10px] font-black text-slate-400 uppercase mb-3 block tracking-widest">בחר תבנית הרשאות עבור הקישור</label>
+
+                        {templates.length > 0 ? (
+                            <div className="flex flex-col sm:flex-row gap-4 items-center">
+                                <div className="w-full sm:flex-1">
+                                    <Select
+                                        value={templateId || ''}
+                                        onChange={(val) => handleTemplateChange(val)}
+                                        options={[
+                                            { value: '', label: 'ללא תבנית (גישת "בית" בלבד)' },
+                                            ...templates.map(t => ({ value: t.id, label: t.name }))
+                                        ]}
+                                        disabled={loading}
+                                        placeholder="בחר תבנית..."
+                                    />
+                                    <button
+                                        onClick={onViewTemplates}
+                                        className="mt-2 text-[10px] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors px-1"
+                                    >
+                                        <Shield size={10} />
+                                        נהל תבניות הרשאות קיימות...
+                                    </button>
+                                </div>
+                                <div className="h-full sm:w-px sm:h-10 bg-slate-100 hidden sm:block"></div>
+                                <div className="flex-1 text-xs text-slate-500 font-bold italic">
+                                    {templateId ? 'כל מצטרף יקבל את ההרשאות המוגדרות בתבנית זו.' : 'ללא תבנית, המשתמש יראה רק את עמוד הבית (מסך הפתיחה) ללא גישה ללוח השיבוצים או נתונים.'}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100 text-amber-700">
+                                <Info size={20} className="shrink-0" />
+                                <div className="flex-1">
+                                    <div className="text-xs font-black">
+                                        אין עדיין תבניות מוגדרות. צור את התבנית הראשונה שלך בלשונית "ניהול תפקידים" כדי להפעיל את הקישור עם הרשאות מותאמות.
+                                    </div>
+                                    <button
+                                        onClick={onViewTemplates}
+                                        className="mt-2 text-xs font-black underline hover:text-amber-900"
+                                    >
+                                        עבור לניהול תפקידים עכשיו
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -657,8 +1039,17 @@ const InviteLinkSettings: React.FC<{ organization: any, onUpdate: () => void }> 
                     <p className="text-sm text-slate-600 flex items-start gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
                         <Info size={16} className="text-blue-500 mt-0.5 shrink-0" />
                         <span>
-                            <strong>משמעות ההרשאה הנבחרת ({getRoleDisplayName(defaultRole)}):</strong><br />
-                            {getRoleDescription(defaultRole)}
+                            {templateId && templates.find(t => t.id === templateId) ? (
+                                <>
+                                    <strong>משמעות התבנית הנבחרת ({templates.find(t => t.id === templateId)?.name}):</strong><br />
+                                    {templates.find(t => t.id === templateId)?.description || 'הרשאות מותאמות אישית כפי שהוגדרו בתבנית הארגונית.'}
+                                </>
+                            ) : (
+                                <>
+                                    <strong>משמעות ההצטרפות (עמוד הבית בלבד):</strong><br />
+                                    גישה למסך הפתיחה בלבד. לוח השיבוצים ושאר חלקי המערכת יהיו חסומים עד להגדרת הרשאות.
+                                </>
+                            )}
                         </span>
                     </p>
 

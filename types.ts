@@ -109,6 +109,7 @@ export interface Person {
     avoidWeekends: boolean;
   };
   customFields?: Record<string, any>; // NEW
+  isCommander?: boolean; // NEW: Explicitly designates team leadership
 }
 
 export type SchedulingType = 'continuous' | 'one-time';
@@ -163,14 +164,20 @@ export interface Shift {
 
 
 export type AccessLevel = 'view' | 'edit' | 'none';
-export type DataScope = 'organization' | 'team' | 'personal';
+export type DataScope = 'organization' | 'team' | 'personal' | 'my_team';
+
+export interface PermissionTemplate {
+  id: string;
+  name: string;
+  organization_id: string;
+  permissions: UserPermissions;
+  is_default?: boolean; // If multiple templates exist, which one is the default for new users
+}
 
 export interface UserPermissions {
   dataScope: DataScope;
   allowedTeamIds?: string[]; // IDs of teams the user can access if scope is 'team'
   screens: Partial<Record<ViewMode, AccessLevel>>; // Per-screen access overrides
-  canManageUsers: boolean; // Permission to add/edit/delete users overrides
-  canManageSettings: boolean; // Permission to access Organization Settings
 }
 
 export interface Profile {
@@ -209,6 +216,7 @@ export interface AppState {
   teamRotations: TeamRotation[]; // NEW
   settings: OrganizationSettings | null; // NEW
   absences: Absence[]; // NEW
+  equipment: Equipment[]; // NEW
 }
 
 export type TicketStatus = 'new' | 'in_progress' | 'resolved';
@@ -227,7 +235,7 @@ export interface ContactMessage {
   updated_at?: string; // New column
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system';
+export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'equipment';
 
 export interface DailyPresence {
   id?: string; // Optional for new entries
@@ -250,4 +258,29 @@ export interface Absence {
   end_date: string;   // ISO Date "YYYY-MM-DD"
   reason?: string;
   created_at?: string;
+}
+
+// --- Tzelem (Asset) Tracking ---
+
+export type EquipmentStatus = 'present' | 'missing' | 'damaged' | 'lost';
+
+export interface Equipment {
+  id: string;
+  organization_id: string;
+  type: string; // e.g., "Weapon", "Scope", "NVG"
+  serial_number: string; // The "Tz" unique ID
+  assigned_to_id: string | null; // Person ID or null
+  signed_at: string | null; // ISO Date
+  last_verified_at: string | null; // ISO Date
+  status: EquipmentStatus;
+  notes?: string;
+}
+
+export interface EquipmentVerification {
+  id: string;
+  equipment_id: string;
+  verified_by_id: string; // Profile ID
+  verified_at: string; // ISO Timestamp
+  status: EquipmentStatus;
+  notes?: string;
 }

@@ -8,11 +8,12 @@ const AttendanceManager = React.lazy(() => import('./components/AttendanceManage
 const TaskManager = React.lazy(() => import('./components/TaskManager').then(module => ({ default: module.TaskManager })));
 const StatsDashboard = React.lazy(() => import('./components/StatsDashboard').then(module => ({ default: module.StatsDashboard })));
 const OrganizationSettingsComponent = React.lazy(() => import('./components/OrganizationSettings').then(module => ({ default: module.OrganizationSettings })));
-const ShiftReport = React.lazy(() => import('./components/ShiftReport').then(module => ({ default: module.ShiftReport })));
-const AdminLogsViewer = React.lazy(() => import('./components/AdminLogsViewer').then(module => ({ default: module.AdminLogsViewer })));
+
+const AdminLogsViewer = React.lazy(() => import('./components/AdminLogsViewer'));
 const Lottery = React.lazy(() => import('./components/Lottery').then(module => ({ default: module.Lottery })));
 const ConstraintsManager = React.lazy(() => import('./components/ConstraintsManager').then(module => ({ default: module.ConstraintsManager })));
-const AbsenceManager = React.lazy(() => import('./components/AbsenceManager').then(module => ({ default: module.AbsenceManager }))); // NEW
+const AbsenceManager = React.lazy(() => import('./components/AbsenceManager')); // NEW
+const EquipmentManager = React.lazy(() => import('./components/EquipmentManager').then(m => ({ default: m.EquipmentManager })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
 const SystemManagementPage = React.lazy(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
 
@@ -22,7 +23,7 @@ import { LandingPage } from './components/LandingPage';
 import { Onboarding } from './components/Onboarding';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useToast } from './contexts/ToastContext';
-import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence } from './types'; // Updated imports
+import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence, Equipment } from './types'; // Updated imports
 import { supabase } from './services/supabaseClient';
 import {
     mapShiftFromDB, mapShiftToDB,
@@ -32,7 +33,8 @@ import {
     mapTaskFromDB, mapTaskToDB,
     mapConstraintFromDB, mapConstraintToDB,
     mapRotationFromDB, mapRotationToDB,
-    mapAbsenceFromDB, mapAbsenceToDB // Added imports
+    mapAbsenceFromDB, mapAbsenceToDB, // Added imports
+    mapEquipmentFromDB, mapEquipmentToDB
 } from './services/supabaseClient';
 import { solveSchedule } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
@@ -67,7 +69,7 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 const MainApp: React.FC = () => {
     const { organization, user, profile, checkAccess } = useAuth();
     const { showToast } = useToast();
-    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences'>(() => { // Added 'absences'
+    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment'>(() => { // Added 'absences' and 'equipment'
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem('miuim_active_view');
             if (saved) return saved as any;
@@ -111,6 +113,7 @@ const MainApp: React.FC = () => {
         constraints: SchedulingConstraint[];
         teamRotations: import('./types').TeamRotation[]; // NEW
         absences: Absence[]; // NEW
+        equipment: Equipment[]; // NEW
     }>({
         people: [],
         shifts: [],
@@ -119,7 +122,8 @@ const MainApp: React.FC = () => {
         teams: [],
         constraints: [],
         teamRotations: [], // NEW
-        absences: [] // NEW
+        absences: [], // NEW
+        equipment: [] // NEW
     });
 
     const isLinkedToPerson = React.useMemo(() => {
@@ -141,6 +145,7 @@ const MainApp: React.FC = () => {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduling_constraints', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'team_rotations', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW
             .on('postgres_changes', { event: '*', schema: 'public', table: 'absences', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW subscription
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW subscription
             .on('postgres_changes', { event: '*', schema: 'public', table: 'organization_settings', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW
             .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW subscription
             .subscribe();
@@ -169,6 +174,7 @@ const MainApp: React.FC = () => {
             const { data: constraintsData } = await supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id);
             const { data: rotationsData } = await supabase.from('team_rotations').select('*').eq('organization_id', organization.id); // NEW
             const { data: absencesData } = await supabase.from('absences').select('*').eq('organization_id', organization.id); // NEW
+            const { data: equipmentData } = await supabase.from('equipment').select('*').eq('organization_id', organization.id); // NEW
             const { data: settingsData } = await supabase.from('organization_settings').select('*').eq('organization_id', organization.id).maybeSingle(); // NEW
             const { data: presenceData } = await supabase.from('daily_presence').select('*').eq('organization_id', organization.id); // NEW Fetch Presence
 
@@ -313,6 +319,7 @@ const MainApp: React.FC = () => {
                 constraints: (constraintsData || []).map(mapConstraintFromDB),
                 teamRotations: (rotationsData || []).map(mapRotationFromDB),
                 absences: (absencesData || []).map(mapAbsenceFromDB), // NEW
+                equipment: (equipmentData || []).map(mapEquipmentFromDB), // NEW
                 settings: (settingsData as any) || null
             });
         } catch (error) {
@@ -593,6 +600,23 @@ const MainApp: React.FC = () => {
 
     const handleDeleteAbsence = async (id: string) => {
         setState(prev => ({ ...prev, absences: prev.absences.filter(a => a.id !== id) }));
+    };
+
+    const handleAddEquipment = async (e: Equipment) => {
+        if (!organization) return;
+        const itemWithOrg = { ...e, organization_id: organization.id };
+        setState(prev => ({ ...prev, equipment: [...prev.equipment, itemWithOrg] }));
+        try { await supabase.from('equipment').insert(itemWithOrg); } catch (e) { console.warn(e); }
+    };
+
+    const handleUpdateEquipment = async (e: Equipment) => {
+        setState(prev => ({ ...prev, equipment: prev.equipment.map(item => item.id === e.id ? e : item) }));
+        try { await supabase.from('equipment').update(e).eq('id', e.id); } catch (e) { console.warn(e); }
+    };
+
+    const handleDeleteEquipment = async (id: string) => {
+        setState(prev => ({ ...prev, equipment: prev.equipment.filter(e => e.id !== id) }));
+        try { await supabase.from('equipment').delete().eq('id', id); } catch (e) { console.warn(e); }
     };
 
     const handleAssign = async (shiftId: string, personId: string) => {
@@ -881,7 +905,7 @@ const MainApp: React.FC = () => {
         }
 
         switch (view) {
-            case 'home': return <HomePage shifts={state.shifts} tasks={state.taskTemplates} people={state.people} onNavigate={(view: any, date?: Date) => {
+            case 'home': return <HomePage shifts={state.shifts} tasks={state.taskTemplates} people={state.people} teams={state.teams} roles={state.roles} onNavigate={(view: any, date?: Date) => {
                 if (date) setSelectedDate(date);
                 setView(view);
             }} />;
@@ -904,16 +928,25 @@ const MainApp: React.FC = () => {
             />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
-            case 'settings': return <OrganizationSettingsComponent organizationId={organization?.id || ''} />;
+            case 'settings': return <OrganizationSettingsComponent organizationId={organization?.id || ''} teams={state.teams} />;
 
 
-            case 'reports': return <ShiftReport shifts={state.shifts} people={state.people} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} />;
+
             case 'logs': return <AdminLogsViewer />;
             case 'lottery': return <Lottery people={state.people} teams={state.teams} roles={state.roles} />;
             case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} isViewer={!checkAccess('constraints', 'edit')} organizationId={organization?.id || ''} />;
             case 'contact': return <ContactPage />;
             case 'tickets': return <SystemManagementPage />; // Redirect legacy tickets route
             case 'system': return <SystemManagementPage />; // NEW
+            case 'equipment':
+                return <EquipmentManager
+                    people={state.people}
+                    teams={state.teams}
+                    equipment={state.equipment}
+                    onAddEquipment={handleAddEquipment}
+                    onUpdateEquipment={handleUpdateEquipment}
+                    onDeleteEquipment={handleDeleteEquipment}
+                />;
             case 'absences':
                 return checkAccess('attendance') ? (
                     <AbsenceManager

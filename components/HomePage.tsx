@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Shift, TaskTemplate, Person } from '../types';
+import { Shift, TaskTemplate, Person, Team, Role } from '../types';
+import { WarClock } from './WarClock';
 import { supabase } from '../services/supabaseClient';
 import { differenceInHours, addDays, isSameDay } from 'date-fns'; // You might need to install date-fns or use native Intl
 import { Clock, Calendar, CheckCircle2, Moon } from 'lucide-react'; // Removing unused icons if any. Sun, ArrowLeft, AlertCircle were unused?
@@ -10,10 +11,12 @@ interface HomePageProps {
     shifts: Shift[];
     tasks: TaskTemplate[];
     people: Person[];
+    teams: Team[];
+    roles: Role[];
     onNavigate: (view: any, date?: Date) => void;
 }
 
-export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, onNavigate }) => {
+export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams, roles, onNavigate }) => {
     const { user, profile, organization } = useAuth();
     const [viewerDays, setViewerDays] = useState<number>(7); // Default fallback
     const [loadingSettings, setLoadingSettings] = useState(true);
@@ -184,6 +187,11 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, onNav
                     </div>
                 </div>
             )}
+
+            {/* War Clock / Daily Schedule */}
+            <div className="mb-8 animate-in slide-in-from-bottom-2 duration-700 delay-100">
+                <WarClock myPerson={myPerson} teams={teams} roles={roles} />
+            </div>
 
             {/* Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
