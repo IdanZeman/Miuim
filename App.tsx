@@ -12,7 +12,7 @@ const OrganizationSettingsComponent = React.lazy(() => import('./components/Orga
 const AdminLogsViewer = React.lazy(() => import('./components/AdminLogsViewer'));
 const Lottery = React.lazy(() => import('./components/Lottery').then(module => ({ default: module.Lottery })));
 const ConstraintsManager = React.lazy(() => import('./components/ConstraintsManager').then(module => ({ default: module.ConstraintsManager })));
-const AbsenceManager = React.lazy(() => import('./components/AbsenceManager')); // NEW
+const AbsenceManager = React.lazy(() => import('./components/AbsenceManager').then(module => ({ default: module.AbsenceManager })));
 const EquipmentManager = React.lazy(() => import('./components/EquipmentManager').then(m => ({ default: m.EquipmentManager })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
 const SystemManagementPage = React.lazy(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
@@ -69,10 +69,13 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 const MainApp: React.FC = () => {
     const { organization, user, profile, checkAccess } = useAuth();
     const { showToast } = useToast();
-    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment'>(() => { // Added 'absences' and 'equipment'
+    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment'>(() => {
+        // Always start at home, but check for import wizard flag
         if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('miuim_active_view');
-            if (saved) return saved as any;
+            const shouldOpenImport = localStorage.getItem('open_import_wizard');
+            if (shouldOpenImport) {
+                return 'personnel';
+            }
         }
         return 'home';
     });
@@ -80,20 +83,11 @@ const MainApp: React.FC = () => {
     // Persistence & Scroll to Top Effect
     useEffect(() => {
         if (typeof window !== 'undefined') {
+            // Only persist view changes, don't restore on mount
             localStorage.setItem('miuim_active_view', view);
             window.scrollTo(0, 0);
         }
     }, [view]);
-
-    // Check for import wizard flag from onboarding
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const shouldOpenImport = localStorage.getItem('open_import_wizard');
-            if (shouldOpenImport) {
-                setView('personnel');
-            }
-        }
-    }, []);
     const [personnelTab, setPersonnelTab] = useState<'people' | 'teams' | 'roles'>('people');
     const [isLoading, setIsLoading] = useState(true);
     const [isScheduling, setIsScheduling] = useState(false);

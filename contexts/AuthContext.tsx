@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (role === 'editor') {
       if (screen === 'settings') return false;
-      return requiredLevel === 'view' || screen !== 'settings'; // editors can edit mostly everything else
+      return true; // editors can edit everything else
     }
 
     if (role === 'viewer') {
@@ -392,8 +392,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       analytics.trackLogout();
-      const { error } = await supabase.auth.signOut();
+
+      // Clear all auth-related storage to prevent auto-login
+      if (typeof window !== 'undefined') {
+        // Clear Supabase session from localStorage
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.startsWith('sb-') || key.includes('supabase')) {
+            localStorage.removeItem(key);
+          }
+        });
+
+        // Clear app-specific storage
+        localStorage.removeItem('miuim_active_view');
+      }
+
+      // Sign out with 'local' scope to clear local session only
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) throw error;
+
+      // Clear state
+      setUser(null);
+      setProfile(null);
+      setOrganization(null);
     } catch (error) {
       analytics.trackError((error as Error).message, 'Logout');
       console.error('Error signing out:', error);

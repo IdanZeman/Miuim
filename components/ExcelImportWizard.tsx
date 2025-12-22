@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { Upload, FileSpreadsheet, ArrowRight, ArrowLeft, Check, AlertCircle, Plus, ArrowUpRight } from 'lucide-react';
+import { Upload, FileSpreadsheet, ArrowRight, ArrowLeft, Check, AlertCircle, Plus, ArrowUpRight, Download } from 'lucide-react';
 import { Person, Team, Role } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { Select } from './ui/Select';
@@ -22,7 +22,7 @@ type Step = 'upload' | 'mapping' | 'resolution' | 'preview';
 
 interface ColumnMapping {
     excelColumn: string;
-    systemField: 'name' | 'first_name' | 'last_name' | 'team' | 'role' | 'phone' | 'email' | 'ignore';
+    systemField: 'name' | 'first_name' | 'last_name' | 'team' | 'role' | 'mobile' | 'email' | 'is_commander' | 'is_active' | 'ignore';
 }
 
 interface ParsedData {
@@ -79,7 +79,9 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         { value: 'team', label: 'צוות' },
         { value: 'role', label: 'תפקיד' },
         { value: 'email', label: 'אימייל' },
-        { value: 'mobile', label: 'טלפון נייד' }, // NEW: Phone support
+        { value: 'mobile', label: 'טלפון נייד' },
+        { value: 'is_commander', label: 'מפקד (כן/לא)' },
+        { value: 'is_active', label: 'פעיל (כן/לא)' },
         { value: 'ignore', label: 'התעלם' }
     ];
 
@@ -115,8 +117,10 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     else if (h.includes('משפחה') || h === 'last name') field = 'last_name';
                     else if (h.includes('צוות') || h.includes('מחלק')) field = 'team';
                     else if (h.includes('תפקיד')) field = 'role';
-                    else if (h.includes('טלפון') || h.includes('נייד')) field = 'phone';
+                    else if (h.includes('טלפון') || h.includes('נייד')) field = 'mobile';
                     else if (h.includes('מייל') || h.includes('דוא')) field = 'email';
+                    else if (h.includes('מפקד') || h.includes('commander')) field = 'is_commander';
+                    else if (h.includes('פעיל') || h.includes('active')) field = 'is_active';
 
                     return { excelColumn: header, systemField: field };
                 });
@@ -129,6 +133,39 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             }
         };
         reader.readAsBinaryString(file);
+    };
+
+    const downloadTemplate = () => {
+        // Create template with all Person fields
+        const headers = [
+            'שם מלא',
+            'שם פרטי',
+            'שם משפחה',
+            'צוות',
+            'תפקיד (ניתן להפריד בפסיק)',
+            'טלפון נייד',
+            'אימייל',
+            'מפקד (כן/לא)',
+            'פעיל (כן/לא)'
+        ];
+
+        const exampleRow = [
+            'יוסי כהן',
+            'יוסי',
+            'כהן',
+            'מחלקה א',
+            'מקלען, נהג',
+            '050-1234567',
+            'yossi@example.com',
+            'כן',
+            'כן'
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'תבנית חיילים');
+        XLSX.writeFile(wb, 'תבנית_ייבוא_חיילים.xlsx');
+        showToast('תבנית הורדה בהצלחה', 'success');
     };
 
     const handleMappingChange = (index: number, systemField: any) => {
@@ -364,6 +401,13 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 }
             }
 
+            // Parse boolean fields
+            const parseBoolean = (value: any): boolean => {
+                if (typeof value === 'boolean') return value;
+                const str = String(value).trim().toLowerCase();
+                return str === 'כן' || str === 'yes' || str === 'true' || str === '1';
+            };
+
             return {
                 ...basePerson, // Start with existing data
                 id: id,
@@ -372,7 +416,9 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 roleIds: roleIds.length > 0 ? roleIds : (basePerson.roleIds || []),
                 email: rowData.email || basePerson.email || '',
                 phone: rowData.mobile || basePerson.phone || '',
-                maxHoursPerWeek: 40,
+                isCommander: rowData.is_commander !== undefined ? parseBoolean(rowData.is_commander) : (basePerson.isCommander || false),
+                isActive: rowData.is_active !== undefined ? parseBoolean(rowData.is_active) : (basePerson.isActive ?? true),
+                maxShiftsPerWeek: basePerson.maxShiftsPerWeek || 7,
                 unavailableDates: basePerson.unavailableDates || [],
                 preferences: basePerson.preferences || { preferNight: false, avoidWeekends: false },
                 color: color !== 'bg-slate-500' ? color : (basePerson.color || 'bg-slate-500')
@@ -491,7 +537,17 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                 <Upload size={32} className="text-blue-500" />
                             </div>
                             <h3 className="text-lg font-bold text-slate-700 mb-2">לחץ להעלאת קובץ אקסל</h3>
-                            <p className="text-slate-500 text-sm">תומך בקבצי .xlsx, .xls, .csv</p>
+                            <p className="text-slate-500 text-sm mb-4">תומך בקבצי .xlsx, .xls, .csv</p>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    downloadTemplate();
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-bold text-sm"
+                            >
+                                <Download size={16} />
+                                הורד תבנית אקסל
+                            </button>
                         </div>
                     )}
 

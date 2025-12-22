@@ -827,69 +827,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
 
 
-    const mismatchWarnings = useMemo(() => {
-        if (isViewer) return [];
 
-        return shifts.flatMap(shift => {
-            const task = taskTemplates.find(t => t.id === shift.taskId);
-            if (!task) return [];
-
-            // Resolve requirements from shift snapshot or segment
-            const segment = task.segments?.find(s => s.id === shift.segmentId) || task.segments?.[0];
-            const roleComposition = shift.requirements?.roleComposition || segment?.roleComposition || [];
-
-            const requiredRoleIds = roleComposition.map(rc => rc.roleId);
-            return shift.assignedPersonIds
-                .filter(pid => {
-                    const person = people.find(p => p.id === pid);
-                    if (!person) return false;
-
-                    const warningId = `${shift.id}-${pid}`;
-
-                    if (acknowledgedWarnings.has(warningId)) return false;
-
-                    if (requiredRoleIds.length === 0) return false; // No specific roles required
-
-                    const currentRoleIds = person.roleIds || [person.roleId];
-                    return !currentRoleIds.some(rid => requiredRoleIds.includes(rid));
-                })
-                .map(pid => {
-                    const person = people.find(p => p.id === pid)!;
-                    return {
-                        warningId: `${shift.id}-${pid}`,
-                        shiftId: shift.id,
-                        personId: pid,
-                        taskName: task.name,
-                        start: new Date(shift.startTime),
-                        end: new Date(shift.endTime),
-                        personName: person.name,
-                        missingRoles: requiredRoleIds
-                            .map(rid => roles.find(r => r.id === rid)?.name)
-                            .filter(Boolean) as string[]
-                    };
-                });
-        });
-    }, [shifts, taskTemplates, people, roles, acknowledgedWarnings, isViewer]);
-
-    const handleAcknowledgeWarning = async (warningId: string) => {
-        setAcknowledgedWarnings(prev => new Set([...prev, warningId]));
-
-        if (organization?.id) {
-            const { error } = await supabase
-                .from('acknowledged_warnings')
-                .upsert({
-                    organization_id: organization.id,
-                    warning_id: warningId,
-                    acknowledged_at: new Date().toISOString()
-                }, {
-                    onConflict: 'organization_id,warning_id'
-                });
-
-            if (error) {
-                console.error('Error saving acknowledged warning:', error);
-            }
-        }
-    };
 
     const visibleTasks = useMemo(() => {
         const dateKey = selectedDate.toLocaleDateString('en-CA');
@@ -922,22 +860,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const canGoNext = !isViewer || !isAtViewerLimit;
     const canGoPrev = true;
 
-    const handleJumpToShift = (shiftId: string, shiftStart: Date) => {
-        const shiftDate = new Date(shiftStart);
-        shiftDate.setHours(0, 0, 0, 0);
-        onDateChange(shiftDate);
-
-        setTimeout(() => {
-            const shiftElement = document.getElementById(`shift-card-${shiftId}`);
-            if (shiftElement) {
-                shiftElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                shiftElement.classList.add('ring-4', 'ring-red-500', 'ring-offset-2');
-                setTimeout(() => {
-                    shiftElement.classList.remove('ring-4', 'ring-red-500', 'ring-offset-2');
-                }, 2000);
-            }
-        }, 300);
-    };
 
     const handleDateChange = (newDate: Date) => {
         onDateChange(newDate);
@@ -1030,56 +952,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             {selectedShift && <AssignmentModal />}
 
 
-
-
-            {/* Global Mismatch Warnings Panel */}
-            {!isViewer && !isLoadingWarnings && mismatchWarnings.length > 0 && (
-                <div className="rounded-xl border-2 border-red-500 bg-red-50 p-2 space-y-2 animate-fadeIn flex-shrink-0">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
-
-                        <AlertTriangle className="text-red-600 flex-shrink-0" size={18} />
-                        <h2 className="text-red-700 font-bold text-base md:text-lg">
-                            אזהרות שיבוץ ({mismatchWarnings.length})
-                        </h2>
-                    </div>
-                    <button
-                        onClick={() => {
-                            const allWarningIds = mismatchWarnings.map(w => w.warningId);
-                            setAcknowledgedWarnings(new Set([...acknowledgedWarnings, ...allWarningIds]));
-                        }}
-                        className="text-xs text-red-600 hover:text-red-800 font-bold px-3 py-1 rounded-full bg-white hover:bg-red-100 transition-colors whitespace-nowrap"
-                    >
-                        אשר הכל
-                    </button>
-
-                    <ul className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
-                        {mismatchWarnings.map((w) => (
-                            <li key={w.warningId} className="text-xs md:text-sm flex flex-col gap-2 bg-white/60 rounded-md p-2 md:px-3 md:py-2 border border-red-300">
-                                <div onClick={() => handleJumpToShift(w.shiftId, w.start)} className="flex-1 flex flex-col gap-1 cursor-pointer hover:bg-white/80">
-                                    <div className="flex flex-wrap items-center gap-1">
-                                        <span className="font-bold text-red-700">{w.personName}</span>
-                                        <span className="text-red-600">במשימה "{w.taskName}"</span>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2 text-slate-600">
-                                        <span className="font-medium text-xs">📅 {w.start.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
-                                        <span className="text-xs" dir="ltr">🕐 {w.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}–{w.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                                    </div>
-                                    <span className="text-xs text-red-500">חסר: {w.missingRoles.join(', ')}</span>
-                                </div>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleAcknowledgeWarning(w.warningId); }}
-                                    className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-full bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-colors"
-                                >
-                                    <CheckCircle size={14} />
-                                    אישור
-                                </button>
-                            </li>
-                        ))}
-
-                    </ul>
-                </div>
-            )
-            }
 
             {/* Time Grid Board Container */}
             <div className="bg-white rounded-xl shadow-portal p-2 flex flex-col flex-1 min-h-0">

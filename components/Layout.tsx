@@ -146,14 +146,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
 
 
+                {/* Absences - Before Attendance */}
+                {checkAccess('attendance') && (
+                  <TopNavLink active={currentView === 'absences'} onClick={() => setView('absences')} label="היעדרויות" icon={UserX} />
+                )}
+
                 {/* Attendance */}
                 {checkAccess('attendance') && (
                   <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות" icon={Clock} />
-                )}
-
-                {/* Absences - Only if has attendance access */}
-                {checkAccess('attendance') && (
-                  <TopNavLink active={currentView === 'absences'} onClick={() => setView('absences')} label="היעדרויות" icon={UserX} />
                 )}
 
                 {/* Stats */}
