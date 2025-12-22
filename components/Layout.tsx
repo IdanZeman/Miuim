@@ -376,7 +376,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {/* Equipment */}
               {checkAccess('equipment') && (
                 <button
-                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'stats'
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'equipment'
                     ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
                     : 'hover:bg-slate-50 text-slate-700'
                     }`}
