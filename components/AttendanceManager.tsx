@@ -230,6 +230,57 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הגדרות סבב אישי עודכנו', 'success');
     };
 
+    const handleUpdateAvailability = (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }) => {
+        if (isViewer) return;
+
+        const person = people.find(p => p.id === personId);
+        if (!person) return;
+
+        const currentData = person.dailyAvailability?.[date] || {
+            isAvailable: true, // default
+            startHour: '00:00',
+            endHour: '23:59',
+            source: 'manual'
+        };
+
+        let newData: any = {
+            ...currentData,
+            source: 'manual'
+        };
+
+        if (status === 'base') {
+            newData.isAvailable = true;
+            if (customTimes) {
+                newData.startHour = customTimes.start;
+                newData.endHour = customTimes.end;
+            } else {
+                newData.startHour = '00:00';
+                newData.endHour = '23:59';
+            }
+        } else if (status === 'home') {
+            newData.isAvailable = false;
+            newData.startHour = '00:00';
+            newData.endHour = '00:00';
+            // newData.reason = 'בבית'; // Optional
+        } else if (status === 'unavailable') {
+            newData.isAvailable = false;
+            newData.startHour = '00:00';
+            newData.endHour = '00:00';
+            newData.reason = 'אילוץ / לא זמין';
+        }
+
+        const updatedPerson = {
+            ...person,
+            dailyAvailability: {
+                ...person.dailyAvailability,
+                [date]: newData
+            }
+        };
+
+        onUpdatePerson(updatedPerson);
+        showToast('הסטטוס עודכן בהצלחה', 'success');
+    };
+
     const handleExport = () => {
         if (viewMode === 'calendar') {
             // Export Month
@@ -435,6 +486,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         setSelectedPersonForCalendar(p);
                                     }
                                 }}
+                                onUpdateAvailability={handleUpdateAvailability}
                             />
                         )}
                     </div>

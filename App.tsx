@@ -207,7 +207,7 @@ const MainApp: React.FC = () => {
 
                         if (isBase) {
                             // Check Neighbors
-                            console.log(`[StatusInference] Checking ${pd.person_id} on ${dateKey}. Prev: ${timeline[index - 1]?.status}, Next: ${timeline[index + 1]?.status}`);
+                            // console.log(`[StatusInference] Checking ${pd.person_id} on ${dateKey}. Prev: ${timeline[index - 1]?.status}, Next: ${timeline[index + 1]?.status}`);
                             const prevRec = timeline[index - 1];
                             const nextRec = timeline[index + 1];
 
@@ -326,13 +326,31 @@ const MainApp: React.FC = () => {
     const handleAddPerson = async (p: Person) => {
         if (!organization) return;
         const personWithOrg = { ...p, organization_id: organization.id };
+
+        // Prepare payload, ensuring valid UUID
+        const dbPayload = mapPersonToDB(personWithOrg);
+        if (dbPayload.id && (dbPayload.id.startsWith('person-') || dbPayload.id.startsWith('imported-'))) {
+            // Generate UUID on client side since DB column has no default
+            dbPayload.id = self.crypto && self.crypto.randomUUID ? self.crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
         try {
-            await supabase.from('people').insert(mapPersonToDB(personWithOrg));
-            setState(prev => ({ ...prev, people: [...prev.people, p] }));
-            await logger.logCreate('person', p.id, p.name, p);
-        } catch (e) {
+            // Insert and RETURN the new record with the real ID
+            const { data, error } = await supabase.from('people').insert(dbPayload).select().single();
+            if (error) throw error;
+
+            const newPerson = mapPersonFromDB(data);
+            setState(prev => ({ ...prev, people: [...prev.people, newPerson] }));
+            await logger.logCreate('person', newPerson.id, newPerson.name, newPerson);
+        } catch (e: any) {
             console.warn("DB Insert Failed", e);
-            setState(prev => ({ ...prev, people: [...prev.people, p] }));
+            if (e.code === '23505') {
+                throw new Error('שגיאה: משתמש עם נתונים זהים (שם/טלפון/אימייל) כבר קיים במערכת.');
+            }
+            throw e;
         }
     };
 
@@ -341,10 +359,14 @@ const MainApp: React.FC = () => {
             const { error } = await supabase.from('people').update(mapPersonToDB(p)).eq('id', p.id);
             if (error) throw error;
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
-        } catch (e) {
+            setState(prev => ({ ...prev, people: prev.people.map(person => person.id === p.id ? p : person) }));
+        } catch (e: any) {
             console.warn("DB Update Failed:", e);
+            if (e.code === '23505') {
+                throw new Error('שגיאה בעדכון: משתמש עם נתונים זהים (שם/טלפון/אימייל) כבר קיים.');
+            }
+            throw e;
         }
-        setState(prev => ({ ...prev, people: prev.people.map(person => person.id === p.id ? p : person) }));
     };
 
     const handleUpdatePeople = async (peopleToUpdate: Person[]) => {
@@ -513,23 +535,23 @@ const MainApp: React.FC = () => {
         setState(prev => ({ ...prev, taskTemplates: prev.taskTemplates.filter(t => t.id !== id), shifts: prev.shifts.filter(s => s.taskId !== id) }));
     };
 
-    const handleAddConstraint = async (c: Omit<SchedulingConstraint, 'id'>) => {
+    const handleAddConstraint = async (c: Omit<SchedulingConstraint, 'id'>, silent = false) => {
         if (!organization) return;
         try {
             const newConstraint = await import('./services/supabaseClient').then(m => m.addConstraint({ ...c, organization_id: organization.id }));
             setState(prev => ({ ...prev, constraints: [...prev.constraints, newConstraint] }));
-            showToast('אילוץ נשמר בהצלחה', 'success');
+            if (!silent) showToast('אילוץ נשמר בהצלחה', 'success');
         } catch (e) {
             console.warn(e);
             showToast('שגיאה בשמירת אילוץ', 'error');
         }
     };
 
-    const handleDeleteConstraint = async (id: string) => {
+    const handleDeleteConstraint = async (id: string, silent = false) => {
         try {
             await import('./services/supabaseClient').then(m => m.deleteConstraint(id));
             setState(prev => ({ ...prev, constraints: prev.constraints.filter(c => c.id !== id) }));
-            showToast('אילוץ נמחק בהצלחה', 'success');
+            if (!silent) showToast('אילוץ נמחק בהצלחה', 'success');
         } catch (e) {
             console.warn(e);
             showToast('שגיאה במחיקת אילוץ', 'error');

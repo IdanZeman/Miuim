@@ -11,6 +11,13 @@ export interface Organization {
   invite_link_role?: UserRole;
 }
 
+export interface CustomFieldDefinition {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'boolean' | 'date' | 'select';
+  options?: string[];
+}
+
 export interface OrganizationSettings {
   organization_id: string;
   night_shift_start: string; // "HH:MM:SS"
@@ -20,6 +27,8 @@ export interface OrganizationSettings {
   default_days_off?: number; // Global default days at home
   rotation_start_date?: string; // ISO Date YYYY-MM-DD
   min_daily_staff?: number; // Minimum people required on base
+  optimization_mode?: 'ratio' | 'min_staff' | 'tasks'; // NEW: Default optimization mode
+  customFieldsSchema?: CustomFieldDefinition[]; // NEW: Schema for custom fields
 }
 
 
@@ -99,6 +108,7 @@ export interface Person {
     preferNight: boolean;
     avoidWeekends: boolean;
   };
+  customFields?: Record<string, any>; // NEW
 }
 
 export type SchedulingType = 'continuous' | 'one-time';

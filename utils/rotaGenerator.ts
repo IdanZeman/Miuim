@@ -1,13 +1,7 @@
 import { Person, Team, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence } from '../types';
 
 // --- CONFIGURATION ---
-const WEIGHTS = {
-    CONSTRAINT: 1_000_000,
-    FATIGUE: 10_000,       // Increased to punish long base stints severely
-    FRAGMENTATION: 5_000,  // Increased to force 3-day blocks (prevents 1-day leaves)
-    CAPACITY: 100,         // Increased to flatten the curve
-    EQUITY: 200            // Penalize deviation from target total home days
-};
+// Move WEIGHTS to be dynamic based on mode
 
 const SIMULATION_PARAMS = {
     ITERATIONS: 20000,
@@ -15,17 +9,23 @@ const SIMULATION_PARAMS = {
     COOLING_RATE: 0.9995
 };
 
+export interface PersonHistory {
+    lastStatus: 'base' | 'home';
+    consecutiveDays: number;
+}
+
 export interface RosterGenerationParams {
     startDate: Date;
     endDate: Date;
     people: Person[];
     teams: Team[];
-    settings: OrganizationSettings;
+    settings: OrganizationSettings & { optimizationMode?: 'ratio' | 'min_staff' | 'tasks' }; 
     teamRotations: TeamRotation[];
     constraints: SchedulingConstraint[];
-    absences: Absence[]; // NEW
+    absences: Absence[];
     customMinStaff?: number;
     customRotation?: { daysBase: number; daysHome: number; };
+    history?: Map<string, PersonHistory>;
 }
 
 export interface RosterGenerationResult {
@@ -50,6 +50,8 @@ class RosterOptimizer {
     private constraints: Map<string, Set<number>>; // Set of day indices that MUST be home
     private startDate: Date;
     private targetCapacity: number;
+    private weights: { CONSTRAINT: number; FATIGUE: number; FRAGMENTATION: number; CAPACITY: number; EQUITY: number };
+    private history?: Map<string, PersonHistory>;
 
     constructor(
         people: Person[], 
@@ -58,11 +60,15 @@ class RosterOptimizer {
         rotations: Map<string, TeamRotation>, 
         rawConstraints: SchedulingConstraint[],
         absences: Absence[],
-        targetCapacity: number
+        targetCapacity: number,
+        weights: { CONSTRAINT: number; FATIGUE: number; FRAGMENTATION: number; CAPACITY: number; EQUITY: number },
+        history?: Map<string, PersonHistory>
     ) {
         this.people = people;
         this.startDate = startDate;
         this.targetCapacity = targetCapacity;
+        this.weights = weights; // Store custom weights
+        this.history = history;
         this.totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         
         this.schedule = new Map();
@@ -125,7 +131,18 @@ class RosterOptimizer {
 
             // 1. Generate Ideal Pattern (The Rhythm)
             // We stagger the start based on person ID or random to avoid everyone having same cycle initially
-            const offset = Math.floor(Math.random() * cycleLength);
+            let offset = Math.floor(Math.random() * cycleLength);
+
+            // Respect History (Seeding)
+            if (this.history && this.history.has(p.id)) {
+                const h = this.history.get(p.id)!;
+                if (h.lastStatus === 'base') {
+                    offset = h.consecutiveDays;
+                } else {
+                    offset = config.daysBase + h.consecutiveDays;
+                }
+                offset = offset % cycleLength;
+            }
 
             for (let i = 0; i < this.totalDays; i++) {
                 const cyclePos = (i + offset) % cycleLength;
@@ -163,11 +180,12 @@ class RosterOptimizer {
     // --- COST FUNCTION ---
     public calculateCost(): number {
         let cost = 0;
+        const W = this.weights; // Use instance weights
 
         // 1. Capacity Variance
         for (let i = 0; i < this.totalDays; i++) {
             const diff = this.dailyCapacity[i] - this.targetCapacity;
-            cost += (diff * diff) * WEIGHTS.CAPACITY;
+            cost += (diff * diff) * W.CAPACITY;
         }
 
         // 2. Person Costs (Fatigue, Fragmentation, Constraints)
@@ -182,18 +200,18 @@ class RosterOptimizer {
             for (let i = 0; i < this.totalDays; i++) {
                 // Constraint Check
                 if (hard.has(i) && sched[i]) {
-                    cost += WEIGHTS.CONSTRAINT; // Should not happen in Smart Seed + Valid Mutations
+                    cost += W.CONSTRAINT; // Should not happen in Smart Seed + Valid Mutations
                 }
 
                 if (sched[i]) { // Base
                     fatigue++;
                     if (homeBlockLen > 0 && homeBlockLen < config.daysHome) {
-                        cost += WEIGHTS.FRAGMENTATION;
+                        cost += W.FRAGMENTATION;
                     }
                     homeBlockLen = 0;
 
                     if (fatigue > config.daysBase) {
-                        cost += WEIGHTS.FATIGUE;
+                        cost += W.FATIGUE;
                     }
                 } else { // Home
                     actualHomeDays++;
@@ -207,7 +225,7 @@ class RosterOptimizer {
             }
             // Check last block
             if (homeBlockLen > 0 && homeBlockLen < config.daysHome) {
-                 cost += WEIGHTS.FRAGMENTATION;
+                 cost += W.FRAGMENTATION;
             }
 
             // 3. Equity Cost (Fairness)
@@ -215,7 +233,7 @@ class RosterOptimizer {
             const cycle = config.daysBase + config.daysHome;
             const expectedHomeDays = (this.totalDays * config.daysHome) / cycle;
             const diff = actualHomeDays - expectedHomeDays;
-            cost += (diff * diff) * WEIGHTS.EQUITY;
+            cost += (diff * diff) * W.EQUITY;
         });
 
         return cost;
@@ -389,8 +407,32 @@ export const generateRoster = (params: RosterGenerationParams): RosterGeneration
     const { startDate, endDate, people, teamRotations, constraints, absences, settings, customMinStaff, customRotation } = params;
     
     const minDailyStaff = customMinStaff ?? settings.min_daily_staff ?? 0;
+    const mode = settings.optimizationMode || 'ratio';
 
-    // 1. Prepare Data
+    // 1. Define Weights based on Mode
+    let weights = {
+        CONSTRAINT: 1_000_000,
+        FATIGUE: 10_000,       // Increased to punish long base stints severely
+        FRAGMENTATION: 5_000,  // Increased to force 3-day blocks (prevents 1-day leaves)
+        CAPACITY: 100,         // Increased to flatten the curve
+        EQUITY: 200            // Penalize deviation from target total home days
+    };
+
+    if (mode === 'min_staff') {
+        // Punish being over-capacity? Or punish variance from Min Staff?
+        // We will set targetCapacity = minDailyStaff later.
+        // Increase Capacity Weight to strict
+        weights.CAPACITY = 1000; 
+        // Reduce Equity slightly if needed, but keeping it helps fairness
+        // Fatigue same
+    } else if (mode === 'tasks') {
+        // Focus on coverage. If targetCapacity covers tasks, just adhere to it.
+        // Maybe relax Equity to allow "best man for job" (though this solver has no individual skill matching yet)
+        weights.EQUITY = 50; 
+        weights.FATIGUE = 5000; // Allow longer stints if needed
+    }
+
+    // 2. Prepare Data
     const rotMap = new Map<string, TeamRotation>();
     const effectiveRotations = teamRotations.length > 0 ? teamRotations : []; 
     // If custom rotation provided (Wizard Mode)
@@ -409,26 +451,33 @@ export const generateRoster = (params: RosterGenerationParams): RosterGeneration
         rotMap.set(p.id, r);
     });
 
-    // Target Capacity
-    const totalPeople = people.length;
-    // Calculate ideal based on average ratio
+    // Target Capacity Calculation
     let totalTheoreticalCapacity = 0;
-    const warnings: string[] = [];
-
     people.forEach(p => {
         const r = rotMap.get(p.id)!;
         const cycle = r.days_on_base + r.days_at_home;
         totalTheoreticalCapacity += (r.days_on_base / cycle);
     });
-    const targetCapacity = Math.round(totalTheoreticalCapacity); 
+
+    let targetCapacity = 0;
+    if (mode === 'min_staff') {
+        targetCapacity = minDailyStaff; // Strict Min
+    } else {
+        // 'ratio' and 'tasks' defaults to Theoretical Average
+        targetCapacity = Math.round(totalTheoreticalCapacity); 
+        // Ensure at least minDailyStaff
+        if (targetCapacity < minDailyStaff) targetCapacity = minDailyStaff;
+    }
+
+    const warnings: string[] = [];
 
     // Feasibility Check
     if (totalTheoreticalCapacity < minDailyStaff) {
         warnings.push('בהינתן היחס יציאות הביתה ובהינתן הסד"כ הקיים לא ניתן לעמוד במינימום הנדרש');
     }
 
-    // 2. Initialize Optimizer
-    const optimizer = new RosterOptimizer(people, startDate, endDate, rotMap, constraints, absences, targetCapacity);
+    // 2. Initialize Optimizer with Weights
+    const optimizer = new RosterOptimizer(people, startDate, endDate, rotMap, constraints, absences, targetCapacity, weights, params.history);
     
     // 3. Run Optimization
     console.time('SimulatedAnnealing');

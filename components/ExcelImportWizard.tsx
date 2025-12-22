@@ -12,9 +12,10 @@ interface ExcelImportWizardProps {
     onImport: (people: Person[], newTeams?: Team[], newRoles?: Role[]) => Promise<void>;
     teams: Team[];
     roles: Role[];
+    people: Person[]; // NEW: Existing people for conflict check
     onAddTeam: (t: Team) => void;
     onAddRole: (r: Role) => void;
-    isSaving?: boolean; // New prop for loading status
+    isSaving?: boolean;
 }
 
 type Step = 'upload' | 'mapping' | 'resolution' | 'preview';
@@ -31,9 +32,11 @@ interface ParsedData {
 
 interface ResolutionItem {
     originalName: string;
-    type: 'team' | 'role';
-    action: 'create' | 'map' | 'ignore';
-    targetId?: string; // If mapping, which ID to use
+    type: 'team' | 'role' | 'person';
+    action: 'create' | 'map' | 'ignore' | 'merge'; // 'merge' for persons
+    targetId?: string; // If mapping/merging, which ID to use
+    matchReason?: string; // e.g. "Matched by Phone"
+    excelRowIndex?: number; // For persons, identifying the source row
 }
 
 export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
@@ -42,6 +45,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
     onImport,
     teams,
     roles,
+    people,
     onAddTeam,
     onAddRole,
     isSaving = false // Default to false
@@ -53,6 +57,20 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
     const [previewData, setPreviewData] = useState<Person[]>([]);
     const [resolutions, setResolutions] = useState<ResolutionItem[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Reset state when opening/closing
+    React.useEffect(() => {
+        if (!isOpen) {
+            const timer = setTimeout(() => {
+                setStep('upload');
+                setParsedData(null);
+                setMappings([]);
+                setPreviewData([]);
+                setResolutions([]);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen]);
 
     const systemFields = [
         { value: 'name', label: 'שם מלא' },
@@ -133,12 +151,20 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
         const unknownTeams = new Set<string>();
         const unknownRoles = new Set<string>();
+        const personConflicts: ResolutionItem[] = [];
 
         // Find relevant columns
         const teamColIdx = mappings.findIndex(m => m.systemField === 'team');
         const roleColIdx = mappings.findIndex(m => m.systemField === 'role');
 
-        parsedData.rows.forEach((row: any) => {
+        // Person match columns
+        const nameColIdx = mappings.findIndex(m => m.systemField === 'name');
+        const fNameIdx = mappings.findIndex(m => m.systemField === 'first_name');
+        const lNameIdx = mappings.findIndex(m => m.systemField === 'last_name');
+        const phoneColIdx = mappings.findIndex(m => m.systemField === 'mobile');
+        const emailColIdx = mappings.findIndex(m => m.systemField === 'email');
+
+        parsedData.rows.forEach((row: any, rowIndex: number) => {
             // Check Team
             if (teamColIdx !== -1) {
                 const teamName = row[teamColIdx]?.toString().trim();
@@ -158,10 +184,54 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     });
                 }
             }
+
+            // Check Person Duplicates
+            let name = '';
+            if (nameColIdx !== -1) name = row[nameColIdx]?.toString().trim() || '';
+
+            if (!name && fNameIdx !== -1 && lNameIdx !== -1) {
+                name = `${row[fNameIdx] || ''} ${row[lNameIdx] || ''}`.trim();
+            }
+
+            const phone = phoneColIdx !== -1 ? row[phoneColIdx]?.toString().trim() : '';
+            const email = emailColIdx !== -1 ? row[emailColIdx]?.toString().trim().toLowerCase() : '';
+
+            // Normalize for matching
+            const normPhone = phone.replace(/\D/g, '');
+
+            if (name || normPhone || email) {
+                const match = people.find(p => {
+                    // Phone Match
+                    if (normPhone && p.phone) {
+                        const pPhone = p.phone.replace(/\D/g, '');
+                        if (normPhone.length >= 7 && normPhone === pPhone) return true;
+                    }
+                    // Email Match
+                    if (email && p.email && email === p.email.toLowerCase()) return true;
+                    // Name Match (Exact)
+                    if (name && p.name && name.toLowerCase() === p.name.toLowerCase()) return true;
+                    return false;
+                });
+
+                if (match) {
+                    let reason = 'שם זהה';
+                    if (email && match.email?.toLowerCase() === email) reason = 'אימייל זהה';
+                    else if (normPhone && match.phone?.replace(/\D/g, '') === normPhone) reason = 'טלפון זהה';
+
+                    personConflicts.push({
+                        originalName: name || email || 'ללא שם',
+                        type: 'person',
+                        action: 'merge',
+                        targetId: match.id,
+                        matchReason: reason,
+                        excelRowIndex: rowIndex
+                    });
+                }
+            }
         });
 
-        // If system is empty (Onboarding), auto-resolve all as 'create' and skip step
-        if (teams.length === 0 && roles.length === 0) {
+        // Onboarding Check: If empty system, auto-create unknown teams/roles (Persons won't conflict)
+        if (teams.length === 0 && roles.length === 0 && unknownTeams.size > 0) {
             const autoResolutions: ResolutionItem[] = [
                 ...Array.from(unknownTeams).map(name => ({
                     originalName: name,
@@ -179,10 +249,9 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             return;
         }
 
-        if (unknownTeams.size === 0 && unknownRoles.size === 0) {
+        if (unknownTeams.size === 0 && unknownRoles.size === 0 && personConflicts.length === 0) {
             generatePreview([]); // No conflicts
         } else {
-            // Initialize resolutions
             const newResolutions: ResolutionItem[] = [
                 ...Array.from(unknownTeams).map(name => ({
                     originalName: name,
@@ -193,7 +262,8 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     originalName: name,
                     type: 'role' as const,
                     action: 'create' as const
-                }))
+                })),
+                ...personConflicts
             ];
             setResolutions(newResolutions);
             setStep('resolution');
@@ -224,6 +294,10 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         });
 
         const newPeople: Person[] = parsedData.rows.map((row: any, idx) => {
+            // Check Resolution first
+            const resolution = currentResolutions.find(r => r.type === 'person' && r.excelRowIndex === idx);
+            if (resolution && resolution.action === 'ignore') return null;
+
             const rowData: any = {};
             mappings.forEach((map, colIndex) => {
                 if (map.systemField !== 'ignore') {
@@ -243,11 +317,11 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             let teamId = '';
             if (rowData.team) {
                 const rawTeam = rowData.team.toString().trim();
-                const resolution = currentResolutions.find(r => r.type === 'team' && r.originalName === rawTeam);
+                const teamRes = currentResolutions.find(r => r.type === 'team' && r.originalName === rawTeam);
 
-                if (resolution) {
-                    if (resolution.action === 'map' && resolution.targetId) teamId = resolution.targetId;
-                    else if (resolution.action === 'create') teamId = `temp-team-${rawTeam}`;
+                if (teamRes) {
+                    if (teamRes.action === 'map' && teamRes.targetId) teamId = teamRes.targetId;
+                    else if (teamRes.action === 'create') teamId = `temp-team-${rawTeam}`;
                     // ignore -> teamId = ''
                 } else {
                     // Match existing
@@ -261,10 +335,10 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             if (rowData.role) {
                 const rawRoles = rowData.role.toString().split(',').map((s: string) => s.trim());
                 roleIds = rawRoles.map(rawRole => {
-                    const resolution = currentResolutions.find(r => r.type === 'role' && r.originalName === rawRole);
-                    if (resolution) {
-                        if (resolution.action === 'map' && resolution.targetId) return resolution.targetId;
-                        else if (resolution.action === 'create') return `temp-role-${rawRole}`;
+                    const roleRes = currentResolutions.find(r => r.type === 'role' && r.originalName === rawRole);
+                    if (roleRes) {
+                        if (roleRes.action === 'map' && roleRes.targetId) return roleRes.targetId;
+                        else if (roleRes.action === 'create') return `temp-role-${rawRole}`;
                         return null;
                     } else {
                         const found = tempRoles.find(r => r.name.trim().toLowerCase() === rawRole.toLowerCase());
@@ -278,17 +352,31 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 ? (tempTeams.find(t => t.id === teamId)?.color.replace('border-', 'bg-') || 'bg-slate-500')
                 : 'bg-slate-500';
 
+            // Determine ID (New vs Merge)
+            let id = `imported-${Date.now()}-${idx}`;
+            let basePerson: Partial<Person> = {};
+
+            if (resolution && resolution.action === 'merge' && resolution.targetId) {
+                id = resolution.targetId;
+                const existing = people.find(p => p.id === id);
+                if (existing) {
+                    basePerson = existing;
+                }
+            }
+
             return {
-                id: `imported-${Date.now()}-${idx}`,
-                name: fullName,
-                teamId: teamId,
-                roleIds: roleIds,
-                email: rowData.email || '',
+                ...basePerson, // Start with existing data
+                id: id,
+                name: fullName || basePerson.name || '',
+                teamId: teamId || basePerson.teamId || '',
+                roleIds: roleIds.length > 0 ? roleIds : (basePerson.roleIds || []),
+                email: rowData.email || basePerson.email || '',
+                phone: rowData.mobile || basePerson.phone || '',
                 maxHoursPerWeek: 40,
-                unavailableDates: [],
-                preferences: { preferNight: false, avoidWeekends: false },
-                color: color
-            };
+                unavailableDates: basePerson.unavailableDates || [],
+                preferences: basePerson.preferences || { preferNight: false, avoidWeekends: false },
+                color: color !== 'bg-slate-500' ? color : (basePerson.color || 'bg-slate-500')
+            } as Person;
         }).filter(Boolean) as Person[];
 
         setPreviewData(newPeople);
@@ -347,12 +435,13 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         });
 
         await onImport(finalPeople, teamsToCreate, rolesToCreate);
+        onClose();
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-slate-900/50 backdrop-blur-sm">
             <div className="bg-white md:rounded-2xl shadow-xl w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
 
                 {/* Header */}
@@ -464,65 +553,119 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                 <div key={idx} className="bg-white border border-slate-200 rounded-lg p-4">
                                     <div className="flex justify-between items-start mb-3">
                                         <div>
-                                            <span className={`text-xs px-2 py-1 rounded ${res.type === 'team' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'} font-bold`}>
-                                                {res.type === 'team' ? 'צוות לא מוכר' : 'תפקיד לא מוכר'}
-                                            </span>
+                                            {res.type === 'person' ? (
+                                                <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 font-bold">
+                                                    כפילות מזוהה ({res.matchReason})
+                                                </span>
+                                            ) : (
+                                                <span className={`text-xs px-2 py-1 rounded ${res.type === 'team' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'} font-bold`}>
+                                                    {res.type === 'team' ? 'צוות לא מוכר' : 'תפקיד לא מוכר'}
+                                                </span>
+                                            )}
                                             <h3 className="font-bold text-slate-800 mt-2 text-lg">{res.originalName}</h3>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name={`res-${idx}`}
-                                                checked={res.action === 'create'}
-                                                onChange={() => handleResolutionChange(idx, { action: 'create' })}
-                                            />
-                                            <div className="flex items-center gap-2">
-                                                <Plus size={16} className="text-green-600" />
-                                                <span>צור כחדש במערכת</span>
-                                            </div>
-                                        </label>
-
-                                        <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name={`res-${idx}`}
-                                                checked={res.action === 'map'}
-                                                onChange={() => handleResolutionChange(idx, { action: 'map', targetId: res.type === 'team' ? teams[0]?.id : roles[0]?.id })}
-                                            />
-                                            <div className="flex-1 flex items-center gap-2">
-                                                <ArrowUpRight size={16} className="text-blue-600" />
-                                                <span className="shrink-0 text-sm">מפה לקיים:</span>
-                                                <div className="flex-1 mr-2">
-                                                    <Select
-                                                        disabled={res.action !== 'map'}
-                                                        value={res.targetId || ''}
-                                                        onChange={(val) => handleResolutionChange(idx, { targetId: val })}
-                                                        options={res.type === 'team'
-                                                            ? teams.map(t => ({ value: t.id, label: t.name }))
-                                                            : roles.map(r => ({ value: r.id, label: r.name }))
-                                                        }
-                                                        placeholder="בחר..."
-                                                        className="w-full text-sm"
-                                                    />
+                                    {res.type === 'person' ? (
+                                        <div className="space-y-2">
+                                            <label className={`flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer ${res.action === 'merge' ? 'bg-blue-50 border-blue-200' : ''}`}>
+                                                <input
+                                                    type="radio"
+                                                    name={`res-${idx}`}
+                                                    checked={res.action === 'merge'}
+                                                    onChange={() => handleResolutionChange(idx, { action: 'merge' })}
+                                                    className="text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <ArrowRight size={16} className="text-blue-600" />
+                                                    <div>
+                                                        <span className="font-bold text-slate-700">מזג לתוך הקיים</span>
+                                                        <p className="text-xs text-slate-500">יעדכן את הרשומה הקיימת עם המידע מהאקסל (מזהה ID נשמר)</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </label>
+                                            </label>
 
-                                        <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name={`res-${idx}`}
-                                                checked={res.action === 'ignore'}
-                                                onChange={() => handleResolutionChange(idx, { action: 'ignore' })}
-                                            />
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-slate-400">התעלם (השאר ריק)</span>
-                                            </div>
-                                        </label>
-                                    </div>
+                                            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name={`res-${idx}`}
+                                                    checked={res.action === 'create'}
+                                                    onChange={() => handleResolutionChange(idx, { action: 'create' })}
+                                                    className="text-green-600 focus:ring-green-500"
+                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <Plus size={16} className="text-green-600" />
+                                                    <span>צור כחדש (כפילות)</span>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name={`res-${idx}`}
+                                                    checked={res.action === 'ignore'}
+                                                    onChange={() => handleResolutionChange(idx, { action: 'ignore' })}
+                                                    className="text-slate-400 focus:ring-slate-500"
+                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-slate-400">התעלם (אל תייבא)</span>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name={`res-${idx}`}
+                                                    checked={res.action === 'create'}
+                                                    onChange={() => handleResolutionChange(idx, { action: 'create' })}
+                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <Plus size={16} className="text-green-600" />
+                                                    <span>צור כחדש במערכת</span>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name={`res-${idx}`}
+                                                    checked={res.action === 'map'}
+                                                    onChange={() => handleResolutionChange(idx, { action: 'map', targetId: res.type === 'team' ? teams[0]?.id : roles[0]?.id })}
+                                                />
+                                                <div className="flex-1 flex items-center gap-2">
+                                                    <ArrowUpRight size={16} className="text-blue-600" />
+                                                    <span className="shrink-0 text-sm">מפה לקיים:</span>
+                                                    <div className="flex-1 mr-2">
+                                                        <Select
+                                                            disabled={res.action !== 'map'}
+                                                            value={res.targetId || ''}
+                                                            onChange={(val) => handleResolutionChange(idx, { targetId: val })}
+                                                            options={res.type === 'team'
+                                                                ? teams.map(t => ({ value: t.id, label: t.name }))
+                                                                : roles.map(r => ({ value: r.id, label: r.name }))
+                                                            }
+                                                            placeholder="בחר..."
+                                                            className="w-full text-sm"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name={`res-${idx}`}
+                                                    checked={res.action === 'ignore'}
+                                                    onChange={() => handleResolutionChange(idx, { action: 'ignore' })}
+                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-slate-400">התעלם (השאר ריק)</span>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -542,6 +685,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                             <th className="p-3">שם</th>
                                             <th className="p-3">צוות</th>
                                             <th className="p-3">תפקידים</th>
+                                            <th className="p-3">טלפון</th>
                                             <th className="p-3">אימייל</th>
                                         </tr>
                                     </thead>
@@ -568,6 +712,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                                     <td className="p-3 font-medium">{person.name}</td>
                                                     <td className="p-3">{teamName}</td>
                                                     <td className="p-3">{roleNames || '-'}</td>
+                                                    <td className="p-3 text-slate-500" dir="ltr">{person.phone}</td>
                                                     <td className="p-3 text-slate-500">{person.email}</td>
                                                 </tr>
                                             );

@@ -59,9 +59,9 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
     }
 
     return (
-        <div className={`p-3 flex items-center gap-3 transition-colors ${isAvailable ? 'bg-white' : 'bg-slate-50/50 opacity-90'}`}>
+        <div className={`p-3 flex flex-wrap items-center justify-between gap-y-3 gap-x-3 transition-colors ${isAvailable ? 'bg-white' : 'bg-slate-50/50 opacity-90'}`}>
             {/* Person Info */}
-            <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer hover:bg-slate-50 p-1.5 -ml-1.5 rounded-lg transition-colors group" onClick={() => onSelectPerson(person)}>
+            <div className="flex items-center gap-3 min-w-0 max-w-full cursor-pointer hover:bg-slate-50 p-1.5 -ml-1.5 rounded-lg transition-colors group flex-grow sm:flex-grow-0" onClick={() => onSelectPerson(person)}>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm shrink-0 ${teamColor ? teamColor.replace('border-', 'bg-') : person.color} group-hover:ring-2 ring-slate-100 transition-all text-xs`}>
                     {person.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                 </div>
@@ -79,7 +79,7 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
             </div>
 
             {/* Controls - Validated Single Line */}
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-3 shrink-0 ml-auto sm:ml-0 pl-11 sm:pl-0 w-full sm:w-auto justify-end sm:justify-start">
                 {/* Time Display/Edit */}
                 {isAvailable && (
                     <div className="flex items-center">
@@ -116,7 +116,7 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
                         ) : (
                             <button
                                 onClick={() => !isViewer && setIsTimeExpanded(true)}
-                                className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-white hover:shadow-sm text-slate-600 transition-all group/time"
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-200 bg-slate-50 hover:bg-white hover:shadow-sm text-slate-600 transition-all group/time"
                                 title="ערוך שעות"
                                 disabled={isViewer}
                             >

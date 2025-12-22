@@ -23,10 +23,16 @@ export const mapPersonFromDB = (p: any): Person => {
         try { personalRotation = JSON.parse(personalRotation); } catch (e) { personalRotation = undefined; }
     }
 
+    let customFields = p.custom_fields || {};
+    if (typeof customFields === 'string') {
+        try { customFields = JSON.parse(customFields); } catch (e) { customFields = {}; }
+    }
+
     return {
         id: p.id,
         name: p.name,
         phone: p.phone, // NEW
+        email: p.email, // NEW
         isActive: p.is_active !== false, // NEW: Default to true if null/undefined
     roleId: p.role_id || (p.role_ids && p.role_ids[0]) || '',
     roleIds: p.role_ids || [], // NEW: Map role_ids from DB
@@ -36,7 +42,8 @@ export const mapPersonFromDB = (p: any): Person => {
     maxShiftsPerWeek: p.max_shifts_per_week || 5,
     dailyAvailability,
     personalRotation,
-    organization_id: p.organization_id // NEW: Map organization_id
+    organization_id: p.organization_id, // NEW: Map organization_id
+    customFields
 };
 };
 
@@ -44,16 +51,18 @@ export const mapPersonToDB = (p: Person) => ({
 id: p.id,
 name: p.name,
 phone: p.phone, // NEW
+email: p.email, // NEW
 is_active: p.isActive, // NEW
 // role_id removed as it doesn't exist in DB schema
 role_ids: (p.roleIds && p.roleIds.length > 0) ? p.roleIds : (p.roleId ? [p.roleId] : []),
-team_id: p.teamId,
+team_id: p.teamId || null,
 user_id: p.userId,
     color: p.color,
     max_shifts_per_week: p.maxShiftsPerWeek,
     daily_availability: p.dailyAvailability,
     personal_rotation: p.personalRotation === undefined ? null : p.personalRotation,
-    organization_id: p.organization_id
+    organization_id: p.organization_id,
+    custom_fields: p.customFields || {}
 });
 
 // Teams

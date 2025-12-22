@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Person, Shift, TaskTemplate, Team } from '../types';
-import { MapPin, Home, Briefcase, Download, Filter, Copy } from 'lucide-react';
+import { MapPin, Home, Briefcase, Download, Filter, Copy, ChevronDown } from 'lucide-react';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { useToast } from '../contexts/ToastContext';
 
@@ -26,7 +26,10 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [selectedTime, setSelectedTime] = useState<string>('08:00'); // Default check time
     const [filterTeam, setFilterTeam] = useState<string>('all');
-
+    const [expanded, setExpanded] = useState<{ [key: string]: boolean }>({ mission: true, base: true, home: true });
+    const toggleSection = (section: string) => {
+        setExpanded(prev => ({ ...prev, [section]: !prev[section] }));
+    };
     const [groupBy, setGroupBy] = useState<'status' | 'team'>('status');
 
     // ... existing generateReport logic ...
@@ -99,105 +102,102 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
 
     // Grouping Logic
     const renderContent = () => {
-        if (groupBy === 'status') {
-            const grouped = {
-                mission: reportData.filter(r => r.status === 'mission'),
-                base: reportData.filter(r => r.status === 'base'),
-                home: reportData.filter(r => r.status === 'home')
-            };
+        const grouped = {
+            mission: reportData.filter(r => r.status === 'mission'),
+            base: reportData.filter(r => r.status === 'base'),
+            home: reportData.filter(r => r.status === 'home')
+        };
 
-            return (
-                <div className="space-y-8">
-                    {/* Missions */}
-                    <section>
-                        <h3 className="flex items-center gap-2 font-bold text-slate-700 mb-3 bg-red-50 p-2 rounded-lg border border-red-100">
-                            <Briefcase size={18} className="text-red-500" />
-                            במשימה ({grouped.mission.length})
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        // פונקציית עזר קטנה לרינדור כותרת לחיצה
+        const renderSectionHeader = (
+            key: 'mission' | 'base' | 'home',
+            title: string,
+            count: number,
+            icon: React.ReactNode,
+            bgClass: string,
+            borderClass: string
+        ) => (
+            <div
+                onClick={() => toggleSection(key)}
+                className={`flex items-center justify-between font-bold text-slate-700 mb-3 p-2 rounded-lg border cursor-pointer select-none transition-colors ${bgClass} ${borderClass}`}
+            >
+                <div className="flex items-center gap-2">
+                    {icon}
+                    <span>{title} ({count})</span>
+                </div>
+                <ChevronDown
+                    size={20}
+                    className={`transition-transform duration-200 ${expanded[key] ? 'rotate-180' : ''}`}
+                />
+            </div>
+        );
+
+        return (
+            <div className="space-y-6"> {/* הקטנתי קצת את המרווח בין הסקשנים */}
+
+                {/* Missions */}
+                <section>
+                    {renderSectionHeader(
+                        'mission',
+                        'במשימה',
+                        grouped.mission.length,
+                        <Briefcase size={18} className="text-red-500" />,
+                        'bg-red-50 hover:bg-red-100',
+                        'border-red-100'
+                    )}
+
+                    {expanded.mission && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                             {grouped.mission.map(r => (
                                 <PersonCard key={r.person.id} r={r} />
                             ))}
                             {grouped.mission.length === 0 && <p className="text-sm text-slate-400 italic px-2">אין חיילים במשימה בזמן זה</p>}
                         </div>
-                    </section>
+                    )}
+                </section>
 
-                    {/* Base */}
-                    <section>
-                        <h3 className="flex items-center gap-2 font-bold text-slate-700 mb-3 bg-green-50 p-2 rounded-lg border border-green-100">
-                            <MapPin size={18} className="text-green-600" />
-                            בבסיס ({grouped.base.length})
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* Base */}
+                <section>
+                    {renderSectionHeader(
+                        'base',
+                        'בבסיס',
+                        grouped.base.length,
+                        <MapPin size={18} className="text-green-600" />,
+                        'bg-green-50 hover:bg-green-100',
+                        'border-green-100'
+                    )}
+
+                    {expanded.base && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                             {grouped.base.map(r => (
                                 <PersonCard key={r.person.id} r={r} type="base" />
                             ))}
                             {grouped.base.length === 0 && <p className="text-sm text-slate-400 italic px-2">אין חיילים בבסיס</p>}
                         </div>
-                    </section>
+                    )}
+                </section>
 
-                    {/* Home */}
-                    <section>
-                        <h3 className="flex items-center gap-2 font-bold text-slate-700 mb-3 bg-slate-100 p-2 rounded-lg border border-slate-200">
-                            <Home size={18} className="text-slate-500" />
-                            בבית ({grouped.home.length})
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* Home */}
+                <section>
+                    {renderSectionHeader(
+                        'home',
+                        'בבית',
+                        grouped.home.length,
+                        <Home size={18} className="text-slate-500" />,
+                        'bg-slate-100 hover:bg-slate-200',
+                        'border-slate-200'
+                    )}
+
+                    {expanded.home && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                             {grouped.home.map(r => (
                                 <PersonCard key={r.person.id} r={r} type="home" />
                             ))}
                         </div>
-                    </section>
-                </div>
-            );
-        } else {
-            // Group by Team
-            // Extract unique team IDs present in the report data
-            // We use a Set to get unique IDs, then map to Team objects (or names)
-            // But we actually need to look up the Team Name from `people` (or pass `teams` prop if available).
-            // Currently `LocationReport` doesn't receive `teams`. We can infer from `person.teamId` but we don't have the Team Name unless it sits on `person`.
-            // `Person` interface has `teamId`. The Parent component likely needs to pass `teams` or we assume we can't show team names easily without it.
-            // Wait, previous code used `teams.find(t => t.id === person.teamId)?.name`.
-            // Ah, I need to check if `teams` is passed to props. It IS NOT in the current signature: `({ people, shifts, taskTemplates, teamRotations = [] })`.
-            // I should urge the user to pass `teams` or fetch them? simpler is to pass them.
-            // But I cannot easily update the parent call (App.tsx) AND this file in one Replace.
-            // Let's assume for now I group by `teamId` and if I can't find name, I show "Unknown Team" or similar, OR I realize `Person` objects might be hydrated? No.
-            // Wait, looking at App.tsx lines 739 (PersonnelManager) passes teams. But LocationReport is invoked where?
-            // LocationReport is NOT in the main switch in App.tsx!
-            // Wait, earlier read of App.tsx showed it missing? No, let me re-check App.tsx content from previous turn...
-            // It was NOT in the main switch. Ah, it might be a sub-component or I missed it.
-            // Let's check `App.tsx` again or search for usage.
-            // Actually, I'll just group by `teamId` string for now.
-
-            const teamsMap = new Map<string, PersonLocation[]>();
-            reportData.forEach(r => {
-                const tid = r.person.teamId || 'no_team';
-                if (!teamsMap.has(tid)) teamsMap.set(tid, []);
-                teamsMap.get(tid)?.push(r);
-            });
-
-            return (
-                <div className="space-y-8">
-                    {Array.from(teamsMap.entries()).map(([teamId, members]) => (
-                        <section key={teamId}>
-                            <h3 className="flex items-center gap-2 font-bold text-slate-800 mb-3 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                                {(() => {
-                                    const team = teams.find(t => t.id === teamId);
-                                    const teamName = team ? team.name : `צוות ${teamId}`;
-                                    const displayName = teamId === 'no_team' ? 'עובדים כלליים' : teamName;
-                                    return `${displayName} (${members.length})`;
-                                })()}
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {members.map(r => (
-                                    <PersonCard key={r.person.id} r={r} showStatusBadge={true} />
-                                ))}
-                            </div>
-                        </section>
-                    ))}
-                </div>
-            )
-        }
+                    )}
+                </section>
+            </div>
+        );
     };
 
     return (
@@ -234,23 +234,6 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                         </select>
                         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
-
-                    {/* Group By Toggle */}
-                    <div className="flex bg-slate-100 rounded-lg p-1">
-                        <button
-                            onClick={() => setGroupBy('status')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${groupBy === 'status' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-                        >
-                            לפי סטטוס
-                        </button>
-                        <button
-                            onClick={() => setGroupBy('team')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${groupBy === 'team' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-                        >
-                            לפי צוות
-                        </button>
-                    </div>
-
                     <div className="h-6 w-px bg-slate-200 mx-1"></div>
 
                     <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
@@ -258,13 +241,13 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                             type="date"
                             value={selectedDate.toISOString().split('T')[0]}
                             onChange={e => setSelectedDate(new Date(e.target.value))}
-                            className="bg-white border-0 text-sm rounded px-2 py-1 outline-none w-32"
+                            className="bg-white border-0 text-sm rounded px-2 py-1 outline-none w-auto"
                         />
                         <input
                             type="time"
                             value={selectedTime}
                             onChange={e => setSelectedTime(e.target.value)}
-                            className="bg-white border-0 text-sm rounded px-2 py-1 outline-none w-20"
+                            className="bg-white border-0 text-sm rounded px-2 py-1 outline-none w-auto"
                         />
                     </div>
 
@@ -334,7 +317,8 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                                 } catch (err) {
                                     showToast('שגיאה בהעתקה', 'error');
                                 }
-                            }}
+                            }
+                            }
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
                             title="העתק לווטסאפ"
                         >

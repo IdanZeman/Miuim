@@ -13,8 +13,8 @@ interface ConstraintsManagerProps {
     roles: Role[];
     tasks: TaskTemplate[];
     constraints: SchedulingConstraint[];
-    onAddConstraint: (c: Omit<SchedulingConstraint, 'id'>) => void;
-    onDeleteConstraint: (id: string) => void;
+    onAddConstraint: (c: Omit<SchedulingConstraint, 'id'>, silent?: boolean) => void;
+    onDeleteConstraint: (id: string, silent?: boolean) => void;
     isViewer?: boolean;
     organizationId: string;
 }
@@ -36,7 +36,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
     const [ruleTargetType, setRuleTargetType] = useState<'person' | 'team' | 'role'>('person');
     const [ruleTargetIds, setRuleTargetIds] = useState<string[]>([]); // MultiSelect
     const [ruleTargetIdSingle, setRuleTargetIdSingle] = useState<string>(''); // Single Select (Team/Role)
-    const [ruleTaskId, setRuleTaskId] = useState<string>('');
+    const [ruleTaskIds, setRuleTaskIds] = useState<string[]>([]); // MultiSelect for Tasks
     const [ruleType, setRuleType] = useState<'never_assign' | 'always_assign'>('never_assign');
     const [rulesSearch, setRulesSearch] = useState('');
 
@@ -46,18 +46,24 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
     // --- Helpers / Derived State ---
 
-    const taskConstraints = useMemo(() => {
-        return constraints.filter(c => {
-            // Allow global constraints (no taskId) to be shown
-            // if (!c.taskId) return false; 
+    const taskConstraintsGrouped = useMemo(() => {
+        const groups: Record<string, {
+            id: string; // use first ID as key or create composite
+            targetId: string;
+            targetType: 'person' | 'team' | 'role';
+            type: string;
+            taskIds: string[];
+            ids: string[]; // Keep track of all real DB IDs in this group
+        }> = {};
 
+        constraints.forEach(c => {
+            // Apply Filters first
             if (rulesSearch) {
                 let taskMatch = false;
                 if (c.taskId) {
                     const task = tasks.find(t => t.id === c.taskId);
                     taskMatch = task?.name.toLowerCase().includes(rulesSearch.toLowerCase()) || false;
                 } else {
-                    // Match "Global" or "General" for legacy/global constraints
                     taskMatch = "כללי".includes(rulesSearch) || "general".includes(rulesSearch.toLowerCase());
                 }
 
@@ -68,23 +74,47 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
                 const targetMatch = targetName.toLowerCase().includes(rulesSearch.toLowerCase());
 
-                return taskMatch || targetMatch;
+                if (!taskMatch && !targetMatch) return;
             }
-            return true;
+
+            // Create Group Key
+            let targetType: 'person' | 'team' | 'role' = 'person';
+            let targetId = '';
+            if (c.personId) { targetType = 'person'; targetId = c.personId; }
+            else if (c.teamId) { targetType = 'team'; targetId = c.teamId; }
+            else if (c.roleId) { targetType = 'role'; targetId = c.roleId; }
+
+            const key = `${targetType}-${targetId}-${c.type}`;
+
+            if (!groups[key]) {
+                groups[key] = {
+                    id: c.id,
+                    targetId,
+                    targetType,
+                    type: c.type,
+                    taskIds: [],
+                    ids: []
+                };
+            }
+
+            if (c.taskId) groups[key].taskIds.push(c.taskId);
+            groups[key].ids.push(c.id);
         });
+
+        return Object.values(groups);
     }, [constraints, tasks, people, teams, roles, rulesSearch]);
 
-    const getTargetName = (c: SchedulingConstraint) => {
-        if (c.personId) {
-            const p = people.find(x => x.id === c.personId);
+    const getTargetNameFromGroup = (group: { targetId: string, targetType: 'person' | 'team' | 'role' }) => {
+        if (group.targetType === 'person') {
+            const p = people.find(x => x.id === group.targetId);
             return { name: p?.name || 'Unknown', icon: User, type: 'person' };
         }
-        if (c.teamId) {
-            const t = teams.find(x => x.id === c.teamId);
+        if (group.targetType === 'team') {
+            const t = teams.find(x => x.id === group.targetId);
             return { name: t?.name || 'Unknown', icon: Users, type: 'team' };
         }
-        if (c.roleId) {
-            const r = roles.find(x => x.id === c.roleId);
+        if (group.targetType === 'role') {
+            const r = roles.find(x => x.id === group.targetId);
             return { name: r?.name || 'Unknown', icon: Shield, type: 'role' };
         }
         return { name: 'Unknown', icon: User, type: 'unknown' };
@@ -92,31 +122,43 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
     // --- Handlers ---
 
-    const openRuleModal = (constraint?: SchedulingConstraint) => {
+    const openRuleModal = (group?: typeof taskConstraintsGrouped[0]) => {
         if (isViewer) return;
 
-        if (constraint) {
+        if (group) {
             // Edit Mode
-            setEditingRuleId(constraint.id);
-            setRuleTaskId(constraint.taskId || '');
-            setRuleType(constraint.type as any);
+            setEditingRuleId(group.id); // We store the PRIMARY ID, or we need a way to track the group
+            // Ideally we track the group key properties, but 'editingRuleId' implies singular
+            // Let's store the IDs we need to delete!
+            // But state expects 'editingRuleId' as string. 
+            // We can trick it: We use group.id for "editing mode" flag.
+            // AND we need to know that we are editing a group. 
+            // Let's rely on `ruleTargetIds` and `ruleType` to find what to replace in `handleSaveRule`? No, that's risky if user changes target.
 
-            if (constraint.personId) {
+            // BETTER: We will look up the original target+type using `editingRuleId` in `constraints` before saving? 
+            // Actually, simplest is to pass the IDs to delete.
+            // But we don't have a state for that.
+
+            // Let's just set the form values.
+            setRuleTaskIds(group.taskIds);
+            setRuleType(group.type as any);
+
+            if (group.targetType === 'person') {
                 setRuleTargetType('person');
-                setRuleTargetIds([constraint.personId]);
-            } else if (constraint.teamId) {
+                setRuleTargetIds([group.targetId]);
+            } else if (group.targetType === 'team') {
                 setRuleTargetType('team');
-                setRuleTargetIdSingle(constraint.teamId);
-            } else if (constraint.roleId) {
+                setRuleTargetIdSingle(group.targetId);
+            } else if (group.targetType === 'role') {
                 setRuleTargetType('role');
-                setRuleTargetIdSingle(constraint.roleId);
+                setRuleTargetIdSingle(group.targetId);
             }
         } else {
             // Add Mode - Reset
             setEditingRuleId(null);
             setRuleTargetIds([]);
             setRuleTargetIdSingle('');
-            setRuleTaskId('');
+            setRuleTaskIds([]);
             setRuleType('never_assign');
             // Default target type to person if not set
             if (!ruleTargetType) setRuleTargetType('person');
@@ -124,10 +166,18 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
         setIsRuleModalOpen(true);
     };
 
+    const handleDeleteGroup = (group: typeof taskConstraintsGrouped[0]) => {
+        if (isViewer) return;
+        if (confirm('האם למחוק את חוקי המשימות לקבוצה זו?')) {
+            group.ids.forEach(id => onDeleteConstraint(id, true)); // Silent
+            showToast('החוקים נמחקו בהצלחה', 'success');
+        }
+    };
+
     const handleSaveRule = () => {
         if (isViewer) return;
-        if (!ruleTaskId) {
-            showToast('נא לבחור משימה', 'error');
+        if (ruleTaskIds.length === 0) {
+            showToast('נא לבחור לפחות משימה אחת', 'error');
             return;
         }
 
@@ -146,51 +196,101 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
             targets.push({ type: ruleTargetType, id: ruleTargetIdSingle });
         }
 
-        // Handle Edit Mode (Delete old first)
+        // Handle Edit Mode:
+        // If we are editing, we must delete the OLD constraints for this target/type?
+        // But `editingRuleId` only points to ONE of them. 
+        // We need to find the "Original" target/type that was being edited.
+        // LIMITATION: If we only have `editingRuleId`, we can find that ONE constraint, see its personId/type, and assuming we are in "Group Edit Mode", deletes all matching.
+
         if (editingRuleId) {
-            onDeleteConstraint(editingRuleId);
+            const originalC = constraints.find(c => c.id === editingRuleId);
+            if (originalC) {
+                // Find all siblings that matched the ORIGINAL Group
+                const siblings = constraints.filter(c => {
+                    const matchType = c.type === originalC.type;
+                    const matchPerson = c.personId === originalC.personId;
+                    const matchTeam = c.teamId === originalC.teamId;
+                    const matchRole = c.roleId === originalC.roleId;
+                    return matchType && matchPerson && matchTeam && matchRole;
+                });
+                // Delete them all silently
+                siblings.forEach(s => onDeleteConstraint(s.id, true));
+            }
         }
 
         let addedCount = 0;
 
-        // Loop through targets and add them
+        // Nested Loop: For each Target AND For each Task
         targets.forEach(target => {
-            const newConstraint: Omit<SchedulingConstraint, 'id'> = {
-                organization_id: organizationId,
-                taskId: ruleTaskId,
-                type: ruleType,
-                description: 'Task Rule'
-            };
+            ruleTaskIds.forEach(taskId => {
+                const newConstraint: Omit<SchedulingConstraint, 'id'> = {
+                    organization_id: organizationId,
+                    taskId: taskId,
+                    type: ruleType,
+                    description: 'Task Rule'
+                };
 
-            if (target.type === 'person') newConstraint.personId = target.id;
-            else if (target.type === 'team') newConstraint.teamId = target.id;
-            else if (target.type === 'role') newConstraint.roleId = target.id;
+                if (target.type === 'person') newConstraint.personId = target.id;
+                else if (target.type === 'team') newConstraint.teamId = target.id;
+                else if (target.type === 'role') newConstraint.roleId = target.id;
 
-            // Check Duplicate
-            const exists = constraints.find(c =>
-                (c.id !== editingRuleId) &&
-                c.taskId === ruleTaskId &&
-                c.type === ruleType &&
-                (
-                    (target.type === 'person' && c.personId === target.id) ||
-                    (target.type === 'team' && c.teamId === target.id) ||
-                    (target.type === 'role' && c.roleId === target.id)
-                )
-            );
+                // Check Duplicate (We already deleted siblings if editing SAME target, but user might have CHANGED target)
+                // If user CHANGED target in edit, we deleted old, no conflict.
+                // If user ADDING new, we check.
+                const exists = constraints.find(c =>
+                    // Exclude the ones we just deleted?
+                    // No, `constraints` prop hasn't updated yet! 
+                    // But `handleSaveRule` is typically async or batched? 
+                    // `onDeleteConstraint` usually updates parent state. 
+                    // If parent state update is slow, we might see "exists".
+                    // Ideally we blindly add, assuming we trust the "Delete + Add" flow.
+                    // But let's keep the check but ignore if we know we just deleted it?
+                    // Hard to know. 
+                    // Let's trust that if we deleted siblings, they are logically gone.
+                    c.taskId === taskId &&
+                    c.type === ruleType &&
+                    (
+                        (target.type === 'person' && c.personId === target.id) ||
+                        (target.type === 'team' && c.teamId === target.id) ||
+                        (target.type === 'role' && c.roleId === target.id)
+                    )
+                );
 
-            if (!exists) {
-                onAddConstraint(newConstraint);
-                addedCount++;
-            }
+                // If editing, we know we deleted the old ones (conceptually). 
+                // However, React state might not reflect update yet. 
+                // If 'exists' is found, and it was one of the 'siblings', we should proceed (re-add).
+                // If 'exists' is unrelated (e.g. user selected a DIFFERENT person who already has this rule), we should skip/warn.
+
+                let isReplacing = false;
+                if (editingRuleId) {
+                    const originalC = constraints.find(c => c.id === editingRuleId);
+                    if (originalC) {
+                        const sameTarget =
+                            (target.type === 'person' && originalC.personId === target.id) ||
+                            (target.type === 'team' && originalC.teamId === target.id) ||
+                            (target.type === 'role' && originalC.roleId === target.id);
+                        if (sameTarget && ruleType === originalC.type) {
+                            isReplacing = true;
+                        }
+                    }
+                }
+
+                if (!exists || isReplacing) {
+                    onAddConstraint(newConstraint, true); // Silent add
+                    addedCount++;
+                }
+            });
         });
 
         if (addedCount > 0) {
-            showToast(editingRuleId ? 'החוק עודכן בהצלחה' : `${addedCount} חוקים נוספו בהצלחה`, 'success');
+            showToast(editingRuleId ? 'החוקים עודכנו בהצלחה' : `${addedCount} חוקים נוספו בהצלחה`, 'success');
             setIsRuleModalOpen(false);
             setRuleTargetIds([]);
             setRuleTargetIdSingle('');
+            setRuleTaskIds([]);
         } else {
-            showToast('החוק כבר קיים במערכת', 'info');
+            showToast('לא בוצעו שינויים (אולי החוקים כבר קיימים?)', 'info');
+            setIsRuleModalOpen(false); // Close anyway
         }
     };
 
@@ -223,15 +323,19 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
-                        <h4 className="font-bold text-slate-700">רשימת חוקים פעילים ({taskConstraints.length})</h4>
+                        <h4 className="font-bold text-slate-700">רשימת חוקים פעילים ({taskConstraintsGrouped.length})</h4>
                         <div className="w-full md:w-64"><Input placeholder="חיפוש חוקים..." value={rulesSearch} onChange={(e) => setRulesSearch(e.target.value)} icon={Search} /></div>
                     </div>
                     <div className="space-y-3">
-                        {taskConstraints.map(c => {
-                            const { name, icon: Icon, type } = getTargetName(c);
-                            const task = tasks.find(t => t.id === c.taskId);
+                        {taskConstraintsGrouped.map(group => {
+                            const { name, icon: Icon, type } = getTargetNameFromGroup(group);
+                            const taskNames = group.taskIds
+                                .map(tid => tasks.find(t => t.id === tid)?.name)
+                                .filter(Boolean)
+                                .join(', ');
+
                             return (
-                                <div key={c.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row items-start md:items-center gap-4 group">
+                                <div key={group.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row items-start md:items-center gap-4 group">
                                     <div className="flex items-center gap-4 w-full md:w-auto">
                                         <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${type === 'person' ? 'bg-blue-100 text-blue-600' : type === 'team' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'}`}>
                                             <Icon size={20} />
@@ -242,8 +346,8 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                         </div>
                                         {/* Mobile Actions */}
                                         <div className="flex md:hidden gap-2">
-                                            <button onClick={() => openRuleModal(c)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg"><Edit2 size={18} /></button>
-                                            <button onClick={() => onDeleteConstraint(c.id)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={18} /></button>
+                                            <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg"><Edit2 size={18} /></button>
+                                            <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={18} /></button>
                                         </div>
                                     </div>
 
@@ -254,30 +358,30 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                         </div>
 
                                         <div className="flex items-center gap-2">
-                                            <div className={`h-1 w-8 rounded-full hidden md:block ${c.type === 'never_assign' ? 'bg-red-200' : 'bg-green-200'}`} />
+                                            <div className={`h-1 w-8 rounded-full hidden md:block ${group.type === 'never_assign' ? 'bg-red-200' : 'bg-green-200'}`} />
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-xs font-bold text-slate-400 uppercase">משימה</div>
-                                                <div className="font-bold text-slate-700 truncate">{task?.name || '---'}</div>
+                                                <div className="text-xs font-bold text-slate-400 uppercase">משימות ({group.taskIds.length})</div>
+                                                <div className="font-bold text-slate-700 truncate" title={taskNames}>{taskNames || '---'}</div>
                                             </div>
                                         </div>
 
                                         <div className="flex items-center justify-between md:justify-start">
-                                            <span className={`px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2 w-fit ${c.type === 'never_assign' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                                                {c.type === 'never_assign' ? <Ban size={14} /> : <Pin size={14} />}
-                                                {c.type === 'never_assign' ? 'לא לשבץ לעולם' : 'שבץ רק למשימה זו'}
+                                            <span className={`px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2 w-fit ${group.type === 'never_assign' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                                                {group.type === 'never_assign' ? <Ban size={14} /> : <Pin size={14} />}
+                                                {group.type === 'never_assign' ? 'לא לשבץ לעולם' : 'שבץ רק למשימה זו'}
                                             </span>
                                         </div>
                                     </div>
 
                                     {/* Desktop Actions */}
                                     <div className="hidden md:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => openRuleModal(c)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={20} /></button>
-                                        <button onClick={() => onDeleteConstraint(c.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={20} /></button>
+                                        <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={20} /></button>
+                                        <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={20} /></button>
                                     </div>
                                 </div>
                             );
                         })}
-                        {taskConstraints.length === 0 && <div className="text-center py-12 text-slate-400"><Shield size={48} className="mx-auto mb-4 opacity-20" /><p>לא נמצאו חוקים פעילים</p></div>}
+                        {taskConstraintsGrouped.length === 0 && <div className="text-center py-12 text-slate-400"><Shield size={48} className="mx-auto mb-4 opacity-20" /><p>לא נמצאו חוקים פעילים</p></div>}
                     </div>
                 </div>
 
@@ -342,8 +446,13 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="text-sm font-bold text-slate-700 mb-2 block">המשימה</label>
-                                <Select value={ruleTaskId} onChange={setRuleTaskId} options={tasks.map(t => ({ value: t.id, label: t.name }))} placeholder="בחר משימה" />
+                                <label className="text-sm font-bold text-slate-700 mb-2 block">משימות (ניתן לבחור מספר משימות)</label>
+                                <MultiSelect
+                                    value={ruleTaskIds} // Correct state variable
+                                    onChange={setRuleTaskIds}
+                                    options={tasks.map(t => ({ value: t.id, label: t.name }))}
+                                    placeholder="בחר משימות..."
+                                />
                             </div>
 
                             <div>

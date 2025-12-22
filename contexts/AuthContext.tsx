@@ -106,15 +106,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('📝 No profile found, creating new profile...');
         const { data: userData } = await supabase.auth.getUser();
         const email = userData?.user?.email || '';
+        const phone = userData?.user?.phone || '';
         const fullName = userData?.user?.user_metadata?.full_name ||
           userData?.user?.user_metadata?.name ||
-          email.split('@')[0];
+          email.split('@')[0] || phone;
 
-        const { data: existingPerson } = await supabase
-          .from('people')
-          .select('organization_id, id')
-          .eq('email', email)
-          .maybeSingle();
+        let query = supabase.from('people').select('organization_id, id');
+
+        if (email && phone) {
+          query = query.or(`email.eq.${email},phone.eq.${phone}`);
+        } else if (email) {
+          query = query.eq('email', email);
+        } else if (phone) {
+          query = query.eq('phone', phone);
+        } else {
+          // Should not happen, but safe fallback
+          query = query.eq('email', 'impossible-placeholder');
+        }
+
+        const { data: existingPerson } = await query.maybeSingle();
 
         const { data: newProfile, error: insertError } = await supabase
           .from('profiles')
@@ -149,11 +159,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('✅ Profile loaded successfully');
 
       if (!profileData.organization_id) {
-        const { data: existingPerson } = await supabase
-          .from('people')
-          .select('organization_id, id')
-          .eq('email', profileData.email)
-          .maybeSingle();
+        // Fetch fresh user data to get phone
+        const { data: userData } = await supabase.auth.getUser();
+        const email = userData?.user?.email || profileData.email;
+        const phone = userData?.user?.phone || '';
+
+        let query = supabase.from('people').select('organization_id, id');
+
+        if (email && phone) {
+          query = query.or(`email.eq.${email},phone.eq.${phone}`);
+        } else if (email) {
+          query = query.eq('email', email);
+        } else if (phone) {
+          query = query.eq('phone', phone);
+        } else {
+          query = query.eq('email', 'impossible-placeholder');
+        }
+
+        const { data: existingPerson } = await query.maybeSingle();
 
         if (existingPerson) {
           console.log('🔗 Found matching person, linking profile to organization...');

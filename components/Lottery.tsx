@@ -14,6 +14,8 @@ interface LotteryProps {
 type PoolType = 'all' | 'team' | 'role' | 'manual';
 
 export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
+    const { organization } = useAuth();
+
     // History State
     const [history, setHistory] = useState<any[]>([]);
     const [showHistory, setShowHistory] = useState(false);
@@ -84,14 +86,19 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
 
     // Fetch History
     useEffect(() => {
+        if (!organization?.id) return;
+
         const fetchHistory = async () => {
-            const { data } = await supabase.from('lottery_history').select('*').order('created_at', { ascending: false }).limit(20);
+            const { data } = await supabase
+                .from('lottery_history')
+                .select('*')
+                .eq('organization_id', organization.id)
+                .order('created_at', { ascending: false })
+                .limit(20);
             if (data) setHistory(data);
         };
         fetchHistory();
-    }, []);
-
-    const { organization } = useAuth(); // Get organization from context
+    }, [organization?.id]);
 
     // ... (rest of code)
 
