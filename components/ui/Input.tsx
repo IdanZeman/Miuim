@@ -11,9 +11,10 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
     ({ className = '', label, error, icon: Icon, containerClassName = '', ...props }, ref) => {
         return (
-            <div className={`w-full ${containerClassName}`}>
+        return (
+            <div className={`w-full min-w-0 ${containerClassName}`}>
                 {label && (
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5 truncate">
                         {label}
                     </label>
                 )}
@@ -27,7 +28,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                         ref={ref}
                         className={`
                             w-full 
-                            ${Icon ? 'pr-10 pl-4' : 'px-4'} 
+                            ${Icon ? 'pr-10 pl-4' : (props.type === 'time' ? 'px-1' : 'px-3 md:px-4')} 
                             py-2.5 
                             bg-white 
                             border 
