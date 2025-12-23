@@ -1081,12 +1081,14 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                             label="שעת הגעה"
                                             value={userArrivalHour}
                                             onChange={(e) => setUserArrivalHour(e.target.value)}
+                                            className="w-full bg-slate-50 border-slate-200"
                                         />
                                         <Input
                                             type="time"
                                             label="שעת יציאה"
                                             value={userDepartureHour}
                                             onChange={(e) => setUserDepartureHour(e.target.value)}
+                                            className="w-full bg-slate-50 border-slate-200"
                                         />
                                     </div>
 

@@ -630,18 +630,24 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
             >
                 <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
-                        <Input
-                            type="time"
-                            label="התחלה"
-                            value={editItem.startTime || ''}
-                            onChange={e => setEditItem({ ...editItem, startTime: e.target.value })}
-                        />
-                        <Input
-                            type="time"
-                            label="סיום"
-                            value={editItem.endTime || ''}
-                            onChange={e => setEditItem({ ...editItem, endTime: e.target.value })}
-                        />
+                        <div>
+                            <Input
+                                type="time"
+                                label="התחלה"
+                                value={editItem.startTime || ''}
+                                onChange={e => setEditItem({ ...editItem, startTime: e.target.value })}
+                                className="w-full bg-slate-50 border-slate-200"
+                            />
+                        </div>
+                        <div>
+                            <Input
+                                type="time"
+                                label="סיום"
+                                value={editItem.endTime || ''}
+                                onChange={e => setEditItem({ ...editItem, endTime: e.target.value })}
+                                className="w-full bg-slate-50 border-slate-200"
+                            />
+                        </div>
                     </div>
 
                     <Input
