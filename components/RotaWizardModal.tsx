@@ -1075,7 +1075,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                                    <div className="grid grid-cols-2 gap-3 mt-4">
                                         <Input
                                             type="time"
                                             label="שעת הגעה"

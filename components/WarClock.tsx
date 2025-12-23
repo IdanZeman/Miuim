@@ -629,7 +629,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                 }
             >
                 <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2 md:gap-4">
                         <div>
                             <Input
                                 type="time"

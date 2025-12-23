@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Equipment, EquipmentStatus, EquipmentVerification, Team } from '../types';
-import { Package, Search, Plus, User, Calendar, CheckCircle2, AlertCircle, History, QrCode, ClipboardCheck, Trash2, Edit3, Filter, ShieldCheck, Tag, ChevronRight, Users, UserPlus, ChevronDown } from 'lucide-react';
+import { Package, Search, Plus, User, Calendar, CheckCircle2, AlertCircle, History, QrCode, ClipboardCheck, Trash2, Edit3, Filter, ShieldCheck, Tag, ChevronRight, Users, UserPlus, ChevronDown, Hammer } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
@@ -524,54 +524,93 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                         </div>
                     )}
 
-                    {/* VERIFY VIEW (Shared or Adapted) */}
+                    {/* VERIFY VIEW */}
                     {viewMode === 'verify' && (
-                        <div className="overflow-x-auto -mx-2 px-2 md:mx-0 md:px-0">
-                            {/* Keep existing verify table logic but maybe wrap it similarly if needed */}
-                            {/* For brevity, reusing existing table structure but ensure it fits desktop */}
-                            <table className="w-full text-right bg-white rounded-xl overflow-hidden border border-slate-100 shadow-sm">
-                                {/* ... (existing verify table) ... */}
-                                <thead className="bg-slate-50">
-                                    <tr>
-                                        <th className="px-4 py-3 text-xs font-black text-slate-500">פריט</th>
-                                        <th className="px-4 py-3 text-xs font-black text-slate-500">סטטוס</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {equipment.map(item => {
-                                        const isVerifiedToday = item.last_verified_at && new Date(item.last_verified_at).toDateString() === new Date().toDateString();
-                                        return (
-                                            <tr key={item.id} className="hover:bg-slate-50">
-                                                <td className="px-4 py-3">
-                                                    <div className="flex md:items-center gap-3">
-                                                        <span className="font-bold text-slate-800 text-sm md:text-base">{item.serial_number}</span>
-                                                        <span className="text-[10px] text-slate-500 md:text-sm md:bg-slate-100 md:px-2 md:py-0.5 md:rounded">{item.type}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex gap-1 justify-end">
-                                                        {['present', 'missing', 'damaged'].map((statusKey) => (
+                        <div className="space-y-4">
+                            {/* Legend - Clean & Explicit */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap gap-4 items-center justify-center text-xs text-slate-600">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-sm">
+                                        <CheckCircle2 size={14} />
+                                    </div>
+                                    <span className="font-bold">תקין/נמצא</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                                        <Hammer size={14} />
+                                    </div>
+                                    <span className="font-bold">תקול/דורש תיקון</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-6 h-6 rounded-lg bg-rose-500 text-white flex items-center justify-center shadow-sm">
+                                        <AlertCircle size={14} />
+                                    </div>
+                                    <span className="font-bold">חסר/אבד</span>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto -mx-2 px-2 md:mx-0 md:px-0">
+                                <table className="w-full text-right bg-white rounded-xl overflow-hidden border border-slate-100 shadow-sm">
+                                    <thead className="bg-slate-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-xs font-black text-slate-500">פריט</th>
+                                            <th className="px-4 py-3 text-xs font-black text-slate-500">סטטוס בדיקה</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {equipment.map(item => {
+                                            const isVerifiedToday = item.last_verified_at && new Date(item.last_verified_at).toDateString() === new Date().toDateString();
+                                            return (
+                                                <tr key={item.id} className="hover:bg-slate-50">
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
+                                                            <span className="font-bold text-slate-800 text-sm md:text-base">{item.serial_number}</span>
+                                                            <span className="text-[10px] text-slate-500 md:text-sm md:bg-slate-100 md:px-2 md:py-0.5 md:rounded w-fit">{item.type}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex gap-2 justify-end">
+
                                                             <button
-                                                                key={statusKey}
-                                                                onClick={() => handleVerify(item.id, statusKey as EquipmentStatus)}
-                                                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${item.status === statusKey && isVerifiedToday
-                                                                    ? (statusKey === 'present' ? 'bg-emerald-500 text-white' : statusKey === 'missing' ? 'bg-rose-500 text-white' : 'bg-amber-500 text-white')
-                                                                    : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                                                                onClick={() => handleVerify(item.id, 'present')}
+                                                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${item.status === 'present' && isVerifiedToday
+                                                                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 ring-2 ring-emerald-100'
+                                                                    : 'bg-slate-50 text-slate-300 hover:bg-emerald-50 hover:text-emerald-500'
                                                                     }`}
-                                                                title={getStatusLabel(statusKey as EquipmentStatus)}
+                                                                title="תקין / נמצא"
                                                             >
-                                                                {statusKey === 'present' && <CheckCircle2 size={16} />}
-                                                                {statusKey === 'missing' && <AlertCircle size={16} />}
-                                                                {statusKey === 'damaged' && <History size={16} />}
+                                                                <CheckCircle2 size={18} />
                                                             </button>
-                                                        ))}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )
-                                    })}
-                                </tbody>
-                            </table>
+
+                                                            <button
+                                                                onClick={() => handleVerify(item.id, 'damaged')}
+                                                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${item.status === 'damaged' && isVerifiedToday
+                                                                    ? 'bg-amber-500 text-white shadow-md shadow-amber-200 ring-2 ring-amber-100'
+                                                                    : 'bg-slate-50 text-slate-300 hover:bg-amber-50 hover:text-amber-500'
+                                                                    }`}
+                                                                title="תקול / דורש תיקון"
+                                                            >
+                                                                <Hammer size={18} />
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => handleVerify(item.id, 'missing')}
+                                                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${item.status === 'missing' && isVerifiedToday
+                                                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-200 ring-2 ring-rose-100'
+                                                                    : 'bg-slate-50 text-slate-300 hover:bg-rose-50 hover:text-rose-500'
+                                                                    }`}
+                                                                title="חסר / אבד"
+                                                            >
+                                                                <AlertCircle size={18} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     )}
 
