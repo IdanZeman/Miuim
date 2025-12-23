@@ -450,11 +450,13 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
       {/* Mobile Bottom Navigation */}
       {!isPublic && setView && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 pb-safe">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-[100] transition-all duration-300"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', touchAction: 'manipulation' }}>
           <div className="flex justify-around items-center h-16">
             <button
+              type="button"
               onClick={() => setView('home')}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'home' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-90 transition-transform ${currentView === 'home' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
               <Home size={20} className={currentView === 'home' ? 'fill-blue-100' : ''} />
               <span className="text-[10px] font-medium">בית</span>
@@ -462,8 +464,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {checkAccess('dashboard') && (
               <button
+                type="button"
                 onClick={() => setView('dashboard')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-90 transition-transform ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <Calendar size={20} className={currentView === 'dashboard' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">שיבוצים</span>
@@ -472,8 +475,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {checkAccess('personnel') && (
               <button
+                type="button"
                 onClick={() => setView('personnel')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'personnel' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-90 transition-transform ${currentView === 'personnel' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <Users size={20} className={currentView === 'personnel' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">כוח אדם</span>
@@ -482,8 +486,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {checkAccess('tasks') && (
               <button
+                type="button"
                 onClick={() => setView('tasks')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'tasks' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-90 transition-transform ${currentView === 'tasks' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <ClipboardList size={20} className={currentView === 'tasks' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">משימות</span>
@@ -492,8 +497,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {checkAccess('attendance') && (
               <button
+                type="button"
                 onClick={() => setView('attendance')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'attendance' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-90 transition-transform ${currentView === 'attendance' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <Clock size={20} className={currentView === 'attendance' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">נוכחות</span>
@@ -502,8 +508,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {checkAccess('stats') && (
               <button
+                type="button"
                 onClick={() => setView('stats')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'stats' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-90 transition-transform ${currentView === 'stats' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <BarChart2 size={20} className={currentView === 'stats' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">דוחות</span>
@@ -511,8 +518,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             )}
 
             <button
+              type="button"
               onClick={() => setIsMobileMenuOpen(true)}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-90 transition-transform ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
               <Menu size={20} />
               <span className="text-[10px] font-medium">תפריט</span>

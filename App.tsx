@@ -238,8 +238,9 @@ const MainApp: React.FC = () => {
                             const dbStart = pd.start_time ? pd.start_time.slice(0, 5) : null;
                             const dbEnd = pd.end_time ? pd.end_time.slice(0, 5) : null;
 
-                            if (dbStart && dbEnd && dbStart !== '00:00' && dbEnd !== '00:00') {
-                                // Prioritize DB-stored times (IF they are not the default 00:00)
+                            if (dbStart && dbEnd && (dbStart !== '00:00' || dbEnd !== '23:59' || dbEnd !== '00:00')) {
+                                // Prioritize DB-stored times (IF they are specifically set and not just default placeholders)
+                                // We treat 00:00-23:59 as a specific "Full Day" if stored.
                                 startHour = dbStart;
                                 endHour = dbEnd;
                             } else {
