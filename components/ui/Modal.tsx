@@ -52,21 +52,27 @@ export const Modal: React.FC<ModalProps> = ({
             case 'lg': return 'max-w-2xl';
             case 'xl': return 'max-w-4xl';
             case '2xl': return 'max-w-6xl';
-            case 'full': return 'max-w-full m-4';
+            case 'full': return 'max-w-full md:max-w-7xl md:m-4';
             default: return 'max-w-lg';
         }
     };
 
     return createPortal(
-        <div className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <div className={`fixed inset-0 z-[9999] flex items-end md:items-center justify-center transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 onClick={onClose}
             ></div>
 
             {/* Modal */}
-            <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90dvh] flex flex-col overflow-hidden transform transition-all duration-200 ${getSizeClasses()} ${isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
+            <div className={`
+                bg-white md:rounded-2xl rounded-t-[2.5rem] shadow-2xl w-full 
+                flex flex-col overflow-hidden transform transition-all duration-300 ease-out
+                ${size === 'full' ? 'h-[95dvh] md:h-[90dvh]' : 'max-h-[90dvh]'}
+                ${getSizeClasses()} 
+                ${isOpen ? 'translate-y-0 scale-100' : 'translate-y-full md:translate-y-4 md:scale-95'}
+            `}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-100 flex-shrink-0 bg-white z-10">
                     <div className="text-xl md:text-2xl font-bold text-slate-800">{title}</div>

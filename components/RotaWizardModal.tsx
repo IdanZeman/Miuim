@@ -683,7 +683,19 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         };
     }, [result, people, targetTeamIds, selectedTeamId, startDate, endDate, manualOverrides]);
 
-
+    const configFooter = (
+        <div className="flex flex-row gap-3 w-full">
+            <Button variant="ghost" onClick={onClose} className="flex-1 justify-center">ביטול</Button>
+            <Button
+                onClick={handleGenerate}
+                isLoading={generating}
+                icon={Sparkles}
+                className="bg-[#7cbd52] hover:bg-[#6aa845] text-white shadow-md hover:shadow-lg flex-[2] h-12 md:h-10 justify-center text-base md:text-sm font-black"
+            >
+                צור הצעה
+            </Button>
+        </div>
+    );
 
     const previewFooter = (
         <div className="flex flex-col w-full gap-4">
@@ -713,56 +725,40 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             </button>
                         )}
                     </div>
-
-                    {/* Unfulfilled List */}
-                    {showConstraints && result.unfulfilledConstraints && result.unfulfilledConstraints.length > 0 && (
-                        <div className="mt-2 bg-white rounded border border-slate-200 p-2 max-h-32 overflow-y-auto space-y-1 custom-scrollbar">
-                            {result.unfulfilledConstraints.map((c, idx) => (
-                                <div key={idx} className="text-xs flex items-start gap-2 p-1.5 hover:bg-slate-50 rounded">
-                                    <XCircle size={12} className="text-red-500 shrink-0 mt-0.5" />
-                                    <div>
-                                        <span className="font-bold text-slate-700">{c.personName}</span>
-                                        <span className="text-slate-400 mx-1">•</span>
-                                        <span className="font-mono text-slate-500">{c.date}</span>
-                                        <div className="text-slate-500 opacity-80">{c.reason}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
             )}
 
             {/* Stats Summary */}
-            <div className="flex flex-wrap items-center justify-center gap-4 bg-slate-50 p-2 rounded-lg border border-slate-200 text-sm shadow-sm">
-                <div className="font-bold text-slate-700">ממוצע ללוחם:</div>
-                <div className="flex items-center gap-4">
-                    <span className="text-slate-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">
-                        ימי בסיס: <span className="font-bold text-green-700">{rosterStats.avgBase}</span>
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[11px] md:text-sm shadow-sm">
+                <div className="font-black text-slate-700">ממוצע ללוחם:</div>
+                <div className="flex items-center gap-3">
+                    <span className="text-slate-600 bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
+                        בסיס: <span className="font-black text-emerald-600">{rosterStats.avgBase}</span>
                     </span>
-                    <span className="text-slate-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">
-                        ימי בית: <span className="font-bold text-red-700">{rosterStats.avgHome}</span>
+                    <span className="text-slate-600 bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
+                        בית: <span className="font-black text-rose-600">{rosterStats.avgHome}</span>
                     </span>
-                    <span className="text-slate-400">|</span>
+                    <div className="w-px h-3 bg-slate-200" />
                     <span className="text-slate-600">
-                        יחס (בערך): <span className="font-bold text-blue-700" dir="ltr">{getArmyRatio(Number(rosterStats.avgBase), Number(rosterStats.avgHome))}</span>
+                        יחס: <span dir="ltr" className="font-black text-blue-600">{getArmyRatio(Number(rosterStats.avgBase), Number(rosterStats.avgHome))}</span>
                     </span>
                 </div>
             </div>
 
-            <div className="flex flex-col-reverse gap-4 sm:flex-row sm:justify-between sm:items-center w-full">
-                <Button variant="ghost" onClick={() => setStep('config')} icon={ArrowRight} className="w-full sm:w-auto justify-center sm:justify-start">חזור להגדרות</Button>
-                <div className="flex gap-2 w-full sm:w-auto">
-                    <Button variant="ghost" onClick={onClose} className="flex-1 sm:flex-none justify-center">ביטול</Button>
-                    <Button
-                        onClick={handleSave}
-                        isLoading={saving}
-                        icon={Save}
-                        className="bg-green-600 text-white hover:bg-green-700 shadow-md flex-1 sm:flex-none justify-center"
-                    >
-                        שמור וסיים
-                    </Button>
-                </div>
+            <div className="flex flex-row gap-2 w-full">
+                <Button variant="ghost" onClick={() => setStep('config')} className="flex-1 justify-center px-1">
+                    <ArrowRight size={18} className="md:ml-2 ml-0" />
+                    <span className="hidden md:inline">חזרה</span>
+                </Button>
+                <Button variant="ghost" onClick={onClose} className="flex-1 justify-center px-1">ביטול</Button>
+                <Button
+                    onClick={handleSave}
+                    isLoading={saving}
+                    icon={Save}
+                    className="bg-green-600 text-white hover:bg-green-700 shadow-md flex-[2] justify-center font-black h-12 md:h-10"
+                >
+                    שמור
+                </Button>
             </div>
         </div>
     );
@@ -891,12 +887,17 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             <Modal
                 isOpen={isOpen}
                 onClose={onClose}
-                title="מחולל הסבבים האוטומטי"
-                size={step === 'preview' ? '2xl' : 'lg'} // Note: modal content needs to handle full width
+                title={
+                    <div className="flex flex-col">
+                        <span className="text-lg md:text-2xl font-black text-slate-800">מחולל סבבים</span>
+                        <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Automated Roster Generator</span>
+                    </div>
+                }
+                size="full" // Full screen on mobile for better space usage
                 scrollableContent={step === 'config'}
-                footer={step === 'preview' ? previewFooter : undefined}
+                footer={step === 'preview' ? previewFooter : configFooter}
             >
-                <div className={`flex flex-col h-full ${step === 'preview' ? 'h-[80vh] md:h-[65vh] shrink min-h-0' : ''}`}>
+                <div className={`flex flex-col h-full ${step === 'preview' ? 'h-[80vh] md:h-[75vh] shrink min-h-0' : ''}`}>
                     {step === 'config' ? (
                         <>
                             {/* ... config content ... */}
@@ -1034,18 +1035,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     <p className="text-[10px] text-blue-600 mt-1 mr-6">המערכת תחשב את הסד״כ המדויק לכל יום בנפרד במהלך יצירת השיבוץ.</p>
                                 </div>
                             )}
-
-                            <div className="flex flex-col-reverse gap-3 pt-4 mt-auto sm:flex-row sm:justify-end">
-                                <Button variant="ghost" onClick={onClose} className="w-full sm:w-auto">ביטול</Button>
-                                <Button
-                                    onClick={handleGenerate}
-                                    isLoading={generating}
-                                    icon={Sparkles}
-                                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md hover:shadow-lg w-full sm:w-auto justify-center"
-                                >
-                                    צור הצעה לשיבוץ
-                                </Button>
-                            </div>
                         </>
                     ) : (
                         <>
@@ -1114,10 +1103,10 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 <div className="absolute inset-0 overflow-scroll force-scrolling" dir="rtl">
                                     <div className="min-w-max">
                                         {/* Summary Header */}
-                                        <div className="sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
+                                        <div className="sticky top-0 z-30 bg-white border-b border-slate-200">
                                             {/* Date Header Row */}
                                             <div className="flex h-10">
-                                                <div className="w-48 shrink-0 p-2 font-bold bg-slate-50 border-l sticky right-0 z-40 flex items-center border-b border-slate-200">
+                                                <div className="w-32 shrink-0 p-2 font-bold bg-slate-50 border-l sticky right-0 z-40 flex items-center border-b border-slate-200">
                                                     תאריך
                                                 </div>
                                                 <div className="flex">
@@ -1151,7 +1140,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                                             {/* Total Assigned Row */}
                                             <div className="flex h-8 bg-indigo-50 border-b border-indigo-100">
-                                                <div className="w-48 shrink-0 px-3 py-1 text-xs font-bold text-indigo-800 bg-indigo-50 border-l border-indigo-200 sticky right-0 z-40 flex items-center shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)]">
+                                                <div className="w-32 shrink-0 px-3 py-1 text-xs font-bold text-indigo-800 bg-indigo-50 border-l border-indigo-200 sticky right-0 z-40 flex items-center">
                                                     סה״כ מאוישים
                                                 </div>
                                                 <div className="flex">
@@ -1206,10 +1195,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                 .map((person, idx) => (
                                                     <div key={person.id} className={`flex border-b border-slate-50 hover:bg-slate-50 transition-colors h-14 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                                                         {/* Sticky Name Column */}
-                                                        <div className={`w-48 shrink-0 p-2 border-l sticky right-0 z-20 flex items-center gap-2 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.1)] ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                                        <div className={`w-32 shrink-0 p-2 border-l sticky right-0 z-20 flex items-center gap-2 border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                                                             <div
-                                                                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white shadow-sm"
-                                                                style={{ backgroundColor: teams.find(t => t.id === person.teamId)?.color || '#94a3b8' }}
+                                                                className="hidden md:flex w-8 h-8 rounded-full items-center justify-center text-xs font-bold shrink-0 shadow-sm border border-slate-200 text-slate-700"
+                                                                style={{
+                                                                    backgroundColor: teams.find(t => t.id === person.teamId)?.color || '#f1f5f9'
+                                                                }}
                                                             >
                                                                 {person.name.charAt(0)}
                                                             </div>
@@ -1424,90 +1415,92 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         </>
                     )}
                 </div>
-                {/* Manual Edit Popover */}
-                {editingCell && createPortal(
-                    <div
-                        className="fixed inset-0 z-[9999] flex cursor-default bg-black/5" // Dim background slightly? No, keeping transparent as before or maybe just handling click.
-                        onClick={() => setEditingCell(null)}
-                    >
-                        <div
-                            className={`bg-white rounded-lg shadow-xl border border-slate-200 p-2 flex flex-col gap-1 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 ${editingCell.isMobile
-                                ? 'fixed top-[30%] left-0 right-0 mx-auto w-[280px] shadow-2xl' // Centered Mobile 
-                                : 'absolute' // Desktop
-                                }`}
-                            style={editingCell.isMobile ? {} : {
-                                top: editingCell.position.top,
-                                left: editingCell.position.left
-                            }}
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="text-[11px] font-bold text-slate-400 px-2 pb-2 border-b mb-1 flex justify-between items-center">
-                                <span>ערוך סטטוס</span>
-                                <button onClick={() => setEditingCell(null)} className="hover:bg-slate-100 rounded p-0.5"><X size={12} /></button>
-                            </div>
-
-                            {!customType ? (
-                                <>
-                                    <button onClick={() => applyOverride('base')} className="flex items-center gap-2 px-2 py-2 hover:bg-green-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
-                                        <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm" /> בבסיס (מלא)
-                                    </button>
-                                    <button onClick={() => applyOverride('home')} className="flex items-center gap-2 px-2 py-2 hover:bg-red-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
-                                        <div className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-sm" /> בבית (מלא)
-                                    </button>
-
-                                    <div className="flex gap-1">
-                                        <button onClick={() => setCustomType('departure')} className="flex-1 flex items-center justify-center gap-1 px-1 py-2 hover:bg-amber-50 rounded text-xs text-slate-700 border border-slate-100 transition-colors">
-                                            <div className="w-2 h-2 rounded-full bg-amber-400" /> יציאה...
-                                        </button>
-                                        <button onClick={() => setCustomType('arrival')} className="flex-1 flex items-center justify-center gap-1 px-1 py-2 hover:bg-teal-50 rounded text-xs text-slate-700 border border-slate-100 transition-colors">
-                                            <div className="w-2 h-2 rounded-full bg-teal-400" /> הגעה...
-                                        </button>
-                                    </div>
-
-                                    <button onClick={() => setCustomType('custom')} className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded text-xs text-slate-700 w-full text-right transition-colors mt-1">
-                                        <Clock size={12} className="text-blue-500" /> שעות מותאמות...
-                                    </button>
-                                </>
-                            ) : (
-                                <div className="flex flex-col gap-2 p-1">
-                                    {customType === 'departure' && (
-                                        <div className="flex flex-col">
-                                            <label className="text-[9px] text-slate-400 mb-1">שעת יציאה:</label>
-                                            <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-1 text-sm w-full text-center" />
-                                        </div>
-                                    )}
-
-                                    {customType === 'arrival' && (
-                                        <div className="flex flex-col">
-                                            <label className="text-[9px] text-slate-400 mb-1">שעת הגעה:</label>
-                                            <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-1 text-sm w-full text-center" />
-                                        </div>
-                                    )}
-
-                                    {customType === 'custom' && (
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex flex-col">
-                                                <label className="text-[9px] text-slate-400">התחלה</label>
-                                                <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <label className="text-[9px] text-slate-400">סיום</label>
-                                                <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="flex gap-2 mt-1">
-                                        <button onClick={() => setCustomType(null)} className="flex-1 bg-slate-100 text-slate-600 text-[10px] py-1 rounded hover:bg-slate-200">ביטול</button>
-                                        <button onClick={() => applyOverride(customType, { start: customStart, end: customEnd })} className="flex-1 bg-blue-600 text-white text-[10px] py-1 rounded hover:bg-blue-700 font-medium">שמור</button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>,
-                    document.body
-                )}
             </Modal>
+
+            {/* Manual Edit Popover */}
+            {editingCell && createPortal(
+                <div
+                    className="fixed inset-0 z-[9999] flex cursor-default bg-black/5" // Dim background slightly? No, keeping transparent as before or maybe just handling click.
+                    onClick={() => setEditingCell(null)}
+                >
+                    <div
+                        className={`bg-white shadow-2xl flex flex-col gap-1 transition-all duration-300 ${editingCell.isMobile
+                            ? 'fixed bottom-0 left-0 right-0 rounded-t-[2rem] p-6 animate-in slide-in-from-bottom duration-300 ease-out z-[10000]' // Bottom Sheet Mobile 
+                            : 'absolute rounded-lg shadow-xl border border-slate-200 p-2 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 z-[10000]' // Desktop
+                            }`}
+                        style={editingCell.isMobile ? {} : {
+                            top: editingCell.position.top,
+                            left: editingCell.position.left
+                        }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="text-xs font-black text-slate-400 px-1 pb-3 border-b border-slate-100 mb-2 flex justify-between items-center uppercase tracking-widest">
+                            <span>ערוך סטטוס • {editingCell.date}</span>
+                            <button onClick={() => setEditingCell(null)} className="hover:bg-slate-100 rounded-full p-1 transition-colors"><X size={16} /></button>
+                        </div>
+
+                        {!customType ? (
+                            <>
+                                <button onClick={() => applyOverride('base')} className="flex items-center gap-2 px-2 py-2 hover:bg-green-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm" /> בבסיס (מלא)
+                                </button>
+                                <button onClick={() => applyOverride('home')} className="flex items-center gap-2 px-2 py-2 hover:bg-red-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-sm" /> בבית (מלא)
+                                </button>
+
+                                <div className="flex gap-1 mt-1">
+                                    <button onClick={() => setCustomType('departure')} className="flex-1 flex items-center justify-center gap-1 px-1 py-2 hover:bg-amber-50 rounded text-xs text-slate-700 border border-slate-100 transition-colors">
+                                        <div className="w-2 h-2 rounded-full bg-amber-400" /> יציאה...
+                                    </button>
+                                    <button onClick={() => setCustomType('arrival')} className="flex-1 flex items-center justify-center gap-1 px-1 py-2 hover:bg-teal-50 rounded text-xs text-slate-700 border border-slate-100 transition-colors">
+                                        <div className="w-2 h-2 rounded-full bg-teal-400" /> הגעה...
+                                    </button>
+                                </div>
+
+                                <button onClick={() => setCustomType('custom')} className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded text-xs text-slate-700 w-full text-right transition-colors mt-1">
+                                    <Clock size={12} className="text-blue-500" /> שעות מותאמות...
+                                </button>
+                            </>
+                        ) : (
+                            <div className="flex flex-col gap-2 p-1">
+                                {customType === 'departure' && (
+                                    <div className="flex flex-col">
+                                        <label className="text-[9px] text-slate-400 mb-1">שעת יציאה:</label>
+                                        <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-1 text-sm w-full text-center" />
+                                    </div>
+                                )}
+
+                                {customType === 'arrival' && (
+                                    <div className="flex flex-col">
+                                        <label className="text-[9px] text-slate-400 mb-1">שעת הגעה:</label>
+                                        <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-1 text-sm w-full text-center" />
+                                    </div>
+                                )}
+
+                                {customType === 'custom' && (
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex flex-col">
+                                            <label className="text-[9px] text-slate-400">התחלה</label>
+                                            <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <label className="text-[9px] text-slate-400">סיום</label>
+                                            <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2 mt-1">
+                                    <button onClick={() => setCustomType(null)} className="flex-1 bg-slate-100 text-slate-600 text-[10px] py-1 rounded hover:bg-slate-200">ביטול</button>
+                                    <button onClick={() => applyOverride(customType, { start: customStart, end: customEnd })} className="flex-1 bg-blue-600 text-white text-[10px] py-1 rounded hover:bg-blue-700 font-medium">שמור</button>
+                                </div>
+                            </div>
+                        )}
+                        {editingCell.isMobile && <div className="h-6" />} {/* Extra space for mobile thumb */}
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* Warning Modal */}
             <Modal

@@ -353,98 +353,116 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     };
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto h-[calc(100vh-140px)] flex flex-col relative">
-            {/* Header - Hidden on mobile in calendar view to save space (native feel) */}
-            <div className={`bg-white rounded-xl shadow-portal p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 transition-all ${viewMode === 'calendar' ? 'hidden md:flex' : 'flex'}`}>
-                <div className="text-center md:text-right w-full md:w-auto">
-                    <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center justify-center md:justify-start gap-2">
-                        <Calendar className="text-idf-green" />
-                        יומן נוכחות וזמינות
-                    </h2>
-                    <p className="text-slate-500 text-xs md:text-sm mt-1">
-                        {viewMode === 'calendar'
-                            ? 'מבט על - נוכחות חודשית'
-                            : `ניהול נוכחות ליום ${selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}`
-                        }
-                    </p>
-                </div>
+        <div className="flex flex-col h-[calc(100vh-64px)] bg-[#7cbd52] md:bg-slate-50 relative overflow-hidden">
+            {/* --- GREEN HEADER (Mobile & Desktop Unified or Mobile Only?) --- */}
 
-                <div className="flex flex-wrap justify-center md:justify-end items-center gap-2 md:gap-3 w-full md:w-auto">
-                    {!isViewer && (
+            {/* --- UNIFIED MOBILE CONTAINER --- */}
+            <div className={`
+                flex-1 flex flex-col md:hidden
+                bg-white 
+                mt-0 relative isolate z-10 overflow-hidden
+            `}>
+                {/* Mobile Header (Integrated into Sheet) */}
+                <div className="px-4 pt-6 pb-4 border-b border-slate-50 flex flex-col gap-5 shrink-0">
+                    <div className="flex items-center justify-between">
+                        {/* Right Side: View Toggles (Icons) */}
+                        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                            <button
+                                onClick={() => setViewMode('calendar')}
+                                className={`p-2 rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-white text-blue-600 scale-105' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                <CalendarDays size={20} />
+                            </button>
+                            <button
+                                onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
+                                className={`p-2 rounded-lg transition-all ${viewMode === 'day_detail' ? 'bg-white text-blue-600 scale-105' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                <ListChecks size={20} />
+                            </button>
+                            <div className="w-px h-4 bg-slate-200 mx-0.5" />
+                            <button
+                                onClick={() => setShowRotaWizard(true)}
+                                className="p-2 text-amber-500 hover:text-amber-600 transition-all active:scale-95"
+                                title="מחולל סבבים"
+                            >
+                                <Wand2 size={20} />
+                            </button>
+                        </div>
+
+                        {/* Left Side: Back Button (Integrated into Header) */}
+                        <div className="flex items-center">
+                            {viewMode === 'day_detail' && (
+                                <button
+                                    onClick={handleBackToCalendar}
+                                    className="flex items-center gap-1 text-slate-500 hover:text-blue-600 transition-colors py-1 px-2"
+                                >
+                                    <ChevronRight size={22} />
+                                    <span className="text-sm font-black">חודש</span>
+                                </button>
+                            )}
+                            {viewMode === 'calendar' && (
+                                <span className="text-sm font-black text-slate-300 mr-2">תצוגת יומן</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Date Navigator (Day/Month adaptive) */}
+                    <div className="flex items-center justify-between px-1">
                         <button
-                            onClick={() => setShowRotaWizard(true)}
-                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm hover:shadow transition-all font-medium text-sm"
-                            title="מחולל הסבבים"
+                            onClick={() => {
+                                if (viewMode === 'calendar') {
+                                    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+                                } else {
+                                    const next = new Date(selectedDate);
+                                    next.setDate(selectedDate.getDate() - 1);
+                                    setSelectedDate(next);
+                                }
+                            }}
+                            className="p-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-full border border-slate-200 shadow-sm active:scale-90 transition-transform"
                         >
-                            <Sparkles size={16} />
-                            <span className="hidden md:inline">מחולל הסבבים</span>
+                            <ChevronRight size={24} />
                         </button>
-                    )}
-                    <button
-                        onClick={handleExport}
-                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium text-sm border border-slate-200"
-                        title="ייצוא ל-Excel"
-                    >
-                        <Calendar size={16} />
-                        <span className="hidden md:inline">{viewMode === 'calendar' ? 'ייצוא' : 'ייצוא יומי'}</span>
-                    </button>
-                    {/* Buttons moved to secondary toolbar */}
-                </div>
-            </div>
 
-            {/* Bulk Actions Header - Only visible in bulk mode */}
-            {isBulkMode && (
-                <div className="bg-blue-600 text-white rounded-xl shadow-lg p-4 flex justify-between items-center shrink-0 animate-fadeIn mx-4 md:mx-0">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => setIsBulkMode(false)} className="hover:bg-white/20 p-2 rounded-full transition-colors">
-                            <X size={20} />
-                        </button>
-                        <span className="font-bold text-lg">{selectedPersonIds.size} נבחרו</span>
-                        <button onClick={handleSelectAll} className="text-sm bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors">
-                            {selectedPersonIds.size === filteredPeople.length ? 'בטל בחירה' : 'בחר הכל'}
+                        <div className="flex flex-col items-center flex-1 mx-2">
+                            <span className="text-lg font-black text-slate-800 text-center leading-tight">
+                                {viewMode === 'calendar'
+                                    ? viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })
+                                    : selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'short' })
+                                }
+                            </span>
+                            <button
+                                onClick={() => {
+                                    const now = new Date();
+                                    setViewDate(now);
+                                    setSelectedDate(now);
+                                }}
+                                className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full mt-1.5 border border-blue-100 uppercase tracking-tighter"
+                            >
+                                {viewMode === 'calendar' ? 'חודש נוכחי' : 'היום'}
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                if (viewMode === 'calendar') {
+                                    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+                                } else {
+                                    const next = new Date(selectedDate);
+                                    next.setDate(selectedDate.getDate() + 1);
+                                    setSelectedDate(next);
+                                }
+                            }}
+                            className="p-2.5 bg-white hover:bg-slate-50 text-slate-600 rounded-full border border-slate-200 shadow-sm active:scale-90 transition-transform"
+                        >
+                            <ChevronLeft size={24} />
                         </button>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => selectedPersonIds.size > 0 && setShowBulkModal(true)}
-                            disabled={selectedPersonIds.size === 0}
-                            className={`px-3 py-2 rounded-lg text-blue-100 hover:bg-blue-700 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium ${selectedPersonIds.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            title="אפשרויות מתקדמות"
-                        >
-                            <Settings size={16} />
-                            <span className="hidden md:inline">מתקדם</span>
-                        </button>
-
-                        <div className="h-6 w-px bg-blue-500 mx-2"></div>
-
-                        <button
-                            onClick={() => selectedPersonIds.size > 0 && handleQuickBulkUpdate(false)}
-                            disabled={selectedPersonIds.size === 0}
-                            className={`flex items-center gap-2 bg-red-100 text-red-700 hover:bg-red-200 px-4 py-2 rounded-lg transition-colors font-bold shadow-sm ${selectedPersonIds.size === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
-                        >
-                            <XCircle size={18} />
-                            לא נמצאים
-                        </button>
-
-                        <button
-                            onClick={() => selectedPersonIds.size > 0 && handleQuickBulkUpdate(true)}
-                            disabled={selectedPersonIds.size === 0}
-                            className={`flex items-center gap-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-4 py-2 rounded-lg transition-colors font-bold shadow-sm ${selectedPersonIds.size === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
-                        >
-                            <CheckCircle2 size={18} />
-                            נמצאים
-                        </button>
-                    </div>
                 </div>
-            )}
 
-            {/* Content */}
-            <div className={`flex-1 min-h-0 ${viewMode === 'calendar' ? '-mx-4 md:mx-0' : ''}`}> {/* Negative margin on mobile for bleed */}
-                {viewMode === 'calendar' ? (
-                    <div className="flex flex-col h-full gap-0 md:gap-4">
-                        {/* View Switcher Moved inside GlobalTeamCalendar or similar header component */}
-
-                        {calendarViewType === 'grid' ? (
+                {/* Content Render (Mobile) */}
+                <div className="flex-1 overflow-hidden flex flex-col">
+                    {viewMode === 'calendar' ? (
+                        <div className="h-full flex flex-col">
                             <GlobalTeamCalendar
                                 teams={teams}
                                 people={people}
@@ -453,209 +471,156 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 onDateClick={handleDateClick}
                                 currentDate={viewDate}
                                 onDateChange={setViewDate}
-                                viewType={calendarViewType} // NEW prop
-                                onViewTypeChange={setCalendarViewType} // NEW prop
+                                viewType={calendarViewType}
+                                onViewTypeChange={setCalendarViewType}
                                 organizationName={settings?.organization_name}
                             />
-                        ) : (
-                            <div className="flex flex-col h-full"> {/* Wrapper for Table View to allow custom header usage if needed, or pass props to AttendanceTable too if it needs a header toggle */}
-                                {/* For Table View, we might want a simple toggle visible. Let's create a mobile-only toggle bar if grid is hidden. 
-                                     Actually, we should probably pass control to AttendanceTable or render a shared header. 
-                                     For now, sticking to the goal: Calendar Grid optimization. 
-                                     I will inject the Toggle UI inside GlobalTeamCalendar, but for Table view, we need a way to switch BACK to Grid.
-                                 */}
-                                <div className="md:hidden p-2 bg-white border-b border-slate-200 flex justify-between items-center sticky top-0 z-20">
-                                    <span className="font-bold text-lg">תצוגת טבלה</span>
-                                    <button onClick={() => setCalendarViewType('grid')} className="p-2 border rounded-lg">
-                                        <CalendarDays size={20} />
-                                    </button>
-                                </div>
-                                <AttendanceTable
-                                    teams={teams}
-                                    people={people}
-                                    teamRotations={teamRotations}
-                                    currentDate={viewDate}
-                                    onDateChange={setViewDate}
-                                    onSelectPerson={(p) => {
-                                        if (isBulkMode) {
-                                            handleToggleSelectPerson(p.id);
-                                        } else {
-                                            setSelectedPersonForCalendar(p);
-                                        }
-                                    }}
-                                    onUpdateAvailability={handleUpdateAvailability}
+                        </div>
+                    ) : (
+                        <div className="h-full flex flex-col">
+                            {/* Search Bar */}
+                            <div className="p-4 pb-2">
+                                <Input
+                                    placeholder="חיפוש לפי שם..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    icon={Search}
+                                    className="bg-slate-50 border-slate-200"
                                 />
                             </div>
-                        )}
-                    </div>
-                ) : (
-                    /* Day Detail View */
-                    <div className="h-full flex flex-col space-y-4">
-                        {/* Controls for Day View - Hide in bulk mode to reduce clutter? Or keep? Keeping for date nav. */}
-                        {!isBulkMode && (
-                            <div className="bg-white rounded-xl shadow-sm p-4 flex flex-col md:flex-row justify-between items-center gap-4 border border-slate-100 shrink-0">
-                                <div className="flex items-center gap-4">
-                                    {/* Back Button (Right of Date) */}
-                                    {viewMode === 'day_detail' && !isBulkMode && (
-                                        <button
-                                            onClick={handleBackToCalendar}
-                                            className="flex items-center gap-2 text-slate-600 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors font-bold border border-transparent hover:border-slate-200"
-                                            title="חזרה ללוח שנה"
-                                        >
-                                            <ArrowRight size={20} />
-                                            <span className="hidden md:inline">חזרה ללוח</span>
-                                        </button>
-                                    )}
-
-                                    <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200">
-                                        <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() - 1)))} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-slate-600 transition-all">
-                                            <ChevronRight size={18} />
-                                        </button>
-
-                                        <div className="relative flex items-center justify-center px-4 min-w-[140px] group cursor-pointer">
-                                            <span className="text-lg font-bold text-slate-700 pointer-events-none">
-                                                {selectedDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                            </span>
-                                            <input
-                                                ref={dateInputRef}
-                                                type="date"
-                                                value={dateKey}
-                                                onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                            />
-                                        </div>
-
-                                        <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() + 1)))} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-slate-600 transition-all">
-                                            <ChevronLeft size={18} />
-                                        </button>
-                                    </div>
-
-                                    {/* Bulk Edit Button (Left of Date) */}
-                                    {viewMode === 'day_detail' && !isBulkMode && (
-                                        <button
-                                            onClick={() => setIsBulkMode(true)}
-                                            className="flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors font-bold border border-slate-200"
-                                        >
-                                            <ListChecks size={18} />
-                                            <span className="hidden md:inline">עריכה קבוצתית</span>
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="w-full md:w-64">
-                                    <Input
-                                        placeholder="חיפוש לפי שם..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        icon={Search}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* List of People */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-y-auto custom-scrollbar flex-1">
-                            <div className="p-4 space-y-6">
-                                {peopleByTeam.map(({ team, members }) => (
-                                    filteredPeople.length > 0 && (
-                                        <div key={team.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-100">
-                                            <div
-                                                className={`p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors ${team.color.replace('border-', 'border-l-4 border-')}`}
-                                                onClick={() => {
-                                                    if (isBulkMode) {
-                                                        // Select all in team?
-                                                        const allSelected = members.every(m => selectedPersonIds.has(m.id));
-                                                        const next = new Set(selectedPersonIds);
-                                                        members.forEach(m => {
-                                                            if (allSelected) next.delete(m.id);
-                                                            else next.add(m.id);
-                                                        });
-                                                        setSelectedPersonIds(next);
-                                                    } else {
-                                                        toggleTeamCollapse(team.id);
-                                                    }
-                                                }}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {isBulkMode && (
-                                                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${members.every(m => selectedPersonIds.has(m.id)) ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'}`}>
-                                                            {members.every(m => selectedPersonIds.has(m.id)) && <CheckSquare size={14} />}
-                                                        </div>
-                                                    )}
-                                                    <h3 className="font-bold text-lg text-slate-800">{team.name}</h3>
-                                                    <span className="bg-white px-2 py-1 rounded-full text-xs font-bold text-slate-500 border border-slate-200">
-                                                        {members.length} לוחמים
-                                                    </span>
-                                                    {(() => {
-                                                        const rot = teamRotations.find(r => r.team_id === team.id);
-                                                        return rot ? (
-                                                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs font-bold border border-blue-200 flex items-center gap-1">
-                                                                <CalendarDays size={12} />
-                                                                סבב {rot.days_on_base}-{rot.days_at_home}
-                                                            </span>
-                                                        ) : null;
-                                                    })()}
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    {!isViewer && team.id !== 'no-team' && !isBulkMode && (
-                                                        <button onClick={(e) => { e.stopPropagation(); setShowRotationSettings(team.id); }} className="p-1.5 hover:bg-white hover:text-blue-600 rounded-md text-slate-400 transition-all shadow-sm" title="הגדרות סבב">
-                                                            <Settings size={18} />
-                                                        </button>
-                                                    )}
-                                                    <button onClick={(e) => { e.stopPropagation(); toggleTeamCollapse(team.id); }} className="p-1.5 hover:bg-white hover:text-slate-600 rounded-md text-slate-400 transition-all shadow-sm">
-                                                        {collapsedTeams.has(team.id) ? <ChevronLeft size={20} /> : <ChevronDown size={20} />}
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {!collapsedTeams.has(team.id) && (
-                                                <div className="divide-y divide-slate-100">
-                                                    {members.map(person => {
-                                                        const avail = getPersonAvailability(person);
-                                                        return (
-                                                            <div key={person.id} className="flex items-center">
-                                                                {isBulkMode && (
-                                                                    <div className="pl-4 pr-4">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={selectedPersonIds.has(person.id)}
-                                                                            onChange={() => handleToggleSelectPerson(person.id)}
-                                                                            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                                                        />
-                                                                    </div>
-                                                                )}
-                                                                <div className="flex-1">
-                                                                    <AttendanceRow
-                                                                        person={person}
-                                                                        availability={avail}
-                                                                        onTogglePresence={handleTogglePresence}
-                                                                        onTimeChange={handleTimeChange}
-                                                                        onSelectPerson={(p) => {
-                                                                            if (isBulkMode) {
-                                                                                handleToggleSelectPerson(p.id);
-                                                                            } else {
-                                                                                setSelectedPersonForCalendar(p);
-                                                                            }
-                                                                        }}
-                                                                        onEditRotation={(p) => setEditingPersonalRotation(p)}
-                                                                        isViewer={isViewer || isBulkMode} // Disable row interactions in bulk mode
-                                                                        teamColor={team.color} // NEW
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    {members.length === 0 && <div className="p-8 text-center text-slate-400 italic">אין חיילים בצוות זה</div>}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )
-                                ))}
-                            </div>
+                            <AttendanceTable
+                                teams={teams}
+                                people={filteredPeople}
+                                teamRotations={teamRotations}
+                                currentDate={selectedDate}
+                                onDateChange={setSelectedDate}
+                                onSelectPerson={(p) => {
+                                    if (isBulkMode) handleToggleSelectPerson(p.id);
+                                    else setSelectedPersonForCalendar(p);
+                                }}
+                                onUpdateAvailability={handleUpdateAvailability}
+                                className="h-full"
+                            />
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
+            {/* --- DESKTOP VIEW CONTAINER --- */}
+            <div className="hidden md:flex flex-col flex-1 overflow-hidden">
+                {/* Desktop Header (Preserved) */}
+                <div className="bg-white shadow-sm border-b border-slate-200 p-4 justify-between items-center shrink-0 z-20 relative flex">
+                    <div className="flex items-center gap-4">
+                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                            <Calendar className="text-idf-green" />
+                            יומן נוכחות
+                        </h2>
+                        <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
+                            <button
+                                onClick={() => setViewMode('calendar')}
+                                className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <CalendarDays size={16} />
+                                תצוגה לוח שנה
+                            </button>
+                            <button
+                                onClick={() => setViewMode('day_detail')}
+                                className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'day_detail' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <ListChecks size={16} />
+                                תצוגה רשימה
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {/* Desktop Date Controls */}
+                        <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                            <button
+                                onClick={() => {
+                                    const d = viewMode === 'calendar' ? viewDate : selectedDate;
+                                    const setter = viewMode === 'calendar' ? setViewDate : setSelectedDate;
+                                    setter(new Date(d.getFullYear(), d.getMonth() - 1, 1));
+                                }}
+                                className="p-1 hover:bg-white rounded shadow-sm"
+                            >
+                                <ChevronRight size={18} />
+                            </button>
+
+                            <span className="font-bold min-w-[120px] text-center">
+                                {(viewMode === 'calendar' ? viewDate : selectedDate).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}
+                            </span>
+
+                            <button
+                                onClick={() => {
+                                    const d = viewMode === 'calendar' ? viewDate : selectedDate;
+                                    const setter = viewMode === 'calendar' ? setViewDate : setSelectedDate;
+                                    setter(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+                                }}
+                                className="p-1 hover:bg-white rounded shadow-sm"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                const now = new Date();
+                                setViewDate(now);
+                                setSelectedDate(now);
+                            }}
+                            className="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-sm font-bold transition-colors"
+                        >
+                            חודש נוכחי
+                        </button>
+                        <button
+                            onClick={() => setShowRotaWizard(true)}
+                            className="px-3 py-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 border border-amber-100"
+                        >
+                            <Sparkles size={16} />
+                            מחולל סבבים
+                        </button>
+                        <button onClick={handleExport} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 text-sm font-bold transition-colors">ייצוא</button>
+                    </div>
+                </div>
+
+                <div className="flex-1 p-6 pt-4 bg-slate-50 overflow-hidden flex flex-col isolate z-10">
+                    {/* Content Render (Desktop) */}
+                    {viewMode === 'calendar' ? (
+                        <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
+                            <GlobalTeamCalendar
+                                teams={teams}
+                                people={people}
+                                teamRotations={teamRotations}
+                                onManageTeam={(teamId) => setShowRotationSettings(teamId)}
+                                onDateClick={handleDateClick}
+                                currentDate={viewDate}
+                                onDateChange={setViewDate}
+                                viewType={calendarViewType}
+                                onViewTypeChange={setCalendarViewType}
+                                organizationName={settings?.organization_name}
+                            />
+                        </div>
+                    ) : (
+                        <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
+                            <AttendanceTable
+                                teams={teams}
+                                people={filteredPeople}
+                                teamRotations={teamRotations}
+                                currentDate={selectedDate}
+                                onDateChange={setSelectedDate}
+                                onSelectPerson={(p) => {
+                                    if (isBulkMode) handleToggleSelectPerson(p.id);
+                                    else setSelectedPersonForCalendar(p);
+                                }}
+                                onUpdateAvailability={handleUpdateAvailability}
+                                className="h-full"
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Modals & Overlays (Outside sheet flow or global) */}
             {showRotationSettings && (
                 (() => {
                     const team = teams.find(t => t.id === showRotationSettings);
