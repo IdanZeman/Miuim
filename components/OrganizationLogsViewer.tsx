@@ -3,6 +3,7 @@ import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, Search, RefreshCw, Filter, Download, User as UserIcon, Activity } from 'lucide-react';
 import type { LogLevel } from '../services/loggingService';
+import { Select } from './ui/Select';
 
 // Consistent interface with Admin Logs
 interface LogEntry {
@@ -247,29 +248,34 @@ export const OrganizationLogsViewer: React.FC<OrganizationLogsViewerProps> = ({ 
                     />
                 </div>
 
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
-                    <select
-                        value={categoryFilter}
-                        onChange={(e) => setCategoryFilter(e.target.value)}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                        <option value="ALL">כל הקטגוריות</option>
-                        <option value="auth">כניסה/יציאה</option>
-                        <option value="data">נתונים (יצירה/עריכה)</option>
-                        <option value="scheduling">שיבוץ ומשמרות</option>
-                        <option value="security">אבטחה והרשאות</option>
-                        <option value="settings">הגדרות</option>
-                    </select>
+                import {Select} from './ui/Select';
 
-                    <select
-                        value={limit}
-                        onChange={(e) => setLimit(Number(e.target.value))}
-                        className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 cursor-pointer bg-white"
-                    >
-                        <option value={50}>50 אחרונים</option>
-                        <option value={100}>100 אחרונים</option>
-                        <option value={200}>200 אחרונים</option>
-                    </select>
+                // ... inside the component ...
+
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+                    <Select
+                        value={categoryFilter}
+                        onChange={(val) => setCategoryFilter(val)}
+                        options={[
+                            { value: 'ALL', label: 'כל הקטגוריות' },
+                            { value: 'auth', label: 'כניסה/יציאה' },
+                            { value: 'data', label: 'נתונים (יצירה/עריכה)' },
+                            { value: 'scheduling', label: 'שיבוץ ומשמרות' },
+                            { value: 'security', label: 'אבטחה והרשאות' },
+                            { value: 'settings', label: 'הגדרות' }
+                        ]}
+                        placeholder="קטגוריה"
+                    />
+
+                    <Select
+                        value={limit.toString()}
+                        onChange={(val) => setLimit(Number(val))}
+                        options={[
+                            { value: '50', label: '50 אחרונים' },
+                            { value: '100', label: '100 אחרונים' },
+                            { value: '200', label: '200 אחרונים' }
+                        ]}
+                    />
 
                     <button
                         onClick={fetchLogs}

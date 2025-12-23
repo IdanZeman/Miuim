@@ -354,15 +354,13 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                                         </h3>
                                         <div className="w-40">
                                             <div className="relative">
-                                                <select
+                                                <Select
                                                     value={selectedRoleId}
-                                                    onChange={(e) => setSelectedRoleId(e.target.value)}
-                                                    className="w-full appearance-none bg-slate-50 text-slate-800 text-sm font-bold border border-slate-200 rounded-lg py-2 pl-3 pr-8 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-                                                >
-                                                    <option value="all">כל התפקידים</option>
-                                                    {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                                </select>
-                                                <ChevronDown size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                                    onChange={(val) => setSelectedRoleId(val)}
+                                                    options={[{ value: 'all', label: 'כל התפקידים' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
+                                                    placeholder="סינון תפקיד"
+                                                    className="bg-slate-50 border-slate-200"
+                                                />
                                             </div>
                                         </div>
                                     </div>

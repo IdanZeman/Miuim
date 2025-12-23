@@ -513,18 +513,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             {/* Team Selector */}
                             <div className="flex items-center justify-between px-4 py-3 bg-white relative">
                                 <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">צוות</div>
-                                <select
+                                <Select
                                     value={newTeamId}
-                                    onChange={(e) => setNewTeamId(e.target.value)}
-                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right appearance-none pr-8 relative z-10 dir-rtl"
-                                    style={{ direction: 'rtl' }}
-                                >
-                                    <option value="" disabled>בחר צוות</option>
-                                    {teams.map(t => (
-                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown size={16} className="text-slate-400 absolute left-4 pointer-events-none" />
+                                    onChange={(val) => setNewTeamId(val)}
+                                    options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                    placeholder="בחר צוות"
+                                    className="bg-transparent border-none shadow-none hover:bg-slate-50 pr-0"
+                                    containerClassName="flex-1"
+                                />
                             </div>
 
                             {/* Active Status */}
@@ -920,6 +916,26 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         <div key={group.id} className="bg-white">
                                             <div className="sticky top-[60px] z-20 bg-slate-50 border-y border-slate-100 p-2 flex items-center justify-between cursor-pointer" onClick={() => toggleTeamCollapse(group.id)}>
                                                 <div className="flex items-center gap-2">
+                                                    {canEdit && (
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const allSelected = members.length > 0 && members.every(m => selectedItemIds.has(m.id));
+                                                                const newSet = new Set(selectedItemIds);
+                                                                if (allSelected) {
+                                                                    members.forEach(m => newSet.delete(m.id));
+                                                                } else {
+                                                                    members.forEach(m => newSet.add(m.id));
+                                                                }
+                                                                setSelectedItemIds(newSet);
+                                                            }}
+                                                            className="p-1 cursor-pointer hover:bg-slate-200 rounded-full transition-colors mx-1"
+                                                        >
+                                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${(members.length > 0 && members.every(m => selectedItemIds.has(m.id))) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                                                {(members.length > 0 && members.every(m => selectedItemIds.has(m.id))) && <Check size={12} className="text-white" />}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                     <h3 className="font-bold text-slate-800 text-sm">{group.name}</h3>
                                                     <span className="bg-white text-slate-500 text-[10px] px-1.5 rounded-full border border-slate-200 font-mono font-bold">{members.length}</span>
                                                 </div>
@@ -1055,53 +1071,57 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             </div>
 
             {/* FAB (Floating Action Button) */}
-            {canEdit && !isModalOpen && (
-                <button
-                    onClick={() => {
-                        if (activeTab === 'people' && teams.length === 0) {
-                            showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
-                            setActiveTab('teams');
-                            return;
-                        }
-                        setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
-                    }}
-                    className="fixed bottom-24 md:bottom-8 left-6 w-14 h-14 bg-idf-yellow text-slate-900 rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 transition-all flex items-center justify-center z-50 hover:scale-105 active:scale-95"
-                >
-                    <Plus size={28} />
-                </button>
-            )}
+            {
+                canEdit && !isModalOpen && (
+                    <button
+                        onClick={() => {
+                            if (activeTab === 'people' && teams.length === 0) {
+                                showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
+                                setActiveTab('teams');
+                                return;
+                            }
+                            setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
+                        }}
+                        className="fixed bottom-24 md:bottom-8 left-6 w-14 h-14 bg-idf-yellow text-slate-900 rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 transition-all flex items-center justify-center z-50 hover:scale-105 active:scale-95"
+                    >
+                        <Plus size={28} />
+                    </button>
+                )
+            }
 
             {/* Context Menu Portal (Could be a simple absolute div if precise positioning needed, or a fixed overlay) */}
-            {contextMenu && (
-                <>
-                    <div
-                        className="fixed inset-0 z-50 bg-black/10 backdrop-blur-[1px]"
-                        onClick={() => setContextMenu(null)}
-                    />
-                    <div
-                        className="fixed z-50 bg-white rounded-lg shadow-xl border border-slate-100 w-48 overflow-hidden animate-in zoom-in-95 duration-100"
-                        style={{ top: contextMenu.y, left: contextMenu.x - 192 < 10 ? 10 : contextMenu.x - 192 }}
-                    >
-                        <div className="bg-slate-50 px-3 py-2 border-b border-slate-100">
-                            <span className="font-bold text-slate-800 text-sm">{contextMenu.person.name}</span>
+            {
+                contextMenu && (
+                    <>
+                        <div
+                            className="fixed inset-0 z-50 bg-black/10 backdrop-blur-[1px]"
+                            onClick={() => setContextMenu(null)}
+                        />
+                        <div
+                            className="fixed z-50 bg-white rounded-lg shadow-xl border border-slate-100 w-48 overflow-hidden animate-in zoom-in-95 duration-100"
+                            style={{ top: contextMenu.y, left: contextMenu.x - 192 < 10 ? 10 : contextMenu.x - 192 }}
+                        >
+                            <div className="bg-slate-50 px-3 py-2 border-b border-slate-100">
+                                <span className="font-bold text-slate-800 text-sm">{contextMenu.person.name}</span>
+                            </div>
+                            <button onClick={() => { handleEditPersonClick(contextMenu.person); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
+                                <Pencil size={16} /> ערוך פרטים
+                            </button>
+                            <button onClick={() => { onDeletePerson(contextMenu.person.id); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-red-50 text-sm font-medium flex items-center gap-2 text-red-600">
+                                <Trash2 size={16} /> מחק חייל
+                            </button>
+                            <button onClick={() => {
+                                // Toggle status
+                                onUpdatePerson({ ...contextMenu.person, isActive: !contextMenu.person.isActive });
+                                setContextMenu(null);
+                            }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-500">
+                                {contextMenu.person.isActive ? <X size={16} /> : <Check size={16} />}
+                                {contextMenu.person.isActive ? 'סמן כלא פעיל' : 'סמן כפעיל'}
+                            </button>
                         </div>
-                        <button onClick={() => { handleEditPersonClick(contextMenu.person); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
-                            <Pencil size={16} /> ערוך פרטים
-                        </button>
-                        <button onClick={() => { onDeletePerson(contextMenu.person.id); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-red-50 text-sm font-medium flex items-center gap-2 text-red-600">
-                            <Trash2 size={16} /> מחק חייל
-                        </button>
-                        <button onClick={() => {
-                            // Toggle status
-                            onUpdatePerson({ ...contextMenu.person, isActive: !contextMenu.person.isActive });
-                            setContextMenu(null);
-                        }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-500">
-                            {contextMenu.person.isActive ? <X size={16} /> : <Check size={16} />}
-                            {contextMenu.person.isActive ? 'סמן כלא פעיל' : 'סמן כפעיל'}
-                        </button>
-                    </div>
-                </>
-            )}
+                    </>
+                )
+            }
 
             {/* Reusable SheetModal for All Forms */}
             <SheetModal
@@ -1213,6 +1233,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </div>
                 </div>
             </Modal>
-        </div>
+        </div >
     );
 };

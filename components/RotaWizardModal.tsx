@@ -10,6 +10,7 @@ import { MultiSelect, MultiSelectOption } from './ui/MultiSelect';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../services/supabaseClient';
 import { mapShiftToDB } from '../services/supabaseClient';
+import { Select } from './ui/Select';
 
 interface RotaWizardModalProps {
     isOpen: boolean;
@@ -1049,17 +1050,20 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                         <Download size={20} />
                                     </button>
                                     <div className="h-6 w-px bg-slate-200 mx-2"></div>
-                                    <Filter size={16} className="text-slate-400" />
-                                    <select
-                                        className="text-sm border-slate-200 rounded-lg py-1.5 pl-8 pr-2 focus:ring-blue-500 focus:border-blue-500"
+                                    import {Select} from './ui/Select';
+
+                                    // ... inside the component ...
+
+                                    <div className="h-6 w-px bg-slate-200 mx-2"></div>
+                                    <Select
                                         value={selectedTeamId}
-                                        onChange={(e) => setSelectedTeamId(e.target.value)}
-                                    >
-                                        <option value="all">כל הצוותים</option>
-                                        {teams.map(t => (
-                                            <option key={t.id} value={t.id}>{t.name}</option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setSelectedTeamId(val)}
+                                        options={[{ value: 'all', label: 'כל הצוותים' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                                        placeholder="סינון לפי צוות"
+                                        className="py-1.5 pl-3 pr-2 text-sm w-[150px]"
+                                        icon={Filter}
+                                        triggerMode="default"
+                                    />
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-slate-500">
                                     <div className="flex items-center gap-1">

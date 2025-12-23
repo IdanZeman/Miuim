@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
 import { analytics } from '../services/analytics';
 import { logger } from '../services/loggingService';
-import { canAccessScreen } from '../utils/permissions';
 
 interface LayoutProps {
   currentView?: ViewMode;
@@ -70,10 +69,12 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
     // 3. Fallback to context check
     if (contextCheckAccess) return contextCheckAccess(screen);
 
-    // 4. Default Role-Based Access (Centralized)
-    if (profile?.role) {
-      return canAccessScreen(profile.role, screen as string);
-    }
+    // 4. Hard fallback defaults
+    if (profile?.role === 'editor') return screen !== 'settings' && screen !== 'logs' && screen !== 'system'; // Editors can access planner
+
+
+    if (profile?.role === 'viewer') return ['home', 'dashboard', 'contact'].includes(screen);
+    if (profile?.role === 'attendance_only') return ['home', 'attendance', 'contact'].includes(screen);
 
     return false;
   };
@@ -155,9 +156,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות" icon={Clock} />
                 )}
 
-                {/* Analytics (Admin Only) */}
+                {/* Stats */}
                 {(profile?.role === 'admin' || profile?.is_super_admin) && (
-                  <TopNavLink active={currentView === 'org-logs'} onClick={() => setView('org-logs')} label="אנליטיקות" icon={Activity} />
+                  <TopNavLink active={currentView === 'org-logs'} onClick={() => setView('org-logs')} label="יומן פעילות" icon={Activity} />
                 )}
 
                 {checkAccess('stats') && (
@@ -359,22 +360,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                     }`}
                   onClick={() => { setView('stats'); setIsMobileMenuOpen(false) }}
                 >
-                  <BarChart2 size={22} className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                  <span>{(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח ונתונים' : 'דוחות'}</span>
-                </button>
-              )}
-
-              {/* Analytics - Admin Only */}
-              {(profile?.role === 'admin' || profile?.is_super_admin) && (
-                <button
-                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'org-logs'
-                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                    : 'hover:bg-slate-50 text-slate-700'
-                    }`}
-                  onClick={() => { setView('org-logs'); setIsMobileMenuOpen(false) }}
-                >
-                  <Activity size={22} className={currentView === 'org-logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                  <span>אנליטיקות</span>
+                  <FileText size={22} className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>{(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'}</span>
                 </button>
               )}
 
@@ -418,18 +405,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 <span>צור קשר</span>
               </button>
 
-              {checkAccess('reports') && (
-                <button
-                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'reports'
-                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                    : 'hover:bg-slate-50 text-slate-700'
-                    }`}
-                  onClick={() => { setView('reports'); setIsMobileMenuOpen(false) }}
-                >
-                  <Clock size={22} className={currentView === 'reports' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                  <span>ייצוא נתונים</span>
-                </button>
-              )}
+
 
               {checkAccess('settings') && (
                 <button
@@ -463,12 +439,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
       {/* Mobile Bottom Navigation */}
       {!isPublic && setView && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 pb-safe"
-          style={{ touchAction: 'manipulation' }}>
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 pb-safe">
           <div className="flex justify-around items-center h-16">
             <button
               onClick={() => setView('home')}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform ${currentView === 'home' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'home' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
               <Home size={20} className={currentView === 'home' ? 'fill-blue-100' : ''} />
               <span className="text-[10px] font-medium">בית</span>
@@ -477,7 +452,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             {checkAccess('dashboard') && (
               <button
                 onClick={() => setView('dashboard')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <Calendar size={20} className={currentView === 'dashboard' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">שיבוצים</span>
@@ -487,7 +462,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             {checkAccess('personnel') && (
               <button
                 onClick={() => setView('personnel')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform ${currentView === 'personnel' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'personnel' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <Users size={20} className={currentView === 'personnel' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">כוח אדם</span>
@@ -497,7 +472,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             {checkAccess('tasks') && (
               <button
                 onClick={() => setView('tasks')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform ${currentView === 'tasks' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'tasks' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <ClipboardList size={20} className={currentView === 'tasks' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">משימות</span>
@@ -507,7 +482,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             {checkAccess('attendance') && (
               <button
                 onClick={() => setView('attendance')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform ${currentView === 'attendance' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'attendance' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <Clock size={20} className={currentView === 'attendance' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">נוכחות</span>
@@ -517,7 +492,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             {checkAccess('stats') && (
               <button
                 onClick={() => setView('stats')}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform ${currentView === 'stats' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'stats' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <BarChart2 size={20} className={currentView === 'stats' ? 'fill-blue-100' : ''} />
                 <span className="text-[10px] font-medium">דוחות</span>
@@ -525,8 +500,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             )}
 
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              onClick={() => setIsMobileMenuOpen(true)}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
               <Menu size={20} />
               <span className="text-[10px] font-medium">תפריט</span>
@@ -546,11 +521,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'personnel' && 'ניהול יחידה'}
               {currentView === 'attendance' && 'יומן נוכחות'}
               {currentView === 'tasks' && 'בנק משימות'}
-              {currentView === 'stats' && 'מרכז דוחות'}
+              {currentView === 'stats' && 'מרכז נתונים'}
               {currentView === 'settings' && 'הגדרות ארגון'}
               {currentView === 'logs' && 'לוגים'}
-              {currentView === 'org-logs' && 'אנליטיקות ויומן פעילות'}
-              {currentView === 'lottery' && 'הגרלות ופרסים'}
+              {currentView === 'lottery' && 'הגרלות'}
               {currentView === 'constraints' && 'ניהול אילוצים'}
               {currentView === 'absences' && 'ניהול היעדרויות'}
               {currentView === 'equipment' && 'דוח צלם / אמצעים'}

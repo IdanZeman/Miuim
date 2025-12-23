@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../contexts/ToastContext';
-import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw, Settings, Plus, Gavel, Layout, UserCircle, Globe, Anchor, Activity } from 'lucide-react';
+import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw, Settings, Plus, Gavel, Layout, UserCircle, Globe, Anchor, Activity, ChevronLeft, AlertTriangle } from 'lucide-react';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode } from '../types';
@@ -170,7 +170,7 @@ const TemplateEditorModal: React.FC<{
                     placeholder="למשל: מפקד מחלקה"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    className="font-black text-lg"
+                    className="!bg-gray-50 font-black text-lg"
                 />
 
                 <div className="border-t border-slate-100 pt-6">
@@ -258,7 +258,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
             });
 
         if (error) {
-            console.error('Error saving settings:', error);
+            console.error('Error save settings:', error);
             showToast('שגיאה בשמירת ההגדרות', 'error');
         } else {
             setShowSuccess(true);
@@ -271,11 +271,11 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
     if (loading) return <div className="text-slate-500 text-sm">טוען הגדרות...</div>;
 
     return (
-        <div className="space-y-4 md:space-y-6 max-w-3xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-4 max-w-2xl">
+        <div className="space-y-6 max-w-3xl">
+            <div className="flex flex-col md:flex-row md:items-end gap-4">
                 <div className="flex-1 w-full md:w-auto">
-                    <label className="block text-sm font-bold text-slate-700 mb-1">התחלת משמרת לילה</label>
-                    <div className="relative flex items-center bg-white rounded-lg border border-slate-300 px-3 py-2 w-full group hover:border-blue-500 transition-colors">
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5 line-clamp-1">התחלת לילה</label>
+                    <div className="relative flex items-center bg-gray-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:border-blue-500 transition-colors focus-within:ring-2 focus-within:ring-blue-100">
                         <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${start ? 'text-slate-900' : 'text-slate-400'}`}>
                             {start || 'בחר שעה'}
                         </span>
@@ -285,12 +285,12 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                             onChange={e => setStart(e.target.value)}
                             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                         />
-                        <Clock size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                        <Clock size={16} className="text-slate-400 ml-2 pointer-events-none" />
                     </div>
                 </div>
                 <div className="flex-1 w-full md:w-auto">
-                    <label className="block text-sm font-bold text-slate-700 mb-1">סיום משמרת לילה</label>
-                    <div className="relative flex items-center bg-white rounded-lg border border-slate-300 px-3 py-2 w-full group hover:border-blue-500 transition-colors">
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5 line-clamp-1">סיום לילה</label>
+                    <div className="relative flex items-center bg-gray-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:border-blue-500 transition-colors focus-within:ring-2 focus-within:ring-blue-100">
                         <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${end ? 'text-slate-900' : 'text-slate-400'}`}>
                             {end || 'בחר שעה'}
                         </span>
@@ -300,64 +300,54 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                             onChange={e => setEnd(e.target.value)}
                             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                         />
-                        <Clock size={18} className="text-slate-400 ml-2 pointer-events-none" />
+                        <Clock size={16} className="text-slate-400 ml-2 pointer-events-none" />
                     </div>
                 </div>
             </div>
-            <p className="text-slate-400 text-xs md:text-sm -mt-2">הגדרת משמרת לילה מסייעת לאלגוריתם לחשב את קושי המשימות בשיבוץ.</p>
 
-            <div className="hidden md:block border-t border-slate-100 pt-4 md:pt-6">
-                <label className="text-sm font-bold text-slate-700 block mb-2">מטרת השיבוץ (ברירת מחדל)</label>
-                <div className="flex bg-slate-50 p-1 rounded-lg gap-2 mb-4 max-w-2xl">
+            <div className="border-t border-slate-100 pt-6">
+                <label className="text-sm font-bold text-slate-700 block mb-2">מטרת השיבוץ</label>
+                <div className="flex bg-gray-50 p-1 rounded-xl gap-2 mb-4">
                     <button
                         onClick={() => setOptimizationMode('ratio')}
-                        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'ratio' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
+                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'ratio' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
                     >
-                        <span>⚖️ שמירה על יחס</span>
-                        <span className="text-[10px] font-normal opacity-70">חלוקה הוגנת (11-3)</span>
+                        <span>⚖️ יחס</span>
                     </button>
                     <button
                         onClick={() => setOptimizationMode('min_staff')}
-                        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'min_staff' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
+                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'min_staff' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
                     >
-                        <span>🛡️ סד״כ מינימלי</span>
-                        <span className="text-[10px] font-normal opacity-70">מקסימום בבית</span>
+                        <span>🛡️ סד״כ</span>
                     </button>
                     <button
                         onClick={() => setOptimizationMode('tasks')}
-                        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'tasks' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
+                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'tasks' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
                     >
-                        <span>📋 נגזרת משימות</span>
-                        <span className="text-[10px] font-normal opacity-70">איוש כל המשימות</span>
+                        <span>📋 משימות</span>
                     </button>
                 </div>
 
 
                 <Input
                     type="number"
-                    label="חשיפת לו&quot;ז לצופים (ימים קדימה)"
+                    label="חשיפת לו&quot;ז (ימים)"
                     min={1}
                     max={30}
                     value={viewerDays}
                     onChange={e => setViewerDays(parseInt(e.target.value))}
+                    className="!bg-gray-50"
                     containerClassName="w-32"
                 />
-                <p className="text-slate-400 text-xs md:text-sm mt-2">המשתמשים יוכלו לראות את הלו"ז להיום ולמספר הימים הבאים שהוגדר.</p>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-3 md:gap-4 pt-2">
-                {showSuccess && (
-                    <div className="flex items-center justify-center gap-2 text-green-600 animate-fadeIn">
-                        <CheckCircle size={16} />
-                        <span className="font-bold text-xs md:text-sm">נשמר בהצלחה!</span>
-                    </div>
-                )}
+            <div className="flex justify-end pt-4">
                 <Button
                     onClick={handleSave}
                     isLoading={saving}
                     icon={Save}
                     variant="primary"
-                    className="w-full sm:w-auto shadow-md"
+                    className="shadow-md"
                 >
                     {saving ? 'שומר...' : 'שמור שינויים'}
                 </Button>
@@ -422,7 +412,6 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
 
     const fetchInvites = async () => {
         if (!organization || !isAdmin) return;
-
         const { data, error } = await supabase
             .from('organization_invites')
             .select('*')
@@ -440,7 +429,6 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const handleSendInvite = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!organization || !user || !inviteEmail.trim()) return;
-
         setSending(true);
         try {
             const { error } = await supabase
@@ -453,9 +441,6 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                 });
 
             if (error) throw error;
-
-            if (error) throw error;
-
             showToast(`הזמנה נשלחה ל-${inviteEmail}`, 'success');
             setInviteEmail('');
             setInviteRole('viewer');
@@ -472,58 +457,24 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         }
     };
 
-    const handleDeleteInvite = async (inviteId: string) => {
-        confirm({
-            title: 'מחיקת הזמנה',
-            message: 'האם אתה בטוח שברצונך למחוק הזמנה זו?',
-            confirmText: 'מחק',
-            type: 'danger',
-            onConfirm: async () => {
-                const { error } = await supabase
-                    .from('organization_invites')
-                    .delete()
-                    .eq('id', inviteId);
-
-                if (error) {
-                    console.error('Error deleting invite:', error);
-                    showToast('שגיאה במחיקת ההזמנה', 'error');
-                } else {
-                    showToast('ההזמנה נמחקה בהצלחה', 'success');
-                    fetchInvites();
-                }
-            }
-        });
-    };
 
     const handleChangeRole = async (memberId: string, newRole: UserRole) => {
-        console.log(`[OrganizationSettings] Requesting role change for ${memberId} to ${newRole}`);
         confirm({
-            cancelText: 'ביטול',
             title: 'שינוי הרשאה',
             message: 'האם אתה בטוח שברצונך לשנות את ההרשאה?',
             confirmText: 'עדכן',
             type: 'warning',
             onConfirm: async () => {
-                console.log(`[OrganizationSettings] Confirmed role change for ${memberId} to ${newRole}`);
-                const { error, data } = await supabase
+                const { error } = await supabase
                     .from('profiles')
                     .update({ role: newRole })
-                    .eq('id', memberId)
-                    .select();
-
-                console.log(`[OrganizationSettings] Update result:`, { error, data });
+                    .eq('id', memberId);
 
                 if (error) {
-                    console.error('Error updating role:', error);
                     showToast('שגיאה בעדכון ההרשאה', 'error');
                 } else {
-                    // LOG
                     const member = members.find(m => m.id === memberId);
-                    await logger.logUpdate('profile', memberId, member?.full_name || member?.email || 'משתמש',
-                        { role: member?.role },
-                        { role: newRole }
-                    );
-
+                    await logger.logUpdate('profile', memberId, member?.full_name || 'Member', { role: member?.role }, { role: newRole });
                     showToast('ההרשאה עודכנה בהצלחה', 'success');
                     fetchMembers();
                 }
@@ -538,201 +489,215 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     };
 
     const handleSavePermissions = async (userId: string, permissions: UserPermissions) => {
-        console.log(`Saving permissions for ${userId}`, permissions);
         const { error } = await supabase
             .from('profiles')
             .update({ permissions: permissions as any })
             .eq('id', userId);
 
-        // Fetch old permissions for log diff (optional, but good)
-        const oldPerms = members.find(m => m.id === userId)?.permissions;
-
         if (error) {
-            console.error('Error saving permissions:', error);
-            if (error.code === 'PGRST204') {
-                showToast('שגיאה: חסרה עמודת permissions בטבלה profiles. יש להריץ את סקריפט העדכון (db_update.sql).', 'error');
-            } else {
-                showToast('שגיאה בשמירת הרשאות', 'error');
-            }
+            showToast('שגיאה בשמירת הרשאות', 'error');
         } else {
             showToast('הרשאות עודכנו בהצלחה', 'success');
             setMembers(prev => prev.map(m => m.id === userId ? { ...m, permissions } : m));
-
-            logger.log({
-                level: 'INFO',
-                action: 'UPDATE',
-                entityType: 'person',
-                entityId: userId,
-                component: 'OrganizationSettings',
-                category: 'security',
-                actionDescription: 'עדכן הרשאות משתמש מותאמות אישית',
-                oldData: { permissions: oldPerms },
-                newData: { permissions: permissions }
-            });
         }
         setEditingPermissionsFor(null);
     };
 
     if (!canManageOrganization(profile?.role || 'viewer')) {
         return (
-            <div className="bg-white rounded-xl md:rounded-2xl p-6 md:p-8 shadow-lg border-2 border-red-200">
-                <div className="text-center">
-                    <Shield className="mx-auto text-red-500 mb-4" size={40} />
-                    <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">אין הרשאה</h2>
-                    <p className="text-sm md:text-base text-slate-600">רק מנהלים יכולים לגשת להגדרות הארגון</p>
-                </div>
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-red-200 text-center">
+                <Shield className="mx-auto text-red-500 mb-4" size={40} />
+                <h2 className="text-xl font-bold text-slate-800 mb-2">אין הרשאה</h2>
+                <p className="text-slate-600">רק מנהלים יכולים לגשת להגדרות הארגון</p>
             </div>
         );
     }
 
     if (loading) {
-        return (
-            <div className="bg-white rounded-xl md:rounded-2xl p-6 md:p-8 shadow-lg border-2 border-emerald-200">
-                <p className="text-center text-slate-600 text-sm md:text-base">טוען...</p>
-            </div>
-        );
+        return <div className="p-8 text-center text-slate-500">טוען...</div>;
     }
 
+    const navigationTabs = [
+        { id: 'general', label: 'כללי', icon: Settings },
+        { id: 'roles', label: 'תפקידים', icon: Shield },
+        { id: 'members', label: 'חברים', icon: Users },
+    ];
+
     return (
-        <div className="space-y-4 md:space-y-6 max-w-4xl mx-auto pb-20">
-            {/* Tab Navigation */}
-            <div className="sticky top-0 z-20 flex bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-lg border border-slate-200/50 mb-6 mt-[-4px]">
-                <button
-                    onClick={() => setActiveTab('general')}
-                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 ${activeTab === 'general' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                    <Settings size={18} />
-                    הגדרות כלליות
-                </button>
-                <button
-                    onClick={() => setActiveTab('roles')}
-                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 ${activeTab === 'roles' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                    <Shield size={18} />
-                    ניהול תפקידים (RBAC)
-                </button>
-                <button
-                    onClick={() => setActiveTab('members')}
-                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 ${activeTab === 'members' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                    <Users size={18} />
-                    חברי ארגון
-                </button>
-            </div>
-
-            {activeTab === 'general' && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {/* Organization Info */}
-                    <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200">
-                        <div className="flex items-center gap-3 md:gap-4 mb-4">
-                            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center flex-shrink-0 animate-pulse-slow">
-                                <img src="/favicon.png" alt="Logo" className="w-10 h-10 object-contain opacity-50" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h1 className="text-xl md:text-2xl font-black text-slate-800 truncate">{organization?.name}</h1>
-                                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">ניהול הגדרות ארגון</p>
-                            </div>
+        <div className="h-full bg-slate-50 md:bg-white" dir="rtl">
+            {/* === Mobile Layout (< md) === */}
+            <div className="md:hidden">
+                {/* 1. Green Header Area */}
+                <div className="bg-emerald-500 pt-8 pb-20 px-4 rounded-b-[2.5rem] shadow-lg relative overflow-hidden">
+                    {/* Organization Brand (Centered & White) */}
+                    <div className="relative z-10 flex flex-col items-center justify-center text-center gap-3 mb-6">
+                        <div className="w-16 h-16 bg-white p-1 rounded-full shadow-md flex items-center justify-center">
+                            <span className="text-3xl font-black text-emerald-600 select-none">
+                                {organization?.name?.charAt(0) || 'O'}
+                            </span>
+                        </div>
+                        <div className="text-white">
+                            <h1 className="text-2xl font-black tracking-tight leading-tight">{organization?.name}</h1>
+                            <p className="text-emerald-100 text-sm font-medium opacity-90">הגדרות וניהול מערכת</p>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200">
-                        <div className="flex items-center gap-2 md:gap-3 mb-6">
-                            <LinkIcon className="text-blue-600 flex-shrink-0" size={20} />
-                            <h2 className="text-lg md:text-xl font-black text-slate-800">קישור הצטרפות</h2>
-                        </div>
-                        <InviteLinkSettings
-                            organization={organization}
-                            onUpdate={fetchMembers}
-                            templates={templates}
-                            onViewTemplates={() => setActiveTab('roles')}
-                        />
-                    </div>
-
-                    <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200">
-                        <div className="flex items-center gap-2 md:gap-3 mb-6">
-                            <Moon className="text-indigo-600 flex-shrink-0" size={20} />
-                            <h2 className="text-lg md:text-xl font-black text-slate-800">הגדרות מערכת</h2>
-                        </div>
-                        <GeneralSettings organizationId={organization?.id || ''} />
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'roles' && (
-                <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <RoleTemplateManager
-                        organizationId={organization?.id || ''}
-                        templates={templates}
-                        teams={teams}
-                        onRefresh={fetchTemplates}
-                    />
-                </div>
-            )}
-
-            {activeTab === 'members' && (
-                <div className="bg-white rounded-xl md:rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex items-center justify-between mb-4 md:mb-6">
-                        <div className="flex items-center gap-2 md:gap-3">
-                            <Users className="text-emerald-600 flex-shrink-0" size={20} />
-                            <h2 className="text-lg md:text-2xl font-bold text-slate-800">משתמשים במערכת</h2>
-                        </div>
-                        <div className="w-full max-w-xs">
-                            <Input
-                                placeholder="חפש משתמש..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                icon={Search}
-                                className="rounded-full"
-                                containerClassName="max-w-xs"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2 md:space-y-3">
-                        {members.filter(m =>
-                        (m.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            m.email.toLowerCase().includes(searchTerm.toLowerCase()))
-                        ).map((member) => (
-                            <div key={member.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 md:p-4 bg-slate-50 rounded-lg md:rounded-xl border border-slate-200 gap-3">
-                                <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
-                                    <div className="w-9 h-9 md:w-10 md:h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <span className="text-emerald-700 font-bold text-sm md:text-base">
-                                            {member.email.charAt(0).toUpperCase()}
-                                        </span>
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="font-medium text-slate-800 text-sm md:text-base truncate">
-                                            {member.full_name || member.email.split('@')[0]}
-                                            {member.id === user?.id && <span className="text-emerald-600 mr-2 text-xs md:text-sm">(אתה)</span>}
-                                        </p>
-                                        <p className="text-xs md:text-sm text-slate-500 truncate">{member.email}</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 sm:flex-shrink-0">
-                                    {member.id === user?.id ? (
-                                        <span className="px-3 md:px-4 py-1.5 md:py-2 bg-emerald-100 text-emerald-700 rounded-lg font-medium text-xs md:text-sm text-center">
-                                            {getRoleDisplayName(member.role)}
-                                        </span>
-                                    ) : (
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                onClick={() => handleOpenPermissionEditor(member)}
-                                                variant="ghost"
-                                                size="sm"
-                                                icon={Pencil}
-                                                className="bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600"
-                                            >
-                                                ערוך הרשאות
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                    {/* Segmented Control Tabs (Pill Shape) */}
+                    <div className="relative z-10 bg-white/20 p-1.5 rounded-full flex backdrop-blur-md border border-white/20 mx-2 shadow-inner">
+                        {navigationTabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-sm font-bold transition-all ${activeTab === tab.id
+                                    ? 'bg-white text-emerald-700 shadow-sm scale-105'
+                                    : 'text-emerald-50 hover:bg-white/10 opacity-90'
+                                    }`}
+                            >
+                                <tab.icon size={16} />
+                                <span className={activeTab === tab.id ? 'inline' : 'hidden sm:inline'}>{tab.label}</span>
+                            </button>
                         ))}
                     </div>
                 </div>
-            )}
+            </div>
+
+            {/* Content Container (Mobile: Pull-up Sheet, Desktop: Split View) */}
+            <div className="md:flex h-full md:max-w-6xl md:mx-auto md:gap-8 md:p-6 md:h-[calc(100vh-100px)]">
+
+                {/* === Desktop Sidebar (Left Menu) === */}
+                <div className="hidden md:flex flex-col w-64 shrink-0 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm h-full">
+                    <div className="p-6 border-b border-slate-100 bg-slate-50">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-lg flex items-center justify-center font-bold text-lg">
+                                {organization?.name?.charAt(0)}
+                            </div>
+                            <div className="overflow-hidden">
+                                <h2 className="font-bold text-slate-800 truncate">{organization?.name}</h2>
+                                <p className="text-xs text-slate-500">ניהול מערכת</p>
+                            </div>
+                        </div>
+                    </div>
+                    <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+                        {navigationTabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === tab.id
+                                    ? 'bg-indigo-50 text-indigo-700 font-bold border-r-4 border-indigo-600 rounded-r-none'
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                    }`}
+                            >
+                                <tab.icon size={18} className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} />
+                                {tab.label}
+                            </button>
+                        ))}
+                    </nav>
+
+                </div>
+
+                {/* === Active Content Area === */}
+                <div className="flex-1 relative z-20 md:z-auto -mt-12 mx-0 md:mt-0 px-0 md:px-0 pb-20 md:pb-0 overflow-y-auto h-full hide-scrollbar">
+                    <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] md:shadow-sm md:border md:border-slate-200 p-6 md:p-8 min-h-[400px]">
+
+                        {activeTab === 'general' && (
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <section>
+                                    <div className="flex items-center gap-2 mb-4 text-slate-800">
+                                        <LinkIcon className="text-blue-500" size={20} />
+                                        <h2 className="text-xl font-black">הגדרות הזמנה</h2>
+                                    </div>
+                                    <InviteLinkSettings
+                                        organization={organization}
+                                        onUpdate={fetchMembers}
+                                        templates={templates}
+                                        onViewTemplates={() => setActiveTab('roles')}
+                                    />
+                                </section>
+
+                                <div className="h-px bg-slate-100 my-6"></div>
+
+                                <section>
+                                    <div className="flex items-center gap-2 mb-4 text-slate-800">
+                                        <Clock className="text-orange-500" size={20} />
+                                        <h2 className="text-xl font-black">הגדרות כלליות</h2>
+                                    </div>
+                                    <GeneralSettings organizationId={organization?.id || ''} />
+                                </section>
+                            </div>
+                        )}
+
+                        {activeTab === 'roles' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <RoleTemplateManager
+                                    organizationId={organization?.id || ''}
+                                    templates={templates}
+                                    teams={teams}
+                                    onRefresh={fetchTemplates}
+                                />
+                            </div>
+                        )}
+
+                        {activeTab === 'members' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+                                    <div>
+                                        <h2 className="text-xl font-black text-slate-800">חברי ארגון ({members.length})</h2>
+                                        <p className="text-sm text-slate-500">ניהול משתמשים והרשאות</p>
+                                    </div>
+                                    <div className="w-full sm:w-auto">
+                                        <Input
+                                            placeholder="חפש חבר..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            icon={Search}
+                                            className="!bg-gray-50 rounded-full"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {members.filter(m =>
+                                    (m.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        m.email.toLowerCase().includes(searchTerm.toLowerCase()))
+                                    ).map((member) => (
+                                        <div key={member.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-xl border border-slate-200 hover:border-blue-300 transition-colors gap-3 group">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-slate-200 text-slate-700 font-bold shadow-sm">
+                                                    {member.email.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="truncate">
+                                                    <p className="font-bold text-slate-800 text-sm truncate flex items-center gap-2">
+                                                        {member.full_name || member.email.split('@')[0]}
+                                                        {member.id === user?.id && <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded-md">אתה</span>}
+                                                    </p>
+                                                    <p className="text-xs text-slate-500 truncate">{member.email}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 pl-1 self-end sm:self-auto">
+                                                <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${member.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-600'}`}>
+                                                    {getRoleDisplayName(member.role)}
+                                                </span>
+                                                {member.id !== user?.id && (
+                                                    <Button
+                                                        onClick={() => handleOpenPermissionEditor(member)}
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-slate-400 hover:text-blue-600 hover:bg-white"
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
             {editingPermissionsFor && (
                 <PermissionEditor
                     isOpen={true}
@@ -774,7 +739,6 @@ const InviteLinkSettings: React.FC<{
     const handleToggleActive = async () => {
         setLoading(true);
         try {
-            // If we are enabling and there is no token, generate one first
             let token = inviteToken;
             if (!isActive && !token) {
                 const { data, error: rpcError } = await supabase.rpc('generate_invite_token', { org_id: organization.id });
@@ -785,10 +749,7 @@ const InviteLinkSettings: React.FC<{
 
             const { error } = await supabase
                 .from('organizations')
-                .update({
-                    is_invite_link_active: !isActive,
-                    invite_token: token // Ensure token is set
-                })
+                .update({ is_invite_link_active: !isActive, invite_token: token })
                 .eq('id', organization.id);
 
             if (error) throw error;
@@ -804,22 +765,19 @@ const InviteLinkSettings: React.FC<{
     const handleRegenerate = async () => {
         confirm({
             title: 'יצירת קישור חדש',
-            message: 'האם אתה בטוח? הקישור הקודם יפסיק לעבוד ומשתמשים לא יוכלו להצטרף באמצעותו.',
-            confirmText: 'צור קישור חדש',
+            message: 'הקישור הקיים יבוטל. האם להמשיך?',
+            confirmText: 'כן, צור חדש',
             type: 'warning',
             onConfirm: async () => {
                 setLoading(true);
                 try {
                     const { data, error } = await supabase.rpc('generate_invite_token', { org_id: organization.id });
-
                     if (error) throw error;
-
                     setInviteToken(data);
-                    setIsActive(true); // Auto-enable on regenerate
-                    showToast('קישור חדש נוצר בהצלחה', 'success');
+                    setIsActive(true);
+                    showToast('קישור חדש נוצר', 'success');
                 } catch (error) {
-                    console.error('Error regenerating token:', error);
-                    showToast('שגיאה ביצירת קישור חדש', 'error');
+                    showToast('שגיאה ביצירה', 'error');
                 } finally {
                     setLoading(false);
                 }
@@ -833,16 +791,13 @@ const InviteLinkSettings: React.FC<{
         try {
             const { error } = await supabase
                 .from('organizations')
-                .update({
-                    invite_link_template_id: tid || null
-                })
+                .update({ invite_link_template_id: tid || null })
                 .eq('id', organization.id);
 
             if (error) throw error;
-            showToast('הגדרות הקישור עודכנו', 'success');
+            showToast('תבנית עודכנה', 'success');
         } catch (error) {
-            console.error('Error updating invite template:', error);
-            showToast('שגיאה בעדכון התבנית', 'error');
+            showToast('שגיאה בעדכון תבנית', 'error');
         } finally {
             setLoading(false);
         }
@@ -850,22 +805,23 @@ const InviteLinkSettings: React.FC<{
 
     const copyToClipboard = () => {
         const link = `${window.location.origin}/join/${inviteToken}`;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
+        if (navigator.clipboard) {
             navigator.clipboard.writeText(link);
             setCopied(true);
-            showToast('הקישור הועתק ללוח', 'success');
+            showToast('הועתק!', 'success');
             setTimeout(() => setCopied(false), 2000);
-        } else {
-            // Fallback
-            showToast('שגיאה בהעתקה, נא להעתיק ידנית', 'error');
         }
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                {/* Toggle Switch */}
-                <label className="relative inline-flex items-center cursor-pointer group" dir="ltr">
+        <div className="bg-gray-50 border border-slate-200 rounded-2xl p-4 md:p-6 space-y-6">
+            {/* 1. Toggle Row */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-sm font-bold text-slate-800">סטטוס קישור הצטרפות</h3>
+                    <p className="text-xs text-slate-500">אפשר למשתמשים להצטרף באופן עצמאי</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
                     <input
                         type="checkbox"
                         className="sr-only peer"
@@ -873,129 +829,62 @@ const InviteLinkSettings: React.FC<{
                         onChange={handleToggleActive}
                         disabled={loading}
                     />
-                    <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
-                    <span className="ml-3 text-base font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
-                        {isActive ? 'קישור פעיל' : 'קישור לא פעיל'}
-                    </span>
+                    <div className="w-12 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
-
-                {/* Selection Area */}
-                <div className="flex-1 space-y-4">
-                    <div className="flex items-center gap-2">
-                        <Shield size={16} className="text-indigo-600" />
-                        <span className="text-sm font-black text-slate-700">תבנית הרשאות למצטרפים</span>
-                    </div>
-
-                    <div className="bg-white p-5 rounded-2xl border-2 border-slate-100 transition-all focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-50 shadow-sm overflow-hidden relative group">
-                        <div className="absolute top-0 right-0 w-2 h-full bg-indigo-500 opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
-
-                        <label className="text-[10px] font-black text-slate-400 uppercase mb-3 block tracking-widest">בחר תבנית הרשאות עבור הקישור</label>
-
-                        {templates.length > 0 ? (
-                            <div className="flex flex-col sm:flex-row gap-4 items-center">
-                                <div className="w-full sm:flex-1">
-                                    <Select
-                                        value={templateId || ''}
-                                        onChange={(val) => handleTemplateChange(val)}
-                                        options={[
-                                            { value: '', label: 'ללא תבנית (גישת "בית" בלבד)' },
-                                            ...templates.map(t => ({ value: t.id, label: t.name }))
-                                        ]}
-                                        disabled={loading}
-                                        placeholder="בחר תבנית..."
-                                    />
-                                    <button
-                                        onClick={onViewTemplates}
-                                        className="mt-2 text-[10px] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors px-1"
-                                    >
-                                        <Shield size={10} />
-                                        נהל תבניות הרשאות קיימות...
-                                    </button>
-                                </div>
-                                <div className="h-full sm:w-px sm:h-10 bg-slate-100 hidden sm:block"></div>
-                                <div className="flex-1 text-xs text-slate-500 font-bold italic">
-                                    {templateId ? 'כל מצטרף יקבל את ההרשאות המוגדרות בתבנית זו.' : 'ללא תבנית, המשתמש יראה רק את עמוד הבית (מסך הפתיחה) ללא גישה ללוח השיבוצים או נתונים.'}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100 text-amber-700">
-                                <Info size={20} className="shrink-0" />
-                                <div className="flex-1">
-                                    <div className="text-xs font-black">
-                                        אין עדיין תבניות מוגדרות. צור את התבנית הראשונה שלך בלשונית "ניהול תפקידים" כדי להפעיל את הקישור עם הרשאות מותאמות.
-                                    </div>
-                                    <button
-                                        onClick={onViewTemplates}
-                                        className="mt-2 text-xs font-black underline hover:text-amber-900"
-                                    >
-                                        עבור לניהול תפקידים עכשיו
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
             </div>
 
+            {/* 2. Active State Controls */}
             {isActive && inviteToken && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <p className="text-sm text-slate-600 flex items-start gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                        <Info size={16} className="text-blue-500 mt-0.5 shrink-0" />
-                        <span>
-                            {templateId && templates.find(t => t.id === templateId) ? (
-                                <>
-                                    <strong>משמעות התבנית הנבחרת ({templates.find(t => t.id === templateId)?.name}):</strong><br />
-                                    {templates.find(t => t.id === templateId)?.description || 'הרשאות מותאמות אישית כפי שהוגדרו בתבנית הארגונית.'}
-                                </>
-                            ) : (
-                                <>
-                                    <strong>משמעות ההצטרפות (עמוד הבית בלבד):</strong><br />
-                                    גישה למסך הפתיחה בלבד. לוח השיבוצים ושאר חלקי המערכת יהיו חסומים עד להגדרת הרשאות.
-                                </>
-                            )}
-                        </span>
-                    </p>
-
-                    <div className="flex flex-col md:flex-row gap-3 items-end flex-wrap">
-                        {/* URL Display */}
-                        <div className="flex-1 w-full min-w-[200px]">
-                            <label className="text-xs font-bold text-slate-500 mb-1 block">קישור להעתקה</label>
-                            <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-50 transition-all shadow-sm">
-                                <div
-                                    className="flex-1 px-3 py-2 text-slate-600 text-sm font-mono truncate select-all"
-                                    dir="ltr"
-                                >
-                                    {`${window.location.origin}/join/${inviteToken}`}
-                                </div>
-                                <div className="w-px h-8 bg-slate-100 mx-1"></div>
-                                <Button
-                                    onClick={copyToClipboard}
-                                    variant="ghost"
-                                    className="text-slate-500 hover:text-blue-600 p-2 h-auto w-auto"
-                                    title="העתק קישור"
-                                >
-                                    {copied ? <CheckCircle size={20} className="text-green-500" /> : <Copy size={20} />}
-                                </Button>
+                <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-1">
+                    {/* Template Selector - Compact */}
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
+                            <Shield size={12} /> תבנית הרשאות למצטרפים
+                        </label>
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <Select
+                                    value={templateId || ''}
+                                    onChange={handleTemplateChange}
+                                    options={[
+                                        { value: '', label: 'ללא (צפייה בלבד)' },
+                                        ...templates.map(t => ({ value: t.id, label: t.name }))
+                                    ]}
+                                    className="!bg-white !h-10 text-sm"
+                                    placeholder="בחר תבנית..."
+                                />
                             </div>
-                        </div>
-
-                        {/* Regenerate Button */}
-                        <div className="w-full md:w-auto shrink-0">
-                            <Button
-                                onClick={handleRegenerate}
-                                disabled={loading}
-                                icon={RefreshCw}
-                                variant="outline"
-                                className="bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50 w-full"
-                            >
-                                צור קישור חדש
-                            </Button>
+                            <button onClick={onViewTemplates} className="bg-white border border-slate-200 rounded-lg px-3 hover:bg-slate-50 text-slate-500">
+                                <Settings size={16} />
+                            </button>
                         </div>
                     </div>
+
+                    {/* Copy Link Button */}
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 mb-1.5 block">קישור ייחודי</label>
+                        <button
+                            onClick={copyToClipboard}
+                            className="w-full flex items-center justify-between bg-white border-2 border-slate-200 hover:border-blue-400 hover:text-blue-600 text-slate-600 rounded-xl p-3 transition-all group"
+                        >
+                            <span className="text-sm font-mono truncate dir-ltr px-2 opacity-80 group-hover:opacity-100">
+                                {window.location.origin}/join/{inviteToken.slice(0, 8)}...
+                            </span>
+                            <div className="flex items-center gap-2 font-bold text-sm bg-slate-100 px-3 py-1.5 rounded-lg group-hover:bg-blue-50 group-hover:text-blue-700">
+                                {copied ? <CheckCircle size={16} /> : <Copy size={16} />}
+                                <span>{copied ? 'הועתק' : 'העתק'}</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div className="flex justify-center">
+                        <button onClick={handleRegenerate} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors">
+                            <RefreshCw size={10} /> אפס קישור קיים
+                        </button>
+                    </div>
                 </div>
-            )
-            }
+            )}
             <ConfirmationModal {...modalProps} />
-        </div >
+        </div>
     );
 };

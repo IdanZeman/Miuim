@@ -346,17 +346,15 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             {/* Team Selector */}
                             <div className="flex items-center justify-between px-4 py-3 bg-white relative">
                                 <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">צוות אחראי</div>
-                                <select
+                                <Select
                                     value={assignedTeamId}
-                                    onChange={(e) => setAssignedTeamId(e.target.value)}
-                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right appearance-none pr-8 relative z-10 dir-rtl font-medium"
-                                    style={{ direction: 'rtl' }}
-                                >
-                                    <option value="">ללא שיוך (פתוח לכולם)</option>
-                                    {teams.map(t => (
-                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => setAssignedTeamId(val)}
+                                    options={[{ value: '', label: 'ללא שיוך (פתוח לכולם)' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                                    placeholder="בחר צוות אחרי"
+                                    className="bg-transparent border-none shadow-none hover:bg-slate-50 pr-0"
+                                    containerClassName="flex-1"
+                                    direction="top"
+                                />
                             </div>
 
                             {/* Start Date */}

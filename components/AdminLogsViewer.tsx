@@ -3,6 +3,7 @@ import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, Search, RefreshCw, Filter, Download } from 'lucide-react';
 import type { LogLevel } from '../services/loggingService';
+import { Select } from './ui/Select';
 
 interface LogEntry {
     id: string;
@@ -204,32 +205,36 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                     <Filter size={16} className="text-slate-400" />
 
                     {/* Log Level Filter */}
-                    <select
-                        value={levelFilter}
-                        onChange={(e) => setLevelFilter(e.target.value as LogLevel | 'ALL')}
-                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 cursor-pointer bg-white"
-                    >
-                        <option value="ALL">כל הרמות</option>
-                        <option value="TRACE">🔍 TRACE</option>
-                        <option value="DEBUG">🐛 DEBUG</option>
-                        <option value="INFO">ℹ️ INFO</option>
-                        <option value="WARN">⚠️ WARN</option>
-                        <option value="ERROR">❌ ERROR</option>
-                        <option value="FATAL">💀 FATAL</option>
-                    </select>
+                    {/* Log Level Filter */}
+                    <div className="w-[140px]">
+                        <Select
+                            value={levelFilter}
+                            onChange={(val) => setLevelFilter(val as LogLevel | 'ALL')}
+                            options={[
+                                { value: 'ALL', label: 'כל הרמות' },
+                                { value: 'TRACE', label: '🔍 TRACE' },
+                                { value: 'DEBUG', label: '🐛 DEBUG' },
+                                { value: 'INFO', label: 'ℹ️ INFO' },
+                                { value: 'WARN', label: '⚠️ WARN' },
+                                { value: 'ERROR', label: '❌ ERROR' },
+                                { value: 'FATAL', label: '💀 FATAL' }
+                            ]}
+                            placeholder="סינון רמה"
+                            className="bg-white border-slate-200"
+                        />
+                    </div>
 
                     {/* Component Filter */}
                     {uniqueComponents.length > 0 && (
-                        <select
-                            value={componentFilter}
-                            onChange={(e) => setComponentFilter(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 cursor-pointer bg-white"
-                        >
-                            <option value="">כל הקומפוננטות</option>
-                            {uniqueComponents.map(comp => (
-                                <option key={comp} value={comp}>{comp}</option>
-                            ))}
-                        </select>
+                        <div className="w-[150px]">
+                            <Select
+                                value={componentFilter}
+                                onChange={(val) => setComponentFilter(val)}
+                                options={[{ value: '', label: 'כל הקומפוננטות' }, ...uniqueComponents.map(comp => ({ value: comp || '', label: comp || '' }))]}
+                                placeholder="סינון קומפוננטה"
+                                className="bg-white border-slate-200"
+                            />
+                        </div>
                     )}
 
                     {/* Hide My Logs */}
@@ -244,16 +249,21 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                     </button>
 
                     {/* Limit */}
-                    <select
-                        value={limit}
-                        onChange={(e) => setLimit(Number(e.target.value))}
-                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 cursor-pointer bg-white"
-                    >
-                        <option value="50">50 אחרונים</option>
-                        <option value="100">100 אחרונים</option>
-                        <option value="500">500 אחרונים</option>
-                        <option value="1000">1000 אחרונים</option>
-                    </select>
+                    {/* Limit */}
+                    <div className="w-[130px]">
+                        <Select
+                            value={limit.toString()}
+                            onChange={(val) => setLimit(Number(val))}
+                            options={[
+                                { value: '50', label: '50 אחרונים' },
+                                { value: '100', label: '100 אחרונים' },
+                                { value: '500', label: '500 אחרונים' },
+                                { value: '1000', label: '1000 אחרונים' }
+                            ]}
+                            placeholder="כמות"
+                            className="bg-white border-slate-200"
+                        />
+                    </div>
 
                     {/* Refresh */}
                     <button

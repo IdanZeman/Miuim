@@ -8,6 +8,7 @@ import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { createPortal } from 'react-dom';
+import { Select } from './ui/Select';
 
 interface AbsenceManagerProps {
     people: Person[];
@@ -349,16 +350,12 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                     {!selectedPersonId && !editingAbsence && (
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">חייל</label>
-                            <select
-                                className="w-full p-2 border border-slate-200 rounded-lg"
+                            <Select
                                 value={formPersonId}
-                                onChange={e => setFormPersonId(e.target.value)}
-                            >
-                                <option value="" disabled>בחר חייל...</option>
-                                {people.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
+                                onChange={(val) => setFormPersonId(val)}
+                                options={people.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))}
+                                placeholder="בחר חייל..."
+                            />
                         </div>
                     )}
 

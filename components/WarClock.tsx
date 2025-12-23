@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Person, Team, Role } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../contexts/ToastContext';
+import { Select } from './ui/Select';
 
 interface ScheduleItem {
     id: string;
@@ -425,41 +426,29 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                 {canEdit ? (
                                     <>
                                         {/* Team Selector */}
-                                        <div className="relative group">
-                                            <select
-                                                onChange={(e) => {
-                                                    const id = e.target.value;
-                                                    if (id && !filters.teams.includes(id)) setFilters(p => ({ ...p, mode: 'custom', teams: [...p.teams, id] }));
-                                                }}
+                                        <div className="flex-1 min-w-[100px] max-w-[140px]">
+                                            <Select
                                                 value=""
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                            >
-                                                <option value="" disabled>צוות +</option>
-                                                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                            </select>
-                                            <div className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-50 text-slate-600 border border-slate-200 flex items-center gap-2 group-hover:bg-slate-100 group-hover:border-slate-300 transition-all">
-                                                <span>צוות</span>
-                                                <Plus size={14} className="text-slate-400" />
-                                            </div>
+                                                onChange={(val) => {
+                                                    if (val && !filters.teams.includes(val)) setFilters(p => ({ ...p, mode: 'custom', teams: [...p.teams, val] }));
+                                                }}
+                                                options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                                placeholder="צוות +"
+                                                className="py-1.5 px-3 h-[34px] min-h-0 text-xs font-medium bg-slate-50 border-slate-200"
+                                            />
                                         </div>
 
                                         {/* Role Selector */}
-                                        <div className="relative group">
-                                            <select
-                                                onChange={(e) => {
-                                                    const id = e.target.value;
-                                                    if (id && !filters.roles.includes(id)) setFilters(p => ({ ...p, mode: 'custom', roles: [...p.roles, id] }));
-                                                }}
+                                        <div className="flex-1 min-w-[100px] max-w-[140px]">
+                                            <Select
                                                 value=""
-                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                            >
-                                                <option value="" disabled>תפקיד +</option>
-                                                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                            </select>
-                                            <div className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-50 text-slate-600 border border-slate-200 flex items-center gap-2 group-hover:bg-slate-100 group-hover:border-slate-300 transition-all">
-                                                <span>תפקיד</span>
-                                                <Plus size={14} className="text-slate-400" />
-                                            </div>
+                                                onChange={(val) => {
+                                                    if (val && !filters.roles.includes(val)) setFilters(p => ({ ...p, mode: 'custom', roles: [...p.roles, val] }));
+                                                }}
+                                                options={roles.map(r => ({ value: r.id, label: r.name }))}
+                                                placeholder="תפקיד +"
+                                                className="py-1.5 px-3 h-[34px] min-h-0 text-xs font-medium bg-slate-50 border-slate-200"
+                                            />
                                         </div>
                                     </>
                                 ) : (
@@ -623,13 +612,12 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                     <button onClick={() => setEditItem({ ...editItem, targetType: 'role', targetId: roles[0]?.id || null })} className={`p-2 rounded-lg text-xs font-bold border ${editItem.targetType === 'role' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:bg-slate-50'}`}>תפקיד</button>
                                 </div>
                                 {editItem.targetType !== 'all' && (
-                                    <select
+                                    <Select
                                         value={editItem.targetId || ''}
-                                        onChange={e => setEditItem({ ...editItem, targetId: e.target.value })}
-                                        className="w-full p-2 border rounded-lg text-sm bg-slate-50"
-                                    >
-                                        {(editItem.targetType === 'team' ? teams : roles).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                    </select>
+                                        onChange={(val) => setEditItem({ ...editItem, targetId: val })}
+                                        options={(editItem.targetType === 'team' ? teams : roles).map(t => ({ value: t.id, label: t.name }))}
+                                        placeholder={editItem.targetType === 'team' ? 'בחר צוות' : 'בחר תפקיד'}
+                                    />
                                 )}
                             </div>
                         </div>

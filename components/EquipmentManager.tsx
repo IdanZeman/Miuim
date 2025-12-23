@@ -53,14 +53,15 @@ const PersonSearchSelect = ({
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <select
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    value={selectedTeamId}
-                    onChange={(e) => setSelectedTeamId(e.target.value)}
-                >
-                    <option value="all">כל הצוותים</option>
-                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+                <div className="w-full md:w-48">
+                    <Select
+                        value={selectedTeamId}
+                        onChange={(val) => setSelectedTeamId(val)}
+                        options={[{ value: 'all', label: 'כל הצוותים' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                        placeholder="סינון צוות"
+                        className="bg-slate-50 border-slate-200 rounded-xl px-3 py-2 text-sm h-full"
+                    />
+                </div>
             </div>
 
             <div className="max-h-48 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-50 custom-scrollbar bg-slate-50/30">
