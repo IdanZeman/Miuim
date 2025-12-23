@@ -4,7 +4,7 @@ import { SchedulingSegment, Role, FrequencyType } from '../types';
 import { SheetModal } from './ui/SheetModal';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button'; // Keeping Button if needed, or remove if unused in updated code
-import { Plus, Minus, Clock, Users, Calendar, Sparkles, Shield } from 'lucide-react';
+import { Plus, Minus, Clock, Users, Calendar, Sparkles, Shield, RotateCcw } from 'lucide-react';
 import { ROLE_ICONS } from '../constants';
 import { Select } from './ui/Select';
 
@@ -194,6 +194,25 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                                 />
                             </div>
                         )}
+                    </div>
+
+                    {/* Continuous Cycle Toggle */}
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex items-center justify-between">
+                        <div>
+                            <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <RotateCcw size={16} className="text-idf-yellow" />
+                                מחזור רציף (24/7)
+                            </div>
+                            <div className="text-xs text-slate-500 mt-0.5">
+                                יצירת רצף משמרת לכל אורך היממה (לדוגמה: חמ"ל, סיור)
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setIsRepeat(!isRepeat)}
+                            className={`w-12 h-7 rounded-full transition-colors relative ${isRepeat ? 'bg-idf-yellow' : 'bg-slate-300'}`}
+                        >
+                            <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${isRepeat ? 'left-1' : 'left-6'}`}></div>
+                        </button>
                     </div>
                 </div>
 

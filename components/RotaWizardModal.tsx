@@ -4,13 +4,14 @@ import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, Schedul
 import { generateRoster, RosterGenerationResult, PersonHistory } from '../utils/rotaGenerator';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
-import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Sparkles, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock } from 'lucide-react';
+import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Sparkles, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock, Calculator } from 'lucide-react';
 import { Input } from './ui/Input';
 import { MultiSelect, MultiSelectOption } from './ui/MultiSelect';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../services/supabaseClient';
 import { mapShiftToDB } from '../services/supabaseClient';
 import { Select } from './ui/Select';
+import { StaffingAnalysis } from './StaffingAnalysis';
 
 interface RotaWizardModalProps {
     isOpen: boolean;
@@ -51,6 +52,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     const [step, setStep] = useState<'config' | 'preview'>('config');
     const [result, setResult] = useState<RosterGenerationResult | null>(null);
     const [saving, setSaving] = useState(false);
+    const [showAnalysis, setShowAnalysis] = useState(false);
     const [selectedPreviewDate, setSelectedPreviewDate] = useState<string | null>(null);
     const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
     // Config State
@@ -726,6 +728,22 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             </button>
                         )}
                     </div>
+
+                    {showConstraints && result.unfulfilledConstraints && (
+                        <div className="mt-2 pt-2 border-t border-amber-200/50 flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar">
+                            {result.unfulfilledConstraints.map((c, idx) => {
+                                const p = people.find(p => p.id === c.personId);
+                                return (
+                                    <div key={idx} className="text-xs text-amber-800 flex items-start gap-1.5 bg-white/50 p-1.5 rounded">
+                                        <XCircle size={12} className="mt-0.5 shrink-0 text-amber-600" />
+                                        <span>
+                                            <span className="font-bold">{p?.name || 'משתמש'}:</span> {c.reason} ({new Date(c.date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })})
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -901,139 +919,156 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 <div className={`flex flex-col h-full ${step === 'preview' ? 'h-[80vh] md:h-[75vh] shrink min-h-0' : ''}`}>
                     {step === 'config' ? (
                         <>
-                            {/* ... config content ... */}
-
-
-                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center gap-3">
-                                <Sparkles className="text-blue-600 shrink-0" size={20} />
-                                <div className="text-sm text-blue-900 leading-tight">
-                                    <span className="font-bold">מחולל סבבים אוטומטי: </span>
-                                    המערכת תייצר לוח נוכחות אופטימלי בהתבסס על מחזורי יציאות, אילוצים אישיים ושמירה על סד״כ מינימלי בבסיס.
-                                </div>
+                            <div className="flex justify-between items-center mb-4 px-1">
+                                <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Configuration</span>
+                                <button
+                                    onClick={() => setShowAnalysis(!showAnalysis)}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${showAnalysis ? 'bg-slate-200 text-slate-700' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                                >
+                                    <Calculator size={14} />
+                                    {showAnalysis ? 'חזרה להגדרות' : 'ניתוח נגזרות משימה'}
+                                </button>
                             </div>
 
-                            <div className="mt-4">
-                                <MultiSelect
-                                    label="עבור צוותים"
-                                    value={targetTeamIds}
-                                    onChange={setTargetTeamIds}
-                                    options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                    placeholder="כל הצוותים (כלל הארגון)"
-                                />
-                            </div>
+                            {showAnalysis ? (
+                                <StaffingAnalysis tasks={tasks} totalPeople={people.length} />
+                            ) : (
+                                <div className="space-y-4 animate-in fade-in duration-300">
+                                    {/* ... config content ... */}
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
-                                <Input
-                                    type="date"
-                                    label="מתאריך"
-                                    value={startDate}
-                                    onChange={e => setStartDate(e.target.value)}
-                                />
-                                <Input
-                                    type="date"
-                                    label="עד תאריך"
-                                    value={endDate}
-                                    onChange={e => setEndDate(e.target.value)}
-                                />
-                            </div>
 
-                            <div className="mt-4">
-                                <label className="text-sm font-bold text-slate-700 block mb-2">מטרת השיבוץ (אופטימיזציה)</label>
-                                <div className="flex flex-col sm:flex-row bg-slate-100 p-1 rounded-lg gap-1">
-                                    <button
-                                        onClick={() => setOptimizationMode('ratio')}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'ratio' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        <span> שמירה על יחס</span>
-                                        <span className="text-[10px] font-normal opacity-70 scale-90">חלוקה הוגנת (11-3)</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setOptimizationMode('min_staff')}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'min_staff' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        <span>סד״כ מינימלי</span>
-                                        <span className="text-[10px] font-normal opacity-70 scale-90">מקסימום בבית</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setOptimizationMode('tasks')}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'tasks' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        <span>נגזרת משימות</span>
-                                        <span className="text-[10px] font-normal opacity-70 scale-90">איוש כל המשימות</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {optimizationMode === 'min_staff' && (
-                                <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <Input
-                                        type="number"
-                                        label="יעד סד״כ (כמה חיילים נדרשים בכל יום?)"
-                                        min="0"
-                                        value={customMinStaff}
-                                        onChange={e => setCustomMinStaff(Number(e.target.value))}
-                                        icon={Users}
-                                        className="border-blue-300 ring-2 ring-blue-50"
-                                    />
-                                </div>
-                            )}
-
-                            {optimizationMode === 'ratio' && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <Input
-                                        type="number"
-                                        label="ימי בסיס (סבב)"
-                                        min="1"
-                                        value={daysBase}
-                                        onChange={e => setDaysBase(Number(e.target.value))}
-                                    />
-                                    <Input
-                                        type="number"
-                                        label="ימי בית (סבב)"
-                                        min="1"
-                                        value={daysHome}
-                                        onChange={e => setDaysHome(Number(e.target.value))}
-                                    />
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                                <Input
-                                    type="time"
-                                    label="שעת הגעה"
-                                    value={userArrivalHour}
-                                    onChange={(e) => setUserArrivalHour(e.target.value)}
-                                />
-                                <Input
-                                    type="time"
-                                    label="שעת יציאה"
-                                    value={userDepartureHour}
-                                    onChange={(e) => setUserDepartureHour(e.target.value)}
-                                />
-                            </div>
-
-                            {optimizationMode === 'tasks' && (
-                                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <div className="flex items-center gap-2 text-blue-800">
-                                        <Users size={16} />
-                                        <span className="text-sm font-bold">דרישת סד״כ מחושבת:</span>
-                                        <span className="text-sm bg-white px-2 py-0.5 rounded border border-blue-200">
-                                            {(() => {
-                                                // Simplified version of the generator logic for UI feedback
-                                                let totalDailyHours = 0;
-                                                tasks.forEach(t => {
-                                                    t.segments?.forEach(seg => {
-                                                        if (seg.frequency === 'daily' || seg.isRepeat) {
-                                                            totalDailyHours += seg.isRepeat ? 24 : (seg.durationHours * seg.requiredPeople);
-                                                        }
-                                                    });
-                                                });
-                                                // Assuming ~8h capacity avg for shorthand UI display
-                                                return Math.ceil(totalDailyHours / 8);
-                                            })()} חיילים
-                                        </span>
+                                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center gap-3">
+                                        <Sparkles className="text-blue-600 shrink-0" size={20} />
+                                        <div className="text-sm text-blue-900 leading-tight">
+                                            <span className="font-bold">מחולל סבבים אוטומטי: </span>
+                                            המערכת תייצר לוח נוכחות אופטימלי בהתבסס על מחזורי יציאות, אילוצים אישיים ושמירה על סד״כ מינימלי בבסיס.
+                                        </div>
                                     </div>
-                                    <p className="text-[10px] text-blue-600 mt-1 mr-6">המערכת תחשב את הסד״כ המדויק לכל יום בנפרד במהלך יצירת השיבוץ.</p>
+
+                                    <div className="mt-4">
+                                        <MultiSelect
+                                            label="עבור צוותים"
+                                            value={targetTeamIds}
+                                            onChange={setTargetTeamIds}
+                                            options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                            placeholder="כל הצוותים (כלל הארגון)"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
+                                        <Input
+                                            type="date"
+                                            label="מתאריך"
+                                            value={startDate}
+                                            onChange={e => setStartDate(e.target.value)}
+                                        />
+                                        <Input
+                                            type="date"
+                                            label="עד תאריך"
+                                            value={endDate}
+                                            onChange={e => setEndDate(e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div className="mt-4">
+                                        <label className="text-sm font-bold text-slate-700 block mb-2">מטרת השיבוץ (אופטימיזציה)</label>
+                                        <div className="flex flex-col sm:flex-row bg-slate-100 p-1 rounded-lg gap-1">
+                                            <button
+                                                onClick={() => setOptimizationMode('ratio')}
+                                                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'ratio' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                            >
+                                                <span> שמירה על יחס</span>
+                                                <span className="text-[10px] font-normal opacity-70 scale-90">חלוקה הוגנת (11-3)</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setOptimizationMode('min_staff')}
+                                                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'min_staff' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                            >
+                                                <span>סד״כ מינימלי</span>
+                                                <span className="text-[10px] font-normal opacity-70 scale-90">מקסימום בבית</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setOptimizationMode('tasks')}
+                                                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'tasks' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                            >
+                                                <span>נגזרת משימות</span>
+                                                <span className="text-[10px] font-normal opacity-70 scale-90">איוש כל המשימות</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {optimizationMode === 'min_staff' && (
+                                        <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <Input
+                                                type="number"
+                                                label="יעד סד״כ (כמה חיילים נדרשים בכל יום?)"
+                                                min="0"
+                                                value={customMinStaff}
+                                                onChange={e => setCustomMinStaff(Number(e.target.value))}
+                                                icon={Users}
+                                                className="border-blue-300 ring-2 ring-blue-50"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {optimizationMode === 'ratio' && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <Input
+                                                type="number"
+                                                label="ימי בסיס (סבב)"
+                                                min="1"
+                                                value={daysBase}
+                                                onChange={e => setDaysBase(Number(e.target.value))}
+                                            />
+                                            <Input
+                                                type="number"
+                                                label="ימי בית (סבב)"
+                                                min="1"
+                                                value={daysHome}
+                                                onChange={e => setDaysHome(Number(e.target.value))}
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                                        <Input
+                                            type="time"
+                                            label="שעת הגעה"
+                                            value={userArrivalHour}
+                                            onChange={(e) => setUserArrivalHour(e.target.value)}
+                                        />
+                                        <Input
+                                            type="time"
+                                            label="שעת יציאה"
+                                            value={userDepartureHour}
+                                            onChange={(e) => setUserDepartureHour(e.target.value)}
+                                        />
+                                    </div>
+
+                                    {optimizationMode === 'tasks' && (
+                                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <div className="flex items-center gap-2 text-blue-800">
+                                                <Users size={16} />
+                                                <span className="text-sm font-bold">דרישת סד״כ מחושבת:</span>
+                                                <span className="text-sm bg-white px-2 py-0.5 rounded border border-blue-200">
+                                                    {(() => {
+                                                        // Simplified version of the generator logic for UI feedback
+                                                        let totalDailyHours = 0;
+                                                        tasks.forEach(t => {
+                                                            t.segments?.forEach(seg => {
+                                                                if (seg.frequency === 'daily' || seg.isRepeat) {
+                                                                    totalDailyHours += seg.isRepeat ? 24 : (seg.durationHours * seg.requiredPeople);
+                                                                }
+                                                            });
+                                                        });
+                                                        // Assuming ~8h capacity avg for shorthand UI display
+                                                        return Math.ceil(totalDailyHours / 8);
+                                                    })()} חיילים
+                                                </span>
+                                            </div>
+                                            <p className="text-[10px] text-blue-600 mt-1 mr-6">המערכת תחשב את הסד״כ המדויק לכל יום בנפרד במהלך יצירת השיבוץ.</p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </>
@@ -1050,17 +1085,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                         <Download size={20} />
                                     </button>
                                     <div className="h-6 w-px bg-slate-200 mx-2"></div>
-                                    import {Select} from './ui/Select';
-
-                                    // ... inside the component ...
-
-                                    <div className="h-6 w-px bg-slate-200 mx-2"></div>
                                     <Select
                                         value={selectedTeamId}
                                         onChange={(val) => setSelectedTeamId(val)}
                                         options={[{ value: 'all', label: 'כל הצוותים' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
                                         placeholder="סינון לפי צוות"
-                                        className="py-1.5 pl-3 pr-2 text-sm w-[150px]"
+                                        className="py-1.5 pl-3 pr-9 text-sm w-[150px]"
                                         icon={Filter}
                                         triggerMode="default"
                                     />

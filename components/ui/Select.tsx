@@ -194,7 +194,7 @@ export const Select: React.FC<SelectProps> = ({
             {isOpen && createPortal(
                 <div
                     ref={dropdownRef} // NEW: Attach ref here
-                    className="fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top"
+                    className="fixed z-[100000] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top"
                     style={{
                         top: position.isTop ? 'auto' : position.top,
                         bottom: position.isTop ? (window.innerHeight - position.top) : 'auto',
