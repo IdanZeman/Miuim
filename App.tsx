@@ -118,7 +118,8 @@ const MainApp: React.FC = () => {
         constraints: [],
         teamRotations: [], // NEW
         absences: [], // NEW
-        equipment: [] // NEW
+        equipment: [], // NEW
+        allPeople: []
     });
 
     const isLinkedToPerson = React.useMemo(() => {
@@ -303,6 +304,7 @@ const MainApp: React.FC = () => {
             setState(prev => ({
                 ...prev,
                 people: scopedPeople,
+                allPeople: rawPeople, // NEW: Full list for lottery
                 shifts: scopedShifts,
                 taskTemplates: (tasksRes.data || []).map(mapTaskFromDB),
                 roles: (rolesRes.data || []).map(mapRoleFromDB),
@@ -1027,7 +1029,7 @@ const MainApp: React.FC = () => {
 
             case 'logs': return <AdminLogsViewer />;
             case 'org-logs': return <OrganizationLogsViewer limit={100} />;
-            case 'lottery': return <Lottery people={state.people} teams={state.teams} roles={state.roles} />;
+            case 'lottery': return <Lottery people={state.allPeople || state.people} teams={state.teams} roles={state.roles} />;
             case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} isViewer={!checkAccess('constraints', 'edit')} organizationId={organization?.id || ''} />;
             case 'contact': return <ContactPage />;
             case 'tickets': return <SystemManagementPage />; // Redirect legacy tickets route

@@ -208,6 +208,7 @@ export interface SchedulingConstraint {
 }
 
 export interface AppState {
+  allPeople?: Person[]; // Unscoped list for lottery
   people: Person[];
   roles: Role[];
   teams: Team[];

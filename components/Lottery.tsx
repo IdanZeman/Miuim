@@ -14,6 +14,70 @@ interface LotteryProps {
 
 type PoolType = 'all' | 'team' | 'role' | 'manual';
 
+const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }: { sizeClass: string, rotation: number, isSpinning: boolean, candidates: Person[], wheelColors: string[] }) => (
+    <div className="relative">
+        {/* Pointer */}
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 text-slate-800 filter drop-shadow-lg">
+            <div className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-red-500"></div>
+        </div>
+
+        {/* The Wheel */}
+        <div
+            className={`${sizeClass} rounded-full border-8 border-white shadow-2xl relative transition-transform`}
+            style={{
+                transform: `rotate(${rotation}deg)`,
+                transitionDuration: isSpinning ? '8s' : '0s',
+                transitionTimingFunction: 'cubic-bezier(0.1, 0.7, 0.1, 1)',
+                background: `conic-gradient(
+                        ${candidates.map((_, i) => {
+                    const start = (i / candidates.length) * 100;
+                    const end = ((i + 1) / candidates.length) * 100;
+                    const color = wheelColors[i % wheelColors.length];
+                    return `${color} ${start}% ${end}%`;
+                }).join(', ')}
+                    )`
+            }}
+        >
+            {/* Wheel Segments Text */}
+            {candidates.map((p, i) => {
+                const angle = (360 / candidates.length) * i + (360 / candidates.length) / 2;
+                // Dynamic font size logic (slightly adjusted for readability)
+                const fontSize = candidates.length > 50 ? '9px' : candidates.length > 20 ? '11px' : '14px';
+
+                return (
+                    <div
+                        key={p.id}
+                        className="absolute top-0 left-1/2 h-1/2 w-0 -translate-x-1/2 origin-bottom flex flex-col justify-start items-center pt-6 md:pt-8 z-10 pointer-events-none"
+                        style={{
+                            transform: `rotate(${angle}deg)`,
+                        }}
+                    >
+                        <span
+                            className="text-white font-bold truncate max-h-[70%] drop-shadow-md whitespace-nowrap px-1"
+                            style={{
+                                writingMode: 'vertical-rl',
+                                fontSize: fontSize,
+                                textOrientation: 'mixed',
+                                transform: 'rotate(180deg)',
+                                fontFamily: 'sans-serif'
+                            }}
+                        >
+                            {p.name}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+
+        {/* Center Hub */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full shadow-xl flex items-center justify-center z-10">
+            <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-white">
+                <Sparkles size={20} />
+            </div>
+        </div>
+    </div>
+);
+
 export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
     const { organization } = useAuth();
 
@@ -207,71 +271,6 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
 
     // Filter Logic remains the same... (implicit in the component context)
 
-    // Reusable Wheel Component to ensure consistency
-    const WheelComponent = ({ sizeClass }: { sizeClass: string }) => (
-        <div className="relative">
-            {/* Pointer */}
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 text-slate-800 filter drop-shadow-lg">
-                <div className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-red-500"></div>
-            </div>
-
-            {/* The Wheel */}
-            <div
-                className={`${sizeClass} rounded-full border-8 border-white shadow-2xl relative transition-transform`}
-                style={{
-                    transform: `rotate(${rotation}deg)`,
-                    transitionDuration: isSpinning ? '8s' : '0s',
-                    transitionTimingFunction: 'cubic-bezier(0.1, 0.7, 0.1, 1)',
-                    background: `conic-gradient(
-                        ${candidates.map((_, i) => {
-                        const start = (i / candidates.length) * 100;
-                        const end = ((i + 1) / candidates.length) * 100;
-                        const color = wheelColors[i % wheelColors.length];
-                        return `${color} ${start}% ${end}%`;
-                    }).join(', ')}
-                    )`
-                }}
-            >
-                {/* Wheel Segments Text */}
-                {candidates.map((p, i) => {
-                    const angle = (360 / candidates.length) * i + (360 / candidates.length) / 2;
-                    // Dynamic font size logic (slightly adjusted for readability)
-                    const fontSize = candidates.length > 50 ? '9px' : candidates.length > 20 ? '11px' : '14px';
-
-                    return (
-                        <div
-                            key={p.id}
-                            className="absolute top-0 left-1/2 h-1/2 w-0 -translate-x-1/2 origin-bottom flex flex-col justify-start items-center pt-6 md:pt-8 z-10 pointer-events-none"
-                            style={{
-                                transform: `rotate(${angle}deg)`,
-                            }}
-                        >
-                            <span
-                                className="text-white font-bold truncate max-h-[70%] drop-shadow-md whitespace-nowrap px-1"
-                                style={{
-                                    writingMode: 'vertical-rl',
-                                    fontSize: fontSize,
-                                    textOrientation: 'mixed',
-                                    transform: 'rotate(180deg)',
-                                    fontFamily: 'sans-serif'
-                                }}
-                            >
-                                {p.name}
-                            </span>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Center Hub */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full shadow-xl flex items-center justify-center z-10">
-                <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-white">
-                    <Sparkles size={20} />
-                </div>
-            </div>
-        </div>
-    );
-
     // Config Panel Content (Reusable)
     const ConfigPanelContent = () => (
         <div className="space-y-4">
@@ -405,7 +404,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                     {/* Wheel Section */}
                     <div className="flex justify-center mb-6">
                         {mode === 'single' && candidates.length > 0 ? (
-                            <WheelComponent sizeClass="w-72 h-72" />
+                            <WheelView sizeClass="w-72 h-72" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} />
                         ) : mode === 'multiple' ? (
                             <div className="w-72 h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold text-center p-4">
                                 {isSpinning ? (
@@ -490,7 +489,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
 
                     <div className="relative z-10 transform scale-110">
                         {mode === 'single' && candidates.length > 0 ? (
-                            <WheelComponent sizeClass="w-[500px] h-[500px]" />
+                            <WheelView sizeClass="w-[500px] h-[500px]" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} />
                         ) : mode === 'multiple' ? (
                             <div className="w-[500px] h-[500px] rounded-full border-4 border-dashed border-white/30 flex items-center justify-center text-white/50 font-bold text-xl text-center p-8">
                                 {isSpinning ? (
