@@ -80,70 +80,103 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, ta
         };
     }, [person, shifts, tasks, nightShiftStart, nightShiftEnd]);
 
+    const [isOpen, setIsOpen] = React.useState(false);
+
+    // Derived colors
+    const loadColor = stats.totalLoad > 15 ? 'text-red-600' : stats.totalLoad < 5 ? 'text-green-600' : 'text-slate-700';
+    const dayRatio = (stats.dayHours / (stats.totalHours || 1)) * 100;
+    const nightRatio = (stats.nightHours / (stats.totalHours || 1)) * 100;
+
     return (
         <div
-            onClick={onClick}
-            className={`bg-white rounded-xl shadow-sm border border-slate-100 p-4 hover:shadow-md transition-all ${onClick ? 'cursor-pointer hover:border-blue-300 hover:scale-[1.02]' : ''}`}
+            onClick={() => setIsOpen(!isOpen)}
+            className="group bg-white hover:bg-slate-50 transition-all border-b border-slate-100 last:border-0 cursor-pointer select-none"
         >
-            <div className="flex items-center gap-3 mb-4 border-b border-slate-50 pb-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm" style={{ backgroundColor: person.color }}>
-                    {person.name.charAt(0)}
-                </div>
-                <div>
-                    <h4 className="font-bold text-slate-800">{person.name}</h4>
-                    <p className="text-xs text-slate-500">{stats.shiftCount} משמרות</p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-slate-50 p-2 rounded-lg">
-                    <div className="flex items-center gap-1 text-slate-500 text-xs mb-1">
-                        <Clock size={12} />
-                        <span>סה"כ שעות</span>
+            {/* Summary Row - Compact ~80px */}
+            <div className="relative p-4 flex items-center justify-between">
+                {/* Left: Avatar + Name */}
+                <div className="flex items-center gap-3">
+                    <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ring-2 ring-white"
+                        style={{ backgroundColor: person.color }}
+                    >
+                        {person.name.charAt(0)}
                     </div>
-                    <p className="font-bold text-slate-800 text-lg">{stats.totalHours}</p>
-                </div>
-                <div className="bg-slate-50 p-2 rounded-lg">
-                    <div className="flex items-center gap-1 text-slate-500 text-xs mb-1">
-                        <Award size={12} />
-                        <span>ניקוד עומס</span>
-                    </div>
-                    <p className="font-bold text-slate-800 text-lg">{stats.totalLoad}</p>
-                </div>
-            </div>
-
-            <div className="space-y-3">
-                {/* Day/Night Bar */}
-                <div>
-                    <div className="flex justify-between text-xs text-slate-500 mb-1">
-                        <span className="flex items-center gap-1"><Sun size={10} /> יום ({stats.dayHours})</span>
-                        <span className="flex items-center gap-1"><Moon size={10} /> לילה ({stats.nightHours})</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex">
-                        <div style={{ width: `${(stats.dayHours / (stats.totalHours || 1)) * 100}%` }} className="bg-amber-400 h-full"></div>
-                        <div style={{ width: `${(stats.nightHours / (stats.totalHours || 1)) * 100}%` }} className="bg-indigo-500 h-full"></div>
+                    <div>
+                        <h4 className="font-bold text-slate-800 text-base">{person.name}</h4>
+                        <span className="text-xs text-slate-400">{stats.shiftCount} משמרות</span>
                     </div>
                 </div>
 
-                {/* Rest Stats */}
-                <div className="pt-2 border-t border-slate-50">
-                    <p className="text-xs font-medium text-slate-400 mb-2">זמני מנוחה (שעות)</p>
-                    <div className="flex justify-between text-center">
+                {/* Right: Load Score */}
+                <div className="text-right">
+                    <div className={`text-2xl font-black ${loadColor} leading-none`}>
+                        {stats.totalLoad.toFixed(0)}
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">ניקוד עומס</span>
+                </div>
+
+                {/* Bottom Slim Bar - Day/Night Ratio with Icons */}
+                <div className="absolute bottom-2 right-4 opacity-50">
+                    <Sun size={10} className="text-amber-500 fill-amber-500" />
+                </div>
+                <div className="absolute bottom-2 left-4 opacity-50">
+                    <Moon size={10} className="text-indigo-500 fill-indigo-500" />
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1.5 flex opacity-90">
+                    <div style={{ width: `${dayRatio}%` }} className="bg-amber-400 h-full transition-all duration-500" />
+                    <div style={{ width: `${nightRatio}%` }} className="bg-indigo-500 h-full transition-all duration-500" />
+                </div>
+            </div>
+
+            {/* Expanded Details */}
+            {isOpen && (
+                <div className="px-4 pb-4 pt-0 animate-in slide-in-from-top-2 duration-200">
+                    <div className="bg-slate-50 rounded-xl p-4 grid grid-cols-3 gap-y-4 gap-x-2 text-center relative mt-2">
+                        {/* Decorative Arrow */}
+                        <div className="absolute -top-1.5 right-6 w-3 h-3 bg-slate-50 rotate-45 transform" />
+
+                        {/* Rest Times */}
+                        <div className="col-span-3 text-xs font-bold text-slate-400 text-right mb-1">
+                            זמני מנוחה (שעות)
+                        </div>
+
                         <div>
-                            <p className="text-[10px] text-slate-400">מינימום</p>
-                            <p className="font-bold text-slate-700">{stats.minRest.toFixed(1)}</p>
+                            <span className="text-[10px] text-slate-400 block mb-0.5">מינימום</span>
+                            <span className="font-bold text-slate-700">{stats.minRest.toFixed(1)}</span>
+                        </div>
+                        <div className="border-x border-slate-200/60">
+                            <span className="text-[10px] text-slate-400 block mb-0.5">ממוצע</span>
+                            <span className="font-bold text-slate-800 text-lg leading-none">{stats.avgRest.toFixed(1)}</span>
                         </div>
                         <div>
-                            <p className="text-[10px] text-slate-400">ממוצע</p>
-                            <p className="font-bold text-slate-700">{stats.avgRest.toFixed(1)}</p>
+                            <span className="text-[10px] text-slate-400 block mb-0.5">מקסימום</span>
+                            <span className="font-bold text-slate-700">{stats.maxRest.toFixed(1)}</span>
                         </div>
-                        <div>
-                            <p className="text-[10px] text-slate-400">מקסימום</p>
-                            <p className="font-bold text-slate-700">{stats.maxRest.toFixed(1)}</p>
+
+                        {/* Divider */}
+                        <div className="col-span-3 h-px bg-slate-200/60 my-1" />
+
+                        {/* Hours Breakdown */}
+                        <div className="col-span-3 grid grid-cols-2 gap-4 pt-1">
+                            <div className="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-slate-100">
+                                <div className="flex items-center gap-2">
+                                    <Clock size={14} className="text-blue-500" />
+                                    <span className="text-xs font-bold text-slate-600">סה"כ שעות</span>
+                                </div>
+                                <span className="font-black text-slate-800">{stats.totalHours.toFixed(0)}</span>
+                            </div>
+                            <div className="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-slate-100">
+                                <div className="flex items-center gap-2">
+                                    <Moon size={14} className="text-indigo-500" />
+                                    <span className="text-xs font-bold text-slate-600">שעות לילה</span>
+                                </div>
+                                <span className="font-black text-slate-800">{stats.nightHours}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

@@ -3,6 +3,7 @@ import { Person, Shift, TaskTemplate, Team } from '../types';
 import { MapPin, Home, Briefcase, Download, Filter, Copy, ChevronDown, Users, LayoutGrid, ArrowUpDown, User } from 'lucide-react';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { useToast } from '../contexts/ToastContext';
+import { Select } from './ui/Select';
 
 interface LocationReportProps {
     people: Person[];
@@ -257,161 +258,120 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
         }
     };
 
+    // Compact Action Row & Header
     return (
-        <div className="bg-white rounded-xl shadow-lg p-6 h-full flex flex-col">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                    <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
-                        <MapPin size={24} />
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-bold text-slate-800">דוח מיקום כוחות</h2>
-                        <p className="text-sm text-slate-500">תמונת מצב בזמן אמת</p>
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* Team Filter */}
-                    <div className="relative">
-                        <select
-                            value={filterTeam}
-                            onChange={(e) => setFilterTeam(e.target.value)}
-                            className="bg-slate-50 border border-slate-200 text-sm rounded-lg pl-9 pr-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 appearance-none cursor-pointer hover:bg-white transition-colors shadow-sm font-bold text-slate-700"
-                        >
-                            <option value="all">כל הצוותים</option>
-                            {teams.length > 0 ? (
-                                teams.map(t => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                ))
-                            ) : (
-                                Array.from(new Set(people.map(p => p.teamId).filter(Boolean))).map(tid => (
-                                    <option key={tid} value={tid}>{tid}</option>
-                                ))
-                            )}
-                        </select>
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                    </div>
-
-                    <div className="h-6 w-px bg-slate-200 mx-1"></div>
-
-                    {/* Group/Sort select dropdown */}
-                    <div className="relative group">
-                        <select
-                            value={groupBy}
-                            onChange={(e) => setGroupBy(e.target.value as any)}
-                            className="bg-blue-50 border border-blue-200 text-sm rounded-lg pl-9 pr-8 py-2 outline-none focus:ring-1 focus:ring-blue-500 appearance-none cursor-pointer hover:bg-white transition-colors shadow-sm font-black text-blue-700"
-                        >
-                            <option value="status">מיון לפי סטטוס</option>
-                            <option value="team">מיון לפי צוות</option>
-                            <option value="alpha">מיון לפי א-ב</option>
-                        </select>
-                        <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500 pointer-events-none" size={16} />
-                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" size={14} />
-                    </div>
-                    <div className="h-6 w-px bg-slate-200 mx-1"></div>
-
-                    <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-                        <input
-                            type="date"
-                            value={selectedDate.toISOString().split('T')[0]}
-                            onChange={e => setSelectedDate(new Date(e.target.value))}
-                            className="bg-white border-0 text-sm rounded px-2 py-1 outline-none w-auto"
-                        />
-                        <input
-                            type="time"
-                            value={selectedTime}
-                            onChange={e => setSelectedTime(e.target.value)}
-                            className="bg-white border-0 text-sm rounded px-2 py-1 outline-none w-auto"
-                        />
-                    </div>
-
-                    <div className="h-6 w-px bg-slate-200 mx-1"></div>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => {
-                                let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
-                                reportData.forEach(r => {
-                                    const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
-                                    const team = r.person.teamId || '';
-                                    // Handle comma in details by wrapping in quotes
-                                    csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
-                                });
-                                // BOM for Hebrew Excel support
-                                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-                                const link = document.createElement('a');
-                                const url = URL.createObjectURL(blob);
-                                link.setAttribute('href', url);
-                                link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                            }}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200"
-                            title="ייצוא לאקסל"
-                        >
-                            <Download size={20} />
-                        </button>
-                        <button
-                            onClick={async () => {
-                                let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
-
-                                if (groupBy === 'status') {
+        <div className="bg-slate-50 min-h-full flex flex-col">
+            {/* Sticky Header */}
+            <div className="bg-white sticky top-0 z-30 shadow-sm border-b border-slate-200">
+                <div className="px-4 pt-4 pb-2">
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                            <MapPin className="text-emerald-500" size={20} />
+                            דוח מיקום כוחות
+                        </h2>
+                        {/* More Actions (Export) */}
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => {
+                                    let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
+                                    reportData.forEach(r => {
+                                        const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
+                                        const team = r.person.teamId || '';
+                                        csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
+                                    });
+                                    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                                    const link = document.createElement('a');
+                                    const url = URL.createObjectURL(blob);
+                                    link.setAttribute('href', url);
+                                    link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                }}
+                                className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                            >
+                                <Download size={18} />
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
                                     const grouped = {
                                         mission: reportData.filter(r => r.status === 'mission'),
                                         base: reportData.filter(r => r.status === 'base'),
                                         home: reportData.filter(r => r.status === 'home')
                                     };
-                                    if (grouped.mission.length) {
-                                        text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
-                                    }
-                                    if (grouped.base.length) {
-                                        text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
-                                    }
-                                    if (grouped.home.length) {
-                                        text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
-                                    }
-                                } else if (groupBy === 'team') {
-                                    // Team copy logic
-                                    const teamsMap = new Map<string, PersonLocation[]>();
-                                    reportData.forEach(r => {
-                                        const tid = r.person.teamId || 'no_team';
-                                        if (!teamsMap.has(tid)) teamsMap.set(tid, []);
-                                        teamsMap.get(tid)?.push(r);
-                                    });
-                                    teamsMap.forEach((members, tid) => {
-                                        const teamName = tid === 'no_team' ? 'כללי' : (teams.find(t => t.id === tid)?.name || 'כללי');
-                                        text += `*${teamName} (${members.length}):*\n`;
-                                        text += members.map(r => `• ${r.person.name} - ${r.status === 'mission' ? r.details : (r.status === 'base' ? 'בבסיס' : 'בבית')}`).join('\n') + '\n\n';
-                                    })
-                                } else {
-                                    // Alpha copy logic
-                                    const sorted = [...reportData].sort((a, b) => a.person.name.localeCompare(b.person.name));
-                                    text += `*רשימה שמית (${sorted.length}):*\n`;
-                                    text += sorted.map(r => `• ${r.person.name} - ${r.status === 'mission' ? r.details : (r.status === 'base' ? 'בבסיס' : 'בבית')}`).join('\n');
-                                }
+                                    if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
+                                    if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
+                                    if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
 
-                                try {
-                                    await navigator.clipboard.writeText(text);
-                                    showToast('הדוח הועתק ללוח ההדבקה', 'success');
-                                } catch (err) {
-                                    showToast('שגיאה בהעתקה', 'error');
-                                }
-                            }
-                            }
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
-                            title="העתק לווטסאפ"
-                        >
-                            <Copy size={20} />
-                        </button>
+                                    try { await navigator.clipboard.writeText(text); showToast('הועתק', 'success'); } catch (e) { showToast('שגיאה', 'error'); }
+                                }}
+                                className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                            >
+                                <Copy size={18} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Controls Row: Date Right, Icons Left - Compact Version */}
+                    <div className="flex items-center justify-between gap-2 mb-3 px-1 max-w-full overflow-hidden">
+                        {/* Date/Time - Fixed Widths to prevent overflow */}
+                        <div className="flex items-center bg-slate-100 p-1 rounded-lg shrink-0">
+                            <input
+                                type="date"
+                                value={selectedDate.toISOString().split('T')[0]}
+                                onChange={e => setSelectedDate(new Date(e.target.value))}
+                                className="bg-transparent border-0 text-xs font-bold text-slate-700 w-[110px] outline-none p-0.5"
+                            />
+                            <div className="w-px h-3 bg-slate-300 mx-0.5 shrink-0" />
+                            <input
+                                type="time"
+                                value={selectedTime}
+                                onChange={e => setSelectedTime(e.target.value)}
+                                className="bg-transparent border-0 text-xs font-bold text-slate-700 w-[65px] outline-none p-0.5 text-center"
+                            />
+                        </div>
+
+                        {/* Filter Icons */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <Select
+                                triggerMode="icon"
+                                value={filterTeam}
+                                onChange={setFilterTeam}
+                                options={[
+                                    { value: 'all', label: 'כל הצוותים' },
+                                    ...(teams.length > 0
+                                        ? teams.map(t => ({ value: t.id, label: t.name }))
+                                        : Array.from(new Set(people.map(p => p.teamId).filter(Boolean))).map(tid => ({ value: tid!, label: tid! }))
+                                    )
+                                ]}
+                                placeholder="סינון לפי צוות"
+                                icon={Filter}
+                                className="bg-slate-50 border-slate-200 h-9 w-9 p-0" // Using height/width directly for compact icon
+                            />
+                            <Select
+                                triggerMode="icon"
+                                value={groupBy}
+                                onChange={(val) => setGroupBy(val as any)}
+                                options={[
+                                    { value: 'status', label: 'לפי סטטוס' },
+                                    { value: 'team', label: 'לפי צוות' },
+                                    { value: 'alpha', label: 'לפי א-ב' }
+                                ]}
+                                placeholder="מיון תצוגה"
+                                icon={ArrowUpDown}
+                                className="bg-slate-50 border-slate-200 h-9 w-9 p-0"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto pb-20 custom-scrollbar relative">
                 {renderContent()}
             </div>
-        </div >
+        </div>
     );
 };
 
@@ -424,32 +384,34 @@ interface PersonCardProps {
 }
 
 const PersonCard: React.FC<PersonCardProps> = ({ r, type = 'mission', showStatusBadge = false, teamName }) => {
-    const statusColors = {
-        mission: 'text-rose-600 bg-rose-50',
-        base: 'text-emerald-600 bg-emerald-50',
-        home: 'text-slate-500 bg-slate-100'
-    };
-
-    const badgeClass = showStatusBadge ? statusColors[r.status] : (type === 'mission' ? 'text-rose-600 bg-rose-50' : type === 'base' ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 bg-slate-100');
-
+    // Flat Layout, No Cards
     return (
-        <div className={`bg-white border border-slate-200 rounded-xl p-3 shadow-sm flex items-center justify-between transition-all hover:shadow-md hover:border-slate-300 ${type === 'home' && !showStatusBadge ? 'opacity-70' : ''}`}>
-            <div className="min-w-0">
-                <span className="font-black text-slate-800 block truncate">{r.person.name}</span>
-                <div className="flex flex-col gap-0.5 mt-1">
-                    {teamName && <span className="text-[10px] text-slate-400 font-bold">{teamName}</span>}
+        <div className="p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors flex items-start text-right bg-white">
+            {/* Left: Info */}
+            <div className="flex-1 min-w-0">
+                {/* Name Row */}
+                <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-bold text-slate-800 text-sm">{r.person.name}</span>
                     {showStatusBadge && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full inline-block font-black w-fit ${r.status === 'mission' ? 'bg-rose-100 text-rose-700' : r.status === 'base' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                            {r.status === 'mission' ? 'במשימה' : r.status === 'base' ? 'בבסיס' : 'בבית'}
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${r.status === 'mission' ? 'bg-rose-100 text-rose-700' : r.status === 'base' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                            {r.status === 'mission' ? 'משימה' : r.status === 'base' ? 'בסיס' : 'בית'}
                         </span>
                     )}
                 </div>
+                {/* Subtext: Team */}
+                {teamName && <span className="text-[11px] text-slate-400 block">{teamName}</span>}
             </div>
-            <div className="text-right flex flex-col items-end gap-1">
-                <div className={`text-[10px] font-black px-2 py-1 rounded-lg inline-block whitespace-nowrap ${badgeClass} border border-black/5`}>
+
+            {/* Right: Details & Time */}
+            <div className="flex flex-col items-end gap-1 pl-2">
+                <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[120px]">
                     {r.details}
-                </div>
-                {r.time && r.time !== 'כל היום' && <div className="text-[9px] text-slate-400 font-bold">{r.time}</div>}
+                </span>
+                {r.time && r.time !== 'כל היום' && (
+                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 rounded">
+                        {r.time}
+                    </span>
+                )}
             </div>
         </div>
     );

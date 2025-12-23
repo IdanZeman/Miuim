@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
 import { analytics } from '../services/analytics';
 import { logger } from '../services/loggingService';
+import { canAccessScreen } from '../utils/permissions';
 
 interface LayoutProps {
   currentView?: ViewMode;
@@ -69,12 +70,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
     // 3. Fallback to context check
     if (contextCheckAccess) return contextCheckAccess(screen);
 
-    // 4. Hard fallback defaults
-    if (profile?.role === 'editor') return screen !== 'settings' && screen !== 'logs' && screen !== 'system'; // Editors can access planner
-
-
-    if (profile?.role === 'viewer') return ['home', 'dashboard', 'contact'].includes(screen);
-    if (profile?.role === 'attendance_only') return ['home', 'attendance', 'contact'].includes(screen);
+    // 4. Default Role-Based Access (Centralized)
+    if (profile?.role) {
+      return canAccessScreen(profile.role, screen as string);
+    }
 
     return false;
   };
@@ -156,9 +155,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות" icon={Clock} />
                 )}
 
-                {/* Stats */}
+                {/* Analytics (Admin Only) */}
                 {(profile?.role === 'admin' || profile?.is_super_admin) && (
-                  <TopNavLink active={currentView === 'org-logs'} onClick={() => setView('org-logs')} label="יומן פעילות" icon={Activity} />
+                  <TopNavLink active={currentView === 'org-logs'} onClick={() => setView('org-logs')} label="אנליטיקות" icon={Activity} />
                 )}
 
                 {checkAccess('stats') && (
@@ -360,8 +359,22 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                     }`}
                   onClick={() => { setView('stats'); setIsMobileMenuOpen(false) }}
                 >
-                  <FileText size={22} className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                  <span>{(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'}</span>
+                  <BarChart2 size={22} className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>{(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח ונתונים' : 'דוחות'}</span>
+                </button>
+              )}
+
+              {/* Analytics - Admin Only */}
+              {(profile?.role === 'admin' || profile?.is_super_admin) && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'org-logs'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('org-logs'); setIsMobileMenuOpen(false) }}
+                >
+                  <Activity size={22} className={currentView === 'org-logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>אנליטיקות</span>
                 </button>
               )}
 
@@ -512,7 +525,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             )}
 
             <button
-              onClick={() => setIsMobileMenuOpen(true)}
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
               <Menu size={20} />
@@ -533,9 +546,10 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'personnel' && 'ניהול יחידה'}
               {currentView === 'attendance' && 'יומן נוכחות'}
               {currentView === 'tasks' && 'בנק משימות'}
-              {currentView === 'stats' && 'מרכז נתונים'}
+              {currentView === 'stats' && 'מרכז דוחות'}
               {currentView === 'settings' && 'הגדרות ארגון'}
               {currentView === 'logs' && 'לוגים'}
+              {currentView === 'org-logs' && 'אנליטיקות ויומן פעילות'}
               {currentView === 'lottery' && 'הגרלות ופרסים'}
               {currentView === 'constraints' && 'ניהול אילוצים'}
               {currentView === 'absences' && 'ניהול היעדרויות'}

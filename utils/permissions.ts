@@ -53,3 +53,11 @@ export const getRoleDescription = (role: UserRole): string => {
     };
     return descriptions[role];
 };
+
+export const canAccessScreen = (role: UserRole, screen: string): boolean => {
+    if (role === 'admin') return true;
+    if (role === 'editor') return screen !== 'settings' && screen !== 'logs' && screen !== 'system';
+    if (role === 'viewer') return ['home', 'dashboard', 'stats', 'contact'].includes(screen);
+    if (role === 'attendance_only') return ['home', 'attendance', 'contact'].includes(screen);
+    return false;
+};

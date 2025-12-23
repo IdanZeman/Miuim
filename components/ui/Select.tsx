@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom'; // NEW
-import { ChevronDown, Check, Search, LucideIcon } from 'lucide-react';
+import { ChevronDown, Check, Search, LucideIcon, Filter } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
 export interface SelectOption {
@@ -17,10 +17,11 @@ interface SelectProps {
     placeholder?: string;
     icon?: LucideIcon;
     className?: string;
+    containerClassName?: string;
     disabled?: boolean;
     searchable?: boolean;
-    containerClassName?: string;
     direction?: 'top' | 'bottom';
+    triggerMode?: 'default' | 'icon';
 }
 
 export const Select: React.FC<SelectProps> = ({
@@ -34,7 +35,8 @@ export const Select: React.FC<SelectProps> = ({
     containerClassName = '',
     disabled = false,
     searchable = false,
-    direction = 'bottom'
+    direction = 'bottom',
+    triggerMode = 'default'
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -46,17 +48,10 @@ export const Select: React.FC<SelectProps> = ({
     useClickOutside(containerRef, (e) => {
         // Simple Debug
         const isInsideDropdown = dropdownRef.current && dropdownRef.current.contains(e.target as Node);
-        console.log('[Select] Click outside handler.', {
-            target: e.target,
-            isInsideContainer: containerRef.current?.contains(e.target as Node),
-            isInsideDropdown
-        });
-
         // If click is inside the dropdown portal, ignore it
         if (isInsideDropdown) {
             return;
         }
-        console.log('[Select] Closing dropdown due to outside click');
         setIsOpen(false);
         setSearchTerm('');
     });
@@ -71,7 +66,6 @@ export const Select: React.FC<SelectProps> = ({
     }, [options, searchTerm]);
 
     const handleSelect = (val: string) => {
-        console.log('[Select] Option clicked:', val); // DEBUG
         onChange(val);
         setIsOpen(false);
         setSearchTerm('');
@@ -95,10 +89,24 @@ export const Select: React.FC<SelectProps> = ({
             // Decide direction: prefer bottom unless space below is small AND space above is larger
             const showTop = (spaceBelow < MENU_HEIGHT && spaceAbove > spaceBelow);
 
+            // Determine width and left position
+            const dropdownWidth = triggerMode === 'icon' ? 220 : rect.width;
+            let left = rect.left;
+
+            // Prevent going off right screen edge
+            if (left + dropdownWidth > window.innerWidth) {
+                left = window.innerWidth - dropdownWidth - 16; // 16px buffer
+            }
+            // Prevent going off left screen edge
+            if (left < 0) {
+                left = 16;
+            }
+
+
             setPosition({
                 top: showTop ? rect.top - 4 : rect.bottom + 4,
-                left: rect.left,
-                width: rect.width,
+                left: left,
+                width: dropdownWidth,
                 isTop: showTop
             });
         }
@@ -132,38 +140,55 @@ export const Select: React.FC<SelectProps> = ({
     }, [isOpen]);
 
     return (
-        <div className={`relative w-full ${containerClassName}`} ref={containerRef}>
+        <div className={`relative ${triggerMode === 'default' ? 'w-full' : 'w-auto'} ${containerClassName}`} ref={containerRef}>
             {label && (
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                     {label}
                 </label>
             )}
-            <button
-                type="button"
-                onClick={toggleOpen}
-                disabled={disabled}
-                className={`w-full py-2.5 pr-10 pl-10 rounded-xl border bg-white flex items-center justify-between transition-all shadow-sm text-slate-700 text-base md:text-sm text-right
-                    ${isOpen ? 'ring-2 ring-blue-100 border-blue-500' : 'border-slate-300 hover:border-slate-400'}
-                    ${disabled ? 'opacity-60 cursor-not-allowed bg-slate-50' : 'cursor-pointer'}
-                    ${className}
-                `}
-            >
-                <span className={`block truncate ${!selectedOption ? 'text-slate-400' : ''}`}>
-                    {selectedOption ? selectedOption.label : placeholder}
-                </span>
 
-                {/* Left Icon */}
-                {Icon && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                        <Icon size={18} />
+            {triggerMode === 'icon' ? (
+                <button
+                    type="button"
+                    onClick={toggleOpen}
+                    disabled={disabled}
+                    className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center
+                        ${isOpen ? 'ring-2 ring-blue-100 border-blue-500 bg-white text-blue-600' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-white hover:border-slate-300 hover:text-slate-700'}
+                        ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                        ${className}
+                    `}
+                    title={placeholder}
+                >
+                    {Icon ? <Icon size={20} /> : <Filter size={20} />}
+                </button>
+            ) : (
+                <button
+                    type="button"
+                    onClick={toggleOpen}
+                    disabled={disabled}
+                    className={`w-full py-2.5 pr-4 pl-10 rounded-xl border bg-slate-50 flex items-center justify-between transition-all shadow-sm text-slate-700 text-sm font-bold text-right
+                        ${isOpen ? 'ring-2 ring-blue-100 border-blue-500 bg-white' : 'border-slate-200 hover:border-slate-300 hover:bg-white'}
+                        ${disabled ? 'opacity-60 cursor-not-allowed bg-slate-100' : 'cursor-pointer'}
+                        ${className}
+                    `}
+                >
+                    <span className={`block truncate ${!selectedOption ? 'text-slate-400 font-normal' : ''}`}>
+                        {selectedOption ? selectedOption.label : placeholder}
+                    </span>
+
+                    {/* Left Icon */}
+                    {Icon && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                            <Icon size={18} />
+                        </div>
+                    )}
+
+                    {/* Chevron Icon */}
+                    <div className={`absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-500' : ''}`}>
+                        <ChevronDown size={18} />
                     </div>
-                )}
-
-                {/* Chevron Icon */}
-                <div className={`absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
-                    <ChevronDown size={18} />
-                </div>
-            </button>
+                </button>
+            )}
 
             {/* Portal Dropdown Menu */}
             {isOpen && createPortal(

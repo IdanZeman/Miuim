@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Team, Role } from '../types';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Label } from 'recharts';
-import { Users, Calendar, TrendingUp, AlertCircle, CheckCircle2, XCircle, LayoutGrid, List, Search, Download } from 'lucide-react';
+import { Users, Calendar, TrendingUp, AlertCircle, CheckCircle2, XCircle, LayoutGrid, List, Search, Download, ChevronDown } from 'lucide-react';
 import { Select } from './ui/Select';
 import { Input } from './ui/Input';
 import { Modal } from './ui/Modal';
@@ -18,12 +18,12 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [viewMode, setViewMode] = useState<'daily' | 'trends'>('daily');
     const [trendPeriod, setTrendPeriod] = useState<7 | 30 | 90>(30);
-    const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
+    const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(['all']);
     const [selectedRoleId, setSelectedRoleId] = useState<string>('all');
 
     // Modal State
     const { showToast } = useToast();
-    const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; title: string; people: Person[]; type: 'present' | 'absent' | 'general' | 'role_risk_detail'; riskDetails?: any[] } | null>(null);
+    const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; title: string; people: Person[]; type: 'present' | 'absent' | 'general' | 'role_risk_detail' | 'filter'; riskDetails?: any[] } | null>(null);
     const [modalSearch, setModalSearch] = useState('');
 
     const dateKey = selectedDate.toLocaleDateString('en-CA');
@@ -54,9 +54,9 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
 
     // Derived Data
     const stats = useMemo(() => {
-        const filteredPeople = selectedTeamId === 'all'
+        const filteredPeople = selectedTeamIds.includes('all')
             ? people
-            : people.filter(p => p.teamId === selectedTeamId);
+            : people.filter(p => selectedTeamIds.includes(p.teamId));
 
         // 1. Daily Snapshot Data
         const dailyStats = getAttendanceForDate(dateKey, filteredPeople);
@@ -141,108 +141,147 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
         }));
 
         return { dailyStats, roleBreakdown, teamBreakdown, trendData, avgAttendance, roleRisks, weekdayAnalysis };
-    }, [people, selectedDate, selectedTeamId, selectedRoleId, roles, teams, trendPeriod]);
+    }, [people, selectedDate, selectedTeamIds, selectedRoleId, roles, teams, trendPeriod]);
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Header / Controls */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                    <div className="bg-blue-50 p-2 rounded-lg text-blue-600">
-                        {viewMode === 'daily' ? <LayoutGrid size={24} /> : <TrendingUp size={24} />}
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-bold text-slate-800">
-                            {viewMode === 'daily' ? 'תמונת מצב יומית' : 'מגמות וניתוח נתונים'}
-                        </h2>
-                        <p className="text-sm text-slate-500">דוח מפקדים - כוח אדם</p>
-                    </div>
-                </div>
-
-                <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
-                    {/* View Toggle - Full width on mobile */}
-                    <div className="flex bg-slate-100 p-1 rounded-lg w-full md:w-auto">
-                        <button
-                            onClick={() => setViewMode('daily')}
-                            className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'daily' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500'}`}
-                        >
-                            יומי
-                        </button>
-                        <button
-                            onClick={() => setViewMode('trends')}
-                            className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'trends' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500'}`}
-                        >
-                            מגמות
-                        </button>
-                    </div>
-
-                    <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block"></div>
-
-                    {/* Controls Row on Mobile */}
-                    <div className="grid grid-cols-2 md:flex items-center gap-3 w-full md:w-auto">
-                        {/* Date Picker */}
-                        <div className="w-full md:w-40">
-                            <div className="relative flex items-center bg-white rounded-lg border border-slate-300 px-3 py-2 w-full group hover:border-blue-500 transition-colors">
-                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none truncate ${dateKey ? 'text-slate-900' : 'text-slate-400'}`}>
-                                    {selectedDate ? selectedDate.toLocaleDateString('he-IL') : 'בחר תאריך'}
-                                </span>
-                                <input
-                                    type="date"
-                                    value={dateKey}
-                                    onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                />
-                                <Calendar size={18} className="text-slate-400 ml-2 pointer-events-none shrink-0" />
-                            </div>
+            {/* Compact Header / Controls */}
+            <div className="bg-white/80 backdrop-blur-md p-3 rounded-2xl shadow-sm border border-slate-200 sticky top-0 z-20 flex flex-col gap-3">
+                {/* Single Row Filters */}
+                <div className="flex items-center justify-between gap-2">
+                    {/* Left Side: View Toggle + Date */}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {/* View Toggle - Integrated */}
+                        <div className="flex bg-slate-100 p-0.5 rounded-lg shrink-0">
+                            <button
+                                onClick={() => setViewMode('daily')}
+                                className={`px-2 py-1.5 rounded-[6px] text-xs font-bold transition-all ${viewMode === 'daily' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                            >
+                                יומי
+                            </button>
+                            <button
+                                onClick={() => setViewMode('trends')}
+                                className={`px-2 py-1.5 rounded-[6px] text-xs font-bold transition-all ${viewMode === 'trends' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                            >
+                                מגמות
+                            </button>
                         </div>
 
-                        {/* Team Filter */}
-                        <div className="w-full md:w-60">
-                            <Select
-                                value={selectedTeamId}
-                                onChange={setSelectedTeamId}
-                                options={[{ value: 'all', label: 'כל הארגון' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                        {/* Date Picker - Compact */}
+                        {/* Date Picker - Compact & Functional */}
+                        <div className="relative group">
+                            <button
+                                onClick={() => (document.getElementById('mobile-date-picker') as HTMLInputElement)?.showPicker()}
+                                className="flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-1.5 hover:border-blue-500 transition-colors w-24 sm:w-32"
+                            >
+                                <span className="text-[10px] sm:text-xs font-bold truncate text-slate-900 leading-tight">
+                                    {selectedDate ? selectedDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'תאריך'}
+                                </span>
+                            </button>
+                            <input
+                                id="mobile-date-picker"
+                                type="date"
+                                value={dateKey}
+                                onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                                className="absolute inset-0 opacity-0 w-full h-full pointer-events-none"
+                                tabIndex={-1}
                             />
                         </div>
+                    </div>
 
-                        {viewMode === 'trends' && (
-                            <div className="w-full md:w-32">
-                                <Select
-                                    value={trendPeriod.toString()}
-                                    onChange={(val) => setTrendPeriod(parseInt(val) as any)}
-                                    options={[
-                                        { value: '7', label: '7 ימים' },
-                                        { value: '30', label: '30 ימים' },
-                                        { value: '90', label: '90 ימים' }
-                                    ]}
-                                />
-                            </div>
-                        )}
+                    {/* Right Side: Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        {/* Filter Button */}
+                        <button
+                            onClick={() => setModalConfig({ isOpen: true, title: 'סינון לפי צוות', people: [], type: 'filter' })}
+                            className={`flex items-center justify-center h-8 px-2 rounded-lg transition-colors border ${!selectedTeamIds.includes('all') ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
+                            title="סינון לפי צוות"
+                        >
+                            {!selectedTeamIds.includes('all') ? (
+                                <span className="text-[10px] font-bold flex items-center gap-1">
+                                    <span className="bg-white/20 px-1 rounded-sm">{selectedTeamIds.length}</span>
+                                    <span>נבחרו</span>
+                                </span>
+                            ) : (
+                                <div className="flex items-center gap-1">
+                                    <span className="text-[10px] font-bold">כל הארגון</span>
+                                    <List size={14} />
+                                </div>
+                            )}
+                        </button>
+
+                        {/* Export Button - Outside */}
+                        <button
+                            onClick={() => {
+                                const dateStr = selectedDate.toLocaleDateString('he-IL').replace(/\./g, '-');
+                                let csvContent = "שם,צוות,תפקיד,סטטוס\n";
+
+                                const exportPeople = selectedTeamIds.includes('all')
+                                    ? people
+                                    : people.filter(p => selectedTeamIds.includes(p.teamId));
+
+                                exportPeople.forEach(p => {
+                                    const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
+                                    const roleName = roles.find(r => r.id === p.roleId)?.name || 'ללא תפקיד';
+                                    const avail = p.dailyAvailability?.[dateKey];
+                                    const statusString = (avail?.isAvailable ?? true) ? 'נוכח' : 'חסר';
+                                    csvContent += `"${p.name}","${teamName}","${roleName}","${statusString}"\n`;
+                                });
+
+                                const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                                const link = document.createElement('a');
+                                link.href = URL.createObjectURL(blob);
+                                link.download = `manpower_report_${dateStr}.csv`;
+                                link.click();
+                                showToast('הדו"ח היומי יוצא בהצלחה', 'success');
+                            }}
+                            className="flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-colors"
+                            title="ייצוא לאקסל"
+                        >
+                            <Download size={16} />
+                        </button>
                     </div>
                 </div>
+
+                {viewMode === 'trends' && (
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">תקופת ניתוח:</span>
+                        <div className="flex gap-1">
+                            {[7, 30, 90].map(period => (
+                                <button
+                                    key={period}
+                                    onClick={() => setTrendPeriod(period as any)}
+                                    className={`px-3 py-1 rounded-full text-[10px] font-bold border transition-all ${trendPeriod === period ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                                >
+                                    {period} ימים
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {viewMode === 'daily' && (
                 <>
                     {/* KPI Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* KPI Bento Grid */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
                         <KPICard
-                            title='מצבת כוח אדם'
+                            title='סד"כ כולל'
                             value={stats.dailyStats.total}
-                            icon={<Users size={24} />}
+                            icon={<Users size={20} />}
                             color="blue"
                             onClick={() => setModalConfig({
                                 isOpen: true,
                                 title: `מצבת כוח אדם (${stats.dailyStats.total})`,
-                                people: selectedTeamId === 'all' ? people : people.filter(p => p.teamId === selectedTeamId),
+                                people: selectedTeamIds.includes('all') ? people : people.filter(p => selectedTeamIds.includes(p.teamId)),
                                 type: 'general'
                             })}
                         />
                         <KPICard
                             title='נוכחים'
                             value={stats.dailyStats.present}
-                            subtext={`${stats.dailyStats.percentage}% מהכוח`}
-                            icon={<CheckCircle2 size={24} />}
+                            icon={<CheckCircle2 size={20} />}
                             color="green"
                             onClick={() => setModalConfig({
                                 isOpen: true,
@@ -254,7 +293,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         <KPICard
                             title='חסרים'
                             value={stats.dailyStats.absent}
-                            icon={<XCircle size={24} />}
+                            icon={<XCircle size={20} />}
                             color="red"
                             onClick={() => setModalConfig({
                                 isOpen: true,
@@ -264,68 +303,121 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                             })}
                         />
                         <KPICard
-                            title='כשירות מבצעית'
+                            title='כשירות'
                             value={`${stats.dailyStats.percentage}%`}
-                            icon={<TrendingUp size={24} />}
+                            icon={<TrendingUp size={20} />}
                             color={stats.dailyStats.percentage > 80 ? 'emerald' : stats.dailyStats.percentage > 50 ? 'yellow' : 'red'}
                         />
+                    </div>
+
+                    {/* Presence Overview Visual */}
+                    <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                        <div className="flex justify-between items-center mb-1">
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">סקירת נוכחות ויזואלית</h3>
+                            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{stats.dailyStats.percentage}% זמינות</span>
+                        </div>
+
+                        <div className="flex h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-green-500 transition-all duration-1000 ease-out"
+                                style={{ width: `${stats.dailyStats.percentage}%` }}
+                            />
+                            <div
+                                className="h-full bg-red-400 transition-all duration-1000 ease-out"
+                                style={{ width: `${100 - stats.dailyStats.percentage}%` }}
+                            />
+                        </div>
+
+                        <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                <span>נוכחים ({stats.dailyStats.present})</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                                <span>חסרים ({stats.dailyStats.absent})</span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Role Breakdown Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="lg:col-span-2 space-y-6">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                    <List size={20} className="text-slate-400" />
-                                    זמינות לפי תפקיד
-                                </h3>
-                                <div className="w-60">
-                                    <Select
-                                        value={selectedRoleId}
-                                        onChange={setSelectedRoleId}
-                                        options={[{ value: 'all', label: 'כל התפקידים' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                {stats.roleBreakdown.map((role: any) => (
-                                    <div
-                                        key={role.id}
-                                        onClick={() => setModalConfig({
-                                            isOpen: true,
-                                            title: `זמינות - ${role.name}`,
-                                            people: [...role.presentPeople, ...role.absentPeople],
-                                            type: 'general'
-                                        })}
-                                        className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden active:scale-[0.98]"
-                                    >
-                                        <div className={`absolute top-0 right-0 w-1 h-full bg-${role.percentage === 100 ? 'green' : role.percentage > 50 ? 'yellow' : 'red'}-500`}></div>
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className="font-bold text-slate-700">{role.name}</span>
-                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${role.percentage === 100 ? 'bg-green-100 text-green-700' :
-                                                role.percentage > 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-                                                }`}>
-                                                {role.percentage}%
-                                            </span>
-                                        </div>
-                                        <div className="flex items-end gap-1">
-                                            <span className="text-2xl font-bold text-slate-800">{role.present}</span>
-                                            <span className="text-sm text-slate-400 mb-1">/ {role.total}</span>
-                                        </div>
-                                        {/* Mini Progress Bar */}
-                                        <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full ${role.percentage === 100 ? 'bg-green-500' : role.percentage > 50 ? 'bg-yellow-400' : 'bg-red-500'}`}
-                                                style={{ width: `${role.percentage}%` }}
-                                            ></div>
+                            {/* Availability by Role - Refactored List */}
+                            <div className="rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-200 mt-6 md:mt-0">
+                                {/* White Header */}
+                                <div className="bg-white p-4 border-b border-slate-100">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <h3 className="text-slate-800 font-bold text-lg flex items-center gap-2">
+                                            <Users size={20} className="text-emerald-500" />
+                                            זמינות לפי תפקיד
+                                        </h3>
+                                        <div className="w-40">
+                                            <div className="relative">
+                                                <select
+                                                    value={selectedRoleId}
+                                                    onChange={(e) => setSelectedRoleId(e.target.value)}
+                                                    className="w-full appearance-none bg-slate-50 text-slate-800 text-sm font-bold border border-slate-200 rounded-lg py-2 pl-3 pr-8 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                                                >
+                                                    <option value="all">כל התפקידים</option>
+                                                    {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                                </select>
+                                                <ChevronDown size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                            </div>
                                         </div>
                                     </div>
-                                ))}
+                                </div>
+
+                                {/* Compact List */}
+                                <div className="divide-y divide-slate-100">
+                                    {stats.roleBreakdown.map((role: any) => {
+                                        const colorClass = role.percentage === 100 ? 'bg-[#82d682]' : role.percentage >= 80 ? 'bg-yellow-400' : 'bg-red-400';
+                                        const textColorClass = role.percentage === 100 ? 'text-[#5eb85e]' : role.percentage >= 80 ? 'text-yellow-600' : 'text-red-600';
+
+                                        return (
+                                            <div
+                                                key={role.id}
+                                                onClick={() => setModalConfig({
+                                                    isOpen: true,
+                                                    title: `זמינות - ${role.name}`,
+                                                    people: [...role.presentPeople, ...role.absentPeople],
+                                                    type: 'general'
+                                                })}
+                                                className="relative p-4 hover:bg-slate-50 transition-colors cursor-pointer group"
+                                            >
+                                                <div className="flex items-center justify-between mb-1 relative z-10">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-slate-800 text-sm md:text-base">{role.name}</span>
+                                                        <span className="text-[10px] text-slate-400 font-medium group-hover:text-blue-500 transition-colors">לחץ לפירוט</span>
+                                                    </div>
+
+                                                    <div className="text-right">
+                                                        <div className="flex items-baseline justify-end gap-1.5">
+                                                            <span className="text-base md:text-lg font-black text-slate-800 tracking-tight">{role.present}</span>
+                                                            <span className="text-xs text-slate-400 font-medium">/ {role.total}</span>
+                                                        </div>
+                                                        <span className={`text-xs font-bold ${textColorClass}`}>
+                                                            {role.percentage}% זמינות
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Slim Progress Line at Bottom */}
+                                                <div className="absolute bottom-0 left-0 right-0 h-[4px] bg-slate-50">
+                                                    <div
+                                                        className={`h-full ${colorClass} transition-all duration-500 rounded-r-full shadow-sm`}
+                                                        style={{ width: `${role.percentage}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
 
                         {/* Team Comparison Chart (Donut - Quantity) */}
-                        {selectedTeamId === 'all' && (
+                        {(selectedTeamIds.includes('all') || selectedTeamIds.length > 1) && (
                             <div className="bg-white p-6 rounded-xl shadow-portal flex flex-col">
                                 <h3 className="text-lg font-bold text-slate-800 mb-2">התפלגות נוכחים לפי צוותים</h3>
                                 <div className="w-full h-[300px] relative">
@@ -518,47 +610,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                     onClose={() => { setModalConfig(null); setModalSearch(''); }}
                     title={modalConfig.title}
                     size="lg"
-                    footer={
-                        <div className="flex justify-between items-center w-full">
-                            <span className="text-sm text-slate-500 font-bold">
-                                {modalConfig.people.length} רשומות
-                            </span>
-                            <button
-                                onClick={() => {
-                                    const dateStr = selectedDate.toLocaleDateString('he-IL').replace(/\./g, '-');
-                                    let csvContent = "שם,צוות,תפקיד,סטטוס\n";
 
-                                    modalConfig.people.forEach(p => {
-                                        const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
-                                        const roleName = roles.find(r => r.id === p.roleId)?.name || 'ללא תפקיד';
-
-                                        // Determine status text based on modal context, or fetch specifically 
-                                        let statusString = 'לא ידוע';
-                                        if (modalConfig.type === 'present') statusString = 'נוכח';
-                                        else if (modalConfig.type === 'absent') statusString = 'חסר';
-                                        else {
-                                            // Fallback logic if needed, though 'general' implies we might want real status
-                                            const avail = p.dailyAvailability?.[dateKey];
-                                            statusString = (avail?.isAvailable ?? true) ? 'נוכח' : 'חסר';
-                                        }
-
-                                        csvContent += `"${p.name}","${teamName}","${roleName}","${statusString}"\n`;
-                                    });
-
-                                    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-                                    const link = document.createElement('a');
-                                    link.href = URL.createObjectURL(blob);
-                                    link.download = `report_${modalConfig.type}_${dateStr}.csv`;
-                                    link.click();
-                                    showToast('הקובץ הורד בהצלחה', 'success');
-                                }}
-                                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-sm transition-colors"
-                            >
-                                <Download size={18} />
-                                ייצוא לאקסל
-                            </button>
-                        </div>
-                    }
                 >
                     <div className="space-y-4">
                         {modalConfig.type === 'role_risk_detail' ? (
@@ -614,6 +666,83 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                                         );
                                     })}
                                 </div>
+                            </div>
+                        ) : modalConfig.type === 'filter' ? (
+                            <div className="space-y-4">
+                                <button
+                                    onClick={() => {
+                                        if (selectedTeamIds.includes('all')) {
+                                            setSelectedTeamIds([]); // Deselect
+                                        } else {
+                                            setSelectedTeamIds(['all']); // Select only All
+                                        }
+                                    }}
+                                    className={`w-full p-4 rounded-xl border flex items-center justify-between transition-all ${selectedTeamIds.includes('all')
+                                        ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm'
+                                        : 'bg-white border-slate-200 hover:border-blue-300 text-slate-700'
+                                        }`}
+                                >
+                                    <span className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selectedTeamIds.includes('all') ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                                            <Users size={20} />
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-sm font-bold">כל הארגון</div>
+                                            <div className="text-xs opacity-70">הצג נתונים עבור כלל היחידה</div>
+                                        </div>
+                                    </span>
+                                    {selectedTeamIds.includes('all') && <CheckCircle2 size={20} className="text-blue-600" />}
+                                </button>
+
+                                <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">צוותים ומחלקות (נבחרו: {selectedTeamIds.includes('all') ? 'הכל' : selectedTeamIds.length})</h4>
+                                    {teams.map(team => {
+                                        const isSelected = selectedTeamIds.includes(team.id);
+                                        return (
+                                            <button
+                                                key={team.id}
+                                                onClick={() => {
+                                                    let newIds = [...selectedTeamIds];
+                                                    if (newIds.includes('all')) {
+                                                        // If currently 'all', switching to specific -> clear 'all' and add this one
+                                                        newIds = [team.id];
+                                                    } else {
+                                                        if (isSelected) {
+                                                            newIds = newIds.filter(id => id !== team.id);
+                                                        } else {
+                                                            newIds.push(team.id);
+                                                        }
+                                                    }
+
+                                                    // If nothing selected? Maybe keep empty or revert to all? 
+                                                    // Let's allow empty for now or default back to all if user closes?
+                                                    // Actually, let's keep it as is.
+                                                    if (newIds.length === 0) newIds = ['all'];
+
+                                                    setSelectedTeamIds(newIds);
+                                                }}
+                                                className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all ${isSelected
+                                                    ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm'
+                                                    : 'bg-white border-slate-200 hover:border-blue-300 text-slate-700'
+                                                    }`}
+                                            >
+                                                <span className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isSelected ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                        {team.name.charAt(0)}
+                                                    </div>
+                                                    <span>{team.name}</span>
+                                                </span>
+                                                {isSelected && <CheckCircle2 size={18} className="text-blue-600" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <button
+                                    onClick={() => setModalConfig(null)}
+                                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-md sticky bottom-0"
+                                >
+                                    אישור ובחירה ({selectedTeamIds.includes('all') ? 'כל הארגון' : selectedTeamIds.length})
+                                </button>
                             </div>
                         ) : (
                             // Original people list view
@@ -683,25 +812,27 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
 // Helper Component for KPI Cards
 const KPICard: React.FC<{ title: string, value: string | number, subtext?: string, icon: React.ReactNode, color: string, onClick?: () => void }> = ({ title, value, subtext, icon, color, onClick }) => {
     const colorClasses: Record<string, string> = {
-        blue: 'bg-blue-50 text-blue-600',
-        green: 'bg-green-50 text-green-600',
-        red: 'bg-red-50 text-red-600',
-        yellow: 'bg-yellow-50 text-yellow-600',
-        emerald: 'bg-emerald-50 text-emerald-600',
+        blue: 'text-blue-600 bg-blue-50',
+        green: 'text-green-600 bg-green-50',
+        red: 'text-red-600 bg-red-50',
+        yellow: 'text-yellow-600 bg-yellow-50',
+        emerald: 'text-emerald-600 bg-emerald-50',
     };
 
     return (
         <div
             onClick={onClick}
-            className={`bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between transition-all ${onClick ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] active:scale-[0.98]' : ''}`}
+            className={`bg-white p-3 lg:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between transition-all aspect-[1.3] lg:aspect-auto ${onClick ? 'cursor-pointer hover:shadow-md active:scale-95' : ''}`}
         >
-            <div>
-                <p className="text-slate-500 font-medium text-sm mb-1">{title}</p>
-                <h3 className="text-3xl font-bold text-slate-800">{value}</h3>
-                {subtext && <p className="text-xs text-slate-400 mt-1 font-medium">{subtext}</p>}
-            </div>
-            <div className={`p-3 rounded-xl ${colorClasses[color] || colorClasses.blue}`}>
+            <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center mb-auto ${colorClasses[color] || colorClasses.blue}`}>
                 {icon}
+            </div>
+            <div className="mt-2">
+                <h3 className={`text-xl lg:text-3xl font-black ${color === 'red' ? 'text-red-600' : color === 'green' || color === 'emerald' ? 'text-green-600' : color === 'blue' ? 'text-blue-600' : 'text-slate-800'}`}>
+                    {value}
+                </h3>
+                <p className="text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-tighter truncate">{title}</p>
+                {subtext && <p className="hidden lg:block text-[10px] text-slate-400 mt-0.5 font-medium">{subtext}</p>}
             </div>
         </div>
     );

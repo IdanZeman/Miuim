@@ -29,44 +29,41 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
 
    return (
       <div className="space-y-6">
-         {/* Top Navigation / Report Type Switcher */}
+         {/* Top Navigation - Segmented Control Style */}
          {!isViewer && (
-            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm grid grid-cols-3 md:inline-flex gap-2 text-center md:text-right">
-               <button
-                  onClick={() => setReportType('manpower')}
-                  className={`flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-2 px-2 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${reportType === 'manpower'
-                     ? 'bg-blue-600 text-white shadow-md'
-                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                     }`}
-               >
-                  <Users size={18} />
-                  <span className="md:hidden">כוח אדם</span>
-                  <span className="hidden md:inline">דוחות כוח אדם</span>
-               </button>
-               <div className="w-px bg-slate-200 my-1 mx-1 hidden md:block"></div>
-               <button
-                  onClick={() => setReportType('tasks')}
-                  className={`flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-2 px-2 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${reportType === 'tasks'
-                     ? 'bg-blue-600 text-white shadow-md'
-                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                     }`}
-               >
-                  <ClipboardList size={18} />
-                  <span className="md:hidden">שיבוץ</span>
-                  <span className="hidden md:inline">דוחות שיבוץ משימות</span>
-               </button>
-               <div className="w-px bg-slate-200 my-1 mx-1 hidden md:block"></div>
-               <button
-                  onClick={() => setReportType('location')}
-                  className={`flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-2 px-2 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${reportType === 'location'
-                     ? 'bg-blue-600 text-white shadow-md'
-                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                     }`}
-               >
-                  <MapPin size={18} />
-                  <span className="md:hidden">מיקום</span>
-                  <span className="hidden md:inline">דוח מיקום</span>
-               </button>
+            <div className="flex justify-center mb-6">
+               <div className="bg-slate-100/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200 shadow-sm flex w-full max-w-md">
+                  <button
+                     onClick={() => setReportType('manpower')}
+                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${reportType === 'manpower'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                  >
+                     <Users size={18} />
+                     <span>כוח אדם</span>
+                  </button>
+                  <button
+                     onClick={() => setReportType('tasks')}
+                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${reportType === 'tasks'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                  >
+                     <ClipboardList size={18} />
+                     <span>שיבוץ</span>
+                  </button>
+                  <button
+                     onClick={() => setReportType('location')}
+                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${reportType === 'location'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                  >
+                     <MapPin size={18} />
+                     <span>מיקום</span>
+                  </button>
+               </div>
             </div>
          )}
 

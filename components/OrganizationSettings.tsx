@@ -14,29 +14,7 @@ import { useConfirmation } from '../hooks/useConfirmation';
 import { Select } from './ui/Select';
 import { PermissionEditorContent } from './PermissionEditorContent';
 
-const canManageOrganization = (role: UserRole) => {
-    return role === 'admin';
-};
-
-const getRoleDisplayName = (role: UserRole) => {
-    switch (role) {
-        case 'admin': return 'מנהל';
-        case 'editor': return 'עורך';
-        case 'viewer': return 'צופה';
-        case 'attendance_only': return 'נוכחות בלבד';
-        default: return role;
-    }
-};
-
-const getRoleDescription = (role: UserRole) => {
-    switch (role) {
-        case 'admin': return 'גישה מלאה לכל הגדרות הארגון, המשתמשים והנתונים.';
-        case 'editor': return 'יכולת עריכת שיבוצים, ניהול משימות וצפייה בדוחות.';
-        case 'viewer': return 'צפייה בלוח השיבוצים ובנתונים בלבד, ללא יכולת עריכה.';
-        case 'attendance_only': return 'גישה לדיווח נוכחות בלבד.';
-        default: return 'הרשאות בסיסיות.';
-    }
-};
+import { canManageOrganization, getRoleDisplayName, getRoleDescription } from '../utils/permissions';
 
 const SCREENS: { id: ViewMode; label: string; icon: any }[] = [
     { id: 'dashboard', label: 'לוח שיבוצים', icon: Layout },

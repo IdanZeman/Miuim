@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Person, Shift, TaskTemplate, Role } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Activity, Users, CalendarCheck, UserCircle, BarChart2, Moon, Search } from 'lucide-react';
+import { Activity, Users, CalendarCheck, UserCircle, BarChart2, Moon, Search, ClipboardList } from 'lucide-react';
 import { PersonalStats } from './PersonalStats';
 import { DetailedUserStats } from './DetailedUserStats';
 import { supabase } from '../services/supabaseClient';
@@ -77,119 +77,112 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
     ];
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            {!isViewer && (
-                <div className="flex justify-end mb-4">
-                    <div className="bg-slate-100 p-1 rounded-lg flex gap-1">
-                        <button
-                            onClick={() => setViewMode('overview')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'overview' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <BarChart2 size={16} />
-                                <span>מבט על</span>
-                            </div>
-                        </button>
-                        <button
-                            onClick={() => setViewMode('personal')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'personal' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <UserCircle size={16} />
-                                <span>מבט אישי</span>
-                            </div>
-                        </button>
-                    </div>
-                </div>
-            )}
+        <div className="bg-slate-50 min-h-screen pb-20 -mx-4 sm:mx-0 -mt-4 sm:mt-0">
+            {/* Standard White Header */}
+            <div className="bg-white pt-6 pb-4 px-6 border-b border-slate-100 sticky top-0 z-20">
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-slate-800 text-xl font-bold flex items-center gap-2">
+                            <ClipboardList className="text-emerald-500" />
+                            דוחות משימה
+                        </h2>
 
-            {viewMode === 'personal' ? (
-                selectedPersonId ? (
-                    <DetailedUserStats
-                        person={people.find(p => p.id === selectedPersonId)!}
-                        shifts={shifts}
-                        tasks={tasks}
-                        roles={roles}
-                        onBack={isViewer ? undefined : () => setSelectedPersonId(null)}
-                        nightShiftStart={nightShiftStart}
-                        nightShiftEnd={nightShiftEnd}
-                    />
-                ) : (
-                    isViewer ? (
-                        <div className="flex flex-col items-center justify-center h-64 bg-white rounded-xl shadow-sm p-8 text-center">
-                            <UserCircle size={48} className="text-slate-300 mb-4" />
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">לא נמצאו נתונים</h3>
-                            <p className="text-slate-500 max-w-md">
-                                לא הצלחנו למצוא פרופיל חייל המקושר למשתמש שלך ({currentUserName || currentUserEmail}).
-                                אנא פנה למנהל המערכת לוודא שהשם שלך במערכת זהה לשם המשתמש.
-                            </p>
+                        {/* Tab Switcher */}
+                        <div className="bg-slate-100 p-1 rounded-lg flex border border-slate-200">
+                            <button
+                                onClick={() => setViewMode('overview')}
+                                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'overview' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                מבט על
+                            </button>
+                            <button
+                                onClick={() => setViewMode('personal')}
+                                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'personal' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                מבט אישי
+                            </button>
                         </div>
-                    ) : (
-                        <div className="space-y-6">
-                            <div className="max-w-md mx-auto">
-                                <Input
-                                    placeholder="חפש חייל..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    icon={Search}
-                                    className="rounded-full"
-                                />
-                            </div>
+                    </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {people.filter(p => p.name.includes(searchTerm)).map(person => (
-                                    <PersonalStats
-                                        key={person.id}
-                                        person={person}
-                                        shifts={shifts}
-                                        tasks={tasks}
-                                        onClick={() => setSelectedPersonId(person.id)}
-                                        nightShiftStart={nightShiftStart}
-                                        nightShiftEnd={nightShiftEnd}
-                                    />
-                                ))}
-                                <div className="bg-white rounded-xl shadow-portal p-6 flex items-center justify-between border-b-4 border-purple-400">
-                                    <div>
-                                        <p className="text-slate-500 font-medium text-sm mb-1">משמרות פעילות</p>
-                                        <h3 className="text-3xl font-bold text-slate-800">{shifts.length}</h3>
-                                    </div>
-                                    <div className="bg-purple-50 p-3 rounded-full text-purple-500"><CalendarCheck size={24} /></div>
+                    {/* Search (Only in Personal Mode) */}
+                    {viewMode === 'personal' && !isViewer && (
+                        <div className="bg-slate-50 rounded-xl p-1 border border-slate-200">
+                            <Input
+                                placeholder="חפש חייל..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                icon={Search}
+                                className="bg-transparent border-none text-slate-800 placeholder-slate-400 focus:ring-0"
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="p-4 space-y-6">
+                {viewMode === 'overview' ? (
+                    <div className="space-y-6">
+                        {/* Horizontal Bar Chart */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 className="text-lg font-bold text-slate-800 mb-4">עומס שעות מצטבר</h3>
+                            <div className="overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
+                                <div className="space-y-3 pt-2">
+                                    {loadData.map((data, index) => {
+                                        const maxHours = Math.max(...loadData.map(d => d.hours), 1);
+                                        const percentage = Math.min(100, Math.max(2, (data.hours / maxHours) * 100));
+
+                                        return (
+                                            <div key={index} className="flex items-center gap-3">
+                                                {/* Name */}
+                                                <div className="w-24 shrink-0 text-sm font-bold text-slate-700 text-right truncate" title={data.name}>
+                                                    {data.name}
+                                                </div>
+
+                                                {/* Bar */}
+                                                <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden dir-ltr">
+                                                    <div
+                                                        className={`h-full rounded-full ${data.hours > 100 ? 'bg-red-500' : 'bg-blue-500'}`}
+                                                        style={{ width: `${percentage}%`, marginLeft: 'auto' }} // RTL simulation or just use dir-ltr wrapper?
+                                                    // Actually, for "Growth from Right", we need the parent to be RTL (default) and the bar to be... wait.
+                                                    // Standard progress bars grow from Left to Right.
+                                                    // In Hebrew (RTL), "Start" is Right.
+                                                    // If I want the bar to start from the Right (near name) and grow Left:
+                                                    // Parent: RTL. Bar: standard div.
+                                                    // If I use `dir-ltr` on bar container, it grows from Left.
+                                                    // Let's stick to RTL (default) behavior.
+                                                    // If Parent is RTL:
+                                                    // <div bg-slate-100> <div width=50% bg-blue /> </div>
+                                                    // The inner div will align to Right (Start) and grow Leftwards. This is PERFECT for RTL content.
+                                                    // So I DON'T need `dir-ltr`.
+                                                    // I just need to ensure the layout is correct.
+                                                    />
+                                                </div>
+
+                                                {/* Value */}
+                                                <div className="w-10 shrink-0 text-xs font-bold text-slate-500 text-left">
+                                                    {Math.round(data.hours)} ש'
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
-                    )
-                )
-            ) : (
-                <>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="bg-white p-6 rounded-xl shadow-portal">
-                            <h3 className="text-lg font-bold text-slate-800 mb-6">עומס שעות שבועי</h3>
-                            <div className="h-[300px] w-full min-w-0">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={loadData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                                        <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                        <Bar dataKey="hours" fill="#3b82f6" radius={[4, 4, 0, 0]} name="שעות בפועל" />
 
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-
-                        <div className="bg-white p-6 rounded-xl shadow-portal flex flex-col">
-                            <h3 className="text-lg font-bold text-slate-800 mb-6">סטטוס איוש</h3>
-                            <div className="h-[300px] w-full min-w-0">
+                        {/* Compact Gauge/Donut */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 className="text-lg font-bold text-slate-800 mb-2">סטטוס איוש</h3>
+                            <div className="h-[200px] w-full"> {/* Reduced Height */}
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
                                             data={coverageData}
                                             cx="50%"
                                             cy="50%"
-                                            innerRadius={80}
-                                            outerRadius={100}
-                                            paddingAngle={5}
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={4}
                                             dataKey="value"
                                             stroke="none"
                                         >
@@ -201,26 +194,24 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
-                            <div className="flex justify-center gap-6 mt-4">
+                            <div className="flex justify-center gap-6">
                                 {coverageData.map(d => (
                                     <div key={d.name} className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }}></div>
+                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }}></div>
                                         <span className="text-sm text-slate-600 font-bold">{d.name} ({d.value})</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                    </div>
 
-                    {/* Advanced Stats Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Night Shift Leaders */}
-                        <div className="bg-white rounded-xl shadow-portal p-6">
-                            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <Moon className="text-indigo-500" size={20} />
-                                מלכי הלילה 🌙
-                            </h3>
-                            <div className="space-y-4">
+                        {/* Advanced Stats: Night Leaders (Adapted) */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="p-4 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2">
+                                <Moon className="text-indigo-500" size={18} />
+                                <h3 className="font-bold text-indigo-900">שיאני לילה</h3>
+                            </div>
+                            {/* ... existing logic for night leaders ... */}
+                            <div className="divide-y divide-slate-50">
                                 {people.map(person => {
                                     const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id));
                                     let nightHours = 0;
@@ -228,18 +219,11 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                                         const start = new Date(shift.startTime);
                                         const end = new Date(shift.endTime);
                                         let current = new Date(start);
-
                                         const startHour = parseInt(nightShiftStart.split(':')[0]);
                                         const endHour = parseInt(nightShiftEnd.split(':')[0]);
-
                                         while (current < end) {
                                             const h = current.getHours();
-                                            // Check if hour is within night shift range
-                                            // Handle crossing midnight (e.g. 22:00 to 06:00)
-                                            const isNight = startHour > endHour
-                                                ? (h >= startHour || h < endHour)
-                                                : (h >= startHour && h < endHour);
-
+                                            const isNight = startHour > endHour ? (h >= startHour || h < endHour) : (h >= startHour && h < endHour);
                                             if (isNight) nightHours++;
                                             current.setHours(current.getHours() + 1);
                                         }
@@ -247,72 +231,55 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                                     return { person, nightHours };
                                 })
                                     .sort((a, b) => b.nightHours - a.nightHours)
-                                    .slice(0, 5)
+                                    .slice(0, 3)
                                     .map((item, index) => (
-                                        <div key={item.person.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                        <div key={item.person.id} className="p-3 flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm ${index === 0 ? 'ring-2 ring-yellow-400' : ''}`} style={{ backgroundColor: item.person.color }}>
-                                                    {item.person.name.charAt(0)}
-                                                </div>
-                                                <div>
-                                                    <span className="font-bold text-slate-800 block">{item.person.name}</span>
-                                                    {index === 0 && <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-bold">אלוף הלילה 🏆</span>}
-                                                </div>
+                                                <span className="text-sm font-bold text-slate-400 w-4">{index + 1}</span>
+                                                <span className="font-bold text-slate-700">{item.person.name}</span>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="font-bold text-indigo-600">{item.nightHours}</span>
-                                                <span className="text-xs text-slate-400 mr-1">שעות</span>
-                                            </div>
+                                            <span className="font-bold text-indigo-600">{item.nightHours} ש'</span>
                                         </div>
                                     ))}
                             </div>
                         </div>
-
-                        {/* Task Distribution Leaderboard */}
-                        <div className="bg-white rounded-xl shadow-portal p-6">
-                            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <Activity className="text-orange-500" size={20} />
-                                שיאני המשימות
-                            </h3>
-                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                                {tasks.map(task => {
-                                    // Find who did this task the most
-                                    const counts = people.map(person => {
-                                        const count = shifts.filter(s => s.taskId === task.id && s.assignedPersonIds.includes(person.id)).length;
-                                        return { person, count };
-                                    }).sort((a, b) => b.count - a.count);
-
-                                    const topPerformer = counts[0];
-                                    if (!topPerformer || topPerformer.count === 0) return null;
-
-                                    return (
-                                        <div key={task.id} className="flex items-center justify-between p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm" style={{ backgroundColor: task.color }}>
-                                                    <BarChart2 size={20} />
-                                                </div>
-                                                <div>
-                                                    <span className="font-bold text-slate-800 block">{task.name}</span>
-                                                    <span className="text-xs text-slate-500">בוצע {shifts.filter(s => s.taskId === task.id).length} פעמים סה"כ</span>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
-                                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: topPerformer.person.color }}>
-                                                    {topPerformer.person.name.charAt(0)}
-                                                </div>
-                                                <div className="flex flex-col items-end leading-none">
-                                                    <span className="text-xs font-bold text-slate-700">{topPerformer.person.name.split(' ')[0]}</span>
-                                                    <span className="text-[10px] text-slate-400">{topPerformer.count} ביצועים</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
                     </div>
-                </>
-            )}
+                ) : (
+                    /* Personal Mode - List */
+                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200 divide-y divide-slate-100/50">
+                        {selectedPersonId ? ( // Keep legacy view capability if needed, but mainly use list
+                            <DetailedUserStats
+                                person={people.find(p => p.id === selectedPersonId)!}
+                                shifts={shifts}
+                                tasks={tasks}
+                                roles={roles}
+                                onBack={() => setSelectedPersonId(null)}
+                                nightShiftStart={nightShiftStart}
+                                nightShiftEnd={nightShiftEnd}
+                            />
+                        ) : (
+                            people
+                                .filter(p => p.name.includes(searchTerm))
+                                .map(person => (
+                                    <PersonalStats
+                                        key={person.id}
+                                        person={person}
+                                        shifts={shifts}
+                                        tasks={tasks}
+                                        onClick={() => { }} // Removed full page navigation
+                                        nightShiftStart={nightShiftStart}
+                                        nightShiftEnd={nightShiftEnd}
+                                    />
+                                ))
+                        )}
+                        {people.filter(p => p.name.includes(searchTerm)).length === 0 && (
+                            <div className="p-8 text-center text-slate-400">
+                                לא נמצאו תוצאות
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
