@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, ChevronDown, ChevronLeft, User, Users, Shield, Pencil, Trash2, FileSpreadsheet, X, Check, Download, Archive, AlertTriangle, Loader2, Filter, ArrowUpDown, ArrowDownAZ, ArrowUpZA, Layers, LayoutList } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Search, Plus, ChevronDown, ChevronLeft, User, Users, Shield, Pencil, Trash2, FileSpreadsheet, X, Check, Download, Archive, AlertTriangle, Loader2, Filter, ArrowUpDown, ArrowDownAZ, ArrowUpZA, Layers, LayoutList, MoreVertical } from 'lucide-react';
 import { Person, Team, Role } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -9,6 +10,7 @@ import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { Button } from './ui/Button';
 import { ExcelImportWizard } from './ExcelImportWizard';
+import { SheetModal } from './ui/SheetModal';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -116,6 +118,30 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
     // NEW: Duplicate Warning State
     const [duplicateWarning, setDuplicateWarning] = useState<{ person: Person, isOpen: boolean } | null>(null);
+
+    // NEW: Context Menu State
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, person: Person } | null>(null);
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+    // Long Press Logic
+    const touchTimer = React.useRef<NodeJS.Timeout | null>(null);
+
+    const handleTouchStart = (e: React.TouchEvent, person: Person) => {
+        const touch = e.touches[0];
+        const x = touch.clientX;
+        const y = touch.clientY;
+        touchTimer.current = setTimeout(() => {
+            setContextMenu({ x, y, person });
+        }, 600);
+    };
+
+    const handleTouchEnd = () => {
+        if (touchTimer.current) {
+            clearTimeout(touchTimer.current);
+            touchTimer.current = null;
+        }
+    };
+
 
     // -- Effects --
     useEffect(() => {
@@ -443,150 +469,176 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const renderModalContent = () => {
         if (activeTab === 'people') {
             return (
-                <div className="space-y-4">
-                    <Input
-                        label="שם מלא"
-                        value={newName}
-                        onChange={e => setNewName(e.target.value)}
-                        placeholder="ישראל ישראלי"
-                    />
-                    <Input
-                        label="טלפון נייד"
-                        value={newPhone}
-                        onChange={e => setNewPhone(e.target.value)}
-                        placeholder="050-0000000"
-                    />
-                    <Input
-                        label="אימייל"
-                        value={newEmail}
-                        onChange={e => setNewEmail(e.target.value)}
-                        placeholder="email@example.com"
-                    />
-                    <div>
-                        <Select
-                            label="צוות"
-                            value={newTeamId}
-                            onChange={(val) => setNewTeamId(val)}
-                            options={[{ value: '', label: 'בחר צוות...' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
-                            placeholder="בחר צוות..."
-                            direction="top" // NEW
-                        />
-                    </div>
-                    {/* Toggles */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {editingPersonId && (
-                            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                                <div className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors ${newItemActive ? 'bg-green-500' : 'bg-slate-300'}`} onClick={() => setNewItemActive(!newItemActive)}>
-                                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${newItemActive ? 'translate-x-4' : 'translate-x-0'}`} />
-                                </div>
-                                <span className="font-bold text-slate-700">{newItemActive ? 'פעיל' : 'לא פעיל'}</span>
+                <div className="space-y-6">
+                    {/* 1. Essential Info Group */}
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold text-slate-500 px-2">פרטים אישיים</h3>
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                            {/* Name */}
+                            <div className="flex items-center px-4 py-3">
+                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">שם מלא</div>
+                                <input
+                                    value={newName}
+                                    onChange={e => setNewName(e.target.value)}
+                                    placeholder="ישראל ישראלי"
+                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right placeholder:text-slate-300 h-full w-full"
+                                />
                             </div>
-                        )}
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                            <div className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors ${newIsCommander ? 'bg-indigo-500' : 'bg-slate-300'}`} onClick={() => setNewIsCommander(!newIsCommander)}>
-                                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${newIsCommander ? 'translate-x-4' : 'translate-x-0'}`} />
+                            {/* Phone */}
+                            <div className="flex items-center px-4 py-3">
+                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">טלפון</div>
+                                <input
+                                    value={newPhone}
+                                    onChange={e => setNewPhone(e.target.value)}
+                                    placeholder="050-0000000"
+                                    type="tel"
+                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right placeholder:text-slate-300 h-full w-full"
+                                    dir="ltr"
+                                />
                             </div>
-                            <div className="flex flex-col">
-                                <span className="font-bold text-slate-700 leading-none">מפקד צוות</span>
-                                <span className="text-[10px] text-slate-500 font-bold">הגדרת סמכות פיקודית</span>
+                            {/* Email */}
+                            <div className="flex items-center px-4 py-3">
+                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">אימייל</div>
+                                <input
+                                    value={newEmail}
+                                    onChange={e => setNewEmail(e.target.value)}
+                                    placeholder="email@example.com"
+                                    type="email"
+                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right placeholder:text-slate-300 h-full w-full"
+                                    dir="ltr"
+                                />
                             </div>
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">תפקידים</label>
-                        <div className="flex flex-wrap gap-2">
-                            {roles.map(role => {
-                                const isSelected = newRoleIds.includes(role.id);
-                                return (
-                                    <button
-                                        key={role.id}
-                                        onClick={() => {
-                                            if (isSelected) setNewRoleIds(newRoleIds.filter(id => id !== role.id));
-                                            else setNewRoleIds([...newRoleIds, role.id]);
-                                        }}
-                                        className={`px-3 py-1 rounded-full text-sm border transition-colors ${isSelected ? 'bg-blue-100 border-blue-300 text-blue-700 font-bold' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-300'}`}
-                                    >
-                                        {role.name}
-                                    </button>
-                                );
-                            })}
                         </div>
                     </div>
 
-                    {/* Custom Fields Section */}
-                    <div className="pt-4 border-t border-slate-100">
-                        <label className="block text-sm font-bold text-slate-700 mb-2">שדות מותאמים אישית</label>
-                        <div className="space-y-3">
+                    {/* 2. Team & Status Group */}
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold text-slate-500 px-2">שיוך וסטטוס</h3>
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                            {/* Team Selector */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-white relative">
+                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">צוות</div>
+                                <select
+                                    value={newTeamId}
+                                    onChange={(e) => setNewTeamId(e.target.value)}
+                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right appearance-none pr-8 relative z-10 dir-rtl"
+                                    style={{ direction: 'rtl' }}
+                                >
+                                    <option value="" disabled>בחר צוות</option>
+                                    {teams.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown size={16} className="text-slate-400 absolute left-4 pointer-events-none" />
+                            </div>
+
+                            {/* Active Status */}
+                            <div className="flex items-center justify-between px-4 py-3" onClick={() => setNewItemActive(!newItemActive)}>
+                                <div className="font-bold text-slate-700 text-sm">סטטוס פעיל</div>
+                                <div className={`w-12 h-7 rounded-full transition-colors relative ${newItemActive ? 'bg-green-500' : 'bg-slate-200'}`}>
+                                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${newItemActive ? 'left-1' : 'left-6'}`} />
+                                </div>
+                            </div>
+
+                            {/* Commander Status */}
+                            <div className="flex items-center justify-between px-4 py-3" onClick={() => setNewIsCommander(!newIsCommander)}>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-slate-700 text-sm">מפקד צוות</span>
+                                    <span className="text-[10px] text-slate-400">הגדר סמכות פיקודית</span>
+                                </div>
+                                <div className={`w-12 h-7 rounded-full transition-colors relative ${newIsCommander ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${newIsCommander ? 'left-1' : 'left-6'}`} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 3. Roles Group (Chips) */}
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold text-slate-500 px-2">תפקידים והכשרות</h3>
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                            <div className="flex flex-wrap gap-2">
+                                {roles.map(role => {
+                                    const isSelected = newRoleIds.includes(role.id);
+                                    return (
+                                        <button
+                                            key={role.id}
+                                            onClick={() => {
+                                                if (isSelected) setNewRoleIds(newRoleIds.filter(id => id !== role.id));
+                                                else setNewRoleIds([...newRoleIds, role.id]);
+                                            }}
+                                            className={`h-10 px-4 rounded-xl text-sm border-2 transition-all flex items-center gap-2 ${isSelected
+                                                ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm'
+                                                : 'bg-white border-slate-100 text-slate-600 hover:border-slate-300'
+                                                }`}
+                                        >
+                                            {role.icon && ROLE_ICONS[role.icon] && React.createElement(ROLE_ICONS[role.icon], { size: 16, className: isSelected ? 'text-blue-500' : 'text-slate-400' })}
+                                            {role.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 4. Custom Fields Group */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between px-2">
+                            <h3 className="text-xs font-bold text-slate-500">נתונים נוספים</h3>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
                             {Object.entries(newCustomFields || {}).map(([key, value]) => (
-                                <div key={key} className="flex gap-2 items-center">
-                                    <div className="w-1/3 bg-slate-50 p-2 rounded text-sm text-slate-600 font-medium truncate" title={key}>{key}</div>
-                                    <Input
+                                <div key={key} className="flex items-center px-4 py-3 group">
+                                    <div className="w-1/3 shrink-0 font-bold text-slate-700 text-sm truncate" title={key}>{key}</div>
+                                    <input
                                         value={value}
                                         onChange={(e) => setNewCustomFields({ ...newCustomFields, [key]: e.target.value })}
-                                        className="flex-1"
-                                        placeholder="ערך"
+                                        className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right placeholder:text-slate-300 h-full"
                                     />
                                     <button onClick={() => {
                                         const next = { ...newCustomFields };
                                         delete next[key];
                                         setNewCustomFields(next);
-                                    }} className="text-red-400 hover:text-red-600 p-2 transition-colors">
-                                        <Trash2 size={16} />
+                                    }} className="mr-2 text-slate-300 hover:text-red-500">
+                                        <X size={16} />
                                     </button>
                                 </div>
                             ))}
 
-                            <div className="flex gap-2 items-end">
-                                <div className="flex-1">
-                                    <Input
-                                        label={Object.keys(newCustomFields).length === 0 ? "הוסף שדה חדש" : undefined}
+                            {/* Simple Add Field Row */}
+                            <div className="flex items-center px-4 py-3 bg-slate-50">
+                                <div className="flex-1 relative">
+                                    <input
                                         value={tempCustomKey}
                                         onChange={(e) => setTempCustomKey(e.target.value)}
-                                        placeholder="שם שדה (לדוגמה: מידת נעליים)"
-                                        list="custom-hits"
+                                        placeholder="הוסף שדה חדש..."
+                                        list="custom-hits-sheet"
+                                        className="w-full bg-transparent text-sm font-medium outline-none text-slate-700 placeholder:text-slate-400"
                                     />
-                                    <datalist id="custom-hits">
+                                    <datalist id="custom-hits-sheet">
                                         {Array.from(new Set(people.flatMap(p => Object.keys(p.customFields || {})))).map(k => (
                                             <option key={k} value={k} />
                                         ))}
                                     </datalist>
                                 </div>
-                                <Button
-                                    variant="secondary"
+                                <button
                                     onClick={() => {
                                         const key = tempCustomKey.trim();
-                                        if (key) {
-                                            if (newCustomFields[key] !== undefined) {
-                                                showToast('שדה זה כבר קיים', 'error');
-                                            } else {
-                                                setNewCustomFields(prev => ({ ...prev, [key]: '' }));
-                                                setTempCustomKey('');
-
-                                                // Auto-add to all other soldiers if missing (Silent)
-                                                const peopleToUpdate = people.filter(p =>
-                                                    p.id !== editingPersonId &&
-                                                    (p.customFields || {})[key] === undefined
-                                                );
-
-                                                if (peopleToUpdate.length > 0) {
-                                                    Promise.all(peopleToUpdate.map(p => onUpdatePerson({
-                                                        ...p,
-                                                        customFields: { ...(p.customFields || {}), [key]: '' }
-                                                    }))).catch(err => console.error("Failed to propagate custom field", err));
-                                                }
-                                            }
+                                        if (key && !newCustomFields[key]) {
+                                            setNewCustomFields(prev => ({ ...prev, [key]: '' }));
+                                            setTempCustomKey('');
                                         }
                                     }}
-                                    className="mb-[2px]"
-                                    disabled={!tempCustomKey.trim()}
+                                    disabled={!tempCustomKey}
+                                    className="bg-white border border-slate-200 text-slate-600 rounded-lg p-1.5 shadow-sm hover:text-blue-600 hover:border-blue-200 disabled:opacity-50"
                                 >
                                     <Plus size={18} />
-                                </Button>
+                                </button>
                             </div>
                         </div>
                     </div>
-
-                    {/* Footer moved to prop */}
+                    <div className="h-6" />
                 </div>
             );
         }
@@ -631,148 +683,120 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-portal p-4 md:p-6 min-h-[600px]">
+        <div className="bg-white rounded-xl md:shadow-portal p-0 md:p-6 min-h-[600px] relative">
             {/* Sticky Header Container */}
-            <div className="sticky top-0 bg-white z-30 pb-4 border-b border-slate-100 mb-6 -mx-4 md:-mx-6 px-4 md:px-6 pt-2 transition-all shadow-sm">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-                    <div className="flex p-1 bg-slate-100 rounded-full w-full md:w-auto">
-                        <button onClick={() => {
-                            if (teams.length === 0) {
-                                showToast('יש להגדיר צוותים לפני צפייה בחיילים', 'error');
-                                return;
-                            }
-                            setActiveTab('people'); closeForm();
-                        }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'people' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>חיילים</button>
-                        <button onClick={() => { setActiveTab('teams'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'teams' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>צוותים</button>
-                        <button onClick={() => { setActiveTab('roles'); closeForm(); }} className={`flex-1 md:flex-initial px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-bold transition-all ${activeTab === 'roles' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>תפקידים</button>
+            {/* Sticky Header Container */}
+            {/* Sticky Header Container */}
+            {/* Sticky Header Container */}
+            <div className="sticky top-0 bg-white z-40 pb-3 border-b border-slate-100 mb-0 -mx-4 md:-mx-6 px-4 md:px-6 pt-3 transition-all shadow-sm space-y-3">
+
+                <div className="flex flex-col md:flex-row gap-3 md:items-center justify-between">
+                    {/* Tabs Segmented Control */}
+                    <div className="flex p-1 bg-slate-100 rounded-lg w-full md:w-auto shrink-0 order-2 md:order-1 overflow-x-auto no-scrollbar">
+                        {(['people', 'teams', 'roles'] as const).map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab
+                                    ? 'bg-white text-slate-900 shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                                    }`}
+                            >
+                                {tab === 'people' && 'חיילים'}
+                                {tab === 'teams' && 'צוותים'}
+                                {tab === 'roles' && 'תפקידים'}
+                            </button>
+                        ))}
                     </div>
 
-                    <div className="flex gap-2 w-full md:w-auto">
+                    {/* Search & Actions */}
+                    <div className="flex items-center gap-2 w-full md:w-auto flex-1 md:max-w-md order-1 md:order-2">
+                        {/* Search Bar */}
+                        <div className="flex-1 relative">
+                            <Input
+                                icon={Search}
+                                placeholder={activeTab === 'people' ? "חפש חייל..." : activeTab === 'teams' ? "חפש צוות..." : "חפש תפקיד..."}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full h-[40px] bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-idf-olive/20"
+                            />
+                        </div>
+
+                        {/* Filter Button */}
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`h-[40px] w-[40px] rounded-lg border border-slate-200 transition-colors flex items-center justify-center shrink-0 ${showFilters ? 'bg-idf-yellow text-slate-900 border-idf-yellow' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                        >
+                            <Filter size={20} />
+                        </button>
+
+                        {/* Bulk Delete Action */}
                         {canEdit && selectedItemIds.size > 0 && (
-                            <Button
+                            <button
                                 onClick={handleBulkDelete}
-                                className="bg-red-50 text-red-600 hover:bg-red-100 border-red-200 flex-1 md:flex-none animate-in fade-in zoom-in duration-200 h-[42px]"
+                                className="h-[40px] px-3 rounded-lg bg-red-50 text-red-600 border border-red-100 flex items-center gap-2 font-bold text-sm hover:bg-red-100 animate-in fade-in zoom-in duration-200"
                             >
-                                <Trash2 size={16} className="ml-2" />
+                                <Trash2 size={16} />
                                 <span className="hidden md:inline">מחק ({selectedItemIds.size})</span>
                                 <span className="md:hidden">({selectedItemIds.size})</span>
-                            </Button>
+                            </button>
                         )}
-                        {activeTab === 'people' && canEdit && (
-                            <Button
-                                variant="secondary"
-                                onClick={() => setIsImportWizardOpen(true)}
-                                icon={FileSpreadsheet}
-                                className="flex-1 md:flex-none h-[42px]"
+
+
+                        {/* Kebab Menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                                className="h-[40px] w-[40px] rounded-lg border border-slate-200 bg-white text-slate-500 flex items-center justify-center transition-colors hover:bg-slate-50"
                             >
-                                <span className="hidden md:inline">ייבוא</span>
-                            </Button>
-                        )}
-                        {canEdit && (
-                            <Button
-                                variant="primary"
-                                onClick={() => {
-                                    if (activeTab === 'people' && teams.length === 0) {
-                                        showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
-                                        setActiveTab('teams');
-                                        return;
-                                    }
-                                    setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
-                                }}
-                                icon={Plus}
-                                className="flex-1 md:flex-none h-[42px]"
-                            >
-                                <span className="md:hidden">הוסף</span>
-                                <span className="hidden md:inline">הוסף חדש</span>
-                            </Button>
-                        )}
-                        <button
-                            onClick={handleExport}
-                            className="flex items-center gap-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium text-sm md:text-base h-[42px]"
-                            title="ייצוא ל-Excel"
-                        >
-                            <Download size={18} />
-                            <span className="hidden md:inline">ייצוא</span>
-                        </button>
-                        <div className="flex items-center gap-2 md:mr-4">
-                            <label className="flex text-xs font-bold text-slate-500 items-center gap-2 cursor-pointer">
-                                <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
-                                <span className="hidden md:inline">הצג לא פעילים</span>
-                                <span className="md:hidden">לא פעילים</span>
-                            </label>
+                                <MoreVertical size={20} />
+                            </button>
+
+                            {showMoreMenu && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                                    <div className="absolute top-12 left-0 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden py-1 animate-in fade-in zoom-in duration-200">
+                                        {activeTab === 'people' && canEdit && (
+                                            <button onClick={() => { setIsImportWizardOpen(true); setShowMoreMenu(false); }} className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
+                                                <FileSpreadsheet size={16} /> ייבוא מאקסל
+                                            </button>
+                                        )}
+                                        <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
+                                            <Download size={16} /> ייצוא
+                                        </button>
+                                        <div className="px-4 py-2.5 border-t border-slate-50 flex items-center justify-between">
+                                            <span className="text-sm font-medium text-slate-700">הצג לא פעילים</span>
+                                            <input
+                                                type="checkbox"
+                                                checked={showInactive}
+                                                onChange={(e) => setShowInactive(e.target.checked)}
+                                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                                            />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
-                {activeTab === 'people' && (
-                    <div className="flex flex-col gap-4 mt-2 border-t border-slate-100 pt-3 md:pt-4">
-                        <div className="flex flex-row items-center gap-2">
-                            <div className="flex-1">
-                                <Input
-                                    icon={Search}
-                                    placeholder="חפש לפי שם..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full h-[42px]"
-                                />
-                            </div>
-                            <button
-                                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                                className="h-[42px] w-[42px] bg-white border border-slate-300 rounded-md shadow-sm hover:bg-slate-50 text-slate-600 transition-colors flex items-center justify-center shrink-0"
-                                title={`סדר: ${sortOrder === 'asc' ? 'עולה' : 'יורד'}`}
-                            >
-                                {sortOrder === 'asc' ? <ArrowDownAZ size={21} /> : <ArrowUpZA size={21} />}
-                            </button>
-                            <button
-                                onClick={() => setShowFilters(!showFilters)}
-                                className={`h-[42px] w-[42px] border rounded-md shadow-sm transition-colors flex items-center justify-center shrink-0 ${showFilters ? 'bg-idf-yellow border-idf-yellow text-slate-900' : 'bg-white border-slate-300 hover:bg-slate-50 text-slate-600'}`}
-                                title="סינון"
-                            >
-                                <Filter size={21} />
-                            </button>
-                        </div>
 
-                        {showFilters && (
-                            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-1 fade-in duration-200">
-                                <Select
-                                    value={filterTeamId}
-                                    onChange={(val) => setFilterTeamId(val)}
-                                    options={[{ value: 'all', label: 'כל הצוותים' }, { value: 'no-team', label: 'ללא צוות' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
-                                    placeholder="סנן לפי צוות"
-                                />
-                                <Select
-                                    value={filterRoleId}
-                                    onChange={(val) => setFilterRoleId(val)}
-                                    options={[{ value: 'all', label: 'כל התפקידים' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
-                                    placeholder="סנן לפי תפקיד"
-                                />
-
-                                {Array.from(new Set(people.flatMap(p => Object.keys(p.customFields || {})))).length > 0 && (
-                                    <div className="flex flex-1 gap-2 flex-col md:flex-row">
-                                        <div className="w-full md:w-40">
-                                            <Select
-                                                value={filterCustomField}
-                                                onChange={(val) => { setFilterCustomField(val); setFilterCustomValue(''); }}
-                                                options={[
-                                                    { value: 'all', label: 'סינון מתקדם' },
-                                                    ...Array.from(new Set(people.flatMap(p => Object.keys(p.customFields || {})))).map(k => ({ value: k, label: k }))
-                                                ]}
-                                                placeholder="סינון שדות"
-                                            />
-                                        </div>
-                                        {filterCustomField !== 'all' && (
-                                            <div className="w-full md:w-32 animate-in fade-in zoom-in duration-200">
-                                                <Input
-                                                    value={filterCustomValue}
-                                                    onChange={(e) => setFilterCustomValue(e.target.value)}
-                                                    placeholder="ערך..."
-                                                    className="h-[42px]"
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                {/* Filters Panel */}
+                {showFilters && (
+                    <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-100 grid grid-cols-2 gap-2 animate-in slide-in-from-top-1 fade-in duration-200">
+                        <Select
+                            value={filterTeamId}
+                            onChange={(val) => setFilterTeamId(val)}
+                            options={[{ value: 'all', label: 'כל הצוותים' }, { value: 'no-team', label: 'ללא צוות' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                            placeholder="צוות"
+                            className="bg-white"
+                        />
+                        <Select
+                            value={filterRoleId}
+                            onChange={(val) => setFilterRoleId(val)}
+                            options={[{ value: 'all', label: 'כל התפקידים' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
+                            placeholder="תפקיד"
+                            className="bg-white"
+                        />
                     </div>
                 )}
             </div>
@@ -803,52 +827,82 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 return sorted.sort((a, b) => b.name.localeCompare(a.name));
                             };
 
-                            // 3. Render Card Helper
+                            // 3. Render Card Helper (Refactored for Mobile List)
                             const renderPerson = (person: Person) => {
                                 const team = teams.find(t => t.id === person.teamId);
                                 const colorClass = team ? (team.color?.replace('border-', 'bg-') || 'bg-slate-300') : person.color;
+                                const isSelected = selectedItemIds.has(person.id);
+
+                                // Prevent default context menu
+                                const handleContextMenu = (e: React.MouseEvent) => {
+                                    e.preventDefault();
+                                    if (canEdit) {
+                                        setContextMenu({ x: e.clientX, y: e.clientY, person });
+                                    }
+                                };
 
                                 return (
-                                    <div key={person.id} className="bg-white border border-slate-100 rounded-xl p-3 md:p-4 hover:shadow-md transition-all group">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                                {canEdit && (
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedItemIds.has(person.id)}
-                                                        onChange={(e) => { e.stopPropagation(); toggleSelection(person.id); }}
-                                                        className={`ml-2 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer transition-opacity ${selectedItemIds.has(person.id) ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}
-                                                    />
-                                                )}
-                                                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0 ${colorClass}`}>{getPersonInitials(person.name)}</div>
-                                                <div className="min-w-0 flex-1">
-                                                    <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">
-                                                        {person.name}
-                                                        {person.isActive === false && <span className="mr-2 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">לא פעיל</span>}
-                                                    </h4>
-                                                    <span className="text-xs text-slate-500 truncate block">{person.email || 'אין אימייל'}</span>
-                                                    <span className="text-xs text-slate-400 truncate block">{person.phone || ''}</span>
-                                                    {Object.keys(person.customFields || {}).length > 0 && (
-                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                            {Object.entries(person.customFields || {}).map(([k, v]) => v ? (
-                                                                <span key={k} className="text-[9px] bg-slate-50 text-slate-400 px-1 rounded border border-slate-100" title={`${k}: ${v}`}>{v}</span>
-                                                            ) : null)}
-                                                        </div>
-                                                    )}
+                                    <div
+                                        key={person.id}
+                                        className={`flex items-center gap-3 py-3 px-1 border-b border-slate-100 bg-white transition-colors select-none ${isSelected ? 'bg-blue-50' : 'active:bg-slate-50'}`}
+                                        onTouchStart={(e) => canEdit && handleTouchStart(e, person)}
+                                        onTouchEnd={handleTouchEnd}
+                                        onContextMenu={handleContextMenu}
+                                        onClick={() => {
+                                            if (selectedItemIds.size > 0 || isSelected) {
+                                                toggleSelection(person.id);
+                                            } else {
+                                                handleEditPersonClick(person);
+                                            }
+                                        }}
+                                    >
+                                        {/* Checkbox (Visible if editing allowed) */}
+                                        {canEdit && (
+                                            <div onClick={(e) => { e.stopPropagation(); toggleSelection(person.id); }} className="shrink-0 p-2 -mr-2 cursor-pointer">
+                                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                                    {isSelected && <Check size={12} className="text-white" />}
                                                 </div>
                                             </div>
-                                            {canEdit && (
-                                                <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                                    <button onClick={() => handleEditPersonClick(person)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={14} /></button>
-                                                    <button onClick={() => onDeletePerson(person.id)} className="text-slate-300 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={14} /></button>
-                                                </div>
-                                            )}
+                                        )}
+
+                                        {/* Avatar (Left) */}
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm ${colorClass}`}>
+                                            {getPersonInitials(person.name)}
                                         </div>
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                            {(person.roleIds || []).map(rid => {
-                                                const r = roles.find(rl => rl.id === rid);
-                                                return r ? <span key={r.id} className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-medium">{r.name}</span> : null
-                                            })}
+
+                                        {/* Content (Center) */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <h4 className={`font-bold text-slate-900 text-base truncate ${!person.isActive ? 'line-through text-slate-400' : ''}`}>
+                                                    {person.name}
+                                                </h4>
+                                                {!person.isActive && <span className="w-2 h-2 rounded-full bg-red-400"></span>}
+                                            </div>
+
+                                            {/* Roles Pills */}
+                                            <div className="flex flex-wrap gap-1 mt-0.5">
+                                                {(person.roleIds || []).length > 0 ? (
+                                                    (person.roleIds || []).map(rid => {
+                                                        const r = roles.find(rl => rl.id === rid);
+                                                        return r ? (
+                                                            <span key={r.id} className="text-[10px] px-1.5 py-px rounded-full bg-slate-100 text-slate-600 font-medium">
+                                                                {r.name}
+                                                            </span>
+                                                        ) : null
+                                                    })
+                                                ) : (
+                                                    <span className="text-[11px] text-slate-400">ללא תפקיד</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Status / Indicator (Right) */}
+                                        <div className="shrink-0 flex items-center justify-center w-6">
+                                            {person.isActive !== false ? (
+                                                <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm"></div>
+                                            ) : (
+                                                <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -868,16 +922,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                     const isCollapsed = collapsedTeams.has(group.id);
 
                                     return (
-                                        <div key={group.id} className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                                            <div className="p-3 md:p-4 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => toggleTeamCollapse(group.id)}>
-                                                <div className="flex items-center gap-3">
-                                                    {/* Title */}
-                                                    <h3 className="font-bold text-slate-800 text-base md:text-lg">{group.name}</h3>
-                                                    <span className="bg-white px-2 py-0.5 rounded-full text-xs font-bold text-slate-500 border border-slate-200">{members.length}</span>
+                                        <div key={group.id} className="bg-white">
+                                            <div className="sticky top-[60px] z-20 bg-slate-50 border-y border-slate-100 p-2 flex items-center justify-between cursor-pointer" onClick={() => toggleTeamCollapse(group.id)}>
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="font-bold text-slate-800 text-sm">{group.name}</h3>
+                                                    <span className="bg-white text-slate-500 text-[10px] px-1.5 rounded-full border border-slate-200 font-mono font-bold">{members.length}</span>
                                                 </div>
-                                                <button className="text-slate-400">{isCollapsed ? <ChevronLeft size={20} /> : <ChevronDown size={20} />}</button>
+                                                <button className="text-slate-400">{isCollapsed ? <ChevronLeft size={16} /> : <ChevronDown size={16} />}</button>
                                             </div>
-                                            {!isCollapsed && <div className="p-3 md:p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-slate-200">{members.map(renderPerson)}</div>}
+                                            {!isCollapsed && <div className="divide-y divide-slate-50">{members.map(renderPerson)}</div>}
                                         </div>
                                     );
                                 });
@@ -897,15 +950,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                     const isCollapsed = collapsedTeams.has(role.id);
 
                                     return (
-                                        <div key={role.id} className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                                            <div className="p-3 md:p-4 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => toggleTeamCollapse(role.id)}>
-                                                <div className="flex items-center gap-3">
-                                                    <h3 className="font-bold text-slate-800 text-base md:text-lg">{role.name}</h3>
-                                                    <span className="bg-white px-2 py-0.5 rounded-full text-xs font-bold text-slate-500 border border-slate-200">{members.length}</span>
+                                        <div key={role.id} className="bg-white">
+                                            <div className="sticky top-[60px] z-20 bg-slate-50 border-y border-slate-100 p-2 flex items-center justify-between cursor-pointer" onClick={() => toggleTeamCollapse(role.id)}>
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="font-bold text-slate-800 text-sm">{role.name}</h3>
+                                                    <span className="bg-white text-slate-500 text-[10px] px-1.5 rounded-full border border-slate-200 font-mono font-bold">{members.length}</span>
                                                 </div>
-                                                <button className="text-slate-400">{isCollapsed ? <ChevronLeft size={20} /> : <ChevronDown size={20} />}</button>
+                                                <button className="text-slate-400">{isCollapsed ? <ChevronLeft size={16} /> : <ChevronDown size={16} />}</button>
                                             </div>
-                                            {!isCollapsed && <div className="p-3 md:p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-slate-200">{members.map(renderPerson)}</div>}
+                                            {!isCollapsed && <div className="divide-y divide-slate-50">{members.map(renderPerson)}</div>}
                                         </div>
                                     );
                                 });
@@ -914,7 +967,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             // MODE: LIST
                             const sorted = sortList([...filtered]);
                             return (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="flex flex-col">
                                     {sorted.map(renderPerson)}
                                 </div>
                             );
@@ -922,74 +975,149 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </div>
                 )}
 
-                {activeTab === 'teams' && teams.map(team => (
-                    <div key={team.id} className={`bg-white border-l-4 rounded-xl p-4 md:p-6 flex justify-between items-center group hover:shadow-md transition-all ${team.color || 'border-slate-500'}`}>
-                        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                {activeTab === 'teams' && teams.map(team => {
+                    const isSelected = selectedItemIds.has(team.id);
+                    return (
+                        <div
+                            key={team.id}
+                            className={`flex items-center gap-3 py-3 px-1 border-b border-slate-100 bg-white transition-colors cursor-pointer select-none ${isSelected ? 'bg-blue-50' : 'active:bg-slate-50'}`}
+                            onClick={() => {
+                                if (selectedItemIds.size > 0 || isSelected) toggleSelection(team.id);
+                                else handleEditTeamClick(team);
+                            }}
+                        >
+                            {/* Checkbox */}
                             {canEdit && (
-                                <input
-                                    type="checkbox"
-                                    checked={selectedItemIds.has(team.id)}
-                                    onChange={(e) => { e.stopPropagation(); toggleSelection(team.id); }}
-                                    className={`ml-2 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer transition-opacity ${selectedItemIds.has(team.id) ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}
-                                />
+                                <div onClick={(e) => { e.stopPropagation(); toggleSelection(team.id); }} className="shrink-0 p-2 -mr-2 cursor-pointer">
+                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                        {isSelected && <Check size={12} className="text-white" />}
+                                    </div>
+                                </div>
                             )}
-                            <div className="bg-slate-100 p-2 md:p-3 rounded-full text-slate-600 flex-shrink-0"><Users size={18} /></div>
-                            <h4 className="font-bold text-base md:text-lg text-slate-800 truncate">{team.name}</h4>
-                        </div>
-                        {canEdit && (
-                            <div className="flex items-center gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                <button onClick={() => handleEditTeamClick(team)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={16} /></button>
-                                <button onClick={() => onDeleteTeam(team.id)} className="text-slate-400 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+
+                            {/* Avatar/Icon */}
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-500 md:text-white font-bold text-sm shrink-0 shadow-sm ${team.color?.replace('border-', 'bg-') || 'bg-slate-100'}`}>
+                                <Users size={18} className="md:text-white text-inherit mix-blend-multiply md:mix-blend-normal" />
                             </div>
-                        )}
-                    </div>
-                ))}
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-slate-900 text-base truncate">{team.name}</h4>
+                                <p className="text-xs text-slate-500">{people.filter(p => p.teamId === team.id).length} חיילים</p>
+                            </div>
+
+                            {/* Actions */}
+                            {canEdit && (
+                                <button onClick={(e) => { e.stopPropagation(); onDeleteTeam(team.id); }} className="p-2 text-slate-300 hover:text-red-500 rounded-full">
+                                    <Trash2 size={18} />
+                                </button>
+                            )}
+                        </div>
+                    );
+                })}
 
                 {activeTab === 'roles' && roles.map(role => {
                     const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
+                    const isSelected = selectedItemIds.has(role.id);
                     return (
-                        <div key={role.id} className="bg-white border border-idf-card-border rounded-xl p-3 md:p-4 flex justify-between items-center group hover:border-purple-300 transition-colors">
-                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                {canEdit && (
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedItemIds.has(role.id)}
-                                        onChange={(e) => { e.stopPropagation(); toggleSelection(role.id); }}
-                                        className={`ml-2 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer transition-opacity ${selectedItemIds.has(role.id) ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}
-                                    />
-                                )}
-                                <div className={`p-2 rounded-lg flex-shrink-0 ${role.color || 'bg-slate-100 text-slate-600'}`}>
-                                    <Icon size={16} />
-                                </div>
-                                <h4 className="font-bold text-sm md:text-base text-slate-800 truncate">{role.name}</h4>
-                            </div>
+                        <div
+                            key={role.id}
+                            className={`flex items-center gap-3 py-3 px-1 border-b border-slate-100 bg-white transition-colors cursor-pointer select-none ${isSelected ? 'bg-blue-50' : 'active:bg-slate-50'}`}
+                            onClick={() => {
+                                if (selectedItemIds.size > 0 || isSelected) toggleSelection(role.id);
+                                else handleEditRoleClick(role);
+                            }}
+                        >
+                            {/* Checkbox */}
                             {canEdit && (
-                                <div className="flex items-center gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                    <button onClick={() => handleEditRoleClick(role)} className="text-slate-400 hover:text-blue-500 p-1 md:p-1.5 hover:bg-blue-50 rounded-full"><Pencil size={14} /></button>
-                                    <button onClick={() => onDeleteRole(role.id)} className="text-slate-300 hover:text-red-500 p-1 md:p-1.5 hover:bg-red-50 rounded-full"><Trash2 size={14} /></button>
+                                <div onClick={(e) => { e.stopPropagation(); toggleSelection(role.id); }} className="shrink-0 p-2 -mr-2 cursor-pointer">
+                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                        {isSelected && <Check size={12} className="text-white" />}
+                                    </div>
                                 </div>
+                            )}
+
+                            {/* Avatar/Icon */}
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-600 font-bold text-sm shrink-0 shadow-sm ${role.color || 'bg-slate-100'}`}>
+                                <Icon size={18} />
+                            </div>
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-slate-900 text-base truncate">{role.name}</h4>
+                                <p className="text-xs text-slate-500">{people.filter(p => (p.roleIds || []).includes(role.id)).length} חיילים</p>
+                            </div>
+
+                            {/* Actions */}
+                            {canEdit && (
+                                <button onClick={(e) => { e.stopPropagation(); onDeleteRole(role.id); }} className="p-2 text-slate-300 hover:text-red-500 rounded-full">
+                                    <Trash2 size={18} />
+                                </button>
                             )}
                         </div>
                     );
                 })}
             </div>
 
-            <Modal
+            {/* FAB (Floating Action Button) */}
+            {canEdit && !isModalOpen && (
+                <button
+                    onClick={() => {
+                        if (activeTab === 'people' && teams.length === 0) {
+                            showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
+                            setActiveTab('teams');
+                            return;
+                        }
+                        setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
+                    }}
+                    className="fixed bottom-24 md:bottom-8 left-6 w-14 h-14 bg-idf-yellow text-slate-900 rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 transition-all flex items-center justify-center z-50 hover:scale-105 active:scale-95"
+                >
+                    <Plus size={28} />
+                </button>
+            )}
+
+            {/* Context Menu Portal (Could be a simple absolute div if precise positioning needed, or a fixed overlay) */}
+            {contextMenu && (
+                <>
+                    <div
+                        className="fixed inset-0 z-50 bg-black/10 backdrop-blur-[1px]"
+                        onClick={() => setContextMenu(null)}
+                    />
+                    <div
+                        className="fixed z-50 bg-white rounded-lg shadow-xl border border-slate-100 w-48 overflow-hidden animate-in zoom-in-95 duration-100"
+                        style={{ top: contextMenu.y, left: contextMenu.x - 192 < 10 ? 10 : contextMenu.x - 192 }}
+                    >
+                        <div className="bg-slate-50 px-3 py-2 border-b border-slate-100">
+                            <span className="font-bold text-slate-800 text-sm">{contextMenu.person.name}</span>
+                        </div>
+                        <button onClick={() => { handleEditPersonClick(contextMenu.person); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
+                            <Pencil size={16} /> ערוך פרטים
+                        </button>
+                        <button onClick={() => { onDeletePerson(contextMenu.person.id); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-red-50 text-sm font-medium flex items-center gap-2 text-red-600">
+                            <Trash2 size={16} /> מחק חייל
+                        </button>
+                        <button onClick={() => {
+                            // Toggle status
+                            onUpdatePerson({ ...contextMenu.person, isActive: !contextMenu.person.isActive });
+                            setContextMenu(null);
+                        }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-500">
+                            {contextMenu.person.isActive ? <X size={16} /> : <Check size={16} />}
+                            {contextMenu.person.isActive ? 'סמן כלא פעיל' : 'סמן כפעיל'}
+                        </button>
+                    </div>
+                </>
+            )}
+
+            {/* Reusable SheetModal for All Forms */}
+            <SheetModal
                 isOpen={isModalOpen}
                 onClose={closeForm}
                 title={getModalTitle()}
-                size="md"
-                footer={(
-                    <div className="flex justify-end gap-2 w-full">
-                        <Button variant="ghost" onClick={closeForm}>ביטול</Button>
-                        <Button variant="primary" onClick={handleSave} disabled={isSaving}>
-                            {isSaving ? <><Loader2 className="animate-spin ml-2" size={16} /> שומר...</> : 'שמור'}
-                        </Button>
-                    </div>
-                )}
+                isSaving={isSaving}
+                onSave={handleSave}
             >
                 {renderModalContent()}
-            </Modal>
+            </SheetModal>
 
             {/* Duplicate Warning Modal */}
             <Modal

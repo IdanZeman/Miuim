@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
-import { Upload, FileSpreadsheet, ArrowRight, ArrowLeft, Check, AlertCircle, Plus, ArrowUpRight, Download } from 'lucide-react';
+import { Upload, FileSpreadsheet, ArrowRight, ArrowLeft, Check, AlertCircle, Plus, ArrowUpRight, Download, X, AlertTriangle } from 'lucide-react';
 import { Person, Team, Role } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { Select } from './ui/Select';
@@ -486,111 +487,223 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white md:rounded-2xl shadow-xl w-full h-full md:h-auto md:max-w-2xl md:max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    return createPortal(
+        <div className="fixed inset-0 z-[110] flex flex-col items-center justify-end md:justify-center">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
-                {/* Header */}
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                    <div>
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            <FileSpreadsheet className="text-green-600" />
-                            ייבוא לוחמים מאקסל
+            {/* Main Sheet */}
+            <div className="relative w-full h-full md:h-[85vh] md:max-w-2xl bg-slate-50 md:rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300 md:duration-200 md:zoom-in-95">
+
+                {/* Standard Header (Matched to PersonnelManager) */}
+                <div className="bg-white px-4 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 sticky top-0 z-20">
+                    <button onClick={onClose} className="p-2 -mr-2 text-slate-400 hover:text-slate-600 rounded-full transition-colors">
+                        <X size={24} />
+                    </button>
+                    <div className="text-center">
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center justify-center gap-2">
+                            <FileSpreadsheet className="text-green-600" size={20} />
+                            ייבוא אקסל
                         </h2>
-                        <p className="text-sm text-slate-500 mt-1">
-                            {/* Dynamic Step Counter based on Onboarding (3 steps) vs Existing (4 steps) */}
+                        <p className="text-xs text-slate-400 font-medium mt-0.5">
                             {teams.length === 0 && roles.length === 0 ? (
                                 <>
                                     {step === 'upload' && 'שלב 1/3: העלאת קובץ'}
                                     {step === 'mapping' && 'שלב 2/3: מיפוי עמודות'}
-                                    {step === 'preview' && 'שלב 3/3: בדיקה ואישור'}
+                                    {step === 'preview' && 'שלב 3/3: אישור סופי'}
                                 </>
                             ) : (
                                 <>
                                     {step === 'upload' && 'שלב 1/4: העלאת קובץ'}
                                     {step === 'mapping' && 'שלב 2/4: מיפוי עמודות'}
-                                    {step === 'resolution' && 'שלב 3/4: פתרון התנגשויות'}
-                                    {step === 'preview' && 'שלב 4/4: בדיקה ואישור'}
+                                    {step === 'resolution' && 'שלב 3/4: פתרון בעיות'}
+                                    {step === 'preview' && 'שלב 4/4: אישור סופי'}
                                 </>
                             )}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
-                        <ArrowLeft size={20} />
-                    </button>
+                    <div className="w-10" /> {/* Spacer */}
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto text-right" dir="rtl">
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-24 bg-slate-50" dir="rtl">
 
+                    {/* -- STEP 1: UPLOAD -- */}
                     {step === 'upload' && (
-                        <div className="flex flex-col items-center justify-center h-full py-10 m-6 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
-                            onClick={() => fileInputRef.current?.click()}>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileUpload}
-                                accept=".xlsx, .xls, .csv"
-                                className="hidden"
-                            />
-                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
-                                <Upload size={32} className="text-blue-500" />
+                        <div className="flex flex-col items-center justify-center h-full space-y-6 md:space-y-8 py-8">
+                            <div className="w-20 h-20 bg-green-50 rounded-2xl flex items-center justify-center border border-green-100 shadow-sm">
+                                <FileSpreadsheet size={40} className="text-green-600" />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-700 mb-2">לחץ להעלאת קובץ אקסל</h3>
-                            <p className="text-slate-500 text-sm mb-4">תומך בקבצי .xlsx, .xls, .csv</p>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    downloadTemplate();
-                                }}
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-bold text-sm"
-                            >
-                                <Download size={16} />
-                                הורד תבנית אקסל
-                            </button>
+
+                            <div className="text-center space-y-2 max-w-xs mx-auto">
+                                <h3 className="text-lg font-bold text-slate-800">ייבוא נתונים מקובץ</h3>
+                                <p className="text-slate-500 text-sm">
+                                    בחר קובץ אקסל המכיל את רשימת החיילים, הצוותים והתפקידים לייבוא מהיר.
+                                </p>
+                            </div>
+
+                            <div className="w-full max-w-sm space-y-4">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileUpload}
+                                    accept=".xlsx, .xls, .csv"
+                                    className="hidden"
+                                    id="file-upload"
+                                />
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-md active:scale-95 transition-all text-base font-bold flex items-center justify-center gap-2"
+                                >
+                                    <Upload size={18} />
+                                    בחר קובץ
+                                </button>
+
+                                <button
+                                    onClick={downloadTemplate}
+                                    className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl transition-all text-sm font-medium flex items-center justify-center gap-2"
+                                >
+                                    <Download size={16} />
+                                    הורד תבנית אקסל לדוגמה
+                                </button>
+                            </div>
                         </div>
                     )}
 
+                    {/* -- STEP 2: MAPPING -- */}
                     {step === 'mapping' && (
-                        <div className="pb-6">
-                            <div className="bg-blue-50 p-4 rounded-lg flex gap-3 text-blue-800 text-sm mx-6 mt-6 mb-4">
-                                <AlertCircle size={20} className="flex-shrink-0" />
-                                <p>המערכת זיהתה את העמודות הבאות. אנא התאם כל עמודה באקסל לשדה המתאים במערכת.</p>
+                        <div className="space-y-4">
+                            <div className="bg-blue-50 border border-blue-100 p-3.5 rounded-xl flex gap-3 text-blue-800 text-sm items-start">
+                                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                                <p>המערכת מבצעת התאמה אוטומטית. אנא ודא שהשדות משויכים נכון לפני ההמשך.</p>
                             </div>
 
-                            {/* Header Row */}
-                            <div className="sticky top-0 z-20 bg-white flex items-center gap-2 md:gap-4 px-4 md:px-6 py-3 text-xs font-bold text-slate-500 shadow-sm border-y border-slate-100">
-                                <div className="w-5/12 md:w-1/3 flex items-center gap-1">
-                                    <FileSpreadsheet size={14} />
-                                    <span>עמודה באקסל (מקור)</span>
-                                </div>
-                                <div className="w-6 md:w-8"></div>
-                                <div className="flex-1">שדה במערכת (יעד)</div>
-                            </div>
-
-                            <div className="grid gap-3 px-4 md:px-6 pt-4">
-                                {mappings.map((mapping, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 md:gap-4 p-2 md:p-3 bg-white border border-slate-200 rounded-lg hover:shadow-md transition-shadow">
-
-                                        {/* Excel Source (Right side in RTL) */}
-                                        <div className="w-5/12 md:w-1/3 flex items-center gap-2 overflow-hidden bg-slate-50 px-2 py-2 md:px-3 rounded-md border border-slate-200 group">
-                                            <FileSpreadsheet className="text-green-600 flex-shrink-0 group-hover:scale-110 transition-transform w-4 h-4 md:w-5 md:h-5" />
-                                            <div className="font-bold text-slate-700 truncate text-xs md:text-sm" title={mapping.excelColumn}>
-                                                {mapping.excelColumn}
+                            <div className="space-y-3">
+                                {mappings.map((mapping, idx) => {
+                                    const isMapped = mapping.systemField !== 'ignore';
+                                    return (
+                                        <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-500">
+                                                    <FileSpreadsheet size={16} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">עמודה בקובץ</div>
+                                                    <div className="font-bold text-slate-800 truncate text-sm" title={mapping.excelColumn}>
+                                                        {mapping.excelColumn}
+                                                    </div>
+                                                </div>
+                                                {isMapped ? (
+                                                    <div className="bg-green-100 text-green-700 p-1 rounded-full"><Check size={14} /></div>
+                                                ) : (
+                                                    <div className="bg-slate-100 text-slate-400 p-1 rounded-full"><X size={14} /></div>
+                                                )}
                                             </div>
-                                        </div>
 
-                                        {/* Arrow (Pointing Left in RTL) */}
-                                        <ArrowLeft className="text-slate-300 w-4 h-4 md:w-5 md:h-5 flex-shrink-0" />
-
-                                        {/* System Target (Left side in RTL) */}
-                                        <div className="flex-1">
                                             <Select
                                                 value={mapping.systemField}
                                                 onChange={(val) => handleMappingChange(idx, val as any)}
                                                 options={systemFields}
-                                                className="w-full"
+                                                className="w-full text-sm"
+                                                placeholder="בחר שדה..."
                                             />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* -- STEP 3: RESOLUTION -- */}
+                    {step === 'resolution' && (
+                        <div className="space-y-4">
+                            <div className="bg-amber-50 border border-amber-100 p-3.5 rounded-xl flex gap-3 text-amber-800 text-sm items-start">
+                                <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                                <p>נמצאו נתונים הדורשים את תשומת ליבך. בחר כיצד לטפל בהם.</p>
+                            </div>
+
+                            <div className="space-y-3">
+                                {resolutions.map((res, idx) => (
+                                    <div key={idx} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                                        <div className="p-3 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+                                            <div>
+                                                <h3 className="font-bold text-slate-800 text-sm">{res.originalName}</h3>
+                                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${res.type === 'person' ? 'bg-blue-100 text-blue-700' :
+                                                    res.type === 'team' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'
+                                                    }`}>
+                                                    {res.type === 'person' ? 'כפילות' : (res.type === 'team' ? 'צוות חדש' : 'תפקיד חדש')}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-3 space-y-2">
+                                            {res.type === 'person' ? (
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    <label className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${res.action === 'merge' ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                                        <input
+                                                            type="radio"
+                                                            name={`res-${idx}`}
+                                                            checked={res.action === 'merge'}
+                                                            onChange={() => handleResolutionChange(idx, { action: 'merge' })}
+                                                            className="w-4 h-4 text-blue-600"
+                                                        />
+                                                        <div>
+                                                            <div className="text-sm font-bold text-slate-800">עדכון קיים (מיזוג)</div>
+                                                            <div className="text-xs text-slate-500">עדכון פרטים בלבד לחייל הקיים</div>
+                                                        </div>
+                                                    </label>
+                                                    <label className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${res.action === 'create' ? 'bg-green-50 border-green-200 ring-1 ring-green-200' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                                        <input
+                                                            type="radio"
+                                                            name={`res-${idx}`}
+                                                            checked={res.action === 'create'}
+                                                            onChange={() => handleResolutionChange(idx, { action: 'create' })}
+                                                            className="w-4 h-4 text-green-600"
+                                                        />
+                                                        <div>
+                                                            <div className="text-sm font-bold text-slate-800">יצירה כחדש</div>
+                                                            <div className="text-xs text-slate-500">שמירה כחייל נוסף במערכת</div>
+                                                        </div>
+                                                    </label>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    <label className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${res.action === 'create' ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-200' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                                        <input
+                                                            type="radio"
+                                                            name={`res-${idx}`}
+                                                            checked={res.action === 'create'}
+                                                            onChange={() => handleResolutionChange(idx, { action: 'create' })}
+                                                            className="w-4 h-4 text-indigo-600"
+                                                        />
+                                                        <span className="text-sm font-bold text-slate-800">צור {res.type === 'team' ? 'צוות' : 'תפקיד'} חדש</span>
+                                                    </label>
+
+                                                    <label className={`flex flex-col gap-2 p-2.5 rounded-lg border cursor-pointer transition-all ${res.action === 'map' ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                                        <div className="flex items-center gap-3">
+                                                            <input
+                                                                type="radio"
+                                                                name={`res-${idx}`}
+                                                                checked={res.action === 'map'}
+                                                                onChange={() => handleResolutionChange(idx, { action: 'map', targetId: res.targetId || (res.type === 'team' ? teams[0]?.id : roles[0]?.id) })}
+                                                                className="w-4 h-4 text-blue-600"
+                                                            />
+                                                            <span className="text-sm font-bold text-slate-800">מפה לקיים</span>
+                                                        </div>
+                                                        {res.action === 'map' && (
+                                                            <div className="pr-7 pl-1">
+                                                                <Select
+                                                                    value={res.targetId || ''}
+                                                                    onChange={(val) => handleResolutionChange(idx, { targetId: val })}
+                                                                    options={res.type === 'team' ? teams.map(t => ({ value: t.id, label: t.name })) : roles.map(r => ({ value: r.id, label: r.name }))}
+                                                                    className="w-full text-sm bg-white"
+                                                                    placeholder="בחר..."
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </label>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -598,186 +711,57 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                         </div>
                     )}
 
-                    {step === 'resolution' && (
-                        <div className="space-y-6 p-4 md:p-6">
-                            <div className="bg-yellow-50 p-4 rounded-lg flex gap-3 text-yellow-800 text-sm">
-                                <AlertCircle size={20} className="flex-shrink-0" />
-                                <p>נמצאו נתונים בקובץ שלא קיימים במערכת. אנא בחר כיצד לטפל בהם.</p>
-                            </div>
-
-                            {resolutions.map((res, idx) => (
-                                <div key={idx} className="bg-white border border-slate-200 rounded-lg p-4">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div>
-                                            {res.type === 'person' ? (
-                                                <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 font-bold">
-                                                    כפילות מזוהה ({res.matchReason})
-                                                </span>
-                                            ) : (
-                                                <span className={`text-xs px-2 py-1 rounded ${res.type === 'team' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'} font-bold`}>
-                                                    {res.type === 'team' ? 'צוות לא מוכר' : 'תפקיד לא מוכר'}
-                                                </span>
-                                            )}
-                                            <h3 className="font-bold text-slate-800 mt-2 text-lg">{res.originalName}</h3>
-                                        </div>
-                                    </div>
-
-                                    {res.type === 'person' ? (
-                                        <div className="space-y-2">
-                                            <label className={`flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer ${res.action === 'merge' ? 'bg-blue-50 border-blue-200' : ''}`}>
-                                                <input
-                                                    type="radio"
-                                                    name={`res-${idx}`}
-                                                    checked={res.action === 'merge'}
-                                                    onChange={() => handleResolutionChange(idx, { action: 'merge' })}
-                                                    className="text-blue-600 focus:ring-blue-500"
-                                                />
-                                                <div className="flex items-center gap-2">
-                                                    <ArrowRight size={16} className="text-blue-600" />
-                                                    <div>
-                                                        <span className="font-bold text-slate-700">מזג לתוך הקיים</span>
-                                                        <p className="text-xs text-slate-500">יעדכן את הרשומה הקיימת עם המידע מהאקסל (מזהה ID נשמר)</p>
-                                                    </div>
-                                                </div>
-                                            </label>
-
-                                            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                                                <input
-                                                    type="radio"
-                                                    name={`res-${idx}`}
-                                                    checked={res.action === 'create'}
-                                                    onChange={() => handleResolutionChange(idx, { action: 'create' })}
-                                                    className="text-green-600 focus:ring-green-500"
-                                                />
-                                                <div className="flex items-center gap-2">
-                                                    <Plus size={16} className="text-green-600" />
-                                                    <span>צור כחדש (כפילות)</span>
-                                                </div>
-                                            </label>
-
-                                            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                                                <input
-                                                    type="radio"
-                                                    name={`res-${idx}`}
-                                                    checked={res.action === 'ignore'}
-                                                    onChange={() => handleResolutionChange(idx, { action: 'ignore' })}
-                                                    className="text-slate-400 focus:ring-slate-500"
-                                                />
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-slate-400">התעלם (אל תייבא)</span>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                                                <input
-                                                    type="radio"
-                                                    name={`res-${idx}`}
-                                                    checked={res.action === 'create'}
-                                                    onChange={() => handleResolutionChange(idx, { action: 'create' })}
-                                                />
-                                                <div className="flex items-center gap-2">
-                                                    <Plus size={16} className="text-green-600" />
-                                                    <span>צור כחדש במערכת</span>
-                                                </div>
-                                            </label>
-
-                                            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                                                <input
-                                                    type="radio"
-                                                    name={`res-${idx}`}
-                                                    checked={res.action === 'map'}
-                                                    onChange={() => handleResolutionChange(idx, { action: 'map', targetId: res.type === 'team' ? teams[0]?.id : roles[0]?.id })}
-                                                />
-                                                <div className="flex-1 flex items-center gap-2">
-                                                    <ArrowUpRight size={16} className="text-blue-600" />
-                                                    <span className="shrink-0 text-sm">מפה לקיים:</span>
-                                                    <div className="flex-1 mr-2">
-                                                        <Select
-                                                            disabled={res.action !== 'map'}
-                                                            value={res.targetId || ''}
-                                                            onChange={(val) => handleResolutionChange(idx, { targetId: val })}
-                                                            options={res.type === 'team'
-                                                                ? teams.map(t => ({ value: t.id, label: t.name }))
-                                                                : roles.map(r => ({ value: r.id, label: r.name }))
-                                                            }
-                                                            placeholder="בחר..."
-                                                            className="w-full text-sm"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </label>
-
-                                            <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                                                <input
-                                                    type="radio"
-                                                    name={`res-${idx}`}
-                                                    checked={res.action === 'ignore'}
-                                                    onChange={() => handleResolutionChange(idx, { action: 'ignore' })}
-                                                />
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-slate-400">התעלם (השאר ריק)</span>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
+                    {/* -- STEP 4: PREVIEW -- */}
                     {step === 'preview' && (
-                        <div className="p-4 md:p-6">
-                            <div className="bg-green-50 p-4 rounded-lg flex gap-3 text-green-800 text-sm mb-4">
-                                <Check size={20} className="flex-shrink-0" />
-                                <p>נמצאו {previewData.length} רשומות לייבוא. הנתונים יוצגו כך:</p>
+                        <div className="space-y-4">
+                            <div className="bg-green-50 border border-green-100 p-3.5 rounded-xl flex gap-3 text-green-800 text-sm items-start">
+                                <Check size={18} className="shrink-0 mt-0.5" />
+                                <p>הכל נראה מצוין! {previewData.length} רשומות מוכנות לייבוא.</p>
                             </div>
 
-                            <div className="overflow-x-auto border border-slate-200 rounded-lg">
-                                <table className="w-full text-sm text-right">
-                                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
-                                        <tr>
-                                            <th className="p-3">שם</th>
-                                            <th className="p-3">צוות</th>
-                                            <th className="p-3">תפקידים</th>
-                                            <th className="p-3">טלפון</th>
-                                            <th className="p-3">אימייל</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {previewData.slice(0, 10).map((person, i) => {
-                                            // Helper to find name even if temp
-                                            const getTeamName = (id: string) => {
-                                                if (id.startsWith('temp-team-')) return id.replace('temp-team-', '') + ' (חדש)';
-                                                return teams.find(t => t.id === id)?.name || '-';
-                                            };
-                                            const getRoleName = (id: string) => {
-                                                if (id.startsWith('temp-role-')) return id.replace('temp-role-', '') + ' (חדש)';
-                                                return roles.find(r => r.id === id)?.name;
-                                            };
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-right whitespace-nowrap">
+                                        <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                                            <tr>
+                                                <th className="p-3 w-10">#</th>
+                                                <th className="p-3">שם</th>
+                                                <th className="p-3">צוות</th>
+                                                <th className="p-3">תפקיד</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 text-slate-600">
+                                            {previewData.slice(0, 50).map((person, i) => {
+                                                const getTeamName = (id: string) => {
+                                                    if (id.startsWith('temp-team-')) return id.replace('temp-team-', '') + ' (חדש)';
+                                                    return teams.find(t => t.id === id)?.name || '-';
+                                                };
+                                                const getRoleName = (id: string) => {
+                                                    if (id.startsWith('temp-role-')) return id.replace('temp-role-', '') + ' (חדש)';
+                                                    return roles.find(r => r.id === id)?.name;
+                                                };
 
-                                            const teamName = getTeamName(person.teamId);
-                                            const roleNames = (person.roleIds || [])
-                                                .map(getRoleName)
-                                                .filter(Boolean)
-                                                .join(', ');
+                                                const teamName = getTeamName(person.teamId);
+                                                const roleNames = (person.roleIds || [])
+                                                    .map(getRoleName)
+                                                    .filter(Boolean)
+                                                    .join(', ');
 
-                                            return (
-                                                <tr key={person.id} className="hover:bg-slate-50">
-                                                    <td className="p-3 font-medium">{person.name}</td>
-                                                    <td className="p-3">{teamName}</td>
-                                                    <td className="p-3">{roleNames || '-'}</td>
-                                                    <td className="p-3 text-slate-500" dir="ltr">{person.phone}</td>
-                                                    <td className="p-3 text-slate-500">{person.email}</td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                                {previewData.length > 10 && (
-                                    <div className="p-3 text-center text-slate-500 text-xs bg-slate-50 border-t border-slate-200">
-                                        ועוד {previewData.length - 10} רשומות...
+                                                return (
+                                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="p-3 text-slate-400 text-xs">{i + 1}</td>
+                                                        <td className="p-3 font-medium text-slate-900">{person.name}</td>
+                                                        <td className="p-3">{teamName}</td>
+                                                        <td className="p-3 max-w-[150px] truncate">{roleNames || '-'}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {previewData.length > 50 && (
+                                    <div className="p-3 text-center text-xs text-slate-500 bg-slate-50 border-t border-slate-200 font-medium">
+                                        ועוד {previewData.length - 50} רשומות...
                                     </div>
                                 )}
                             </div>
@@ -785,71 +769,56 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between" dir="rtl">
-                    {step !== 'upload' ? (
+                {/* Footer - Navigation */}
+                <div className="p-4 bg-white border-t border-slate-100 flex gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] text-lg shrink-0 z-20" dir="rtl">
+                    {step !== 'upload' && (
                         <Button
+                            variant="outline"
                             onClick={() => {
-                                const isOnboarding = teams.length === 0 && roles.length === 0;
-                                if (step === 'preview') {
-                                    // If onboarding (skipped resolution) OR no conflicts -> Go to mapping
-                                    // But actually, if distinct "resolution" step was shown (resolutions.length > 0 && !isOnboarding), go there.
-                                    if (isOnboarding) {
-                                        setStep('mapping');
-                                    } else {
-                                        setStep(resolutions.length > 0 ? 'resolution' : 'mapping');
-                                    }
-                                }
+                                if (step === 'mapping') setStep('upload');
                                 else if (step === 'resolution') setStep('mapping');
-                                else setStep('upload');
+                                else if (step === 'preview') setStep(resolutions.length > 0 ? 'resolution' : 'mapping');
                             }}
-                            variant="secondary"
+                            className="w-1/3"
                         >
                             חזור
                         </Button>
-                    ) : (
-                        <div></div>
+                    )}
+
+                    {step === 'upload' && (
+                        <div className="flex-1" /> // Spacer
                     )}
 
                     {step === 'mapping' && (
                         <Button
                             onClick={analyzeConflicts}
-                            variant="primary"
-                            className="bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                            className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold"
                         >
-                            המשך <ArrowLeft size={16} />
+                            המשך
                         </Button>
                     )}
 
                     {step === 'resolution' && (
                         <Button
                             onClick={() => generatePreview(resolutions)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                            className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold"
                         >
-                            המשך <ArrowLeft size={16} />
+                            סקירה
                         </Button>
                     )}
 
                     {step === 'preview' && (
                         <Button
                             onClick={handleFinalImport}
-                            className="bg-green-600 hover:bg-green-700 text-white border-transparent disabled:opacity-70"
                             disabled={isSaving}
+                            className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold"
                         >
-                            {isSaving ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-2"></div>
-                                    מוסיף...
-                                </>
-                            ) : (
-                                <>
-                                    הוסף {previewData.length} חיילים <Check size={16} />
-                                </>
-                            )}
+                            {isSaving ? 'מייבא...' : 'אשר וייבא'}
                         </Button>
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
