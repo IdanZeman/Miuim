@@ -118,13 +118,22 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             icon: Info
                                         };
 
-                                        if (avail.status === 'base') {
+                                        if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
                                             statusConfig = {
                                                 label: avail.startHour !== '00:00' || avail.endHour !== '23:59' ? `${avail.startHour}-${avail.endHour}` : 'בבסיס',
                                                 bg: 'bg-emerald-50 border-emerald-100 text-emerald-700',
                                                 dot: 'bg-emerald-500',
                                                 icon: CheckCircle2
                                             };
+
+                                            // Optional: Refine label for Arrival/Departure only if time is meaningful
+                                            if (avail.status === 'arrival' && avail.startHour !== '00:00') {
+                                                statusConfig.label = `הגעה (${avail.startHour})`;
+                                            }
+                                            if (avail.status === 'departure' && avail.endHour !== '23:59') {
+                                                statusConfig.label = `יציאה (${avail.endHour})`;
+                                            }
+
                                         } else if (avail.status === 'home') {
                                             statusConfig = {
                                                 label: 'בבית',

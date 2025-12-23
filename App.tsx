@@ -130,22 +130,33 @@ const MainApp: React.FC = () => {
         if (!organization) return;
         fetchData();
 
+        // DEBOUNCE LOGIC FOR SUBSCRIPTIONS
+        let timeoutId: NodeJS.Timeout;
+        const debouncedFetch = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                fetchData();
+            }, 1000); // 1-second debounce to catch multiple bulk updates
+        };
+
         const channel = supabase.channel('db-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_templates', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduling_constraints', filter: `organization_id=eq.${organization.id}` }, () => fetchData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'team_rotations', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'absences', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW subscription
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW subscription
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'organization_settings', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organization.id}` }, () => fetchData()) // NEW subscription
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_templates', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduling_constraints', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'team_rotations', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'absences', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'organization_settings', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
             .subscribe();
 
-        return () => { supabase.removeChannel(channel); };
+        return () => {
+            supabase.removeChannel(channel);
+            clearTimeout(timeoutId);
+        };
     }, [organization, profile]);
 
     useEffect(() => {
@@ -302,9 +313,7 @@ const MainApp: React.FC = () => {
             setIsLoading(false); // <--- UI UNBLOCKED HERE
 
             // PHASE 2: Background Data (Heavy/Secondary)
-            fetchBackgroundData(rawPeople); // Pass complete people list (unscoped) to ensure presence matching works if needed?
-            // actually scoped is fine IF we only care about visible people. But merging logic usually runs on current state.
-            // Let's pass Scoped to follow consistent view.
+            fetchBackgroundData(rawPeople);
 
         } catch (error) {
             console.error("Error fetching critical data:", error);
@@ -316,13 +325,18 @@ const MainApp: React.FC = () => {
     const fetchBackgroundData = async (initialScopedPeople: Person[]) => {
         if (!organization) return;
         try {
+            // PERFORMANCE: Limit history for presence and shifts to last 3 months
+            const historyLimit = new Date();
+            historyLimit.setMonth(historyLimit.getMonth() - 3);
+            const historyLimitStr = historyLimit.toISOString();
+
             const [constraintsRes, rotationsRes, absencesRes, equipmentRes, presenceRes, allShiftsRes] = await Promise.all([
                 supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id),
                 supabase.from('team_rotations').select('*').eq('organization_id', organization.id),
                 supabase.from('absences').select('*').eq('organization_id', organization.id),
                 supabase.from('equipment').select('*').eq('organization_id', organization.id),
-                supabase.from('daily_presence').select('*').eq('organization_id', organization.id),
-                supabase.from('shifts').select('*').eq('organization_id', organization.id) // Get FULL history
+                supabase.from('daily_presence').select('*').eq('organization_id', organization.id).gte('date', historyLimitStr), // Limit Presence
+                supabase.from('shifts').select('*').eq('organization_id', organization.id).gte('start_time', historyLimitStr) // Limit Shifts History
             ]);
 
             const fullShifts = (allShiftsRes.data || []).map(mapShiftFromDB);
