@@ -11,6 +11,7 @@ import { Select } from './ui/Select';
 import { Button } from './ui/Button';
 import { ExcelImportWizard } from './ExcelImportWizard';
 import { SheetModal } from './ui/SheetModal';
+import { ROLE_ICONS } from '../constants';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -29,12 +30,6 @@ interface PersonnelManagerProps {
 }
 
 type Tab = 'people' | 'teams' | 'roles';
-
-const ROLE_ICONS: Record<string, any> = {
-    shield: Shield,
-    users: Users,
-    user: User,
-};
 
 export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     people,

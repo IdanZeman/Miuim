@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { TaskTemplate, Role, SchedulingSegment, Team } from '../types';
-import { CheckSquare, Plus, Pencil, Trash2, Copy, Layers, Clock, Users, Calendar } from 'lucide-react';
+import { CheckSquare, Plus, Pencil, Trash2, Copy, Layers, Clock, Users, Calendar, MoreVertical } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { SheetModal } from './ui/SheetModal';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../contexts/AuthContext';
 import { SegmentEditor } from './SegmentEditor';
@@ -37,6 +38,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
     const [isAdding, setIsAdding] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const { showToast } = useToast();
 
     // Form State
@@ -153,8 +155,8 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-portal p-4 md:p-6 min-h-[600px]">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 pb-4 border-b border-slate-100 gap-4">
+        <div className="bg-white rounded-xl md:shadow-portal min-h-[600px] relative pb-20 md:pb-6">
+            <div className="flex flex-col md:flex-row justify-between items-center p-4 md:p-6 border-b border-slate-100 gap-4 sticky top-0 bg-white z-10">
                 <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 md:gap-3">
                     <span className="bg-blue-50 p-2 rounded-lg text-blue-600"><CheckSquare size={20} /></span>
                     ניהול משימות
@@ -166,9 +168,10 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                 showToast('יש להגדיר תפקידים לפני יצירת משימות', 'error');
                                 return;
                             }
+                            resetForm();
                             setIsAdding(true);
                         }}
-                        className="w-full md:w-auto"
+                        className="hidden md:flex" // Hide on mobile, use FAB
                         icon={Plus}
                         variant="primary"
                     >
@@ -177,195 +180,275 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            {/* Task List - Full Width */}
+            <div className="divide-y divide-slate-100">
                 {tasks.map(task => (
-                    <div key={task.id} className="bg-white rounded-xl p-4 md:p-6 border border-idf-card-border hover:shadow-md transition-all group relative overflow-hidden">
-                        <div className={`absolute top-0 right-0 w-1 md:w-1.5 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
+                    <div
+                        key={task.id}
+                        className="relative bg-white hover:bg-slate-50 transition-colors group select-none"
+                        onClick={() => canEdit && handleEditClick(task)}
+                    >
+                        {/* Vertical Color Anchor (w-1 = 4px) */}
+                        <div className={`absolute top-0 right-0 w-1 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
 
-                        {canEdit && (
-                            <div className="absolute top-3 md:top-4 left-3 md:left-4 flex gap-1 md:gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleDuplicateTask(task)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-green-100 text-slate-500 hover:text-green-600 rounded-full" title="שכפל משימה">
-                                    <Copy size={14} />
-                                </button>
-                                <button onClick={() => handleEditClick(task)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-600 rounded-full">
-                                    <Pencil size={14} />
-                                </button>
-                                <button onClick={() => onDeleteTask(task.id)} className="p-1.5 md:p-2 bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-600 rounded-full">
-                                    <Trash2 size={14} />
-                                </button>
-                            </div>
-                        )}
-
-                        <div className="flex justify-between items-start mb-3 md:mb-4 pr-3 md:pr-4">
-                            <div className="min-w-0 flex-1">
-                                <h3 className="text-base md:text-xl font-bold text-slate-900 truncate">{task.name}</h3>
-                                <div className="flex gap-2 text-xs text-slate-500 mt-1">
-                                    <span className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-full">
-                                        <Layers size={12} /> {task.segments?.length || 0} מקטעים
+                        <div className="p-4 pr-5 flex justify-between items-center group/row">
+                            <div className="min-w-0 flex-1 ml-2">
+                                <h3 className="text-lg font-bold text-slate-900 truncate mb-1">{task.name}</h3>
+                                <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                                    <span className="flex items-center gap-1">
+                                        <Layers size={14} className="text-slate-400" />
+                                        {task.segments?.length || 0} מקטעים
                                     </span>
                                     {task.assignedTeamId && (
-                                        <span className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-100">
-                                            צוות {teams.find(t => t.id === task.assignedTeamId)?.name || 'לא ידוע'}
+                                        <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 rounded-full">
+                                            צוות {teams.find(t => t.id === task.assignedTeamId)?.name}
                                         </span>
                                     )}
                                 </div>
                             </div>
-                            <span className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold flex-shrink-0 ${task.difficulty >= 4 ? 'bg-red-50 text-red-700' : task.difficulty >= 2 ? 'bg-orange-50 text-orange-700' : 'bg-green-50 text-green-700'}`}>
-                                קושי {task.difficulty}
-                            </span>
-                        </div>
 
-                        {/* Segment Summary Preview */}
-                        <div className="space-y-2 mt-4">
-                            {task.segments?.slice(0, 3).map((seg, idx) => (
-                                <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg text-xs">
-                                    <span className="font-bold text-slate-700">{seg.name}</span>
-                                    <div className="flex gap-3 text-slate-500">
-                                        <span className="flex items-center gap-1"><Clock size={12} /> {seg.startTime} ({seg.durationHours}h)</span>
-                                        <span className="flex items-center gap-1"><Users size={12} /> {seg.requiredPeople}</span>
+                            <div className="flex items-center gap-3">
+                                {/* Difficulty Badge */}
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${task.difficulty >= 4 ? 'bg-red-50 text-red-700' :
+                                    task.difficulty >= 2 ? 'bg-orange-50 text-orange-700' :
+                                        'bg-green-50 text-green-700'
+                                    }`}>
+                                    קושי {task.difficulty}
+                                </span>
+
+                                {/* Three Dots Menu */}
+                                {canEdit && (
+                                    <div className="relative">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setOpenMenuId(openMenuId === task.id ? null : task.id);
+                                            }}
+                                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                                        >
+                                            <MoreVertical size={20} />
+                                        </button>
+
+                                        {openMenuId === task.id && (
+                                            <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1 w-32 z-20 flex flex-col">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDuplicateTask(task); setOpenMenuId(null); }}
+                                                    className="px-4 py-2 text-right text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                                >
+                                                    <Copy size={14} /> שכפל
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); setOpenMenuId(null); }}
+                                                    className="px-4 py-2 text-right text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                                >
+                                                    <Trash2 size={14} /> מחק
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            ))}
-                            {(task.segments?.length || 0) > 3 && (
-                                <p className="text-xs text-center text-slate-400">+{task.segments.length - 3} נוספים</p>
-                            )}
+                                )}
+                            </div>
                         </div>
-
                     </div>
                 ))}
             </div>
 
-            <Modal
+            {/* FAB - Mobile Only */}
+            {canEdit && (
+                <button
+                    onClick={() => {
+                        if (roles.length === 0) {
+                            showToast('יש להגדיר תפקידים לפני יצירת משימות', 'error');
+                            return;
+                        }
+                        resetForm();
+                        setIsAdding(true);
+                    }}
+                    className="md:hidden fixed bottom-24 left-6 w-14 h-14 bg-idf-yellow text-slate-900 rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 transition-all flex items-center justify-center z-30 active:scale-95"
+                >
+                    <Plus size={28} />
+                </button>
+            )}
+
+            {/* Add/Edit Task Sheet */}
+            <SheetModal
                 isOpen={isModalOpen}
                 onClose={resetForm}
                 title={editId ? 'עריכת משימה' : 'הוספת משימה חדשה'}
-                size="lg"
-                footer={(
-                    <div className="flex justify-end gap-2 w-full">
-                        <Button variant="ghost" onClick={resetForm}>ביטול</Button>
-                        <Button variant="primary" onClick={handleSubmit}>
-                            {editId ? 'עדכן משימה' : 'שמור משימה'}
-                        </Button>
-                    </div>
-                )}
+                onSave={handleSubmit}
+                saveLabel={editId ? 'עדכן משימה' : 'צור משימה'}
             >
                 <div className="space-y-6">
-                    {/* Task General Settings */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input
-                            label="שם המשימה"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                            placeholder="לדוגמה: סיור בוקר"
-                        />
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-2">צבע</label>
-                            <div className="flex gap-2">
-                                {COLORS.map(c => (
-                                    <button key={c} onClick={() => setSelectedColor(c)} className={`w-6 h-6 rounded-full ${c.replace('border-l-', 'bg-')} ${selectedColor === c ? 'ring-2 ring-offset-2 ring-slate-400' : ''}`} />
-                                ))}
+                    {/* Group 1: Basic Info */}
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold text-slate-500 px-2">פרטי המשימה</h3>
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                            {/* Name Input */}
+                            <div className="flex items-center px-4 py-3">
+                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">שם המשימה</div>
+                                <input
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    placeholder="לדוגמה: סיור בוקר"
+                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right placeholder:text-slate-300 h-full w-full font-medium"
+                                />
                             </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">רמת קושי ({difficulty})</label>
-                            <input type="range" value={difficulty} onChange={e => setDifficulty(Number(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg mt-2 accent-idf-yellow" min="1" max="5" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">תאריך התחלה</label>
-                                <div className="relative">
-                                    <input
-                                        type="date"
-                                        value={startDate.split('T')[0]}
-                                        onChange={e => setStartDate(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
-                                    />
+
+                            {/* Color Picker (Horizontal Scroll) */}
+                            <div className="px-4 py-3">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="font-bold text-slate-700 text-sm">צבע תצוגה</div>
+                                </div>
+                                <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 -mx-4 px-4 scroll-smooth">
+                                    {COLORS.map(c => {
+                                        const isSelected = selectedColor === c;
+                                        const bgColor = c.replace('border-l-', 'bg-');
+                                        return (
+                                            <button
+                                                key={c}
+                                                onClick={() => setSelectedColor(c)}
+                                                className={`w-8 h-8 rounded-full shrink-0 ${bgColor} flex items-center justify-center transition-transform ${isSelected ? 'scale-110 ring-2 ring-offset-2 ring-slate-900' : 'opacity-70 hover:opacity-100'}`}
+                                            >
+                                                {isSelected && <CheckSquare size={14} className="text-white bg-black/20 rounded" />}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">תאריך סיום (אופציונלי)</label>
-                                <div className="relative">
-                                    <input
-                                        type="date"
-                                        value={endDate.split('T')[0]}
-                                        onChange={e => setEndDate(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700 font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
-                                    />
+
+                            {/* Difficulty Slider */}
+                            <div className="px-4 py-4">
+                                <div className="flex justify-between mb-2">
+                                    <span className="font-bold text-slate-700 text-sm">רמת קושי</span>
+                                    <span className="font-bold text-slate-900 text-sm bg-slate-100 px-2 rounded">{difficulty}</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    value={difficulty}
+                                    onChange={e => setDifficulty(Number(e.target.value))}
+                                    className="w-full h-2 bg-slate-100 rounded-lg accent-idf-yellow cursor-pointer"
+                                    min="1"
+                                    max="5"
+                                />
+                                <div className="flex justify-between mt-1 text-[10px] text-slate-400 font-medium">
+                                    <span>קל</span>
+                                    <span>בינוני</span>
+                                    <span>קשה</span>
                                 </div>
                             </div>
-                        </div>
-                        <div className="col-span-1 md:col-span-2">
-                            <Select
-                                label="צוות אחראי (אופציונלי)"
-                                value={assignedTeamId}
-                                onChange={val => setAssignedTeamId(val)}
-                                options={[{ value: '', label: 'ללא שיוך לצוות (פתוח לכולם)' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
-                                placeholder="ללא שיוך לצוות"
-                            />
                         </div>
                     </div>
 
-                    {/* Segments Management */}
-                    <div className="border-t border-slate-100 pt-4">
-                        <div className="flex justify-between items-center mb-3">
-                            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                <Layers size={16} /> תבניות שיבוץ (Segments)
-                            </h3>
-                            <Button
-                                variant="ghost"
-                                onClick={() => { setEditingSegment(undefined); setShowSegmentEditor(true); }}
-                                className="text-blue-600 hover:bg-blue-50 border-blue-200 border-dashed border"
-                                icon={Plus}
-                                size="sm"
-                            >
-                                הוסף מקטע
-                            </Button>
+                    {/* Group 2: Assignment & Dates */}
+                    <div className="space-y-2">
+                        <h3 className="text-xs font-bold text-slate-500 px-2">שיוך ותזמון</h3>
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                            {/* Team Selector */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-white relative">
+                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">צוות אחראי</div>
+                                <select
+                                    value={assignedTeamId}
+                                    onChange={(e) => setAssignedTeamId(e.target.value)}
+                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right appearance-none pr-8 relative z-10 dir-rtl font-medium"
+                                    style={{ direction: 'rtl' }}
+                                >
+                                    <option value="">ללא שיוך (פתוח לכולם)</option>
+                                    {teams.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Start Date */}
+                            <div className="flex items-center px-4 py-3">
+                                <div className="w-32 shrink-0 font-bold text-slate-700 text-sm">תאריך התחלה</div>
+                                <input
+                                    type="date"
+                                    value={startDate.split('T')[0]}
+                                    onChange={e => setStartDate(e.target.value)}
+                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right font-medium"
+                                />
+                            </div>
+
+                            {/* End Date */}
+                            <div className="flex items-center px-4 py-3">
+                                <div className="w-32 shrink-0 font-bold text-slate-700 text-sm">תאריך סיום</div>
+                                <input
+                                    type="date"
+                                    value={endDate.split('T')[0]}
+                                    onChange={e => setEndDate(e.target.value)}
+                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right font-medium placeholder:text-slate-300"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Group 3: Segments */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between px-2">
+                            <h3 className="text-xs font-bold text-slate-500">תבניות שיבוץ (מקטעים)</h3>
                         </div>
 
-                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                            {segments.length === 0 ? (
-                                <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                                    <p className="text-slate-400 text-sm">לא הוגדרו מקטעים. לחץ על "הוסף מקטע" כדי להתחיל.</p>
-                                </div>
-                            ) : (
-                                segments.map((seg, idx) => (
-                                    <div key={seg.id || idx} className="flex justify-between items-center bg-white border border-slate-200 p-3 rounded-lg hover:border-blue-300 transition-colors group">
-                                        <div className="min-w-0 flex-1 ml-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-sm text-slate-800 truncate" title={seg.name}>{seg.name}</span>
-                                                <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 flex-shrink-0 whitespace-nowrap">
-                                                    {seg.frequency === 'daily' ? 'יומי' : seg.frequency === 'weekly' ? 'שבועי' : 'תאריך'}
-                                                </span>
+                        {/* List of Segments */}
+                        {segments.length > 0 && (
+                            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                                {segments.map((seg, idx) => (
+                                    <div key={idx} className="flex items-center justify-between p-3 active:bg-slate-50">
+                                        <div className="flex-1 min-w-0" onClick={() => handleEditSegment(idx)}>
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className="font-bold text-slate-800 text-sm">{seg.name}</span>
+                                                <span className="text-[10px] bg-slate-100 px-1.5 rounded text-slate-500">{seg.frequency === 'daily' ? 'יומי' : seg.frequency === 'weekly' ? 'שבועי' : 'תאריך'}</span>
                                             </div>
-                                            <div className="text-xs text-slate-500 mt-1 flex gap-3">
-                                                <span className="flex items-center gap-1 whitespace-nowrap"><Clock size={12} /> {seg.startTime} ({seg.durationHours}h)</span>
-                                                <span className="flex items-center gap-1 whitespace-nowrap"><Users size={12} /> {seg.requiredPeople} חיילים</span>
+                                            <div className="flex items-center gap-3 text-xs text-slate-500">
+                                                <span>{seg.startTime}</span>
+                                                <span>•</span>
+                                                <span>{seg.durationHours} שעות</span>
+                                                <span>•</span>
+                                                <span>{seg.requiredPeople} חיילים</span>
                                             </div>
                                         </div>
-
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                        <div className="flex items-center gap-1">
                                             <button
-                                                onClick={() => handleEditSegment(idx)}
-                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const newSeg = { ...seg, id: crypto.randomUUID(), name: `${seg.name} (עותק)` };
+                                                    setSegments(prev => [...prev, newSeg]);
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-blue-500 rounded-full"
+                                                title="שכפל מקטע"
                                             >
-                                                <Pencil size={14} />
+                                                <Copy size={16} />
                                             </button>
                                             <button
-                                                onClick={() => handleDeleteSegment(idx)}
-                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    // Use seg.id if available, otherwise fallback might be tricky if we don't have IDs. 
+                                                    // Assuming segments created have IDs.
+                                                    if (seg.id) handleDeleteSegment(seg.id);
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-red-500 rounded-full"
+                                                title="מחק מקטע"
                                             >
-                                                <Trash2 size={14} />
+                                                <Trash2 size={16} />
                                             </button>
                                         </div>
                                     </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
+                                ))}
+                            </div>
+                        )}
 
-                    {/* Footer moved to prop */}
+                        {/* Add Segment Button - Clean separate block */}
+                        <button
+                            onClick={() => { setEditingSegment(undefined); setShowSegmentEditor(true); }}
+                            className="w-full py-3 bg-white border border-slate-200 border-dashed rounded-xl text-blue-600 font-bold text-sm hover:bg-blue-50 hover:border-blue-300 transition-all flex items-center justify-center gap-2"
+                        >
+                            <Plus size={18} />
+                            הוסף מקטע / משמרת
+                        </button>
+
+                    </div>
                 </div>
-            </Modal>
+            </SheetModal>
 
             <SegmentEditor
                 isOpen={showSegmentEditor}
@@ -375,6 +458,6 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 roles={roles}
                 taskId={editId || 'temp'}
             />
-        </div >
+        </div>
     );
 };

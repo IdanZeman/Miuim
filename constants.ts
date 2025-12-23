@@ -1,5 +1,11 @@
-
 import { AppState } from './types';
+import { Shield, Users, User } from 'lucide-react';
+
+export const ROLE_ICONS: Record<string, any> = {
+    shield: Shield,
+    users: Users,
+    user: User,
+};
 
 export const MOCK_ROLES = [];
 export const MOCK_TEAMS = [];
