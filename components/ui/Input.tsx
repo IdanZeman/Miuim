@@ -11,7 +11,6 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
     ({ className = '', label, error, icon: Icon, containerClassName = '', ...props }, ref) => {
         return (
-        return (
             <div className={`w-full min-w-0 ${containerClassName}`}>
                 {label && (
                     <label className="block text-sm font-bold text-slate-700 mb-1.5 truncate">
