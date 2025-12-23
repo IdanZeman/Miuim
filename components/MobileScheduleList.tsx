@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Shift, Person, TaskTemplate, Role, Team, TeamRotation } from '../types';
-import { Clock, MapPin, User, ChevronDown, CheckCircle, AlertTriangle, ChevronRight, Hash, Ban, Undo2 } from 'lucide-react';
+import { Clock, MapPin, User, ChevronDown, CheckCircle, AlertTriangle, ChevronRight, Hash, Ban, Undo2, Plus } from 'lucide-react';
 import { getPersonInitials } from '../utils/nameUtils';
 
 interface MobileScheduleListProps {
@@ -45,95 +45,138 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
     // 2. Sort tasks by logic (e.g. orderIndex later, or just name for now) - assuming templates have order
     const sortedTasks = [...taskTemplates].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
+    // State for collapsed tasks (default empty = all expanded)
+    const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
+
+    const toggleCollapse = (taskId: string) => {
+        setCollapsedTasks(prev => {
+            const next = new Set(prev);
+            if (next.has(taskId)) {
+                next.delete(taskId);
+            } else {
+                next.add(taskId);
+            }
+            return next;
+        });
+    };
+
     // 3. Render
     return (
-        <div className="flex flex-col gap-4 pb-20">
+        <div className="flex flex-col pb-20 -mx-4">
+            {/* Negative margin to bleed to edges if parent has padding, or just ensure parent has no padding for this view */}
+
             {sortedTasks.map(task => {
                 const taskShifts = activeShifts.filter(s => s.taskId === task.id)
                     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
                 if (taskShifts.length === 0) return null;
 
-                const bgStyle = { backgroundColor: hexToRgba(task.color, 0.05), borderColor: task.color };
-                const headerStyle = { backgroundColor: hexToRgba(task.color, 0.15), color: task.color }; // Darker text? no, use specific color logic or class
+                const isCollapsed = collapsedTasks.has(task.id);
 
                 return (
-                    <div key={task.id} className="rounded-xl overflow-hidden border border-slate-200 shadow-sm" style={{ borderColor: hexToRgba(task.color, 0.3) }}>
-                        {/* Task Header */}
-                        <div className="p-3 flex items-center justify-between border-b border-slate-100" style={headerStyle}>
+                    <div key={task.id} className="mb-2">
+                        {/* Sticky Section Header */}
+                        <div
+                            onClick={() => toggleCollapse(task.id)}
+                            className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 bg-slate-50/95 backdrop-blur-sm border-b border-t border-slate-200 cursor-pointer active:bg-slate-100 transition-colors"
+                            style={{ borderLeftColor: task.color, borderLeftWidth: 4 }}
+                        >
                             <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-white/50 rounded-lg">
-                                    <Hash size={14} style={{ color: task.color }} />
-                                </div>
-                                <h3 className="font-bold text-slate-900">{task.name}</h3>
+                                <h3 className="font-bold text-slate-800 text-lg sticky left-0">
+                                    # {task.name}
+                                </h3>
+                                <span className="text-xs font-medium text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                                    {taskShifts.length}
+                                </span>
                             </div>
-                            <span className="text-xs font-bold px-2 py-0.5 bg-white/50 rounded-full text-slate-700">
-                                {taskShifts.length} משמרות
-                            </span>
+                            <button className="text-slate-400">
+                                <ChevronDown
+                                    className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90 rtl:rotate-90' : ''}`}
+                                    size={20}
+                                />
+                            </button>
                         </div>
 
-                        {/* Shifts List */}
-                        <div className="bg-white">
-                            {taskShifts.map(shift => {
-                                const assigned = shift.assignedPersonIds
-                                    .map(id => people.find(p => p.id === id))
-                                    .filter(Boolean) as Person[];
+                        {/* Full Width List */}
+                        {!isCollapsed && (
+                            <div className="bg-white divide-y divide-slate-100 animate-in slide-in-from-top-2 duration-200">
+                                {taskShifts.map(shift => {
+                                    const assigned = shift.assignedPersonIds
+                                        .map(id => people.find(p => p.id === id))
+                                        .filter(Boolean) as Person[];
 
-                                const start = new Date(shift.startTime);
-                                const end = new Date(shift.endTime);
-                                const isCancelled = shift.isCancelled;
+                                    const start = new Date(shift.startTime);
+                                    const end = new Date(shift.endTime);
+                                    const isCancelled = shift.isCancelled;
+                                    const isEmpty = assigned.length === 0;
 
-                                return (
-                                    <div
-                                        key={shift.id}
-                                        onClick={() => onSelectShift(shift)}
-                                        className={`p-3 border-b border-slate-50 last:border-0 relative transition-all active:scale-[0.99] ${isCancelled ? 'bg-slate-50 opacity-70 grayscale' : 'hover:bg-slate-50'}`}
-                                    >
-                                        <div className="flex items-start justify-between mb-2">
-                                            {/* Time & Status */}
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded-md text-slate-700 font-mono text-xs font-bold">
-                                                    <Clock size={12} />
-                                                    {start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                    -
-                                                    {end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                </div>
-                                                {isCancelled && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">מבוטל</span>}
-                                            </div>
+                                    // Status Color (Strip)
+                                    const statusColor = isCancelled ? '#94a3b8' : (isEmpty ? '#f97316' : '#22c55e');
 
-                                            {/* Action / Chevron */}
-                                            <ChevronRight size={16} className="text-slate-300" />
-                                        </div>
+                                    return (
+                                        <div
+                                            key={shift.id}
+                                            onClick={() => onSelectShift(shift)}
+                                            className="relative flex items-center min-h-[64px] bg-white active:bg-slate-50 transition-colors cursor-pointer"
+                                        >
+                                            {/* Status Strip */}
+                                            <div
+                                                className="absolute right-0 top-0 bottom-0 w-1.5"
+                                                style={{ backgroundColor: statusColor }}
+                                            ></div>
 
-                                        {/* Assigned People */}
-                                        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                            {assigned.length > 0 ? (
-                                                assigned.map(person => (
-                                                    <div key={person.id} className="flex items-center gap-1.5 bg-blue-50/50 pl-2 pr-1 py-0.5 rounded-full border border-blue-100 shrink-0">
-                                                        <div className="w-5 h-5 rounded-full bg-blue-200 flex items-center justify-center text-[9px] font-bold text-blue-700">
-                                                            {getPersonInitials(person.name)}
-                                                        </div>
-                                                        <span className="text-xs font-medium text-slate-700 max-w-[80px] truncate">{person.name}</span>
+                                            <div className="flex-1 flex items-center justify-between pr-4 pl-4 py-3">
+
+                                                {/* Left: Time & Info */}
+                                                <div className="flex flex-col gap-0.5">
+                                                    <div className={`text-base font-semibold font-mono tracking-tight ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                                                        {start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                        <span className="mx-1 text-slate-300">-</span>
+                                                        {end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                     </div>
-                                                ))
-                                            ) : (
-                                                <div className="flex items-center gap-1 text-slate-400 text-xs italic">
-                                                    <AlertTriangle size={12} />
-                                                    <span>לא משובץ</span>
+                                                    {isCancelled && <span className="text-xs text-red-500 font-bold">מבוטל</span>}
                                                 </div>
-                                            )}
+
+                                                {/* Center/Right: People or CTA */}
+                                                <div className="flex items-center justify-end gap-2 flex-1 pl-2">
+                                                    {isEmpty ? (
+                                                        <div className="flex items-center gap-2 text-orange-500 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50">
+                                                            <span className="text-sm font-bold">שבץ אותי</span>
+                                                            <div className="w-6 h-6 rounded-full border-2 border-orange-300 border-dashed flex items-center justify-center">
+                                                                <Plus size={14} strokeWidth={3} />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex -space-x-2 space-x-reverse overflow-hidden py-1">
+                                                            {assigned.map(person => (
+                                                                <div key={person.id} className="relative group">
+                                                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs text-white font-bold ring-2 ring-white ${person.color} shadow-sm`}>
+                                                                        {getPersonInitials(person.name)}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {!isEmpty && <ChevronRight size={18} className="text-slate-300 mr-1" />}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 );
             })}
 
             {activeShifts.length === 0 && (
-                <div className="text-center py-10 text-slate-400">
-                    <p>אין משמרות להצגה בתאריך זה</p>
+                <div className="flex flex-col items-center justify-center py-20 text-slate-300">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                        <CheckCircle size={32} />
+                    </div>
+                    <p className="text-lg font-medium text-slate-500">הכל פנוי!</p>
+                    <p className="text-sm">אין משמרות להיום</p>
                 </div>
             )}
         </div>

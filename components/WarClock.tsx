@@ -227,7 +227,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     };
 
     // Timeline Configuration
-    const START_HOUR = 3; // 03:00
+    const START_HOUR = 0; // 00:00
     const END_HOUR = 24;  // 24:00 / 00:00
     const PX_PER_MIN = 2; // Increased from 2 for visibility
 

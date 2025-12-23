@@ -10,7 +10,7 @@ import { getEffectiveAvailability } from '../utils/attendanceUtils';
 import { TeamRotation } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { RotateCcw, Sparkles } from 'lucide-react';
-import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown, Search, MoreVertical, Wand2 } from 'lucide-react';
 import { ConfirmationModal } from './ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
 import { useAuth } from '../contexts/AuthContext';
@@ -366,6 +366,17 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const AssignmentModal = () => {
         const [suggestedCandidates, setSuggestedCandidates] = useState<{ person: Person, reason: string }[]>([]);
         const [suggestionIndex, setSuggestionIndex] = useState(0);
+        const [isMenuOpen, setIsMenuOpen] = useState(false);
+        const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+
+        const toggleTeam = (teamId: string) => {
+            setCollapsedTeams(prev => {
+                const next = new Set(prev);
+                if (next.has(teamId)) next.delete(teamId);
+                else next.add(teamId);
+                return next;
+            });
+        };
 
         if (!selectedShift) return null;
         const task = taskTemplates.find(t => t.id === selectedShift.taskId)!;
@@ -393,10 +404,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 // Basic Availability Checks
                 if (selectedShift.assignedPersonIds.includes(p.id)) score -= 10000;
 
-
                 // Reconstruct variables for orphaned code
                 const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id));
-                const hasRestViolation = false; // Placeholder
+                const hasRestViolation = false;
 
                 // ORPHANED CODE CONNECTS HERE
                 if (hasRestViolation) {
@@ -488,334 +498,367 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             <GenericModal
                 isOpen={true}
                 onClose={() => setSelectedShiftId(null)}
-                title={`${task.name} - ${isViewer ? 'פרטי משמרת' : 'ניהול שיבוץ'}`}
+                title={
+                    isEditingTime ? (
+                        <div className="flex items-center gap-2 animate-fadeIn bg-slate-50 p-1.5 rounded-lg border border-blue-200 shadow-sm w-full">
+                            <span className="text-sm font-bold text-slate-500 whitespace-nowrap">עריכת זמנים:</span>
+                            <input type="time" value={newStart} onChange={e => setNewStart(e.target.value)} className="p-1 rounded border border-slate-300 text-xs w-20 text-center font-bold" />
+                            <span className="text-slate-400">-</span>
+                            <input type="time" value={newEnd} onChange={e => setNewEnd(e.target.value)} className="p-1 rounded border border-slate-300 text-xs w-20 text-center font-bold" />
+                            <div className="flex-1"></div>
+                            <button onClick={handleSaveTime} className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"><Save size={16} /></button>
+                            <button onClick={() => setIsEditingTime(false)} className="p-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"><X size={16} /></button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col">
+                            <div className="flex items-start justify-between">
+                                <span className="text-xl font-bold text-slate-900">{task.name}</span>
+                                {!isViewer && (
+                                    <div className="relative -mt-1 -ml-2">
+                                        <button
+                                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+                                        >
+                                            <MoreVertical size={20} />
+                                        </button>
+                                        {isMenuOpen && (
+                                            <div className="absolute left-0 top-full mt-1 bg-white shadow-xl rounded-xl border border-slate-100 w-48 z-50 overflow-hidden text-right animate-in fade-in zoom-in-95 origin-top-left">
+                                                <button
+                                                    onClick={() => { setIsEditingTime(true); setIsMenuOpen(false); }}
+                                                    className="w-full px-4 py-3 hover:bg-slate-50 flex items-center gap-2 text-sm text-slate-700 font-medium"
+                                                >
+                                                    <Pencil size={16} className="text-blue-500" /> ערוך זמנים
+                                                </button>
+                                                <div className="h-px bg-slate-100 my-0"></div>
+                                                <button
+                                                    onClick={() => { onToggleCancelShift(selectedShift.id); setSelectedShiftId(null); }}
+                                                    className={`w-full px-4 py-3 flex items-center gap-2 text-sm font-medium ${selectedShift.isCancelled ? 'hover:bg-green-50 text-green-600' : 'hover:bg-red-50 text-red-600'}`}
+                                                >
+                                                    {selectedShift.isCancelled ? <><Undo2 size={16} /> שחזר משמרת</> : <><Ban size={16} /> בטל משמרת</>}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-slate-500 font-medium mt-1">
+                                <div className="flex items-center gap-1.5">
+                                    <CalendarIcon size={14} className="text-slate-400" />
+                                    {new Date(selectedShift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
+                                </div>
+                                <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                                <div dir="ltr" className="flex items-center gap-1.5 font-mono">
+                                    <Clock size={14} className="text-slate-400" />
+                                    {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                    -
+                                    {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
                 size="2xl"
                 scrollableContent={false}
             >
                 <div className="flex flex-col h-full overflow-hidden max-h-[80dvh]">
-                    {/* Toolbar */}
-                    <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-wrap items-center justify-between gap-3 shrink-0">
-                        {/* Time Control */}
-                        <div className="flex items-center gap-2">
-                            {!isEditingTime ? (
-                                <div className="flex items-center gap-2">
-                                    <span className="font-bold text-slate-700 text-sm">
-                                        {new Date(selectedShift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
-                                    </span>
-                                    <span className="text-slate-300">|</span>
-                                    <span dir="ltr" className="font-mono text-sm font-bold text-slate-800">
-                                        {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                    {!isViewer && (
-                                        <button onClick={() => setIsEditingTime(true)} className="p-1.5 hover:bg-white text-blue-600 rounded-full transition-colors border border-transparent hover:border-slate-200 shadow-sm"><Pencil size={12} /></button>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2 animate-fadeIn bg-white p-1 rounded-lg border border-blue-200 shadow-sm">
-                                    <input type="time" value={newStart} onChange={e => setNewStart(e.target.value)} className="p-1 rounded border border-slate-300 text-xs w-20 text-center font-bold" />
-                                    <span className="text-slate-400">-</span>
-                                    <input type="time" value={newEnd} onChange={e => setNewEnd(e.target.value)} className="p-1 rounded border border-slate-300 text-xs w-20 text-center font-bold" />
-                                    <button onClick={handleSaveTime} className="p-1 bg-green-50 text-green-600 rounded hover:bg-green-100"><Save size={14} /></button>
-                                    <button onClick={() => setIsEditingTime(false)} className="p-1 bg-red-50 text-red-600 rounded hover:bg-red-100"><X size={14} /></button>
-                                </div>
-                            )}
-                        </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-2">
-                            {!isViewer && (
-                                <button
-                                    onClick={() => { onToggleCancelShift(selectedShift.id); setSelectedShiftId(null); }}
-                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${selectedShift.isCancelled ? 'bg-green-100 text-green-700' : 'bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:border-red-200'}`}
-                                >
-                                    {selectedShift.isCancelled ? <><Undo2 size={12} /> שחזר</> : <><Ban size={12} /> בטל משמרת</>}
-                                </button>
-                            )}
-                        </div>
-                    </div>
+                    {/* Requirements Strip - Horizontal Scroll */}
+                    {(() => {
+                        const segment = task.segments?.find(s => s.id === selectedShift.segmentId) || task.segments?.[0];
+                        const roleComposition = selectedShift.requirements?.roleComposition || segment?.roleComposition || [];
+                        if (roleComposition.length === 0) return null;
 
-                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0 border rounded-xl border-slate-200 bg-white">
-                        <div className="flex-1 overflow-y-auto flex flex-col md:flex-row">
-                            <div className="md:flex-1 p-3 md:p-6 h-fit border-b md:border-b-0 md:border-l border-slate-100">
-                                {/* Role Requirements Visualization */}
-                                {(() => {
-                                    const segment = task.segments?.find(s => s.id === selectedShift.segmentId) || task.segments?.[0];
-                                    const roleComposition = selectedShift.requirements?.roleComposition || segment?.roleComposition || [];
-
-                                    // Calculate missing roles for warning
-                                    const missingRoles = roleComposition.filter(rc => {
-                                        const currentCount = assignedPeople.filter(p => p.roleIds.includes(rc.roleId)).length;
-                                        return currentCount < rc.count;
-                                    }).map(rc => roles.find(r => r.id === rc.roleId)?.name).filter(Boolean);
+                        return (
+                            <div className="flex items-start gap-2 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4 sticky top-0 bg-white z-10 border-b border-slate-50">
+                                {roleComposition.map((rc, idx) => {
+                                    const role = roles.find(r => r.id === rc.roleId);
+                                    const currentCount = assignedPeople.filter(p => p.roleIds.includes(rc.roleId)).length;
+                                    const isMet = currentCount >= rc.count;
 
                                     return (
-                                        <>
-                                            {missingRoles.length > 0 && (
-                                                <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 animate-fadeIn flex items-start gap-3">
-                                                    <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={16} />
-                                                    <div>
-                                                        <h4 className="text-sm font-bold text-red-800">שים לב: חסרים תפקידים בשיבוץ</h4>
-                                                        <p className="text-xs text-red-600 mt-1">
-                                                            למרות שיש מספיק משובצים, חסר: <span className="font-bold">{missingRoles.join(', ')}</span>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {roleComposition.length > 0 && (
-                                                <div className="mb-4 bg-slate-50 rounded-lg p-3 border border-slate-200">
-                                                    <h5 className="text-[10px] uppercase font-bold text-slate-500 mb-2">דרישות תפקיד</h5>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {roleComposition.map((rc, idx) => {
-                                                            const role = roles.find(r => r.id === rc.roleId);
-                                                            const currentCount = assignedPeople.filter(p => p.roleIds.includes(rc.roleId)).length;
-                                                            const isMet = currentCount >= rc.count;
-
-                                                            return (
-                                                                <div key={idx} className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs border ${isMet ? 'bg-green-50 border-green-200 text-green-700' : 'bg-orange-50 border-orange-200 text-orange-700'}`}>
-                                                                    {isMet ? <CheckCircle size={10} /> : <AlertTriangle size={10} />}
-                                                                    <span className="font-bold">{role?.name || 'תפקיד לא ידוע'}</span>
-                                                                    <span className="bg-white px-1.5 rounded-full text-[10px] font-bold shadow-sm border border-current opacity-80">
-                                                                        {currentCount}/{rc.count}
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
-                                    );
-                                })()}
-
-                                <h4 className="font-bold text-slate-800 mb-3 md:mb-4 text-xs md:text-sm uppercase tracking-wider">משובצים ({assignedPeople.length}/{selectedShift.requirements?.requiredPeople || (task.segments?.find(s => s.id === selectedShift.segmentId)?.requiredPeople || task.segments?.[0]?.requiredPeople || 1)})</h4>
-
-                                {currentSuggestion && (
-                                    <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 animate-fadeIn">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs font-bold text-blue-800 flex items-center gap-1">
-                                                <Sparkles size={12} />
-                                                המלצה חכמה
+                                        <div
+                                            key={idx}
+                                            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all ${isMet
+                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                                                : 'bg-red-50 text-red-700 font-bold border border-red-100 animate-pulse-slow'}`}
+                                        >
+                                            {isMet ? <Check size={12} strokeWidth={3} /> : <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>}
+                                            <span className="">{role?.name || 'תפקיד'}</span>
+                                            <span className={`${isMet ? 'bg-emerald-200/50' : 'bg-red-200/50'} px-1.5 rounded-full text-[10px]`}>
+                                                {currentCount}/{rc.count}
                                             </span>
-                                            <button onClick={() => setSuggestedCandidates([])} className="text-blue-400 hover:text-blue-600"><X size={12} /></button>
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${currentSuggestion.person.color}`}>
-                                                    {getPersonInitials(currentSuggestion.person.name)}
-                                                </div>
-                                                <div>
-                                                    <div className="text-sm font-bold text-slate-800">{currentSuggestion.person.name}</div>
-                                                    <div className="text-[10px] text-slate-500">{currentSuggestion.reason}</div>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {suggestedCandidates.length > 1 && (
-                                                    <button
-                                                        onClick={handleNextSuggestion}
-                                                        className="text-blue-600 hover:bg-blue-100 px-2 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1"
-                                                    >
-                                                        <RotateCcw size={14} />
-                                                        <span>הצעה חדשה</span>
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => {
-                                                        const p = currentSuggestion.person;
-                                                        if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
-                                                            setConfirmationState({
-                                                                isOpen: true,
-                                                                title: 'שיבוץ מחוץ לצוות',
-                                                                message: `שים לב: משימה זו מוגדרת עבור צוות ${teams.find(t => t.id === task.assignedTeamId)?.name}. האם אתה בטוח שברצונך לשבץ את ${p.name} מצוות ${teams.find(t => t.id === p.teamId)?.name || 'אחר'}?`,
-                                                                onConfirm: () => {
-                                                                    onAssign(selectedShift.id, currentSuggestion.person.id);
-                                                                    setSuggestedCandidates([]);
-                                                                    setConfirmationState(prev => ({ ...prev, isOpen: false }));
-                                                                }
-                                                            });
-                                                            return;
-                                                        }
-                                                        onAssign(selectedShift.id, currentSuggestion.person.id);
-                                                        setSuggestedCandidates([]);
-                                                    }}
-                                                    className="bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-bold hover:bg-blue-700 transition-colors"
-                                                >
-                                                    שבץ
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                                <div className="space-y-2 md:space-y-3">
-                                    {assignedPeople.map(p => (
-                                        <div key={p.id} className="flex items-center justify-between p-2 md:p-3 bg-green-50 border border-green-100 rounded-lg md:rounded-xl">
-                                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                                <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
-                                                <div className="flex flex-col min-w-0 flex-1">
-                                                    <span className="font-bold text-slate-800 text-xs md:text-sm truncate">{p.name}</span>
-                                                    {(() => {
-                                                        const segment = task.segments?.find(s => s.id === selectedShift.segmentId) || task.segments?.[0];
-                                                        const roleComposition = selectedShift.requirements?.roleComposition || segment?.roleComposition || [];
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
 
-                                                        if (roleComposition.length > 0) {
-                                                            return (
-                                                                <span className="text-[9px] md:text-[10px] text-slate-500 truncate">
-                                                                    {roles.find(r => roleComposition.some(rc => rc.roleId === r.id) && p.roleIds.includes(r.id))?.name || ''}
-                                                                </span>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()}
-                                                </div>
-                                            </div>
-                                            {!isViewer && (
-                                                <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-red-500 p-1 md:p-1.5 hover:bg-red-100 rounded-lg flex-shrink-0">
-                                                    <X size={14} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
-                                    {assignedPeople.length === 0 && <p className="text-slate-400 text-xs md:text-sm text-center py-4">לא שובצו חיילים</p>}
-                                </div>
+                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0 bg-white -mx-4 md:mx-0">
+                        {/* LEFT COLUMN: Assigned */}
+                        <div className="flex-none max-h-[35vh] overflow-y-auto flex flex-col border-b md:border-b-0 md:border-l border-slate-100">
+                            <div className="p-4 bg-slate-50/50 sticky top-0 z-10 border-b border-slate-100">
+                                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                                    משובצים ({assignedPeople.length}/{selectedShift.requirements?.requiredPeople || 1})
+                                </h4>
                             </div>
 
-
-                            {!isViewer && (
-                                <div className="flex-1 p-3 md:p-6 h-fit bg-slate-50/50">
-                                    <div className="flex items-center justify-between mb-3 md:mb-4">
-                                        <h4 className="font-bold text-slate-800 text-xs md:text-sm uppercase tracking-wider">מאגר זמין</h4>
-                                        <button
-                                            onClick={handleSuggestBest}
-                                            className="flex items-center gap-1 text-[10px] md:text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-full transition-colors"
-                                        >
-                                            <Sparkles size={12} />
-                                            תציע לי חייל זמין
-                                        </button>
+                            <div className="p-0">
+                                {assignedPeople.map(p => (
+                                    <div key={p.id} className="flex items-center justify-between p-4 border-b border-slate-100 last:border-0 bg-white hover:bg-slate-50 transition-colors group">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm ${p.color}`}>
+                                                {getPersonInitials(p.name)}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-slate-800 text-sm">{p.name}</div>
+                                                {/* Role Tags */}
+                                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                                    {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => (
+                                                        <span key={r.id} className="text-[10px] text-slate-500 bg-slate-100 px-1.5 rounded-md">
+                                                            {r.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {!isViewer && (
+                                            <button
+                                                onClick={() => onUnassign(selectedShift.id, p.id)}
+                                                className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                                            >
+                                                <X size={18} />
+                                            </button>
+                                        )}
                                     </div>
-                                    <div className="flex gap-2 mb-3">
-                                        <Input
-                                            icon={Search}
-                                            placeholder="חפש חייל..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            containerClassName="flex-1"
-                                            className="text-xs"
-                                        />
-                                        <div className="w-[140px]">
-                                            <Select
-                                                value={selectedRoleFilter}
-                                                onChange={(val) => setSelectedRoleFilter(val)}
-                                                options={[
-                                                    { value: '', label: 'כל הפק"לים' },
-                                                    ...roles.map(r => ({ value: r.id, label: r.name }))
-                                                ]}
-                                                placeholder="תפקיד"
-                                            />
+                                ))}
+                                {assignedPeople.length === 0 && (
+                                    <div className="py-8 text-center text-slate-400 text-sm italic">
+                                        טרם שובצו חיילים
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Smart Suggestion Block (Compact) */}
+                            {currentSuggestion && (
+                                <div className="mx-4 mt-4 mb-4 bg-blue-50 border border-blue-100 rounded-xl p-3 animate-fadeIn">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold ${currentSuggestion.person.color} ring-2 ring-white shadow-sm`}>
+                                                {getPersonInitials(currentSuggestion.person.name)}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-slate-800">{currentSuggestion.person.name}</span>
+                                                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 rounded-full font-bold flex items-center gap-0.5">
+                                                        <Sparkles size={8} /> מומלץ
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-slate-500 leading-tight mt-0.5">{currentSuggestion.reason}</div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="space-y-4">
-                                        {(() => {
-                                            const peopleByTeam = teams.map(team => ({
-                                                team,
-                                                members: availablePeople.filter(p => p.teamId === team.id)
-                                            }));
-
-                                            const noTeamMembers = availablePeople.filter(p => !p.teamId || !teams.find(t => t.id === p.teamId));
-                                            if (noTeamMembers.length > 0) {
-                                                peopleByTeam.push({
-                                                    team: { id: 'no-team', name: 'ללא צוות', color: 'border-slate-300' } as any,
-                                                    members: noTeamMembers
-                                                });
-                                            }
-                                            // Sort: Assigned team first
-                                            if (task.assignedTeamId) {
-                                                peopleByTeam.sort((a, b) => {
-                                                    if (a.team.id === task.assignedTeamId) return -1;
-                                                    if (b.team.id === task.assignedTeamId) return 1;
-                                                    return 0;
-                                                });
-                                            }
-
-                                            return peopleByTeam.map(({ team, members }) => {
-                                                if (members.length === 0) return null;
-                                                const isAssignedTeam = task.assignedTeamId === team.id;
-                                                const isCollapsed = collapsedTeams.has(team.id); // Fixed: Removed forced expansion
-
-                                                return (
-                                                    <div key={team.id} className={`bg-slate-50 border rounded-lg overflow-hidden ${isAssignedTeam ? 'border-blue-400 shadow-sm ring-1 ring-blue-100' : 'border-slate-200'}`}>
-                                                        <div
-                                                            className={`px-2 py-1.5 flex items-center justify-between cursor-pointer transition-colors ${isAssignedTeam ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-100'}`}
-                                                            onClick={() => toggleTeamCollapse(team.id)}
-                                                        >
-                                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                                <div className={`w-0.5 h-4 rounded-full ${team.color?.replace('border-', 'bg-') || 'bg-slate-400'}`}></div>
-                                                                <span className="font-bold text-xs text-slate-700 truncate">
-                                                                    {team.name}
-                                                                    {isAssignedTeam && <span className="text-blue-600 mr-2 text-[10px] bg-blue-100 px-1.5 py-0.5 rounded-full">(צוות מוגדר)</span>}
-                                                                </span>
-                                                                <span className="text-[10px] bg-white px-1.5 rounded-full border border-slate-200 text-slate-500 font-bold">{members.length}</span>
-                                                            </div>
-                                                            <button className="text-slate-400">
-                                                                {isCollapsed ? <ChevronLeft size={14} /> : <ChevronDown size={14} />}
-                                                            </button>
-                                                        </div>
-
-                                                        {!isCollapsed && (
-                                                            <div className="space-y-1.5 p-2 pt-0 md:space-y-2 border-t border-slate-200/50 mt-1">
-                                                                {members.map(p => {
-                                                                    const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => (p.roleIds || [p.roleId]).includes(rc.roleId));
-                                                                    const isFull = assignedPeople.length >= task.requiredPeople;
-                                                                    const canAssign = hasRole && !isFull;
-
-                                                                    return (
-                                                                        <div key={p.id} className={`flex items-center justify-between p-2 md:p-3 rounded-lg md:rounded-xl border transition-all ${canAssign ? 'bg-white border-slate-200 hover:border-blue-300' : 'bg-slate-100 border-slate-200 opacity-60'}`}>
-                                                                            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                                                                <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${p.color}`}>{getPersonInitials(p.name)}</div>
-                                                                                <div className="flex flex-col min-w-0 flex-1">
-                                                                                    <span className="font-bold text-slate-700 text-xs md:text-sm truncate">{p.name}</span>
-                                                                                    <span className="text-[10px] text-slate-500 truncate">
-                                                                                        {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => r.name).join(', ')}
-                                                                                    </span>
-                                                                                    {!hasRole && <span className="text-[9px] md:text-[10px] text-red-500">אין התאמה</span>}
-                                                                                    {isFull && hasRole && <span className="text-[9px] md:text-[10px] text-amber-500">משמרת מלאה</span>}
-                                                                                </div>
-                                                                            </div>
-                                                                            <Button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
-                                                                                        setConfirmationState({
-                                                                                            isOpen: true,
-                                                                                            title: 'שיבוץ מחוץ לצוות',
-                                                                                            message: `שים לב: משימה זו מוגדרת עבור צוות ${teams.find(t => t.id === task.assignedTeamId)?.name}. האם אתה בטוח שברצונך לשבץ את ${p.name} מצוות ${team.name}?`,
-                                                                                            onConfirm: () => {
-                                                                                                onAssign(selectedShift.id, p.id);
-                                                                                                setConfirmationState(prev => ({ ...prev, isOpen: false }));
-                                                                                            }
-                                                                                        });
-                                                                                        return;
-                                                                                    }
-                                                                                    onAssign(selectedShift.id, p.id);
-                                                                                }}
-                                                                                disabled={!canAssign}
-                                                                                size="sm"
-                                                                                className={`flex-shrink-0 ${!canAssign ? 'bg-slate-200 text-slate-400 hover:bg-slate-200 border-transparent shadow-none' : ''}`}
-                                                                            >
-                                                                                שבץ
-                                                                            </Button>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            });
-                                        })()}
+                                    <div className="flex gap-2 mt-3 pl-12">
+                                        <button
+                                            onClick={() => {
+                                                const p = currentSuggestion.person;
+                                                if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
+                                                    setConfirmationState({
+                                                        isOpen: true,
+                                                        title: 'שיבוץ מחוץ לצוות',
+                                                        message: `שים לב: משימה זו מוגדרת עבור צוות ${teams.find(t => t.id === task.assignedTeamId)?.name}. האם אתה בטוח שברצונך לשבץ את ${p.name}?`,
+                                                        onConfirm: () => {
+                                                            onAssign(selectedShift.id, p.id);
+                                                            setSuggestedCandidates([]);
+                                                            setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                                                        }
+                                                    });
+                                                    return;
+                                                }
+                                                onAssign(selectedShift.id, p.id);
+                                                setSuggestedCandidates([]);
+                                            }}
+                                            className="flex-1 bg-blue-600 text-white text-xs h-8 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                                        >
+                                            שבץ את {currentSuggestion.person.name.split(' ')[0]}
+                                        </button>
+                                        <button onClick={handleNextSuggestion} className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-lg hover:border-blue-300 hover:text-blue-600">
+                                            <RotateCcw size={14} />
+                                        </button>
+                                        <button onClick={() => setSuggestedCandidates([])} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600">
+                                            <X size={14} />
+                                        </button>
                                     </div>
                                 </div>
                             )}
+
                         </div>
+
+                        {/* RIGHT COLUMN: Available (Search + List) */}
+                        {!isViewer && (
+                            <div className="flex-1 flex flex-col min-h-0 bg-slate-50/30">
+                                {/* Search Bar Area */}
+                                <div className="p-4 bg-white border-b border-slate-100 sticky top-0 z-20">
+                                    <div className="relative flex items-center">
+                                        <Search className="absolute right-3 text-slate-400" size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="חפש חייל או תפקיד..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full pl-10 pr-9 py-2.5 bg-slate-100 border-transparent focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-50 rounded-xl text-sm font-medium transition-all outline-none"
+                                        />
+                                        <div className="absolute left-1.5 flex items-center gap-1">
+                                            <button
+                                                onClick={handleSuggestBest}
+                                                title="הצע לי שיבוץ חכם"
+                                                className="w-7 h-7 flex items-center justify-center bg-white text-blue-600 rounded-lg shadow-sm border border-slate-100 hover:border-blue-300 hover:shadow-md transition-all active:scale-95"
+                                            >
+                                                <Wand2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Quick Filters (Optional, implied by 'Clean High Density') */}
+                                    <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar pb-1">
+                                        <button
+                                            onClick={() => setSelectedRoleFilter('')}
+                                            className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold transition-colors ${!selectedRoleFilter ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
+                                        >
+                                            הכל
+                                        </button>
+                                        {roles.map(r => (
+                                            <button
+                                                key={r.id}
+                                                onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
+                                                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold transition-colors ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white border border-slate-200 text-slate-600'}`}
+                                            >
+                                                {r.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* List of Candidates */}
+                                <div className="flex-1 overflow-y-auto px-4 pb-2">
+                                    {(() => {
+                                        // Flatten the list logic for clean view
+                                        const groupedPeople = teams.map(team => ({
+                                            team,
+                                            members: availablePeople.filter(p => p.teamId === team.id)
+                                        })).filter(g => g.members.length > 0);
+
+                                        // Sort by "Assigned Team" relevance
+                                        if (task.assignedTeamId) {
+                                            groupedPeople.sort((a, b) => {
+                                                if (a.team.id === task.assignedTeamId) return -1;
+                                                if (b.team.id === task.assignedTeamId) return 1;
+                                                return 0;
+                                            });
+                                        }
+
+                                        if (groupedPeople.length === 0) {
+                                            return (
+                                                <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 opacity-60">
+                                                    <Search size={32} strokeWidth={1.5} />
+                                                    <span className="text-sm">לא נמצאו חיילים זמינים</span>
+                                                </div>
+                                            );
+                                        }
+
+                                        return groupedPeople.map(group => {
+                                            const isCollapsed = collapsedTeams.has(group.team.id);
+                                            return (
+                                                <div key={group.team.id} className="mb-2 last:mb-20">
+                                                    <div
+                                                        onClick={() => toggleTeam(group.team.id)}
+                                                        className="flex items-center justify-between gap-2 mb-2 sticky top-0 bg-slate-50 p-2 z-10 mx-[-16px] px-4 border-b border-slate-100 shadow-sm cursor-pointer hover:bg-slate-100"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-1 h-4 rounded-full ${group.team.color?.replace('border-', 'bg-') || 'bg-slate-400'}`}></div>
+                                                            <h5 className="font-bold text-slate-500 text-xs uppercase tracking-wider">{group.team.name}</h5>
+                                                            <span className="bg-white border border-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full font-mono">{group.members.length}</span>
+                                                        </div>
+                                                        <ChevronDown
+                                                            size={16}
+                                                            className={`text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90 rtl:rotate-90' : ''}`}
+                                                        />
+                                                    </div>
+
+                                                    {!isCollapsed && (
+                                                        <div className="bg-white border border-slate-100 rounded-xl shadow-sm divide-y divide-slate-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                                                            {group.members.map(p => {
+                                                                const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => (p.roleIds || [p.roleId]).includes(rc.roleId));
+                                                                // Disable logic from before
+                                                                const isFull = assignedPeople.length >= task.requiredPeople;
+                                                                const canAssign = hasRole && !isFull;
+
+                                                                return (
+                                                                    <div
+                                                                        key={p.id}
+                                                                        onClick={(e) => {
+                                                                            if (!canAssign) return;
+                                                                            // Assign Logic (Duplicated for click-row interaction)
+                                                                            if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
+                                                                                setConfirmationState({
+                                                                                    isOpen: true,
+                                                                                    title: 'שיבוץ מחוץ לצוות',
+                                                                                    message: `שים לב: משימה זו מוגדרת עבור צוות ${teams.find(t => t.id === task.assignedTeamId)?.name}. האם אתה בטוח שברצונך לשבץ את ${p.name}?`,
+                                                                                    onConfirm: () => {
+                                                                                        onAssign(selectedShift.id, p.id);
+                                                                                        setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                                                                                    }
+                                                                                });
+                                                                                return;
+                                                                            }
+                                                                            onAssign(selectedShift.id, p.id);
+                                                                        }}
+                                                                        className={`flex items-center justify-between p-3 transition-colors ${canAssign ? 'cursor-pointer hover:bg-blue-50/50' : 'opacity-50 cursor-not-allowed grayscale'}`}
+                                                                    >
+                                                                        <div className="flex items-center gap-3 min-w-0">
+                                                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm ${p.color}`}>
+                                                                                {getPersonInitials(p.name)}
+                                                                            </div>
+                                                                            <div className="flex flex-col min-w-0">
+                                                                                <span className="font-bold text-slate-800 text-sm truncate bg-transparent">{p.name}</span>
+                                                                                <div className="flex items-center gap-1 mt-0.5">
+                                                                                    {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => (
+                                                                                        <span key={r.id} className="text-[10px] text-slate-500 bg-slate-100 px-1.5 rounded-md truncate max-w-[80px]">
+                                                                                            {r.name}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                    {!hasRole && <span className="text-[9px] text-red-500 font-bold px-1">אין התאמה</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <button
+                                                                            disabled={!canAssign}
+                                                                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${canAssign ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-110 active:scale-95' : 'bg-slate-100 text-slate-300 shadow-none'}`}
+                                                                        >
+                                                                            <Plus size={20} strokeWidth={3} />
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-4 bg-white border-t border-slate-100 flex justify-end shrink-0 z-20">
+                        <Button
+                            onClick={() => setSelectedShiftId(null)}
+                            className="bg-slate-800 text-white hover:bg-slate-900 w-full md:w-auto font-bold"
+                        >
+                            סיום
+                        </Button>
                     </div>
                 </div>
             </GenericModal>
@@ -954,8 +997,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             <div className="bg-white rounded-xl shadow-portal p-2 flex flex-col flex-1 min-h-0">
                 {/* Controls Header - Sticky */}
                 <div className="flex flex-col gap-2 mb-2 flex-shrink-0 sticky top-0 z-50 bg-white pb-2 border-b border-transparent">
-                    <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                        <h3 className="text-lg md:text-xl font-bold text-slate-800">מבט יומי</h3>
+                    {/* Desktop Title & Stats */}
+                    <div className="hidden md:flex flex-wrap items-center gap-3">
+                        <h3 className="text-xl font-bold text-slate-800">מבט יומי</h3>
                         {!isViewer && (() => {
                             const dateKey = selectedDate.toLocaleDateString('en-CA');
                             const unavailableCount = people.filter(p => {
@@ -966,9 +1010,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             const availableCount = people.length - unavailableCount;
 
                             return (
-                                <div className="flex items-center gap-1.5 md:gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-2 md:px-4 py-1 md:py-2 rounded-full border border-emerald-200">
+                                <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-4 py-2 rounded-full border border-emerald-200">
                                     <User size={14} className="text-emerald-600" />
-                                    <span className="text-xs md:text-sm font-bold text-emerald-700">
+                                    <span className="text-sm font-bold text-emerald-700">
                                         זמינים: {availableCount}/{people.length}
                                     </span>
                                 </div>
@@ -976,29 +1020,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         })()}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 md:gap-3">
-                        <div className="flex gap-2 order-2 sm:order-1">
-                            <button onClick={handleExportClick} className="flex items-center justify-center gap-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors">
-                                <Copy size={14} />
-                                <span className="hidden sm:inline">העתק ללוח</span>
-                                <span className="sm:hidden">העתק</span>
-                            </button>
-                            {!isViewer && (
-                                <button onClick={handleClearDayClick} className="flex items-center justify-center gap-1.5 text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 md:py-2 rounded-full font-bold text-xs md:text-sm transition-colors">
-                                    <Trash2 size={14} />
-                                    <span className="hidden sm:inline">נקה יום</span>
-                                    <span className="sm:hidden">נקה</span>
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="flex items-center justify-center bg-slate-100 rounded-full p-0.5 md:p-1 order-1 sm:order-2">
-                            <button onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); handleDateChange(d); } }} disabled={!canGoNext} className={`p-1.5 md:p-2 rounded-full transition-all ${canGoNext ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}>
-                                <ChevronRight size={16} />
-                            </button>
+                    {/* Main Toolbar (Mobile Optimized) */}
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-2">
+                        {/* Date Navigation - Primary on Mobile */}
+                        <div className="w-full md:w-auto flex items-center justify-between md:justify-center bg-slate-100/50 md:bg-slate-100 rounded-xl p-1 order-1 md:order-2">
+                            <Button variant="ghost" size="sm" onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); handleDateChange(d); } }} disabled={!canGoNext} className="rounded-lg">
+                                <ChevronRight size={20} />
+                            </Button>
 
                             <div
-                                className="relative group cursor-pointer px-2 md:px-4 min-w-[120px] md:min-w-[140px] text-center"
+                                className="relative group cursor-pointer px-4 text-center flex-1 md:flex-none"
                                 onClick={() => {
                                     if (dateInputRef.current) {
                                         if ('showPicker' in dateInputRef.current) {
@@ -1010,10 +1041,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     }
                                 }}
                             >
-                                <span className="text-xs md:text-sm font-bold text-slate-600 group-hover:text-blue-600 transition-colors flex items-center justify-center gap-1">
-                                    {selectedDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })}
-                                    <CalendarIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity" />
-                                </span>
+                                <div className="flex flex-col items-center">
+                                    <span className="text-sm md:text-base font-bold text-slate-800 group-hover:text-blue-600 transition-colors flex items-center gap-2">
+                                        {selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                        <CalendarIcon size={14} className="md:hidden opacity-50" />
+                                    </span>
+                                </div>
                                 <input
                                     ref={dateInputRef}
                                     type="date"
@@ -1027,9 +1060,23 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 />
                             </div>
 
-                            <button onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); handleDateChange(d); } }} disabled={!canGoPrev} className={`p-1.5 md:p-2 rounded-full transition-all ${canGoPrev ? 'hover:bg-white' : 'opacity-50 cursor-not-allowed'}`}>
-                                <ChevronLeft size={16} />
+                            <Button variant="ghost" size="sm" onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); handleDateChange(d); } }} disabled={!canGoPrev} className="rounded-lg">
+                                <ChevronLeft size={20} />
+                            </Button>
+                        </div>
+
+                        {/* Actions - Secondary on Mobile */}
+                        <div className="w-full md:w-auto flex justify-center md:justify-start gap-2 order-2 md:order-1">
+                            <button onClick={handleExportClick} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-slate-600 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 px-3 py-2 rounded-lg font-bold text-xs transition-colors">
+                                <Copy size={14} />
+                                <span>העתק</span>
                             </button>
+                            {!isViewer && (
+                                <button onClick={handleClearDayClick} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-slate-600 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 px-3 py-2 rounded-lg font-bold text-xs transition-colors">
+                                    <Trash2 size={14} />
+                                    <span>נקה יום</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

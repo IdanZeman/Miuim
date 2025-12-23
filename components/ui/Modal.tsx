@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
-    title: string;
+    title: React.ReactNode;
     children: React.ReactNode;
     size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
     scrollableContent?: boolean; // If false, content container will be overflow-hidden (bring your own scroll)
@@ -69,7 +69,7 @@ export const Modal: React.FC<ModalProps> = ({
             <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90dvh] flex flex-col overflow-hidden transform transition-all duration-200 ${getSizeClasses()} ${isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-100 flex-shrink-0 bg-white z-10">
-                    <h2 className="text-xl md:text-2xl font-bold text-slate-800">{title}</h2>
+                    <div className="text-xl md:text-2xl font-bold text-slate-800">{title}</div>
                     <button
                         onClick={onClose}
                         className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
