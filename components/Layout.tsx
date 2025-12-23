@@ -114,7 +114,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
               </div>
               <span className="text-lg font-bold text-slate-800 tracking-tight whitespace-nowrap">
-                {isPublic ? 'מערכת שיבוץ' : (organization?.name || 'מערכת שיבוץ')}
+                {isPublic ? 'מערכת לניהול פלוגה' : (organization?.name || 'מערכת לניהול פלוגה')}
               </span>
             </button>
 

@@ -4,9 +4,10 @@ import { Shift, TaskTemplate, Person, Team, Role } from '../types';
 import { WarClock } from './WarClock';
 import { supabase } from '../services/supabaseClient';
 import { differenceInHours, addDays, isSameDay } from 'date-fns'; // You might need to install date-fns or use native Intl
-import { Clock, Calendar, CheckCircle2, Moon } from 'lucide-react';
+import { Clock, Calendar, CheckCircle2, Moon, Search, UserCircle2, MessageSquare } from 'lucide-react';
 import * as AllIcons from 'lucide-react';
 import { logger } from '../services/loggingService';
+import { ClaimProfileModal } from './ClaimProfileModal';
 
 interface HomePageProps {
     shifts: Shift[];
@@ -22,6 +23,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
     const [viewerDays, setViewerDays] = useState<number>(7); // Default fallback
     const [loadingSettings, setLoadingSettings] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [showClaimModal, setShowClaimModal] = useState(false);
 
     // Update clock
     useEffect(() => {
@@ -59,28 +61,47 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
 
     if (!myPerson) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center animate-in fade-in zoom-in duration-500">
-                <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-                    <UserUnknownIcon size={48} className="text-blue-500" />
+            <div className="flex flex-col items-center justify-center min-h-[70vh] p-6 text-center animate-in fade-in zoom-in-95 duration-700 bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden relative">
+                {/* Decorative backgrounds */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full blur-3xl opacity-50 -translate-y-1/2 translate-x-1/2"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-50 rounded-full blur-3xl opacity-50 translate-y-1/2 -translate-x-1/2"></div>
+
+                <div className="relative z-10 max-w-2xl mx-auto">
+                    <div className="w-24 h-24 bg-emerald-100 rounded-3xl flex items-center justify-center mb-8 mx-auto rotate-3 shadow-emerald-100/50 shadow-xl border border-white">
+                        <AllIcons.UserCircle2 size={56} className="text-emerald-600" />
+                    </div>
+
+                    <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">מי אתה ברשימה?</h2>
+
+                    <div className="space-y-6 text-lg text-slate-600 leading-relaxed mb-10">
+                        <p>
+                            זהו צעד אחרון לפני שתוכל לראות את כל המידע שרלוונטי אליך.
+                        </p>
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-inner">
+                            <p className="font-medium text-slate-800">
+                                המערכת עדיין לא יודעת מי אתה מבין כל הלוחמים בפלוגה.
+                            </p>
+                            <p className="text-sm mt-2 text-slate-500">
+                                על מנת שנוכל להציג לך את המשמרות, המשימות והסטטיסטיקות האישיות שלך, אנחנו צריכים שתחבר את המשתמש הנוכחי שלך לשם שלך ברשימת הפלוגה.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <button
+                            onClick={() => setShowClaimModal(true)}
+                            className="w-full sm:w-auto px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black text-lg hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20 hover:-translate-y-1 flex items-center justify-center gap-3"
+                        >
+                            מצא את הפרופיל שלי
+                            <AllIcons.Search size={24} />
+                        </button>
+                    </div>
                 </div>
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">טרם חוברת לפרופיל אישי</h2>
-                <p className="text-slate-500 max-w-md mx-auto mb-8">
-                    כדי לראות את המשמרות והמשימות שלך, עליך להיות מקושר לפרופיל במערכת.
-                </p>
-                <div className="flex gap-4">
-                    <button
-                        onClick={() => onNavigate('personnel')}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
-                    >
-                        מצא את הפרופיל שלי
-                    </button>
-                    <button
-                        onClick={() => onNavigate('contact')}
-                        className="px-6 py-2 bg-white text-slate-700 border border-slate-200 rounded-full font-medium hover:bg-slate-50 transition-colors"
-                    >
-                        פנה למנהל
-                    </button>
-                </div>
+
+                <ClaimProfileModal
+                    isOpen={showClaimModal}
+                    onClose={() => setShowClaimModal(false)}
+                />
             </div>
         );
     }
@@ -288,6 +309,11 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                     {/* Maybe show who is on shift from my team? Cool feature. */}
                 </div>
             </div>
+
+            <ClaimProfileModal
+                isOpen={showClaimModal}
+                onClose={() => setShowClaimModal(false)}
+            />
         </div>
     );
 };

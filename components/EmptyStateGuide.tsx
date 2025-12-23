@@ -13,7 +13,7 @@ export const EmptyStateGuide: React.FC<EmptyStateGuideProps> = ({ hasTasks, hasP
     return (
         <div className="flex flex-col items-center justify-center py-48 px-4 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="mb-8 max-w-2xl">
-                <h2 className="text-3xl font-bold text-slate-800 mb-3">ברוכים הבאים למערכת שיבוץ משימות! </h2>
+                <h2 className="text-3xl font-bold text-slate-800 mb-3">ברוכים הבאים למערכת לניהול פלוגה משימות! </h2>
                 <p className="text-slate-500 text-lg">
                     המערכת מוכנה לשימוש. כדי להתחיל לשבץ, עלינו להגדיר את נתוני הבסיס.
                     <br />

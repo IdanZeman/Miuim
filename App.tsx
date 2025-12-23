@@ -157,172 +157,196 @@ const MainApp: React.FC = () => {
         );
     }, [organization, user, profile]);
 
+    const applyDataScoping = (people: Person[], shifts: Shift[]) => {
+        const dataScope = profile?.permissions?.dataScope || 'organization';
+        const allowedTeamIds = profile?.permissions?.allowedTeamIds || [];
+
+        let scopedPeople = people;
+        let scopedShifts = shifts;
+
+        if (dataScope === 'team') {
+            scopedPeople = people.filter(p =>
+                (p.teamId && allowedTeamIds.includes(p.teamId)) ||
+                p.userId === user?.id ||
+                (p as any).email === user?.email
+            );
+            const visiblePersonIds = scopedPeople.map(p => p.id);
+            scopedShifts = shifts.filter(s =>
+                s.assignedPersonIds.some(pid => visiblePersonIds.includes(pid)) ||
+                s.assignedPersonIds.length === 0
+            );
+        } else if (dataScope === 'personal') {
+            const myPerson = people.find(p => p.userId === user?.id || (p as any).email === user?.email);
+            if (myPerson) {
+                scopedPeople = [myPerson];
+                scopedShifts = shifts.filter(s => s.assignedPersonIds.includes(myPerson.id));
+            } else {
+                if (isLinkedToPerson) scopedPeople = [];
+            }
+        }
+        return { scopedPeople, scopedShifts };
+    };
+
+    const processPresence = (people: Person[], presenceData: any[]) => {
+        if (!presenceData || presenceData.length === 0) return people;
+
+        const presenceByPerson: Record<string, any[]> = {};
+        presenceData.forEach((pd: any) => {
+            if (!presenceByPerson[pd.person_id]) presenceByPerson[pd.person_id] = [];
+            presenceByPerson[pd.person_id].push(pd);
+        });
+
+        return people.map(person => {
+            const timeline = presenceByPerson[person.id];
+            if (!timeline) return person;
+
+            // Sort chronologically
+            timeline.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            const newAvailability = { ...person.dailyAvailability };
+
+            timeline.forEach((pd, index) => {
+                const dateKey = pd.date;
+                const isBase = pd.status === 'base';
+                let detailedStatus = pd.status;
+
+                if (isBase) {
+                    const prevRec = timeline[index - 1];
+                    const nextRec = timeline[index + 1];
+                    const d = new Date(pd.date);
+                    const prevD = prevRec ? new Date(prevRec.date) : null;
+                    const nextD = nextRec ? new Date(nextRec.date) : null;
+
+                    const isPrevContiguous = prevD && (d.getTime() - prevD.getTime() === 86400000);
+                    const isNextContiguous = nextD && (nextD.getTime() - d.getTime() === 86400000);
+
+                    const prevIsBase = isPrevContiguous && prevRec.status === 'base';
+                    const nextIsBase = isNextContiguous && nextRec.status === 'base';
+
+                    if (!prevIsBase && nextIsBase) detailedStatus = 'arrival';
+                    else if (prevIsBase && !nextIsBase) detailedStatus = 'departure';
+                    else if (!prevIsBase && !nextIsBase) detailedStatus = 'arrival'; // Single day default
+                    else detailedStatus = 'full';
+                }
+
+                let startHour = '00:00';
+                let endHour = '00:00';
+
+                if (isBase) {
+                    const dbStart = pd.start_time ? pd.start_time.slice(0, 5) : null;
+                    const dbEnd = pd.end_time ? pd.end_time.slice(0, 5) : null;
+
+                    if (dbStart && dbEnd && (dbStart !== '00:00' || dbEnd !== '23:59' || dbEnd !== '00:00')) {
+                        startHour = dbStart;
+                        endHour = dbEnd;
+                    } else {
+                        if (detailedStatus === 'arrival') { startHour = '10:00'; endHour = '23:59'; }
+                        else if (detailedStatus === 'departure') { startHour = '00:00'; endHour = '14:00'; }
+                        else { startHour = '00:00'; endHour = '23:59'; }
+                    }
+                }
+
+                newAvailability[dateKey] = {
+                    ...(newAvailability[dateKey] || {}),
+                    isAvailable: isBase,
+                    startHour,
+                    endHour,
+                    status: detailedStatus,
+                    source: pd.source || 'algorithm'
+                };
+            });
+
+            return { ...person, dailyAvailability: newAvailability };
+        });
+    };
+
     const fetchData = async () => {
         if (!organization) return;
         setIsLoading(true);
         try {
-            const { data: peopleData } = await supabase.from('people').select('*').eq('organization_id', organization.id);
-            const { data: shiftsData } = await supabase.from('shifts').select('*').eq('organization_id', organization.id);
-            const { data: tasksData } = await supabase.from('task_templates').select('*').eq('organization_id', organization.id);
-            const { data: rolesData } = await supabase.from('roles').select('*').eq('organization_id', organization.id);
-            const { data: teamsData } = await supabase.from('teams').select('*').eq('organization_id', organization.id);
-            const { data: constraintsData } = await supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id);
-            const { data: rotationsData } = await supabase.from('team_rotations').select('*').eq('organization_id', organization.id); // NEW
-            const { data: absencesData } = await supabase.from('absences').select('*').eq('organization_id', organization.id); // NEW
-            const { data: equipmentData } = await supabase.from('equipment').select('*').eq('organization_id', organization.id); // NEW
-            const { data: settingsData } = await supabase.from('organization_settings').select('*').eq('organization_id', organization.id).maybeSingle(); // NEW
-            const { data: presenceData } = await supabase.from('daily_presence').select('*').eq('organization_id', organization.id); // NEW Fetch Presence
+            // PHASE 1: Critical Data for Home Page & Basic UI
+            // Parallelize critical fetches
+            const [peopleRes, tasksRes, rolesRes, teamsRes, settingsRes] = await Promise.all([
+                supabase.from('people').select('*').eq('organization_id', organization.id),
+                supabase.from('task_templates').select('*').eq('organization_id', organization.id),
+                supabase.from('roles').select('*').eq('organization_id', organization.id),
+                supabase.from('teams').select('*').eq('organization_id', organization.id),
+                supabase.from('organization_settings').select('*').eq('organization_id', organization.id).maybeSingle()
+            ]);
 
-            let mappedPeople = (peopleData || []).map(mapPersonFromDB);
-            let mappedShifts = (shiftsData || []).map(mapShiftFromDB);
-            let mappedTeams = (teamsData || []).map(mapTeamFromDB);
+            // Fetch Recent Shifts (Last 7 days + Future) to populate Home Page quickly
+            const historyLookback = new Date();
+            historyLookback.setDate(historyLookback.getDate() - 7);
+            const { data: recentShiftsData } = await supabase.from('shifts')
+                .select('*')
+                .eq('organization_id', organization.id)
+                .gte('start_time', historyLookback.toISOString());
 
-            // --- Merge Daily Presence into People ---
-            // Overlay the new "Truth Table" (daily_presence) onto the dailyAvailability map
-            // --- Merge Daily Presence into People ---
-            // Scaled Up: Smart Inference of Arrival/Departure based on Timeline
-            if (presenceData) {
-                // 1. Group by Person for timeline analysis
-                const presenceByPerson: Record<string, any[]> = {};
-                presenceData.forEach((pd: any) => {
-                    if (!presenceByPerson[pd.person_id]) presenceByPerson[pd.person_id] = [];
-                    presenceByPerson[pd.person_id].push(pd);
-                });
+            const rawPeople = (peopleRes.data || []).map(mapPersonFromDB);
+            const rawShifts = (recentShiftsData || []).map(mapShiftFromDB);
 
-                // 2. Process each person's timeline
-                Object.keys(presenceByPerson).forEach(personId => {
-                    const person = mappedPeople.find(p => p.id === personId);
-                    if (!person) return;
+            // Apply Scoping to Initial Data
+            const { scopedPeople, scopedShifts } = applyDataScoping(rawPeople, rawShifts);
 
-                    // Sort chronologically
-                    const timeline = presenceByPerson[personId].sort((a, b) =>
-                        new Date(a.date).getTime() - new Date(b.date).getTime()
-                    );
+            // Update State & Unblock UI
+            setState(prev => ({
+                ...prev,
+                people: scopedPeople,
+                shifts: scopedShifts,
+                taskTemplates: (tasksRes.data || []).map(mapTaskFromDB),
+                roles: (rolesRes.data || []).map(mapRoleFromDB),
+                teams: (teamsRes.data || []).map(mapTeamFromDB),
+                settings: (settingsRes.data as any) || null
+            }));
 
-                    timeline.forEach((pd, index) => {
-                        const dateKey = pd.date;
-                        const isBase = pd.status === 'base';
+            setIsLoading(false); // <--- UI UNBLOCKED HERE
 
-                        // Infer detailed status (Arrival/Departure/Full)
-                        let detailedStatus = pd.status;
+            // PHASE 2: Background Data (Heavy/Secondary)
+            fetchBackgroundData(rawPeople); // Pass complete people list (unscoped) to ensure presence matching works if needed?
+            // actually scoped is fine IF we only care about visible people. But merging logic usually runs on current state.
+            // Let's pass Scoped to follow consistent view.
 
-                        if (isBase) {
-                            // Check Neighbors
-                            // console.log(`[StatusInference] Checking ${pd.person_id} on ${dateKey}. Prev: ${timeline[index - 1]?.status}, Next: ${timeline[index + 1]?.status}`);
-                            const prevRec = timeline[index - 1];
-                            const nextRec = timeline[index + 1];
-
-                            const d = new Date(pd.date);
-                            const prevD = prevRec ? new Date(prevRec.date) : null;
-                            const nextD = nextRec ? new Date(nextRec.date) : null;
-
-                            const isPrevContiguous = prevD && (d.getTime() - prevD.getTime() === 86400000);
-                            const isNextContiguous = nextD && (nextD.getTime() - d.getTime() === 86400000);
-
-                            const prevIsBase = isPrevContiguous && prevRec.status === 'base';
-                            const nextIsBase = isNextContiguous && nextRec.status === 'base';
-
-
-                            if (!prevIsBase && nextIsBase) detailedStatus = 'arrival';
-                            else if (prevIsBase && !nextIsBase) detailedStatus = 'departure';
-                            else if (!prevIsBase && !nextIsBase) detailedStatus = 'arrival';
-                            else detailedStatus = 'full';
-                        }
-
-                        // Set Hours based on Status
-                        let startHour = '00:00';
-                        let endHour = '00:00';
-
-                        if (isBase) {
-                            // Normalize DB times to "HH:MM" for comparison
-                            const dbStart = pd.start_time ? pd.start_time.slice(0, 5) : null;
-                            const dbEnd = pd.end_time ? pd.end_time.slice(0, 5) : null;
-
-                            if (dbStart && dbEnd && (dbStart !== '00:00' || dbEnd !== '23:59' || dbEnd !== '00:00')) {
-                                // Prioritize DB-stored times (IF they are specifically set and not just default placeholders)
-                                // We treat 00:00-23:59 as a specific "Full Day" if stored.
-                                startHour = dbStart;
-                                endHour = dbEnd;
-                            } else {
-                                // Fallback: Smart Inference (Uses defaults: 10:00 Arrival, 14:00 Departure)
-                                if (detailedStatus === 'arrival') { startHour = '10:00'; endHour = '23:59'; }
-                                else if (detailedStatus === 'departure') { startHour = '00:00'; endHour = '14:00'; }
-                                else { startHour = '00:00'; endHour = '23:59'; } // Full Base Day
-                            }
-                        }
-
-                        // Create updated entry
-                        person.dailyAvailability = {
-                            ...person.dailyAvailability,
-                            [dateKey]: {
-                                ...(person.dailyAvailability?.[dateKey] || {}),
-                                isAvailable: isBase,
-                                startHour,
-                                endHour,
-                                status: detailedStatus,
-                                source: pd.source || 'algorithm'
-                            }
-                        };
-                    });
-                });
-            }
-
-            // ----------------------------------------
-
-            // --- Data Scoping Logic ---
-            const dataScope = profile?.permissions?.dataScope || 'organization';
-            const allowedTeamIds = profile?.permissions?.allowedTeamIds || [];
-
-            if (dataScope === 'team') {
-                // Filter people: only those in allowed teams + current user
-                mappedPeople = mappedPeople.filter(p =>
-                    (p.teamId && allowedTeamIds.includes(p.teamId)) ||
-                    p.userId === user?.id ||
-                    (p as any).email === user?.email
-                );
-
-                // Filter shifts: only those assigned to visible people (or unassigned/open shifts? maybe all for visibility)
-                // Stigmergy: typically you want to see your team's shifts.
-                const visiblePersonIds = mappedPeople.map(p => p.id);
-                mappedShifts = mappedShifts.filter(s =>
-                    s.assignedPersonIds.some(pid => visiblePersonIds.includes(pid)) ||
-                    s.assignedPersonIds.length === 0 // Show open shifts?
-                );
-            } else if (dataScope === 'personal') {
-                // Filter people: only current user
-                const myPerson = mappedPeople.find(p => p.userId === user?.id || (p as any).email === user?.email);
-                if (myPerson) {
-                    mappedPeople = [myPerson];
-                    // Filter shifts: only assigned to me
-                    mappedShifts = mappedShifts.filter(s => s.assignedPersonIds.includes(myPerson.id));
-                } else {
-                    // Not linked? Show all people temporarily so they can Claim Profile?
-                    // If we filter to empty, ClaimProfile might fail or not show list.
-                    // Let's keep all people if not linked, to allow linking.
-                    if (isLinkedToPerson) {
-                        mappedPeople = []; // Fallback if linked but not found (weird)
-                    }
-                }
-            }
-            // --------------------------
-
-            setState({
-                people: mappedPeople,
-                shifts: mappedShifts,
-                taskTemplates: (tasksData || []).map(mapTaskFromDB),
-                roles: (rolesData || []).map(mapRoleFromDB),
-                teams: mappedTeams,
-                constraints: (constraintsData || []).map(mapConstraintFromDB),
-                teamRotations: (rotationsData || []).map(mapRotationFromDB),
-                absences: (absencesData || []).map(mapAbsenceFromDB), // NEW
-                equipment: (equipmentData || []).map(mapEquipmentFromDB), // NEW
-                settings: (settingsData as any) || null
-            });
         } catch (error) {
-            console.error("Error fetching data:", error);
+            console.error("Error fetching critical data:", error);
             showToast("שגיאה בטעינת הנתונים", 'error');
-        } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchBackgroundData = async (initialScopedPeople: Person[]) => {
+        if (!organization) return;
+        try {
+            const [constraintsRes, rotationsRes, absencesRes, equipmentRes, presenceRes, allShiftsRes] = await Promise.all([
+                supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id),
+                supabase.from('team_rotations').select('*').eq('organization_id', organization.id),
+                supabase.from('absences').select('*').eq('organization_id', organization.id),
+                supabase.from('equipment').select('*').eq('organization_id', organization.id),
+                supabase.from('daily_presence').select('*').eq('organization_id', organization.id),
+                supabase.from('shifts').select('*').eq('organization_id', organization.id) // Get FULL history
+            ]);
+
+            const fullShifts = (allShiftsRes.data || []).map(mapShiftFromDB);
+
+            // Re-Apply Scoping to Full Shifts
+            // We pass the RAW people here, so applyDataScoping will return the SCOPED people.
+            const { scopedPeople: scopedPeopleForState, scopedShifts: allScopedShifts } = applyDataScoping(initialScopedPeople, fullShifts);
+
+            // Process Presence on People (only on the scoped people we want to show)
+            const peopleWithPresence = processPresence(scopedPeopleForState, presenceRes.data || []);
+
+            // Update State Silently
+            setState(prev => ({
+                ...prev,
+                people: peopleWithPresence, // Update people with presence data
+                shifts: allScopedShifts,    // Replace partial shifts with full history
+                constraints: (constraintsRes.data || []).map(mapConstraintFromDB),
+                teamRotations: (rotationsRes.data || []).map(mapRotationFromDB),
+                absences: (absencesRes.data || []).map(mapAbsenceFromDB),
+                equipment: (equipmentRes.data || []).map(mapEquipmentFromDB)
+            }));
+
+        } catch (e) {
+            console.error("Error fetching background data:", e);
         }
     };
 
@@ -905,6 +929,65 @@ const MainApp: React.FC = () => {
                 if (date) setSelectedDate(date);
                 setView(view);
             }} />;
+            case 'dashboard':
+                return (
+                    <div className="space-y-6">
+                        {state.taskTemplates.length === 0 && state.people.length === 0 && state.roles.length === 0 ? (
+                            <EmptyStateGuide
+                                hasTasks={state.taskTemplates.length > 0}
+                                hasPeople={state.people.length > 0}
+                                hasRoles={state.roles.length > 0}
+                                onNavigate={setView}
+                                onImport={() => {
+                                    localStorage.setItem('open_import_wizard', 'true');
+                                    setView('personnel');
+                                }}
+                            />
+                        ) : (
+                            <>
+                                {state.taskTemplates.length > 0 && checkAccess('dashboard', 'edit') && (
+                                    <div className="fixed bottom-20 md:bottom-8 left-4 md:left-8 z-50">
+                                        <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-3 md:px-5 md:py-3 rounded-full shadow-xl flex items-center justify-center gap-0 md:gap-2 font-bold hover:scale-105 transition-all">
+                                            <Sparkles size={20} className="md:w-5 md:h-5" />
+                                            <span className="hidden md:inline whitespace-nowrap text-base">שיבוץ אוטומטי</span>
+                                        </button>
+                                    </div>
+                                )}
+                                <ScheduleBoard
+                                    shifts={state.shifts}
+                                    people={state.people}
+                                    taskTemplates={state.taskTemplates}
+                                    roles={state.roles}
+                                    teams={state.teams}
+                                    constraints={state.constraints}
+                                    selectedDate={selectedDate}
+                                    onDateChange={setSelectedDate}
+                                    onSelect={() => { }}
+                                    onDelete={handleDeleteShift}
+                                    isViewer={!checkAccess('dashboard', 'edit')}
+                                    onClearDay={handleClearDay}
+                                    onNavigate={handleNavigate}
+                                    onAssign={handleAssign}
+                                    onUnassign={handleUnassign}
+                                    onAddShift={handleAddShift}
+                                    onUpdateShift={handleUpdateShift}
+                                    onToggleCancelShift={handleToggleCancelShift}
+                                    teamRotations={state.teamRotations}
+                                />
+                            </>
+                        )}
+                        <AutoScheduleModal
+                            isOpen={showScheduleModal}
+                            onClose={() => setShowScheduleModal(false)}
+                            onSchedule={handleAutoSchedule}
+                            tasks={state.taskTemplates}
+                            people={state.people}
+                            roles={state.roles}
+                            startDate={scheduleStartDate}
+                            endDate={scheduleEndDate}
+                        />
+                    </div>
+                );
             case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onUpdatePerson={handleUpdatePerson} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} />;
             case 'attendance': return <AttendanceManager
                 people={state.people}
@@ -954,69 +1037,13 @@ const MainApp: React.FC = () => {
                         onDeleteAbsence={handleDeleteAbsence}
                     />
                 ) : <Navigate to="/" />;
-            case 'planner':
-                return <Navigate to="/dashboard" />; // Deprecated
-            case 'home':
             default:
                 return (
-                    <div className="space-y-6">
-                        {checkAccess('dashboard', 'edit') && (
-                            state.taskTemplates.length === 0 && state.people.length === 0 && state.roles.length === 0 ? (
-                                <EmptyStateGuide
-                                    hasTasks={state.taskTemplates.length > 0}
-                                    hasPeople={state.people.length > 0}
-                                    hasRoles={state.roles.length > 0}
-                                    onNavigate={setView}
-                                    onImport={() => {
-                                        localStorage.setItem('open_import_wizard', 'true');
-                                        setView('personnel');
-                                    }}
-                                />
-                            ) : (
-                                <>
-                                    {state.taskTemplates.length > 0 && (
-                                        <div className="fixed bottom-20 md:bottom-8 left-4 md:left-8 z-50">
-                                            <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-3 md:px-5 md:py-3 rounded-full shadow-xl flex items-center justify-center gap-0 md:gap-2 font-bold hover:scale-105 transition-all">
-                                                <Sparkles size={20} className="md:w-5 md:h-5" />
-                                                <span className="hidden md:inline whitespace-nowrap text-base">שיבוץ אוטומטי</span>
-                                            </button>
-                                        </div>
-                                    )}
-                                    <ScheduleBoard
-                                        shifts={state.shifts}
-                                        people={state.people}
-                                        taskTemplates={state.taskTemplates}
-                                        roles={state.roles}
-                                        teams={state.teams}
-                                        constraints={state.constraints}
-                                        selectedDate={selectedDate}
-                                        onDateChange={setSelectedDate}
-                                        onSelect={() => { }}
-                                        onDelete={handleDeleteShift}
-                                        isViewer={false}
-                                        onClearDay={handleClearDay}
-                                        onNavigate={handleNavigate}
-                                        onAssign={handleAssign}
-                                        onUnassign={handleUnassign}
-                                        onAddShift={handleAddShift}
-                                        onUpdateShift={handleUpdateShift}
-                                        onToggleCancelShift={handleToggleCancelShift}
-                                        teamRotations={state.teamRotations}
-                                    />
-                                </>
-                            )
-                        )}
-                        <AutoScheduleModal
-                            isOpen={showScheduleModal}
-                            onClose={() => setShowScheduleModal(false)}
-                            onSchedule={handleAutoSchedule}
-                            tasks={state.taskTemplates}
-                            people={state.people}
-                            roles={state.roles}
-                            startDate={scheduleStartDate}
-                            endDate={scheduleEndDate}
-                        />
-                    </div >
+                    <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+                        <Loader2 size={48} className="text-slate-200 animate-spin mb-4" />
+                        <h2 className="text-xl font-bold text-slate-400">העמוד בטעינה...</h2>
+                        <button onClick={() => setView('home')} className="mt-4 text-blue-500 hover:underline">חזרה לדף הבית</button>
+                    </div>
                 );
         }
 
@@ -1048,38 +1075,48 @@ const AppContent: React.FC = () => {
     useEffect(() => {
         const checkPendingInvite = async () => {
             const pendingToken = localStorage.getItem('pending_invite_token');
-            console.log('🔍 [App] Checking pending invite. User:', user?.id, 'Token:', pendingToken);
+            const hasOrg = !!profile?.organization_id;
+
+            console.log('🔍 [App] State Check:', {
+                userId: user?.id,
+                pendingToken,
+                hasOrg,
+                profileId: profile?.id,
+                currentOrgId: profile?.organization_id
+            });
 
             if (user && pendingToken) {
-                console.log('🚀 [App] Found pending invite token, executing join logic...');
-                try {
-                    console.log('📡 [App] Calling join_organization_by_token RPC...');
-                    const { data, error } = await supabase.rpc('join_organization_by_token', { token: pendingToken });
+                if (hasOrg) {
+                    console.log('✨ [App] User already has org, clearing redundant token.');
+                    localStorage.removeItem('pending_invite_token');
+                    setIsProcessingInvite(false);
+                    return;
+                }
 
-                    console.log('✅ [App] RPC Result:', { data, error });
+                console.log('🚀 [App] Executing join logic for token:', pendingToken);
+                try {
+                    const { data, error } = await supabase.rpc('join_organization_by_token', { p_token: pendingToken });
+                    console.log('✅ [App] RPC Join Result:', { data, error });
 
                     if (error) throw error;
 
                     if (data) {
-                        console.log('🎉 [App] Join successful! Clearing token and refreshing profile.');
                         localStorage.removeItem('pending_invite_token');
-                        // Force reload to ensure fresh state and avoid race conditions
+                        console.log('🎉 [App] Join Success. Refreshing...');
                         window.location.reload();
                         return;
                     } else {
-                        console.warn('⚠️ [App] Join returned false (likely invalid token or already member).');
+                        console.warn('⚠️ [App] Join RPC returned false. Token may be invalid or expired.');
+                        localStorage.removeItem('pending_invite_token');
                     }
                 } catch (error) {
-                    console.error('❌ [App] Error joining org from pending token:', error);
-                    localStorage.removeItem('pending_invite_token');
-                    console.log('🏁 [App] Finished processing invite.');
-                    setIsProcessingInvite(false);
+                    console.error('❌ [App] Join Error:', error);
                 }
-            } else {
-                console.log('ℹ️ [App] No pending invite or no user. Skipping.');
-                setIsProcessingInvite(false);
             }
+
+            setIsProcessingInvite(false);
         };
+
 
         const checkTerms = async () => {
             const timestamp = localStorage.getItem('terms_accepted_timestamp');
@@ -1098,7 +1135,7 @@ const AppContent: React.FC = () => {
                 setIsProcessingInvite(false);
             }
         }
-    }, [user, loading]);
+    }, [user, loading, profile]);
 
     // Safety timeout for invite processing
     useEffect(() => {
@@ -1136,36 +1173,47 @@ const AppContent: React.FC = () => {
 
 // Helper component for main route logic
 const MainRoute: React.FC<{ user: any, profile: any, organization: any }> = ({ user, profile, organization }) => {
-    // If user exists but NO profile → Show Onboarding
+
+
+    // If user exists but NO profile data is loaded yet -> Show Loading
+    // Important: Wait for profile to be determined before showing Onboarding
     if (user && !profile) {
-        return <Onboarding />;
-    }
-
-    // If not logged in → Show Landing Page
-    if (!user) {
-        return <LandingPage />;
-    }
-
-    // If profile has organization_id but organization is not loaded yet -> Show Loading
-    if (profile?.organization_id && !organization) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50">
                 <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-600 font-medium">
-                        טוען נתוני ארגון...
-                    </p>
+                    <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600 font-medium">טוען פרופיל משתמש...</p>
                 </div>
             </div>
         );
     }
 
-    // If profile exists but NO organization → Show Create Organization
-    if (profile && !organization) {
+    // If not logged in → Show Landing Page
+    if (!user) {
+
+        return <LandingPage />;
+    }
+
+    // If profile has organization_id but organization data is not loaded yet -> Show Loading
+    if (profile?.organization_id && !organization) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50">
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600 font-medium">טוען נתוני ארגון...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // If profile exists but NO organization_id → Show Onboarding (Create/Join flow)
+    if (profile && !profile.organization_id) {
         return <Onboarding />;
     }
 
+
     // User is logged in, has profile, and has organization → Show Main App
+
     return <MainApp />;
 };
 

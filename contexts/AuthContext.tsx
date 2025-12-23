@@ -135,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: userId,
             email: email,
             full_name: fullName,
-            role: existingPerson ? 'viewer' : 'admin',
+            role: 'viewer', // Default to viewer for security. First admin is set during org creation.
             organization_id: existingPerson?.organization_id || null,
             created_at: new Date().toISOString()
           }, {
@@ -155,11 +155,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         console.log('✅ Profile created successfully');
+        console.log('👤 [AuthContext] Setting Profile:', newProfile);
         setProfile(newProfile);
         return;
       }
 
       console.log('✅ Profile loaded successfully');
+      console.log('📊 [AuthContext] Full Profile Data:', profileData);
+      console.log('👤 [AuthContext] Setting Profile:', profileData);
 
       if (!profileData.organization_id) {
         // Fetch fresh user data to get phone
@@ -191,6 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
 
           if (!updateError) {
+            console.log('👤 [AuthContext] Setting Profile (after link):', updatedProfile);
             setProfile(updatedProfile);
             await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
 
@@ -205,6 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      console.log('👤 [AuthContext] Setting Profile (final):', profileData);
       setProfile(profileData);
 
       if (profileData.organization_id) {
@@ -323,6 +328,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!mounted) return;
 
       console.log('🔄 Auth state changed:', event);
+      console.log('📦 [AuthContext] Current pending_invite_token in localStorage:', localStorage.getItem('pending_invite_token'));
 
       if (authChangeTimeout) {
         clearTimeout(authChangeTimeout);

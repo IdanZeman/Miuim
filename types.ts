@@ -9,6 +9,7 @@ export interface Organization {
   invite_token?: string;
   is_invite_link_active?: boolean;
   invite_link_role?: UserRole;
+  invite_link_template_id?: string; // Links to permission_templates
 }
 
 export interface CustomFieldDefinition {

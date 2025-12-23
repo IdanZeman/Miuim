@@ -294,6 +294,26 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         }
     }, [selectedShift]);
 
+    useEffect(() => {
+        const fetchSettings = async () => {
+            if (!organization) return;
+            try {
+                const { data, error } = await supabase
+                    .from('organization_settings')
+                    .select('viewer_schedule_days')
+                    .eq('organization_id', organization.id)
+                    .maybeSingle();
+
+                if (data) {
+                    setViewerDaysLimit(data.viewer_schedule_days || 7);
+                }
+            } catch (err) {
+                console.error('Failed to fetch board settings', err);
+            }
+        };
+        fetchSettings();
+    }, [organization]);
+
     const toggleTeamCollapse = (teamId: string) => {
         const newSet = new Set(collapsedTeams);
         if (newSet.has(teamId)) newSet.delete(teamId);
@@ -562,46 +582,59 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             >
                 <div className="flex flex-col h-full overflow-hidden max-h-[80dvh]">
 
-                    {/* Requirements Strip - Horizontal Scroll */}
+                    {/* Requirements Header & Badges */}
                     {(() => {
                         const segment = task.segments?.find(s => s.id === selectedShift.segmentId) || task.segments?.[0];
                         const roleComposition = selectedShift.requirements?.roleComposition || segment?.roleComposition || [];
                         if (roleComposition.length === 0) return null;
 
                         return (
-                            <div className="flex items-start gap-2 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4 sticky top-0 bg-white z-10 border-b border-slate-50">
-                                {roleComposition.map((rc, idx) => {
-                                    const role = roles.find(r => r.id === rc.roleId);
-                                    const currentCount = assignedPeople.filter(p => p.roleIds.includes(rc.roleId)).length;
-                                    const isMet = currentCount >= rc.count;
+                            <div className="flex flex-col gap-2.5 pb-4 border-b border-slate-100 sticky top-0 bg-white z-30">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">דרישות תפקיד</h4>
+                                    <span className="text-[10px] font-bold text-slate-400">
+                                        סד"כ נדרש: {selectedShift.requirements?.requiredPeople || segment?.requiredPeople || 0}
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {roleComposition.map((rc, idx) => {
+                                        const role = roles.find(r => r.id === rc.roleId);
+                                        const currentCount = assignedPeople.filter(p => (p.roleIds || [p.roleId]).includes(rc.roleId)).length;
+                                        const isMet = currentCount >= rc.count;
 
-                                    return (
-                                        <div
-                                            key={idx}
-                                            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-all ${isMet
-                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                                : 'bg-red-50 text-red-700 font-bold border border-red-100 animate-pulse-slow'}`}
-                                        >
-                                            {isMet ? <Check size={12} strokeWidth={3} /> : <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>}
-                                            <span className="">{role?.name || 'תפקיד'}</span>
-                                            <span className={`${isMet ? 'bg-emerald-200/50' : 'bg-red-200/50'} px-1.5 rounded-full text-[10px]`}>
-                                                {currentCount}/{rc.count}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all shadow-sm border ${isMet
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50'
+                                                    : 'bg-red-50 text-red-700 font-black border-red-200 animate-in zoom-in-95'}`}
+                                            >
+                                                {isMet ? (
+                                                    <CheckCircle size={14} className="text-emerald-500" />
+                                                ) : (
+                                                    <AlertTriangle size={14} className="text-red-500" />
+                                                )}
+                                                <span>{role?.name || 'תפקיד'}</span>
+                                                <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${isMet ? 'bg-emerald-100/50' : 'bg-red-100'}`}>
+                                                    {currentCount}/{rc.count}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         );
                     })()}
 
                     <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0 bg-white -mx-4 md:mx-0">
                         {/* LEFT COLUMN: Assigned */}
-                        <div className="flex-none max-h-[35vh] overflow-y-auto flex flex-col border-b md:border-b-0 md:border-l border-slate-100">
+                        <div className="flex-none max-h-[30vh] md:max-h-none md:w-80 overflow-y-auto flex flex-col border-b md:border-b-0 md:border-l border-slate-100">
                             <div className="p-4 bg-slate-50/50 sticky top-0 z-10 border-b border-slate-100">
-                                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
-                                    משובצים ({assignedPeople.length}/{selectedShift.requirements?.requiredPeople || 1})
+                                <h4 className="font-black text-slate-800 text-[11px] uppercase tracking-wider">
+                                    חיילים משובצים ({assignedPeople.length})
                                 </h4>
                             </div>
+
 
                             <div className="p-0">
                                 {assignedPeople.map(p => (

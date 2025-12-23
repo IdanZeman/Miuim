@@ -51,6 +51,7 @@ export const LandingPage: React.FC = () => {
 
         setIsLoggingIn(true);
         try {
+            console.log('🔵 [LandingPage] Google Login clicked.');
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
@@ -461,7 +462,7 @@ export const LandingPage: React.FC = () => {
                             {/* Title */}
                             <div className="text-center mb-6 md:mb-8">
                                 <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">התחברות</h2>
-                                <p className="text-slate-500 text-xs md:text-sm">התחבר כדי להמשיך למערכת שיבוץ משימות</p>
+                                <p className="text-slate-500 text-xs md:text-sm">התחבר כדי להמשיך למערכת לניהול פלוגה משימות</p>
                             </div>
 
                             {/* Terms Checkbox - NEW */}

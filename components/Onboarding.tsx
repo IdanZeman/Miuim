@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Mail, CheckCircle, Sparkles, Shield, FileSpreadsheet, Upload, ArrowLeft, Users, Search } from 'lucide-react';
+import { Building2, Mail, CheckCircle, Sparkles, Shield, FileSpreadsheet, Upload, ArrowLeft, Users, Search, Loader2 } from 'lucide-react';
 import { analytics } from '../services/analytics';
 import { useToast } from '../contexts/ToastContext';
 import { ExcelImportWizard } from './ExcelImportWizard';
@@ -9,8 +9,15 @@ import { Person, Team, Role } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 export const Onboarding: React.FC = () => {
-    const { user, refreshProfile, signOut } = useAuth();
+    const { user, profile, refreshProfile, signOut } = useAuth();
     const { showToast } = useToast();
+
+    // Safety redirect: If user already has an organization, go to home
+    useEffect(() => {
+        if (profile?.organization_id) {
+            window.location.href = '/';
+        }
+    }, [profile]);
     const [step, setStep] = useState<'org_name' | 'path_selection' | 'import_wizard' | 'claim_profile'>('org_name');
     const [createdOrgId, setCreatedOrgId] = useState<string | null>(null);
     const [orgName, setOrgName] = useState('');
@@ -34,7 +41,7 @@ export const Onboarding: React.FC = () => {
         const saveTerms = async () => {
             const timestamp = localStorage.getItem('terms_accepted_timestamp');
             if (user && timestamp) {
-                console.log("📝 Onboarding: Saving terms acceptance...", timestamp);
+
                 await supabase.from('profiles').update({ terms_accepted_at: timestamp }).eq('id', user.id);
                 localStorage.removeItem('terms_accepted_timestamp');
             }
@@ -44,9 +51,9 @@ export const Onboarding: React.FC = () => {
     }, [user]);
 
     const checkForInvite = async () => {
-        console.log("🔍 Onboarding: Checking for invites...", user?.email);
+
         if (!user?.email) {
-            console.warn("⚠️ Onboarding: No email found for user, skipping invite check.");
+
             setCheckingInvite(false);
             return;
         }
@@ -64,10 +71,10 @@ export const Onboarding: React.FC = () => {
             if (error) throw error;
 
             if (invites && invites.length > 0) {
-                console.log("💌 Onboarding: Found invite!", invites[0]);
+
                 setPendingInvite(invites[0]);
             } else {
-                console.log("📭 Onboarding: No invites found.");
+
             }
         } catch (error) {
             console.error('Error checking for invites:', error);
@@ -380,6 +387,13 @@ export const Onboarding: React.FC = () => {
         }
     };
 
+    // If user is already in an organization, don't show onboarding (unless we are processing an invite explicitly?)
+    if (user && profile?.organization_id) {
+        return <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+            <Loader2 className="animate-spin text-slate-400" />
+        </div>;
+    }
+
     if (checkingInvite) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 flex items-center justify-center">
@@ -404,7 +418,7 @@ export const Onboarding: React.FC = () => {
                             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 p-1.5">
                                 <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
                             </div>
-                            <span className="text-xl font-black text-slate-900 tracking-tight">מערכת שיבוץ</span>
+                            <span className="text-xl font-black text-slate-900 tracking-tight">מערכת לניהול פלוגה</span>
                         </div>
                     </div>
                 </header>
@@ -494,7 +508,7 @@ export const Onboarding: React.FC = () => {
                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 p-1.5">
                             <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
                         </div>
-                        <span className="text-xl font-black text-slate-900 tracking-tight">מערכת שיבוץ</span>
+                        <span className="text-xl font-black text-slate-900 tracking-tight">מערכת לניהול פלוגה</span>
                     </div>
                     <button
                         onClick={handleLogout}
@@ -508,25 +522,31 @@ export const Onboarding: React.FC = () => {
                 </div>
             </header>
 
-            <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 md:p-12">
-                <div className="bg-white rounded-[2.5rem] shadow-2xl max-w-5xl w-full overflow-hidden border border-slate-200/60 flex flex-col md:flex-row">
+            <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-0 md:p-12">
+                <div className="bg-white md:rounded-[2.5rem] shadow-2xl max-w-5xl w-full overflow-hidden border-0 md:border border-slate-200/60 flex flex-col md:flex-row h-full md:h-auto">
 
-                    {/* Dark Side Branding (Mobile Top, Desktop Left) */}
-                    <div className="md:w-[400px] bg-slate-900 p-6 md:p-12 text-white flex flex-col justify-between relative overflow-hidden">
+                    {/* Dark Side Branding (Mobile Top, Desktop Left/Sidebar) */}
+                    <div className="w-full md:w-[400px] h-[30vh] md:h-auto bg-emerald-900 p-6 md:p-12 text-white flex flex-col justify-between relative overflow-hidden shrink-0">
                         {/* Decorative background elements */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-400 opacity-[0.03] rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-green-400 opacity-[0.03] rounded-full translate-y-1/2 -translate-x-1/2"></div>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400 opacity-[0.1] rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-teal-400 opacity-[0.1] rounded-full translate-y-1/2 -translate-x-1/2"></div>
 
-                        <div className="relative z-10">
-                            <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/10">
-                                <Shield size={32} className="text-amber-400" />
+                        <div className="relative z-10 flex flex-col h-full justify-center md:justify-start">
+                            <div className="flex items-center gap-4 mb-2 md:mb-8">
+                                <div className="w-10 h-10 md:w-16 md:h-16 bg-white/10 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center border border-white/10 shrink-0">
+                                    <Shield size={20} className="md:w-8 md:h-8 text-emerald-400" />
+                                </div>
+                                <h1 className="text-2xl md:text-4xl font-black leading-tight md:hidden">
+                                    {step === 'org_name' ? 'הקמת ארגון' : 'הגדרות'}
+                                </h1>
                             </div>
-                            <h1 className="text-4xl font-black mb-6 leading-tight">
+
+                            <h1 className="hidden md:block text-4xl font-black mb-6 leading-tight">
                                 {step === 'org_name' ? 'יוצאים לדרך חדשה.' :
                                     step === 'import_wizard' ? 'ייבוא נתונים.' :
                                         'הקמה חכמה.'}
                             </h1>
-                            <p className="text-slate-400 text-lg leading-relaxed">
+                            <p className="hidden md:block text-emerald-100/70 text-lg leading-relaxed">
                                 {step === 'org_name'
                                     ? 'אנחנו כאן כדי לעזור לך לנהל את הפלוגה בצורה מקצועית, שקופה ואפקטיבית יותר.'
                                     : step === 'import_wizard'
@@ -535,33 +555,42 @@ export const Onboarding: React.FC = () => {
                             </p>
                         </div>
 
-                        <div className="relative z-10 pt-12">
-                            <div className="flex items-center gap-4 text-sm text-slate-500 font-bold uppercase tracking-widest bg-white/5 p-4 rounded-2xl border border-white/5">
-                                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                        {/* Desktop Step Indicator */}
+                        <div className="relative z-10 pt-12 hidden md:block">
+                            <div className="flex items-center gap-4 text-sm text-emerald-200 font-bold uppercase tracking-widest bg-emerald-950/30 p-4 rounded-2xl border border-emerald-500/20">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                                 {step === 'org_name' ? 'שלב 1: פרטי ארגון' : 'שלב 2: בחירת מסלול'}
                             </div>
                         </div>
                     </div>
 
-                    {/* Content Section */}
-                    <div className="flex-1 p-6 md:p-16 bg-white">
+                    {/* Content Section - The "White Sheet" */}
+                    <div className="flex-1 p-6 md:p-16 bg-white rounded-t-3xl -mt-6 md:mt-0 relative z-20 flex flex-col animate-in slide-in-from-bottom-6 duration-500">
+                        {/* Mobile Step Indicator */}
+                        <div className="md:hidden flex justify-center -mt-3 mb-6">
+                            <div className="bg-white shadow-lg border border-slate-100 text-xs font-bold text-emerald-800 uppercase tracking-wider py-1.5 px-4 rounded-full flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                {step === 'org_name' ? 'שלב 1: פרטי ארגון' : 'שלב 2: בחירת מסלול'}
+                            </div>
+                        </div>
+
                         {step === 'org_name' ? (
-                            <div className="max-w-xl mx-auto space-y-10 animate-in fade-in slide-in-from-right-10 duration-700">
+                            <div className="max-w-xl mx-auto space-y-6 md:space-y-10">
                                 <div>
-                                    <h2 className="text-3xl font-black text-slate-900 mb-4">איך תרצו לקרוא לארגון?</h2>
-                                    <p className="text-slate-500 text-lg">שם הפלוגה, הגדוד או היחידה שלך. תמיד תוכל לשנות זאת בהמשך.</p>
+                                    <h2 className="text-xl md:text-3xl font-black text-slate-800 mb-2 md:mb-4">איך תרצו לקרוא לארגון?</h2>
+                                    <p className="text-slate-500 text-base md:text-lg">שם הפלוגה, הגדוד או היחידה שלך.</p>
                                 </div>
 
-                                <form onSubmit={handleCreateOrg} className="space-y-8">
+                                <form onSubmit={handleCreateOrg} className="space-y-6 md:space-y-8 flex-1 flex flex-col">
                                     <div className="space-y-4">
                                         <div className="relative">
-                                            <Building2 className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400" size={24} />
+                                            <Building2 className="absolute right-5 top-1/2 -translate-y-1/2 text-emerald-500" size={24} />
                                             <input
                                                 type="text"
                                                 value={orgName}
                                                 onChange={handleOrgNameChange}
-                                                placeholder="לדוגמה: פלוגה א׳, גדוד 101..."
-                                                className="w-full pr-14 pl-4 py-4 md:pl-6 md:py-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-slate-900 focus:bg-white focus:outline-none text-slate-900 text-lg md:text-xl transition-all font-bold placeholder:font-normal placeholder:text-slate-300 shadow-inner"
+                                                placeholder="שם הארגון..."
+                                                className="w-full pr-14 pl-4 py-4 md:pl-6 md:py-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-500 focus:bg-white focus:outline-none text-xl md:text-2xl transition-all font-bold placeholder:font-normal placeholder:text-slate-300 shadow-inner"
                                                 required
                                                 disabled={loading}
                                                 autoFocus
@@ -578,15 +607,15 @@ export const Onboarding: React.FC = () => {
                                     <button
                                         type="submit"
                                         disabled={loading || !orgName.trim()}
-                                        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 px-8 rounded-2xl transition-all shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 hover:-translate-y-1 flex items-center justify-center gap-4 text-xl disabled:opacity-50 disabled:translate-y-0 active:scale-95"
+                                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 md:py-5 px-8 rounded-2xl transition-all shadow-xl shadow-emerald-600/20 hover:shadow-emerald-600/40 hover:-translate-y-1 flex items-center justify-center gap-4 text-lg md:text-xl disabled:opacity-50 disabled:translate-y-0 active:scale-95"
                                     >
                                         יצירת ארגון והמשך
-                                        {loading ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <ArrowLeft size={24} />}
+                                        {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ArrowLeft size={24} />}
                                     </button>
                                 </form>
                             </div>
                         ) : (step === 'path_selection' || step === 'import_wizard') ? (
-                            <div className="space-y-12 animate-in fade-in slide-in-from-left-10 duration-700">
+                            <div className="space-y-8 md:space-y-12 animate-in fade-in slide-in-from-left-10 duration-700 h-full overflow-y-auto">
                                 {step === 'import_wizard' && (
                                     <ExcelImportWizard
                                         isOpen={true}
@@ -644,6 +673,14 @@ export const Onboarding: React.FC = () => {
                                         </div>
                                     </button>
                                 </div>
+
+                                <button
+                                    onClick={() => setStep('org_name')}
+                                    className="mx-auto flex items-center gap-2 text-slate-400 font-bold hover:text-slate-600 transition-colors py-2"
+                                >
+                                    <ArrowLeft className="rotate-180" size={16} />
+                                    חזרה לשינוי שם הארגון
+                                </button>
                             </div>
                         ) : step === 'claim_profile' ? (
                             <div className="max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-right-10 duration-700">

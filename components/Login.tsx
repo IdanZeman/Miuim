@@ -51,7 +51,7 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
                     {/* Title */}
                     <div className="text-center mb-8">
                         <h1 className="text-4xl font-bold text-slate-800 mb-3">התחברות</h1>
-                        <p className="text-slate-600">התחבר כדי להמשיך למערכת שיבוץ משימות</p>
+                        <p className="text-slate-600">התחבר כדי להמשיך למערכת לניהול פלוגה משימות</p>
                     </div>
 
                     {/* Google Sign In Button */}

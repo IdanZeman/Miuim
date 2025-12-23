@@ -3,12 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Loader2, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, ArrowRight, Check } from 'lucide-react';
 
 const JoinPage: React.FC = () => {
     const { token } = useParams<{ token: string }>();
     const navigate = useNavigate();
-    const { user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading, signOut, refreshProfile } = useAuth();
     const { showToast } = useToast();
 
     const [orgName, setOrgName] = useState('');
@@ -23,9 +23,17 @@ const JoinPage: React.FC = () => {
         }
     }, [token]);
 
+    // Auto-join if user lands back on this page after login
+    useEffect(() => {
+        if (user && token && !success && !joining && !error) {
+            console.log('🤖 [JoinPage] Auto-joining for logged in user...');
+            handleJoin();
+        }
+    }, [user, token]);
+
     const fetchOrgName = async () => {
         try {
-            const { data, error } = await supabase.rpc('get_org_name_by_token', { token });
+            const { data, error } = await supabase.rpc('get_org_name_by_token', { p_token: token });
             if (error) throw error;
             setOrgName(data);
         } catch (err) {
@@ -45,16 +53,26 @@ const JoinPage: React.FC = () => {
             return;
         }
 
+        console.log('🚀 [JoinPage] Attempting to join. Token:', token, 'User:', user?.id);
         setJoining(true);
         try {
-            const { data, error } = await supabase.rpc('join_organization_by_token', { token });
+            const { data, error } = await supabase.rpc('join_organization_by_token', { p_token: token });
+            console.log('✅ [JoinPage] RPC Result:', { data, error });
             if (error) throw error;
+
+            if (!data) {
+                throw new Error('הקישור אינו תקין, פג תוקפו או שאתה כבר חבר בארגון זה');
+            }
 
             setSuccess(true);
             showToast('הצטרפת לארגון בהצלחה!', 'success');
+
+            // Refresh profile to update organization_id in context
+            await refreshProfile();
+
             setTimeout(() => {
-                navigate('/'); // Redirect to dashboard
-            }, 2000);
+                window.location.href = '/'; // Use hard redirect to ensure state is clean
+            }, 1000);
         } catch (err: any) {
             console.error('Error joining org:', err);
             setError(err.message || 'שגיאה בהצטרפות לארגון');
@@ -134,6 +152,12 @@ const JoinPage: React.FC = () => {
                                 <p className="text-xs text-blue-600 font-medium">מחובר כ:</p>
                                 <p className="text-sm font-bold">{user.email}</p>
                             </div>
+                            <button
+                                onClick={() => signOut()}
+                                className="text-xs text-blue-600 underline hover:text-blue-800 transition-colors mr-auto"
+                            >
+                                החלף משתמש
+                            </button>
                         </div>
 
                         <button
@@ -151,7 +175,7 @@ const JoinPage: React.FC = () => {
                                 ) : (
                                     <>
                                         <span>אשר הצטרפות</span>
-                                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                        <Check className="w-5 h-5 group-hover:scale-110 transition-transform" />
                                     </>
                                 )}
                             </div>
@@ -162,11 +186,16 @@ const JoinPage: React.FC = () => {
                         <p className="text-slate-600 mb-6 font-medium">התחבר כדי להשלים את ההצטרפות</p>
                         <button
                             onClick={async () => {
-                                localStorage.setItem('pending_invite_token', token);
+                                console.log('🟢 [JoinPage] Google Login clicked. Saving token:', token);
+                                localStorage.setItem('pending_invite_token', token || '');
+                                console.log('📦 [JoinPage] LocalStorage after set:', localStorage.getItem('pending_invite_token'));
                                 const { error } = await supabase.auth.signInWithOAuth({
                                     provider: 'google',
                                     options: {
-                                        redirectTo: window.location.origin
+                                        redirectTo: window.location.href,
+                                        queryParams: {
+                                            prompt: 'select_account'
+                                        }
                                     }
                                 });
                                 if (error) console.error('Google login error:', error);
@@ -184,7 +213,7 @@ const JoinPage: React.FC = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 
 

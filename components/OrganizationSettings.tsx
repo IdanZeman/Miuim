@@ -527,30 +527,30 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         <div className="h-full bg-slate-50 md:bg-white" dir="rtl">
             {/* === Mobile Layout (< md) === */}
             <div className="md:hidden">
-                {/* 1. Green Header Area */}
-                <div className="bg-emerald-500 pt-8 pb-20 px-4 rounded-b-[2.5rem] shadow-lg relative overflow-hidden">
-                    {/* Organization Brand (Centered & White) */}
+                {/* 1. Clean White Header Area */}
+                <div className="bg-white pt-8 pb-10 px-4 rounded-b-[2.5rem] shadow-sm border-b border-slate-100 relative overflow-hidden">
+                    {/* Organization Brand (Centered) */}
                     <div className="relative z-10 flex flex-col items-center justify-center text-center gap-3 mb-6">
-                        <div className="w-16 h-16 bg-white p-1 rounded-full shadow-md flex items-center justify-center">
-                            <span className="text-3xl font-black text-emerald-600 select-none">
+                        <div className="w-16 h-16 bg-blue-50 p-1 rounded-full border border-blue-100 flex items-center justify-center">
+                            <span className="text-3xl font-black text-blue-600 select-none">
                                 {organization?.name?.charAt(0) || 'O'}
                             </span>
                         </div>
-                        <div className="text-white">
-                            <h1 className="text-2xl font-black tracking-tight leading-tight">{organization?.name}</h1>
-                            <p className="text-emerald-100 text-sm font-medium opacity-90">הגדרות וניהול מערכת</p>
+                        <div>
+                            <h1 className="text-2xl font-black tracking-tight leading-tight text-slate-900">{organization?.name}</h1>
+                            <p className="text-slate-500 text-sm font-medium">הגדרות וניהול מערכת</p>
                         </div>
                     </div>
 
                     {/* Segmented Control Tabs (Pill Shape) */}
-                    <div className="relative z-10 bg-white/20 p-1.5 rounded-full flex backdrop-blur-md border border-white/20 mx-2 shadow-inner">
+                    <div className="relative z-10 bg-slate-50 p-1.5 rounded-full flex border border-slate-200 mx-2">
                         {navigationTabs.map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as any)}
                                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-sm font-bold transition-all ${activeTab === tab.id
-                                    ? 'bg-white text-emerald-700 shadow-sm scale-105'
-                                    : 'text-emerald-50 hover:bg-white/10 opacity-90'
+                                    ? 'bg-white text-slate-800 shadow-sm ring-1 ring-slate-200'
+                                    : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-600'
                                     }`}
                             >
                                 <tab.icon size={16} />
