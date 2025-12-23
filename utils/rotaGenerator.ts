@@ -279,18 +279,42 @@ class TaskDerivedStrategy implements ISchedulingStrategy {
     }
 
     private calculateRequired(tasks: TaskTemplate[]): number {
-        let total = 0;
+        const dailyHours = new Array(7).fill(0); // Sun..Sat
+        let totalWeight = 0;
+        let weightedFactorSum = 0;
+
         tasks.forEach(t => {
             t.segments.forEach(seg => {
+                const hoursPerInstance = seg.requiredPeople * seg.durationHours;
+                // For "Repeat" (24/7), we need to cover 24h.
+                // If it's a single segment marked repeat, it might mean the segment REPEATS back-to-back.
+                const totalDailyHours = seg.isRepeat ? (24 * seg.requiredPeople) : hoursPerInstance;
+                
+                const factor = seg.durationHours / (seg.durationHours + (seg.minRestHoursAfter || 0));
+                
+                // Add to relevant days
                 if (seg.frequency === 'daily' || seg.isRepeat) {
-                    // Formula: (Shift + Rest) / Shift * People
-                    const cycle = seg.durationHours + seg.minRestHoursAfter;
-                    const req = Math.ceil((cycle / seg.durationHours) * seg.requiredPeople);
-                    total += req;
+                    for (let i = 0; i < 7; i++) dailyHours[i] += totalDailyHours;
+                } else if (seg.frequency === 'weekly' && seg.daysOfWeek) {
+                    const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+                    seg.daysOfWeek.forEach(d => {
+                        const idx = days.indexOf(d.toLowerCase());
+                        if (idx !== -1) dailyHours[idx] += totalDailyHours;
+                    });
                 }
+                
+                weightedFactorSum += factor * totalDailyHours;
+                totalWeight += totalDailyHours;
             });
         });
-        return total;
+
+        if (totalWeight === 0) return 0;
+        
+        // Avg Capacity of one person per 24h day (in hours of work)
+        const avgWorkHoursPerDay = (weightedFactorSum / totalWeight) * 24;
+        
+        const dailyReqs = dailyHours.map(h => Math.ceil(h / Math.max(1, avgWorkHoursPerDay)));
+        return Math.max(...dailyReqs);
     }
 }
 

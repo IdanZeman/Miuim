@@ -31,14 +31,17 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     const [items, setItems] = useState<ScheduleItem[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [editItem, setEditItem] = useState<Partial<ScheduleItem>>({});
-    const [isOpen, setIsOpen] = useState(true);
+
     const [filters, setFilters] = useState<{
         mode: 'all' | 'custom';
         general: boolean;
         teams: string[];
         roles: string[];
     }>({ mode: 'all', general: false, teams: [], roles: [] });
+
     const [showFilters, setShowFilters] = useState(false);
+    const [isOpen, setIsOpen] = useState(true);
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const [itemToDeleteId, setItemToDeleteId] = useState<string | null>(null);
 
     const fetchItems = async () => {
@@ -223,14 +226,20 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
         return h * 60 + m;
     };
 
-    const clusters = (() => {
-        if (filteredItems.length === 0) return [];
+    // Timeline Configuration
+    const START_HOUR = 3; // 03:00
+    const END_HOUR = 24;  // 24:00 / 00:00
+    const PX_PER_MIN = 2; // Increased from 2 for visibility
+
+    const timelineData = React.useMemo(() => {
+        if (filteredItems.length === 0) return { items: [], height: 0 };
+
         const sorted = [...filteredItems].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-        const result: { start: number, end: number, items: ScheduleItem[] }[] = [];
+        // 1. Group into Overlap Clusters for Width Calculation
+        const clusters: ScheduleItem[][] = [];
         let currentCluster: ScheduleItem[] = [];
         let clusterEnd = -1;
-        let clusterStart = -1;
 
         sorted.forEach(item => {
             const start = minutesFromMidnight(item.startTime);
@@ -238,25 +247,74 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
 
             if (currentCluster.length === 0) {
                 currentCluster.push(item);
-                clusterStart = start;
                 clusterEnd = end;
             } else {
                 if (start < clusterEnd) {
-                    // Overlap
                     currentCluster.push(item);
                     clusterEnd = Math.max(clusterEnd, end);
                 } else {
-                    // New Cluster
-                    result.push({ start: clusterStart, end: clusterEnd, items: currentCluster });
+                    clusters.push(currentCluster);
                     currentCluster = [item];
-                    clusterStart = start;
                     clusterEnd = end;
                 }
             }
         });
-        if (currentCluster.length > 0) result.push({ start: clusterStart, end: clusterEnd, items: currentCluster });
-        return result;
-    })();
+        if (currentCluster.length > 0) clusters.push(currentCluster);
+
+        // 2. Calculate Layout Props
+        const layoutItems: any[] = [];
+
+        clusters.forEach(cluster => {
+            // Apply Greedy Column Layout to Cluster
+            const columns: ScheduleItem[][] = [];
+            cluster.forEach(item => {
+                const start = minutesFromMidnight(item.startTime);
+                let placed = false;
+                for (let col of columns) {
+                    const lastInCol = col[col.length - 1];
+                    if (minutesFromMidnight(lastInCol.endTime) <= start) {
+                        col.push(item);
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) columns.push([item]);
+            });
+
+            // Map to Absolute Position
+            columns.forEach((col, colIdx) => {
+                col.forEach(item => {
+                    const startMin = minutesFromMidnight(item.startTime);
+                    const endMin = minutesFromMidnight(item.endTime);
+                    const startOffset = startMin - (START_HOUR * 60); // Offset from 06:00
+
+                    const top = startOffset * PX_PER_MIN;
+                    const height = (endMin - startMin) * PX_PER_MIN;
+                    const widthPct = 100 / columns.length;
+                    const leftPct = colIdx * widthPct;
+
+                    layoutItems.push({
+                        ...item,
+                        layout: { top, height, leftPct, widthPct }
+                    });
+                });
+            });
+        });
+
+        const totalMinutes = (END_HOUR - START_HOUR) * 60;
+        return { items: layoutItems, height: totalMinutes * PX_PER_MIN };
+    }, [filteredItems]);
+
+    // Auto-scroll to current time on mount/open
+    useEffect(() => {
+        if (isOpen && scrollContainerRef.current) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            // Scroll to 1 hour before current time (for context)
+            const scrollPx = Math.max(0, (currentHour - 1 - START_HOUR) * 60 * PX_PER_MIN);
+            scrollContainerRef.current.scrollTop = scrollPx;
+        }
+    }, [isOpen, timelineData.height]);
 
     const getItemColor = (item: ScheduleItem) => {
         let rawColor = '';
@@ -312,433 +370,289 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
         return <Shield size={14} />;
     };
 
-    // Helper for duration visualization
-    const getDurationMin = (start: string, end: string) => {
-        const [h1, m1] = start.split(':').map(Number);
-        const [h2, m2] = end.split(':').map(Number);
-        return (h2 * 60 + m2) - (h1 * 60 + m1);
-    };
+
 
     return (
-        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm relative overflow-hidden transition-all duration-300">
-            <div className="flex items-center justify-between mb-6">
-                <button
-                    onClick={() => setIsOpen(!isOpen)}
-                    className="flex items-center gap-3 group text-left"
-                >
-                    <div className={`p-2 rounded-xl transition-colors ${isOpen ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-400 group-hover:text-red-500'}`}>
-                        <Clock size={24} />
+        <div className="w-full relative animate-in fade-in flex flex-col gap-4 transition-all">
+            {/* Minimal Header */}
+            <div
+                className="flex items-center justify-between px-2 cursor-pointer hover:bg-slate-50/50 p-2 rounded-xl transition-colors select-none"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <div className={`p-1.5 rounded-lg transition-colors ${isOpen ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                        <Clock size={20} />
                     </div>
-                    <div>
-                        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            שעון לחימה / סדר יום
-                        </h3>
-                        {!isOpen && items.length > 0 && (
-                            <p className="text-xs text-slate-400 font-medium">
-                                {items.length} אירועים מתוכננים
-                            </p>
-                        )}
-                    </div>
-                    <div className="mr-2 text-slate-300 group-hover:text-slate-500 transition-colors">
-                        {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                    </div>
-                </button>
-
-                <div className="flex items-center gap-2">
+                    סדר יום
+                    {!isOpen && <span className="text-xs font-normal text-slate-400 px-2 py-0.5 bg-slate-100 rounded-full">{timelineData.items.length} אירועים</span>}
+                </h3>
+                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                     {isOpen && (
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`p-2 rounded-full transition-colors relative ${showFilters || filters.mode !== 'all' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400 hover:text-indigo-600'}`}
-                            title="סינון"
+                            className={`p-2 rounded-full transition-colors ${showFilters || filters.mode !== 'all' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100'}`}
                         >
-                            <Filter size={20} />
-                            {filters.mode !== 'all' && <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-indigo-500 rounded-full border-2 border-white"></span>}
+                            <Filter size={18} />
                         </button>
                     )}
-
                     {canEdit && isOpen && (
                         <button
-                            onClick={() => {
-                                setEditItem({ targetType: 'all', startTime: '08:00', endTime: '09:00' });
-                                setIsEditing(true);
-                            }}
-                            className="p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
-                            title="הוסף אירוע"
+                            onClick={() => { setEditItem({ targetType: 'all', startTime: '08:00', endTime: '09:00' }); setIsEditing(true); }}
+                            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 shadow-md shadow-blue-200"
                         >
-                            <Plus size={20} />
+                            <Plus size={18} />
                         </button>
                     )}
+                    <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-slate-400 hover:text-slate-600">
+                        {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    </button>
                 </div>
             </div>
 
+            {/* Collapsible Content */}
             {isOpen && (
-                <div className="animate-in slide-in-from-top-2 duration-300">
+                <div className="animate-in slide-in-from-top-4 duration-300 ease-out">
 
+                    {/* Filters Banner */}
                     {showFilters && (
-                        <div className="mb-6 p-4 bg-slate-50 rounded-xl animate-in slide-in-from-top-1 space-y-3">
+                        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm mb-4 z-20">
                             <div className="flex flex-wrap items-center gap-2">
                                 <span className="text-xs font-bold text-slate-500 ml-2">הצג:</span>
-
-                                {/* All Button */}
-                                <button
-                                    onClick={() => setFilters({ mode: 'all', general: false, teams: [], roles: [] })}
-                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.mode === 'all' ? 'bg-white shadow-sm text-slate-900 ring-1 ring-slate-200' : 'text-slate-500 hover:bg-white/50'}`}
-                                >
-                                    הכל
-                                </button>
-
-                                {/* General Button */}
-                                <button
-                                    onClick={() => setFilters(prev => ({ ...prev, mode: 'custom', general: !prev.general }))}
-                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${filters.mode === 'custom' && filters.general ? 'bg-white shadow-sm text-indigo-700 ring-1 ring-indigo-200' : 'text-slate-500 hover:bg-white/50'}`}
-                                >
-                                    <Globe size={14} /> כללי
-                                </button>
+                                <button onClick={() => setFilters({ mode: 'all', general: false, teams: [], roles: [] })} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.mode === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>הכל</button>
 
                                 <div className="w-px h-4 bg-slate-300 mx-1"></div>
 
-                                {/* Team Select/Toggle */}
                                 {canEdit ? (
-                                    <div className="relative">
-                                        <select
-                                            value=""
-                                            onChange={(e) => {
-                                                const id = e.target.value;
-                                                if (id && !filters.teams.includes(id)) {
-                                                    setFilters(prev => ({ ...prev, mode: 'custom', teams: [...prev.teams, id] }));
-                                                }
-                                            }}
-                                            className="px-3 py-1.5 pr-8 rounded-lg text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-blue-500 transition-shadow bg-transparent text-slate-500 hover:bg-white/50 cursor-pointer"
-                                        >
-                                            <option value="" disabled>+ הוסף צוות</option>
-                                            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                        </select>
-                                        <Users size={14} className="absolute top-1/2 -translate-y-1/2 right-2.5 pointer-events-none opacity-50" />
-                                    </div>
-                                ) : (
-                                    myPerson?.teamId && (
-                                        <button
-                                            onClick={() => setFilters(prev => {
-                                                const id = myPerson.teamId!;
-                                                const isActive = prev.teams.includes(id);
-                                                return {
-                                                    ...prev,
-                                                    mode: 'custom',
-                                                    teams: isActive ? prev.teams.filter(t => t !== id) : [...prev.teams, id]
-                                                };
-                                            })}
-                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${filters.teams.includes(myPerson.teamId) ? 'bg-white shadow-sm text-blue-700 ring-1 ring-slate-200' : 'text-slate-500 hover:bg-white/50'}`}
-                                        >
-                                            <Users size={14} /> הצוות שלי
-                                        </button>
-                                    )
-                                )}
+                                    <>
+                                        {/* Team Selector */}
+                                        <div className="relative group">
+                                            <select
+                                                onChange={(e) => {
+                                                    const id = e.target.value;
+                                                    if (id && !filters.teams.includes(id)) setFilters(p => ({ ...p, mode: 'custom', teams: [...p.teams, id] }));
+                                                }}
+                                                value=""
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            >
+                                                <option value="" disabled>צוות +</option>
+                                                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                            </select>
+                                            <div className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-50 text-slate-600 border border-slate-200 flex items-center gap-2 group-hover:bg-slate-100 group-hover:border-slate-300 transition-all">
+                                                <span>צוות</span>
+                                                <Plus size={14} className="text-slate-400" />
+                                            </div>
+                                        </div>
 
-                                {/* Role Select/Toggle */}
-                                {canEdit ? (
-                                    <div className="relative">
-                                        <select
-                                            value=""
-                                            onChange={(e) => {
-                                                const id = e.target.value;
-                                                if (id && !filters.roles.includes(id)) {
-                                                    setFilters(prev => ({ ...prev, mode: 'custom', roles: [...prev.roles, id] }));
-                                                }
-                                            }}
-                                            className="px-3 py-1.5 pr-8 rounded-lg text-sm font-medium appearance-none outline-none focus:ring-2 focus:ring-purple-500 transition-shadow bg-transparent text-slate-500 hover:bg-white/50 cursor-pointer"
-                                        >
-                                            <option value="" disabled>+ הוסף תפקיד</option>
-                                            {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                                        </select>
-                                        <Shield size={14} className="absolute top-1/2 -translate-y-1/2 right-2.5 pointer-events-none opacity-50" />
-                                    </div>
+                                        {/* Role Selector */}
+                                        <div className="relative group">
+                                            <select
+                                                onChange={(e) => {
+                                                    const id = e.target.value;
+                                                    if (id && !filters.roles.includes(id)) setFilters(p => ({ ...p, mode: 'custom', roles: [...p.roles, id] }));
+                                                }}
+                                                value=""
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            >
+                                                <option value="" disabled>תפקיד +</option>
+                                                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                            </select>
+                                            <div className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-50 text-slate-600 border border-slate-200 flex items-center gap-2 group-hover:bg-slate-100 group-hover:border-slate-300 transition-all">
+                                                <span>תפקיד</span>
+                                                <Plus size={14} className="text-slate-400" />
+                                            </div>
+                                        </div>
+                                    </>
                                 ) : (
-                                    myPerson?.roleId && (
-                                        <button
-                                            onClick={() => setFilters(prev => {
-                                                const id = myPerson.roleId!;
-                                                const isActive = prev.roles.includes(id);
-                                                return {
-                                                    ...prev,
-                                                    mode: 'custom',
-                                                    roles: isActive ? prev.roles.filter(r => r !== id) : [...prev.roles, id]
-                                                };
-                                            })}
-                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${filters.roles.includes(myPerson.roleId) ? 'bg-white shadow-sm text-purple-700 ring-1 ring-slate-200' : 'text-slate-500 hover:bg-white/50'}`}
-                                        >
-                                            <Shield size={14} /> התפקיד שלי
-                                        </button>
-                                    )
+                                    <>
+                                        {myPerson?.teamId && (
+                                            <button onClick={() => setFilters(p => ({ ...p, mode: 'custom', teams: p.teams.includes(myPerson.teamId!) ? p.teams.filter(t => t !== myPerson.teamId) : [...p.teams, myPerson.teamId!] }))} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.teams.includes(myPerson.teamId) ? 'bg-blue-100 text-blue-700' : 'bg-slate-50 text-slate-600'}`}>הצוות שלי</button>
+                                        )}
+                                        {myPerson?.roleId && (
+                                            <button onClick={() => setFilters(p => ({ ...p, mode: 'custom', roles: p.roles.includes(myPerson.roleId!) ? p.roles.filter(r => r !== myPerson.roleId) : [...p.roles, myPerson.roleId!] }))} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.roles.includes(myPerson.roleId) ? 'bg-purple-100 text-purple-700' : 'bg-slate-50 text-slate-600'}`}>התפקיד שלי</button>
+                                        )}
+                                    </>
                                 )}
                             </div>
 
                             {/* Active Chips */}
                             {(filters.teams.length > 0 || filters.roles.length > 0) && (
-                                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/50">
+                                <div className="flex flex-wrap items-center gap-2 pt-3 mt-2 border-t border-slate-100">
                                     {filters.teams.map(tid => {
                                         const team = teams.find(t => t.id === tid);
                                         return (
-                                            <span key={tid} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
-                                                {team?.name || 'Unknown Team'}
-                                                <button onClick={() => setFilters(prev => ({ ...prev, teams: prev.teams.filter(t => t !== tid) }))} className="hover:text-blue-900"><X size={12} /></button>
+                                            <span key={tid} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100 animate-in zoom-in-50">
+                                                {team?.name}
+                                                <button onClick={() => setFilters(prev => ({ ...prev, teams: prev.teams.filter(t => t !== tid) }))} className="hover:bg-blue-200 rounded p-0.5 transition-colors"><X size={12} /></button>
                                             </span>
                                         );
                                     })}
                                     {filters.roles.map(rid => {
                                         const role = roles.find(r => r.id === rid);
                                         return (
-                                            <span key={rid} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs font-medium border border-purple-100">
-                                                {role?.name || 'Unknown Role'}
-                                                <button onClick={() => setFilters(prev => ({ ...prev, roles: prev.roles.filter(r => r !== rid) }))} className="hover:text-purple-900"><X size={12} /></button>
+                                            <span key={rid} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs font-medium border border-purple-100 animate-in zoom-in-50">
+                                                {role?.name}
+                                                <button onClick={() => setFilters(prev => ({ ...prev, roles: prev.roles.filter(r => r !== rid) }))} className="hover:bg-purple-200 rounded p-0.5 transition-colors"><X size={12} /></button>
                                             </span>
                                         );
                                     })}
+                                    <button onClick={() => setFilters({ mode: 'all', general: false, teams: [], roles: [] })} className="text-xs text-slate-400 hover:text-slate-600 underline px-2">נקה הכל</button>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {items.length === 0 && !isEditing ? (
-                        <div className="text-center py-8 text-slate-400">
-                            <p>לא הוגדר סדר יום להיום</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-8 relative pr-4 md:pr-0">
-                            <div className="absolute top-4 bottom-4 right-[7.5rem] w-0.5 bg-slate-100 hidden md:block"></div>
+                    {/* Timeline View - SCROLLABLE & LIMITED HEIGHT */}
+                    <div
+                        ref={scrollContainerRef}
+                        className="relative w-full rounded-2xl bg-white shadow-sm border border-slate-100 overflow-y-auto scroll-smooth"
+                        style={{ height: '400px', maxHeight: '60vh' }}
+                    >
+                        <div className="relative w-full" style={{ height: `${Math.max(timelineData.height, 400)}px` }}>
+                            {/* Hour Grid */}
+                            {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
+                                <div key={h} className="absolute w-full border-t border-slate-100" style={{ top: `${(h - START_HOUR) * 60 * PX_PER_MIN}px` }}>
+                                    <span className="absolute -top-3 right-3 text-xs font-mono font-bold text-slate-300 bg-white px-1 z-10">
+                                        {h.toString().padStart(2, '0')}:00
+                                    </span>
+                                </div>
+                            ))}
 
-                            {baseItems.length === 0 && items.length > 0 && !canEdit && (
-                                <div className="text-center py-8 text-slate-400">
-                                    <p>אין אירועים רלוונטיים עבורך היום</p>
+                            {/* Current Time Indicator Line */}
+                            {(() => {
+                                const now = new Date();
+                                const currentMin = now.getHours() * 60 + now.getMinutes();
+                                const startMin = START_HOUR * 60;
+                                if (currentMin >= startMin && currentMin <= END_HOUR * 60) {
+                                    const top = (currentMin - startMin) * PX_PER_MIN;
+                                    return (
+                                        <div className="absolute w-full border-t-2 border-red-400 z-30 pointer-events-none flex items-center" style={{ top: `${top}px` }}>
+                                            <div className="absolute right-0 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500"></div>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
+
+                            {/* Empty State */}
+                            {timelineData.items.length === 0 && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pointer-events-none">
+                                    <Clock size={48} className="opacity-20 mb-2" />
+                                    <p className="text-sm font-medium">אין אירועים בטווח הזמן הזה</p>
                                 </div>
                             )}
 
-                            {filteredItems.length === 0 && baseItems.length > 0 && (
-                                <div className="text-center py-8 text-slate-400">
-                                    <p>לא נמצאו אירועים התואמים לסינון</p>
-                                </div>
-                            )}
-
-                            {clusters.map((cluster, cIdx) => {
-                                const height = (cluster.end - cluster.start) * 2; // Pixel per minute
-
-                                // Calculate Columns greedy
-                                const columns: ScheduleItem[][] = [];
-                                cluster.items.forEach(item => {
-                                    const start = minutesFromMidnight(item.startTime);
-                                    let placed = false;
-                                    for (let col of columns) {
-                                        const lastInCol = col[col.length - 1];
-                                        if (minutesFromMidnight(lastInCol.endTime) <= start) {
-                                            col.push(item);
-                                            placed = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!placed) columns.push([item]);
-                                });
+                            {/* Items */}
+                            {timelineData.items.map(item => {
+                                const { top, height, leftPct, widthPct } = item.layout;
+                                const itemColor = getItemColor(item);
+                                const isShort = height < 50;
 
                                 return (
-                                    <div key={cIdx} className="relative mb-8" style={{ height: `${Math.max(height, 80)}px` }}>
-                                        {/* Time Label */}
-                                        <div className="flex flex-col items-end w-12 md:w-20 flex-shrink-0 absolute right-0 -top-2 md:-top-3 text-right">
-                                            <span className="font-mono font-bold text-xs md:text-lg text-slate-600">
-                                                {cluster.items[0].startTime}
-                                            </span>
-                                        </div>
+                                    <div
+                                        key={item.id}
+                                        className="absolute rounded-lg border-l-[3px] shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden group hover:z-50"
+                                        style={{
+                                            top: `${top}px`,
+                                            height: `${height}px`,
+                                            right: `${leftPct}%`,
+                                            width: `${widthPct}%`,
+                                            backgroundColor: itemColor + '15', // 10% opacity
+                                            borderColor: itemColor
+                                        }}
+                                        onClick={() => { if (canEdit) { setEditItem(item); setIsEditing(true); } }}
+                                    >
+                                        <div className={`h-full w-full p-1.5 flex ${isShort ? 'flex-row items-center gap-2' : 'flex-col justify-start'}`}>
+                                            <div className={`flex items-center gap-1 shrink-0 ${isShort ? '' : 'mb-0.5'}`}>
+                                                <div style={{ color: itemColor }}>
+                                                    {getTargetIcon(item.targetType, item.targetId)}
+                                                </div>
+                                                {!isShort && (
+                                                    <span className="text-[10px] font-mono font-bold text-slate-400 leading-none">
+                                                        {item.startTime}
+                                                    </span>
+                                                )}
+                                            </div>
 
-                                        {/* Items Grid */}
-                                        <div className="mr-14 md:mr-24 relative h-full">
-                                            {columns.map((col, colIdx) => (
-                                                col.map(item => {
-                                                    const itemStart = minutesFromMidnight(item.startTime);
-                                                    const itemEnd = minutesFromMidnight(item.endTime);
-
-                                                    const top = (itemStart - cluster.start) * 2;
-                                                    const h = (itemEnd - itemStart) * 2;
-                                                    const gap = columns.length > 1 ? 2 : 0; // 2% gap if multiple columns
-                                                    const width = (100 - (columns.length - 1) * gap) / columns.length;
-                                                    const right = colIdx * (width + gap);
-
-                                                    const now = new Date();
-                                                    const currentHmm = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-                                                    const isActive = currentHmm >= item.startTime && currentHmm <= item.endTime;
-                                                    const itemColor = getItemColor(item);
-
-                                                    // Helper to apply transparency to hex colors
-                                                    const hexToRgba = (hex: string, alpha: number) => {
-                                                        if (!hex || !hex.startsWith('#')) return hex;
-                                                        const r = parseInt(hex.slice(1, 3), 16);
-                                                        const g = parseInt(hex.slice(3, 5), 16);
-                                                        const b = parseInt(hex.slice(5, 7), 16);
-                                                        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-                                                    };
-
-                                                    const cardBg = hexToRgba(itemColor, isActive ? 0.15 : 0.05);
-                                                    const cardBorder = itemColor;
-                                                    const textDark = hexToRgba(itemColor, 1);
-
-                                                    return (
-                                                        <div
-                                                            key={item.id}
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: `${top}px`,
-                                                                height: `${Math.max(h, 60)}px`,
-                                                                width: `${width}%`,
-                                                                right: `${right}%`,
-                                                                zIndex: isActive ? 20 : 10,
-                                                                backgroundColor: cardBg,
-                                                                border: `${isActive ? '3px' : '2px'} solid ${cardBorder}`,
-                                                                boxShadow: isActive ? `0 10px 25px ${hexToRgba(itemColor, 0.3)}` : 'none',
-                                                            }}
-                                                            className={`group flex flex-col p-3 pr-7 rounded-2xl transition-all overflow-hidden ${isActive ? 'scale-[1.03]' : 'hover:scale-[1.01]'}`}
-                                                        >
-                                                            {/* Color Strip Indicator */}
-                                                            <div
-                                                                className="absolute top-0 right-0 bottom-0 w-3 shadow-inner z-10"
-                                                                style={{ backgroundColor: itemColor }}
-                                                            />
-
-                                                            <div className="flex justify-between items-start gap-1 relative z-20">
-                                                                <p
-                                                                    className="font-bold text-sm leading-tight truncate"
-                                                                    style={{ color: isActive ? '#000' : '#1e293b' }}
-                                                                >
-                                                                    {item.description}
-                                                                </p>
-
-                                                                <span className="text-[10px] font-mono opacity-70 shrink-0" style={{ color: textDark }}>
-                                                                    {item.startTime}-{item.endTime}
-                                                                </span>
-                                                            </div>
-
-                                                            <div className="mt-1 flex items-center gap-1.5 text-[10px] font-bold relative z-20" style={{ color: textDark }}>
-                                                                {getTargetIcon(item.targetType, item.targetId)}
-                                                                <span className="truncate">{getTargetLabel(item)}</span>
-                                                            </div>
-
-                                                            {canEdit && (
-                                                                <div className="absolute bottom-1 left-1 flex gap-1 bg-white/90 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-30">
-                                                                    <button onClick={(e) => { e.stopPropagation(); handleDuplicate(item); }} className="p-1 hover:bg-slate-100 rounded text-slate-500"><Copy size={12} /></button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); setEditItem(item); setIsEditing(true); }} className="p-1 hover:bg-slate-100 rounded text-slate-500"><Edit2 size={12} /></button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); setItemToDeleteId(item.id); }} className="p-1 hover:bg-red-50 rounded text-red-500"><Trash2 size={12} /></button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })
-                                            ))}
+                                            <div className="min-w-0 flex-1">
+                                                <h4 className={`font-bold leading-none text-slate-900 ${isShort ? 'text-xs truncate' : 'text-sm md:text-base line-clamp-3'}`}>
+                                                    {item.description}
+                                                </h4>
+                                                {isShort && (
+                                                    <span className="text-[10px] text-slate-400 font-mono ml-1">{item.startTime}</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
-                    )}
+                    </div>
                 </div>
             )}
 
-            {/* Edit Modal / Inline Form */}
+            {/* Modals */}
             {isEditing && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                            <h3 className="font-bold text-lg">{editItem.id ? 'עריכת אירוע' : 'אירוע חדש'}</h3>
+                            <h3 className="font-bold text-lg text-slate-800">{editItem.id ? 'עריכת אירוע' : 'אירוע חדש'}</h3>
                             <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-xs font-bold text-slate-500">התחלה</label>
-                                    <input type="time" value={editItem.startTime || ''} onChange={e => setEditItem({ ...editItem, startTime: e.target.value })} className="w-full p-2 border rounded-lg" />
+                                    <input type="time" value={editItem.startTime || ''} onChange={e => setEditItem({ ...editItem, startTime: e.target.value })} className="w-full p-2 border rounded-lg bg-slate-50 focus:bg-white transition-colors" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-xs font-bold text-slate-500">סיום</label>
-                                    <input type="time" value={editItem.endTime || ''} onChange={e => setEditItem({ ...editItem, endTime: e.target.value })} className="w-full p-2 border rounded-lg" />
+                                    <input type="time" value={editItem.endTime || ''} onChange={e => setEditItem({ ...editItem, endTime: e.target.value })} className="w-full p-2 border rounded-lg bg-slate-50 focus:bg-white transition-colors" />
                                 </div>
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500">תיאור האירוע</label>
-                                <input type="text" value={editItem.description || ''} onChange={e => setEditItem({ ...editItem, description: e.target.value })} className="w-full p-2 border rounded-lg" placeholder="לדוגמה: מסדר בוקר" />
+                                <label className="text-xs font-bold text-slate-500">תיאור</label>
+                                <input type="text" value={editItem.description || ''} onChange={e => setEditItem({ ...editItem, description: e.target.value })} className="w-full p-2 border rounded-lg" placeholder="זמן מנוחה / שמירה..." />
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500">מי רואה?</label>
+                                <label className="text-xs font-bold text-slate-500">שיוך</label>
                                 <div className="grid grid-cols-3 gap-2 mb-2">
-                                    <button
-                                        onClick={() => setEditItem({ ...editItem, targetType: 'all', targetId: null })}
-                                        className={`p-2 rounded-lg border text-sm font-medium transition-all ${editItem.targetType === 'all' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-slate-200 hover:bg-slate-50'}`}
-                                    >
-                                        כולם
-                                    </button>
-                                    <button
-                                        onClick={() => setEditItem({ ...editItem, targetType: 'team', targetId: teams[0]?.id || null })}
-                                        className={`p-2 rounded-lg border text-sm font-medium transition-all ${editItem.targetType === 'team' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-slate-200 hover:bg-slate-50'}`}
-                                    >
-                                        צוות
-                                    </button>
-                                    <button
-                                        onClick={() => setEditItem({ ...editItem, targetType: 'role', targetId: roles[0]?.id || null })}
-                                        className={`p-2 rounded-lg border text-sm font-medium transition-all ${editItem.targetType === 'role' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-slate-200 hover:bg-slate-50'}`}
-                                    >
-                                        תפקיד
-                                    </button>
+                                    <button onClick={() => setEditItem({ ...editItem, targetType: 'all', targetId: null })} className={`p-2 rounded-lg text-xs font-bold border ${editItem.targetType === 'all' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:bg-slate-50'}`}>כולם</button>
+                                    <button onClick={() => setEditItem({ ...editItem, targetType: 'team', targetId: teams[0]?.id || null })} className={`p-2 rounded-lg text-xs font-bold border ${editItem.targetType === 'team' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:bg-slate-50'}`}>צוות</button>
+                                    <button onClick={() => setEditItem({ ...editItem, targetType: 'role', targetId: roles[0]?.id || null })} className={`p-2 rounded-lg text-xs font-bold border ${editItem.targetType === 'role' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:bg-slate-50'}`}>תפקיד</button>
                                 </div>
-
-                                {editItem.targetType === 'team' && (
+                                {editItem.targetType !== 'all' && (
                                     <select
                                         value={editItem.targetId || ''}
                                         onChange={e => setEditItem({ ...editItem, targetId: e.target.value })}
-                                        className="w-full p-2 border rounded-lg text-sm"
+                                        className="w-full p-2 border rounded-lg text-sm bg-slate-50"
                                     >
-                                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                    </select>
-                                )}
-                                {editItem.targetType === 'role' && (
-                                    <select
-                                        value={editItem.targetId || ''}
-                                        onChange={e => setEditItem({ ...editItem, targetId: e.target.value })}
-                                        className="w-full p-2 border rounded-lg text-sm"
-                                    >
-                                        {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                        {(editItem.targetType === 'team' ? teams : roles).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                     </select>
                                 )}
                             </div>
                         </div>
-                        <div className="p-4 border-t bg-slate-50 flex gap-2">
-                            <button onClick={() => setIsEditing(false)} className="flex-1 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-lg transition-colors">ביטול</button>
-                            <button onClick={handleSaveItem} className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">שמור אירוע</button>
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+                            {editItem.id && (
+                                <button onClick={() => { setItemToDeleteId(editItem.id!); setIsEditing(false); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={20} /></button>
+                            )}
+                            <div className="flex-1"></div>
+                            <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-200 rounded-lg font-bold text-sm">ביטול</button>
+                            <button onClick={handleSaveItem} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700">שמור</button>
                         </div>
                     </div>
                 </div>
             )}
-            {/* Delete Confirmation Modal */}
+
             {itemToDeleteId && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="p-8 text-center">
-                            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                <AlertTriangle size={32} />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">מחיקת אירוע</h3>
-                            <p className="text-slate-500">האם אתה בטוח שברצונך למחוק את האירוע הזה? פעולה זו אינה ניתנת לביטול.</p>
-                        </div>
-                        <div className="p-4 bg-slate-50 flex gap-3">
-                            <button
-                                onClick={() => setItemToDeleteId(null)}
-                                className="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition-colors"
-                            >
-                                ביטול
-                            </button>
-                            <button
-                                onClick={() => {
-                                    handleDelete(itemToDeleteId);
-                                    setItemToDeleteId(null);
-                                }}
-                                className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-lg shadow-red-200"
-                            >
-                                כן, מחק
-                            </button>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95">
+                        <h3 className="font-bold text-lg text-slate-800 mb-2">מחיקת אירוע?</h3>
+                        <p className="text-slate-500 mb-6">פעולה זו לא ניתנת לביטול.</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setItemToDeleteId(null)} className="flex-1 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200">ביטול</button>
+                            <button onClick={() => { handleDelete(itemToDeleteId); setItemToDeleteId(null); }} className="flex-1 py-2 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-200 hover:bg-red-600">מחק</button>
                         </div>
                     </div>
                 </div>

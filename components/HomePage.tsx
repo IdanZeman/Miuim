@@ -4,7 +4,8 @@ import { Shift, TaskTemplate, Person, Team, Role } from '../types';
 import { WarClock } from './WarClock';
 import { supabase } from '../services/supabaseClient';
 import { differenceInHours, addDays, isSameDay } from 'date-fns'; // You might need to install date-fns or use native Intl
-import { Clock, Calendar, CheckCircle2, Moon } from 'lucide-react'; // Removing unused icons if any. Sun, ArrowLeft, AlertCircle were unused?
+import { Clock, Calendar, CheckCircle2, Moon } from 'lucide-react';
+import * as AllIcons from 'lucide-react';
 import { logger } from '../services/loggingService';
 
 interface HomePageProps {
@@ -125,65 +126,49 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                 </p>
             </div>
 
-            {/* Active Shift Card - Full Width at Top of Content */}
+            {/* Active Shift Card - Compact Banner */}
             {activeShift ? (
                 <div
                     onClick={() => onNavigate('dashboard', activeShift.start)}
-                    className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden group mb-8 cursor-pointer hover:shadow-2xl transition-all hover:scale-[1.01]"
+                    className="bg-blue-600 rounded-2xl p-4 text-white shadow-lg shadow-blue-200 mb-6 flex items-center justify-between gap-4 cursor-pointer hover:bg-blue-700 transition-all"
                 >
-                    <div className="absolute top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-
-                    <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div>
-                            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold mb-3 border border-white/20">
-                                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                                משמרת נוכחית
+                    <div className="flex items-center gap-4 overflow-hidden">
+                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm shrink-0">
+                            {activeShift.task?.icon && (AllIcons as any)[activeShift.task.icon] ? (
+                                React.createElement((AllIcons as any)[activeShift.task.icon], { size: 24, className: "text-white" })
+                            ) : (
+                                <Clock size={24} className="text-white" />
+                            )}
+                        </div>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.6)]"></span>
+                                <h3 className="text-lg font-bold truncate leading-tight">{activeShift.task?.name}</h3>
                             </div>
-                            <h3 className="text-3xl md:text-4xl font-bold mb-2">{activeShift.task?.name}</h3>
-                            <p className="text-blue-100 text-xl font-medium">
-                                {activeShift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {activeShift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                            <p className="text-blue-100 text-sm font-medium flex items-center gap-2">
+                                <span>{activeShift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {activeShift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                                <span className="w-1 h-1 bg-blue-300 rounded-full"></span>
+                                <span className="font-mono">
+                                    {(() => {
+                                        const diff = activeShift.end.getTime() - currentTime.getTime();
+                                        if (diff <= 0) return "00:00";
+                                        const h = Math.floor(diff / (1000 * 60 * 60));
+                                        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                                        return `${h}:${m.toString().padStart(2, '0')}`;
+                                    })()} נותר
+                                </span>
                             </p>
-                        </div>
-
-                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 min-w-[160px] text-center border border-white/10">
-                            <p className="text-blue-100 text-xs mb-1">זמן שנותר למשמרת</p>
-                            <p className="text-3xl font-mono font-bold tracking-wider">
-                                {(() => {
-                                    const diff = activeShift.end.getTime() - currentTime.getTime();
-                                    if (diff <= 0) return "00:00";
-                                    const h = Math.floor(diff / (1000 * 60 * 60));
-                                    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                                    return `${h}:${m.toString().padStart(2, '0')}`;
-                                })()}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="mt-8 relative z-10">
-                        <div className="flex justify-between text-xs text-blue-200 mb-2 font-medium">
-                            <span>התחלה: {activeShift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                            <span>סיום: {activeShift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                        <div className="h-3 bg-black/20 rounded-full overflow-hidden backdrop-blur-sm">
-                            <div
-                                className="h-full bg-white/90 rounded-full transition-all duration-1000 ease-linear shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-                                style={{
-                                    width: `${Math.min(100, Math.max(0, ((currentTime.getTime() - activeShift.start.getTime()) / (activeShift.end.getTime() - activeShift.start.getTime())) * 100))}%`
-                                }}
-                            ></div>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="bg-white border border-slate-100 p-8 rounded-3xl flex flex-col md:flex-row items-center gap-6 shadow-sm mb-8 text-center md:text-right">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 flex-shrink-0">
-                        <Moon size={32} />
+                <div className="bg-white border border-slate-100 p-4 rounded-2xl flex items-center gap-4 shadow-sm mb-6">
+                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 shrink-0">
+                        <Moon size={20} />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-slate-800 mb-1">אין משמרת פעילה כרגע</h3>
-                        <p className="text-slate-500">זה הזמן לנוח ולצבור כוחות למשמרת הבאה.</p>
+                        <h3 className="text-sm font-bold text-slate-800">אין משמרת פעילה</h3>
+                        <p className="text-xs text-slate-500">זמן לנוח.</p>
                     </div>
                 </div>
             )}

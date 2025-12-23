@@ -36,6 +36,8 @@ const DEFAULT_PERMISSIONS: UserPermissions = {
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 
+import { PermissionEditorContent } from './PermissionEditorContent';
+
 export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onClose, user: targetUser, onSave, teams, templates = [], onManageTemplates }) => {
     const [permissions, setPermissions] = useState<UserPermissions>(targetUser.permissions || DEFAULT_PERMISSIONS);
     const [saving, setSaving] = useState(false);
@@ -88,24 +90,6 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
         setPermissions(newPerms);
     };
 
-    const handleScreenChange = (screenId: ViewMode, level: AccessLevel) => {
-        setPermissions(prev => ({
-            ...prev,
-            screens: {
-                ...prev.screens,
-                [screenId]: level
-            }
-        }));
-    };
-
-    const handleSetAllScreens = (level: AccessLevel) => {
-        const newScreens: Partial<Record<ViewMode, AccessLevel>> = {};
-        SCREENS.forEach(s => {
-            newScreens[s.id] = level;
-        });
-        setPermissions(prev => ({ ...prev, screens: newScreens }));
-    };
-
     const handleSave = async () => {
         setSaving(true);
         try {
@@ -116,17 +100,6 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
         } finally {
             setSaving(false);
         }
-    };
-
-    const toggleTeam = (teamId: string) => {
-        setPermissions(prev => {
-            const current = prev.allowedTeamIds || [];
-            if (current.includes(teamId)) {
-                return { ...prev, allowedTeamIds: current.filter(id => id !== teamId) };
-            } else {
-                return { ...prev, allowedTeamIds: [...current, teamId] };
-            }
-        });
     };
 
     if (!isOpen) return null;
@@ -227,139 +200,8 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                     )}
                 </section>
 
-                {/* Data Scope */}
-                <section className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <Globe size={14} />
-                        היקף נתונים
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                        <label className={`cursor-pointer p-3 md:p-4 rounded-xl border-2 transition-all ${permissions.dataScope === 'organization' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
-                            <input type="radio" name="scope" className="sr-only" checked={permissions.dataScope === 'organization'} onChange={() => setPermissions(p => ({ ...p, dataScope: 'organization' }))} />
-                            <div className="flex items-center gap-2 mb-1">
-                                <Globe className={`w-5 h-5 ${permissions.dataScope === 'organization' ? 'text-blue-600' : 'text-slate-400'}`} />
-                                <span className="font-bold text-slate-800 text-sm md:text-base">כל הארגון</span>
-                            </div>
-                            <p className="text-xs text-slate-500">גישה לכל נתוני הארגון, הצוותים והמשתמשים.</p>
-                        </label>
-
-                        <label className={`cursor-pointer p-3 md:p-4 rounded-xl border-2 transition-all ${permissions.dataScope === 'my_team' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
-                            <input type="radio" name="scope" className="sr-only" checked={permissions.dataScope === 'my_team'} onChange={() => setPermissions(p => ({ ...p, dataScope: 'my_team' }))} />
-                            <div className="flex items-center gap-2 mb-1">
-                                <Shield className={`w-5 h-5 ${permissions.dataScope === 'my_team' ? 'text-blue-600' : 'text-slate-400'}`} />
-                                <span className="font-bold text-slate-800 text-sm md:text-base">הצוות שלי</span>
-                            </div>
-                            <p className="text-xs text-slate-500">גישה אוטומטית לצוות המשויך למשתמש.</p>
-                        </label>
-
-                        <label className={`cursor-pointer p-3 md:p-4 rounded-xl border-2 transition-all ${permissions.dataScope === 'team' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
-                            <input type="radio" name="scope" className="sr-only" checked={permissions.dataScope === 'team'} onChange={() => setPermissions(p => ({ ...p, dataScope: 'team' }))} />
-                            <div className="flex items-center gap-2 mb-1">
-                                <Users className={`w-5 h-5 ${permissions.dataScope === 'team' ? 'text-blue-600' : 'text-slate-400'}`} />
-                                <span className="font-bold text-slate-800 text-sm md:text-base">צוותים ספציפיים</span>
-                            </div>
-                            <p className="text-xs text-slate-500">בחירה ידנית של צוותים מורשים.</p>
-                        </label>
-
-                        <label className={`cursor-pointer p-3 md:p-4 rounded-xl border-2 transition-all ${permissions.dataScope === 'personal' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
-                            <input type="radio" name="scope" className="sr-only" checked={permissions.dataScope === 'personal'} onChange={() => setPermissions(p => ({ ...p, dataScope: 'personal' }))} />
-                            <div className="flex items-center gap-2 mb-1">
-                                <Lock className={`w-5 h-5 ${permissions.dataScope === 'personal' ? 'text-blue-600' : 'text-slate-400'}`} />
-                                <span className="font-bold text-slate-800 text-sm md:text-base">אישי בלבד</span>
-                            </div>
-                            <p className="text-xs text-slate-500">המשתמש רואה רק את הנתונים המשויכים אליו.</p>
-                        </label>
-                    </div>
-
-                    {/* Team Selector - Only if Scope is Team */}
-                    {permissions.dataScope === 'team' && (
-                        <div className="mt-4 p-3 md:p-4 bg-slate-50 rounded-xl border border-slate-200 animate-in slide-in-from-top-2">
-                            <h4 className="text-sm font-bold text-slate-700 mb-2">בחר צוותים מורשים:</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {teams.map(team => (
-                                    <button
-                                        key={team.id}
-                                        onClick={() => toggleTeam(team.id)}
-                                        className={`px-3 py-1.5 rounded-full text-xs md:text-sm font-bold transition-all border ${(permissions.allowedTeamIds || []).includes(team.id)
-                                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                            : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                                            }`}
-                                    >
-                                        {team.name}
-                                        {(permissions.allowedTeamIds || []).includes(team.id) && <Check size={14} className="inline mr-1" />}
-                                    </button>
-                                ))}
-                                {teams.length === 0 && <p className="text-sm text-slate-400">לא הוגדרו צוותים בארגון</p>}
-                            </div>
-                        </div>
-                    )}
-                </section>
-
-                {/* Screen Actions Table */}
-                <section>
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">הרשאות מסכים</h3>
-                    <div className="bg-white border rounded-xl overflow-hidden shadow-sm overflow-x-auto">
-                        <table className="w-full text-right min-w-[500px]">
-                            <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
-                                <tr>
-                                    <th className="px-4 py-3 border-b whitespace-nowrap">מסך</th>
-                                    {['none', 'view', 'edit'].map(lvl => (
-                                        <th key={lvl} className="px-4 py-3 border-b text-center w-24 md:w-32 whitespace-nowrap">
-                                            <div className="flex flex-col items-center gap-1">
-                                                <span>{lvl === 'none' ? 'הסתרה מלאה' : lvl === 'view' ? 'צפייה בלבד' : 'עריכה מלאה'}</span>
-                                                <button
-                                                    onClick={() => handleSetAllScreens(lvl as any)}
-                                                    className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] text-blue-600 hover:bg-blue-50 transition-colors shadow-sm font-black"
-                                                >
-                                                    בחר הכל
-                                                </button>
-                                            </div>
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {SCREENS.map((screen) => {
-                                    const currentLevel = permissions.screens[screen.id] || 'none';
-                                    return (
-                                        <tr key={screen.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-4 py-3 font-medium text-slate-700 text-sm md:text-base">{screen.label}</td>
-
-                                            <td className="px-4 py-3 text-center">
-                                                <input
-                                                    type="radio"
-                                                    name={`screen-${screen.id}`}
-                                                    checked={currentLevel === 'none'}
-                                                    onChange={() => handleScreenChange(screen.id, 'none')}
-                                                    className="w-4 h-4 text-red-600 focus:ring-red-500 cursor-pointer"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                <input
-                                                    type="radio"
-                                                    name={`screen-${screen.id}`}
-                                                    checked={currentLevel === 'view'}
-                                                    onChange={() => handleScreenChange(screen.id, 'view')}
-                                                    className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                <input
-                                                    type="radio"
-                                                    name={`screen-${screen.id}`}
-                                                    checked={currentLevel === 'edit'}
-                                                    onChange={() => handleScreenChange(screen.id, 'edit')}
-                                                    className="w-4 h-4 text-green-600 focus:ring-green-500 cursor-pointer"
-                                                />
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
+                <PermissionEditorContent permissions={permissions} setPermissions={setPermissions} teams={teams} />
             </div>
-        </Modal >
+        </Modal>
     );
 };

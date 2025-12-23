@@ -12,6 +12,7 @@ import { ConfirmationModal } from './ConfirmationModal';
 import { logger } from '../services/loggingService';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { Select } from './ui/Select';
+import { PermissionEditorContent } from './PermissionEditorContent';
 
 const canManageOrganization = (role: UserRole) => {
     return role === 'admin';
@@ -121,7 +122,7 @@ const RoleTemplateManager: React.FC<{
                     onClick={() => setIsCreating(true)}
                     className="shadow-md"
                 >
-                    תבנית חדשה
+                    <span className="hidden md:inline">תבנית חדשה</span>
                 </Button>
             </div>
 
@@ -211,128 +212,7 @@ const TemplateEditorModal: React.FC<{
     );
 };
 
-// Extracted Permission Editor Logic to share between Profile and Template
-const PermissionEditorContent: React.FC<{
-    permissions: UserPermissions;
-    setPermissions: React.Dispatch<React.SetStateAction<UserPermissions>>;
-    teams: Team[];
-}> = ({ permissions, setPermissions, teams }) => {
-    const setAllScreens = (lvl: 'none' | 'view' | 'edit') => {
-        const nextScreens: any = {};
-        SCREENS.forEach(s => {
-            nextScreens[s.id] = lvl;
-        });
-        setPermissions(prev => ({
-            ...prev,
-            screens: nextScreens
-        }));
-    };
 
-    const toggleTeam = (teamId: string) => {
-        const current = permissions.allowedTeamIds || [];
-        setPermissions(prev => ({
-            ...prev,
-            allowedTeamIds: current.includes(teamId)
-                ? current.filter(id => id !== teamId)
-                : [...current, teamId]
-        }));
-    };
-
-    return (
-        <div className="space-y-8">
-            <section className="space-y-4">
-                <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <Globe size={14} />
-                    היקף נתונים (Scope)
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    {['organization', 'my_team', 'team', 'personal'].map((s) => (
-                        <label key={s} className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${permissions.dataScope === s ? 'border-blue-500 bg-blue-50' : 'border-slate-100'}`}>
-                            <input type="radio" className="sr-only" checked={permissions.dataScope === s} onChange={() => setPermissions(p => ({ ...p, dataScope: s as any }))} />
-                            <div className="font-black text-slate-800 mb-1">
-                                {s === 'organization' && 'כל הארגון'}
-                                {s === 'my_team' && 'הצוות שלי'}
-                                {s === 'team' && 'צוותים נבחרים'}
-                                {s === 'personal' && 'אישי'}
-                            </div>
-                            <p className="text-[10px] text-slate-500 font-bold leading-tight">
-                                {s === 'organization' && 'גישה לכל נתוני היחידה'}
-                                {s === 'my_team' && 'גישה אוטומטית לצוות המשויך'}
-                                {s === 'team' && 'ניהול ידני של הרשאות צוות'}
-                                {s === 'personal' && 'רק המידע המשויך למשתמש'}
-                            </p>
-                        </label>
-                    ))}
-                </div>
-                {permissions.dataScope === 'team' && (
-                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 min-h-[60px] items-center">
-                        {teams.length > 0 ? (
-                            teams.map(t => (
-                                <button key={t.id} onClick={() => toggleTeam(t.id)} className={`px-4 py-1.5 rounded-full text-xs font-black transition-all border ${permissions.allowedTeamIds?.includes(t.id) ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'}`}>
-                                    {t.name}
-                                </button>
-                            ))
-                        ) : (
-                            <p className="text-sm text-slate-400 font-bold italic w-full text-center">לא נמצאו צוותים בארגון...</p>
-                        )}
-                    </div>
-                )}
-            </section>
-
-            <section>
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider">הרשאות מסכים</h3>
-                </div>
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                    <table className="w-full text-right">
-                        <thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase">
-                            <tr>
-                                <th className="px-4 py-3 border-b">מסך</th>
-                                {['none', 'view', 'edit'].map(lvl => (
-                                    <th key={lvl} className="px-4 py-3 border-b text-center">
-                                        <div className="flex flex-col items-center gap-1">
-                                            <span>{lvl === 'none' ? 'חסום' : lvl === 'view' ? 'צפייה' : 'עריכה'}</span>
-                                            <button
-                                                onClick={() => setAllScreens(lvl as any)}
-                                                className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
-                                            >
-                                                בחר הכל
-                                            </button>
-                                        </div>
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {SCREENS.map(screen => (
-                                <tr key={screen.id}>
-                                    <td className="px-4 py-3 flex items-center gap-2 font-bold text-slate-700">
-                                        <screen.icon size={16} className="text-slate-400" />
-                                        {screen.label}
-                                    </td>
-                                    {['none', 'view', 'edit'].map(lvl => (
-                                        <td key={lvl} className="px-4 py-3 text-center">
-                                            <input
-                                                type="radio"
-                                                className="w-4 h-4"
-                                                checked={(permissions.screens[screen.id] || 'none') === lvl}
-                                                onChange={() => setPermissions(prev => ({
-                                                    ...prev,
-                                                    screens: { ...prev.screens, [screen.id]: lvl as any }
-                                                }))}
-                                            />
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-        </div>
-    );
-};
 const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId }) => {
     const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
@@ -448,7 +328,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
             </div>
             <p className="text-slate-400 text-xs md:text-sm -mt-2">הגדרת משמרת לילה מסייעת לאלגוריתם לחשב את קושי המשימות בשיבוץ.</p>
 
-            <div className="border-t border-slate-100 pt-4 md:pt-6">
+            <div className="hidden md:block border-t border-slate-100 pt-4 md:pt-6">
                 <label className="text-sm font-bold text-slate-700 block mb-2">מטרת השיבוץ (ברירת מחדל)</label>
                 <div className="flex bg-slate-50 p-1 rounded-lg gap-2 mb-4 max-w-2xl">
                     <button
@@ -473,6 +353,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                         <span className="text-[10px] font-normal opacity-70">איוש כל המשימות</span>
                     </button>
                 </div>
+
 
                 <Input
                     type="number"

@@ -354,8 +354,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto h-[calc(100vh-140px)] flex flex-col relative">
-            {/* Header */}
-            <div className="bg-white rounded-xl shadow-portal p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 transition-all">
+            {/* Header - Hidden on mobile in calendar view to save space (native feel) */}
+            <div className={`bg-white rounded-xl shadow-portal p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 transition-all ${viewMode === 'calendar' ? 'hidden md:flex' : 'flex'}`}>
                 <div className="text-center md:text-right w-full md:w-auto">
                     <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center justify-center md:justify-start gap-2">
                         <Calendar className="text-idf-green" />
@@ -377,7 +377,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             title="מחולל הסבבים"
                         >
                             <Sparkles size={16} />
-                            <span>מחולל הסבבים</span>
+                            <span className="hidden md:inline">מחולל הסבבים</span>
                         </button>
                     )}
                     <button
@@ -386,7 +386,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         title="ייצוא ל-Excel"
                     >
                         <Calendar size={16} />
-                        <span>{viewMode === 'calendar' ? 'ייצוא חודשי' : 'ייצוא יומי'}</span>
+                        <span className="hidden md:inline">{viewMode === 'calendar' ? 'ייצוא' : 'ייצוא יומי'}</span>
                     </button>
                     {/* Buttons moved to secondary toolbar */}
                 </div>
@@ -394,7 +394,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
             {/* Bulk Actions Header - Only visible in bulk mode */}
             {isBulkMode && (
-                <div className="bg-blue-600 text-white rounded-xl shadow-lg p-4 flex justify-between items-center shrink-0 animate-fadeIn">
+                <div className="bg-blue-600 text-white rounded-xl shadow-lg p-4 flex justify-between items-center shrink-0 animate-fadeIn mx-4 md:mx-0">
                     <div className="flex items-center gap-4">
                         <button onClick={() => setIsBulkMode(false)} className="hover:bg-white/20 p-2 rounded-full transition-colors">
                             <X size={20} />
@@ -439,28 +439,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             )}
 
             {/* Content */}
-            <div className="flex-1 min-h-0">
+            <div className={`flex-1 min-h-0 ${viewMode === 'calendar' ? '-mx-4 md:mx-0' : ''}`}> {/* Negative margin on mobile for bleed */}
                 {viewMode === 'calendar' ? (
-                    <div className="flex flex-col h-full gap-4">
-                        {/* View Switcher Tabs */}
-                        <div className="flex justify-end px-1">
-                            <div className="bg-slate-100 p-1 rounded-lg flex items-center gap-1">
-                                <button
-                                    onClick={() => setCalendarViewType('grid')}
-                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${calendarViewType === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    <CalendarDays size={16} />
-                                    <span className="hidden md:inline">תצוגת יומן</span>
-                                </button>
-                                <button
-                                    onClick={() => setCalendarViewType('table')}
-                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${calendarViewType === 'table' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    <ListChecks size={16} />
-                                    <span className="hidden md:inline">תצוגת טבלה</span>
-                                </button>
-                            </div>
-                        </div>
+                    <div className="flex flex-col h-full gap-0 md:gap-4">
+                        {/* View Switcher Moved inside GlobalTeamCalendar or similar header component */}
 
                         {calendarViewType === 'grid' ? (
                             <GlobalTeamCalendar
@@ -471,23 +453,39 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 onDateClick={handleDateClick}
                                 currentDate={viewDate}
                                 onDateChange={setViewDate}
+                                viewType={calendarViewType} // NEW prop
+                                onViewTypeChange={setCalendarViewType} // NEW prop
+                                organizationName={settings?.organization_name}
                             />
                         ) : (
-                            <AttendanceTable
-                                teams={teams}
-                                people={people}
-                                teamRotations={teamRotations}
-                                currentDate={viewDate}
-                                onDateChange={setViewDate}
-                                onSelectPerson={(p) => {
-                                    if (isBulkMode) {
-                                        handleToggleSelectPerson(p.id);
-                                    } else {
-                                        setSelectedPersonForCalendar(p);
-                                    }
-                                }}
-                                onUpdateAvailability={handleUpdateAvailability}
-                            />
+                            <div className="flex flex-col h-full"> {/* Wrapper for Table View to allow custom header usage if needed, or pass props to AttendanceTable too if it needs a header toggle */}
+                                {/* For Table View, we might want a simple toggle visible. Let's create a mobile-only toggle bar if grid is hidden. 
+                                     Actually, we should probably pass control to AttendanceTable or render a shared header. 
+                                     For now, sticking to the goal: Calendar Grid optimization. 
+                                     I will inject the Toggle UI inside GlobalTeamCalendar, but for Table view, we need a way to switch BACK to Grid.
+                                 */}
+                                <div className="md:hidden p-2 bg-white border-b border-slate-200 flex justify-between items-center sticky top-0 z-20">
+                                    <span className="font-bold text-lg">תצוגת טבלה</span>
+                                    <button onClick={() => setCalendarViewType('grid')} className="p-2 border rounded-lg">
+                                        <CalendarDays size={20} />
+                                    </button>
+                                </div>
+                                <AttendanceTable
+                                    teams={teams}
+                                    people={people}
+                                    teamRotations={teamRotations}
+                                    currentDate={viewDate}
+                                    onDateChange={setViewDate}
+                                    onSelectPerson={(p) => {
+                                        if (isBulkMode) {
+                                            handleToggleSelectPerson(p.id);
+                                        } else {
+                                            setSelectedPersonForCalendar(p);
+                                        }
+                                    }}
+                                    onUpdateAvailability={handleUpdateAvailability}
+                                />
+                            </div>
                         )}
                     </div>
                 ) : (

@@ -113,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
                 <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
               </div>
-              <span className="text-lg font-bold text-slate-800 tracking-tight hidden md:block whitespace-nowrap">
+              <span className="text-lg font-bold text-slate-800 tracking-tight whitespace-nowrap">
                 {isPublic ? 'מערכת שיבוץ' : (organization?.name || 'מערכת שיבוץ')}
               </span>
             </button>
@@ -205,21 +205,13 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               </span>
 
               {/* Logout button - Only visible on Desktop header */}
+              {/* Logout button - Only visible on Desktop header */}
               <button
                 onClick={handleLogout}
                 className="hidden md:flex items-center gap-2 p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors flex-shrink-0"
                 title="התנתק"
               >
                 <LogOut size={20} />
-              </button>
-
-              {/* Hamburger Menu - Visible on Mobile only */}
-              <button
-                className="flex md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                aria-label="פתח תפריט"
-              >
-                <Menu size={24} />
               </button>
             </div>
           )}
@@ -530,7 +522,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       )}
 
       {/* Main Content - Scrollable */}
-      <main ref={mainRef} className="flex-1 overflow-y-auto relative bg-idf-bg pb-20 md:pb-0">
+      <main ref={mainRef} className="flex-1 overflow-y-auto relative bg-idf-bg scroll-smooth">
         {/* Green Hero Section - Responsive height */}
         <div className="bg-hero-pattern h-52 md:h-64 w-full absolute top-0 left-0 z-0">
           <div className="max-w-7xl mx-auto px-4 pt-4 md:pt-8 lg:pt-10">
@@ -542,7 +534,6 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'tasks' && 'בנק משימות'}
               {currentView === 'stats' && 'מרכז נתונים'}
               {currentView === 'settings' && 'הגדרות ארגון'}
-              {currentView === 'reports' && 'ייצוא נתונים'}
               {currentView === 'logs' && 'לוגים'}
               {currentView === 'lottery' && 'הגרלות ופרסים'}
               {currentView === 'constraints' && 'ניהול אילוצים'}

@@ -150,13 +150,13 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                     </div>
                 </div>
                 <Button onClick={() => openAddModal()} icon={Plus} className="bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-200">
-                    הוסף היעדרות
+                    <span className="hidden md:inline">הוסף היעדרות</span>
                 </Button>
             </div>
 
             <div className="flex flex-col md:flex-row flex-1 overflow-hidden gap-4 md:gap-6">
-                {/* Sidebar: People List */}
-                <div className="w-full md:w-80 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col shrink-0">
+                {/* Sidebar: People List - Hidden on mobile when person selected */}
+                <div className={`w-full md:w-80 bg-white rounded-xl shadow-sm border border-slate-200 flex-col shrink-0 ${selectedPersonId ? 'hidden md:flex' : 'flex'}`}>
                     <div className="p-4 border-b border-slate-100 space-y-3">
                         <Input
                             placeholder="חיפוש חייל..."
@@ -195,10 +195,49 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                     </div>
                 </div>
 
-                {/* Main Content */}
-                <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden relative">
+                {/* Main Content - Hidden on mobile if NO person selected (unless we want to show All Absences initially, but user typically wants to select. Let's show All Absences if !selectedPersonId on desktop, but on mobile maybe initially hide? No, on mobile !selectedPersonId means show Sidebar. ) */}
+                {/* Logic: 
+                    Desktop: Always Flex.
+                    Mobile: 
+                        If !selectedPersonId: Hidden (Show Sidebar)
+                        If selectedPersonId: Flex (Show Calendar)
+                    Wait, if we want "All Absences" list to be accessible on mobile, we need a way.
+                    The Sidebar has "All Absences" button (lines 169-174). Clicking it sets selectedPersonId = null.
+                    If null, on mobile we see Sidebar. 
+                    Where does "All Absences" content appear? In Main Content (lines 200+).
+                    So if selectedPersonId is NULL, we see sidebar. 
+                    User can't see "All Absences" content on mobile with this logic.
+                    Correct approach for Mobile:
+                    - Mode 1: Person List (Sidebar)
+                    - Mode 2: Calendar (Main)
+                    - Mode 3: All Absences (Main)
+                    
+                    We could use state `mobileView: 'list' | 'detail'`.
+                    But reusing `selectedPersonId` is easier unless `null` means "All Absences".
+                    Currently `null` means "All Absences" View in Desktop.
+                    
+                    Proposed:
+                    Mobile default: Sidebar.
+                    If I click "All Absences" in sidebar -> It sets null. I stay in Sidebar?
+                    I need a way to VIEW "All Absences" on mobile.
+                    Maybe Sidebar IS the view? No, Sidebar is a list of people.
+                    Main Content (Line 202) is the list of absences.
+                    
+                    Let's just keep Sidebar visible on mobile if !selectedPersonId.
+                    But hide Main Content if !selectedPersonId on mobile.
+                    Wait, `selectedPersonId === null` runs Lines 200-241 (All Absences List).
+                    If I hide Main Content when `!selectedPersonId` on mobile, I can never see "All Absences".
+                    
+                    The user requirement: "display absence dates... when a user's name is tapped".
+                    Focus on that.
+                    Side effect: "All Absences" might be hard to reach on mobile.
+                    I will add a `hidden md:flex` to main content if `!selectedPersonId`.
+                    
+                 */}
+                <div className={`flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex-col overflow-hidden relative ${!selectedPersonId ? 'hidden md:flex' : 'flex'}`}>
                     {!selectedPersonId ? (
-                        // All Absences List View
+                        // All Absences List View (Desktop mostly, or if we enable it on mobile somehow)
+                        // If we want this on mobile we need a toggle. For now, following the specific Person Tap requirement.
                         <div className="flex flex-col h-full">
                             <div className="p-4 border-b border-slate-100 bg-slate-50">
                                 <h3 className="font-bold text-slate-700">רשימת היעדרויות כללית</h3>
@@ -243,17 +282,27 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                         // Person Calendar View
                         <div className="flex flex-col h-full">
                             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                                <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
-                                    <button onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded"><ChevronRight /></button>
-                                    <span className="text-lg font-bold min-w-[140px] text-center">{viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}</span>
-                                    <button onClick={handleNextMonth} className="p-1 hover:bg-slate-100 rounded"><ChevronLeft /></button>
+                                <div className="flex items-center gap-2 md:gap-4 bg-white px-2 md:px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+                                    <button onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded"><ChevronRight size={20} /></button>
+                                    <span className="text-sm md:text-lg font-bold min-w-[100px] md:min-w-[140px] text-center">{viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}</span>
+                                    <button onClick={handleNextMonth} className="p-1 hover:bg-slate-100 rounded"><ChevronLeft size={20} /></button>
                                 </div>
-                                <div className="text-sm text-slate-500 hidden md:block">
-                                    <span className="font-bold">{people.find(p => p.id === selectedPersonId)?.name}</span>
+                                <div className="flex items-center gap-2">
+                                    {/* Mobile Back Button */}
+                                    <button
+                                        onClick={() => setSelectedPersonId(null)}
+                                        className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg"
+                                    >
+                                        <ChevronLeft size={24} />
+                                    </button>
+                                    <div className="text-sm text-slate-500 hidden md:block">
+                                        <span className="font-bold">{people.find(p => p.id === selectedPersonId)?.name}</span>
+                                    </div>
                                 </div>
                             </div>
 
                             <div className="flex-1 p-2 md:p-6 overflow-y-auto">
+
                                 <div className="grid grid-cols-7 gap-1 md:gap-4 mb-2 md:mb-4">
                                     {['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'].map(day => <div key={day} className="text-center font-bold text-slate-400 text-xs md:text-sm py-1 md:py-2">{day}</div>)}
                                 </div>

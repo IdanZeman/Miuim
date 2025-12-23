@@ -224,7 +224,22 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         const relevantPeople = targetTeamIds.length === 0 ? people : people.filter(p => targetTeamIds.includes(p.teamId));
 
         // Calculate Task Demand
-        const totalTaskDemand = tasks.reduce((sum, t) => sum + t.users_required, 0);
+        // Calculate Task Demand (Peak concurrent requirement)
+        const dailyRequirements = new Array(7).fill(0);
+        tasks.forEach(t => {
+            t.segments?.forEach(seg => {
+                if (seg.frequency === 'daily' || seg.isRepeat) {
+                    for (let i = 0; i < 7; i++) dailyRequirements[i] += seg.requiredPeople;
+                } else if (seg.frequency === 'weekly' && seg.daysOfWeek) {
+                    const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+                    seg.daysOfWeek.forEach(d => {
+                        const idx = days.indexOf(d.toLowerCase());
+                        if (idx !== -1) dailyRequirements[idx] += seg.requiredPeople;
+                    });
+                }
+            });
+        });
+        const totalTaskDemand = Math.max(...dailyRequirements);
 
         // Track stats per day
         const dailyStaffCounts: Record<string, number> = {};
@@ -994,6 +1009,31 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     onChange={(e) => setUserDepartureHour(e.target.value)}
                                 />
                             </div>
+
+                            {optimizationMode === 'tasks' && (
+                                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="flex items-center gap-2 text-blue-800">
+                                        <Users size={16} />
+                                        <span className="text-sm font-bold">דרישת סד״כ מחושבת:</span>
+                                        <span className="text-sm bg-white px-2 py-0.5 rounded border border-blue-200">
+                                            {(() => {
+                                                // Simplified version of the generator logic for UI feedback
+                                                let totalDailyHours = 0;
+                                                tasks.forEach(t => {
+                                                    t.segments?.forEach(seg => {
+                                                        if (seg.frequency === 'daily' || seg.isRepeat) {
+                                                            totalDailyHours += seg.isRepeat ? 24 : (seg.durationHours * seg.requiredPeople);
+                                                        }
+                                                    });
+                                                });
+                                                // Assuming ~8h capacity avg for shorthand UI display
+                                                return Math.ceil(totalDailyHours / 8);
+                                            })()} חיילים
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-blue-600 mt-1 mr-6">המערכת תחשב את הסד״כ המדויק לכל יום בנפרד במהלך יצירת השיבוץ.</p>
+                                </div>
+                            )}
 
                             <div className="flex flex-col-reverse gap-3 pt-4 mt-auto sm:flex-row sm:justify-end">
                                 <Button variant="ghost" onClick={onClose} className="w-full sm:w-auto">ביטול</Button>
