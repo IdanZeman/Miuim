@@ -26,6 +26,53 @@ interface RotaWizardModalProps {
     onSaveRoster?: (data: DailyPresence[]) => void;
 }
 
+const CustomDatePicker = ({ label, value, onChange }: { label: string, value: string, onChange: (val: string) => void }) => {
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const dateObj = new Date(value);
+
+    return (
+        <div className="flex flex-col gap-1.5 w-full">
+            <span className="text-xs font-bold text-slate-500 mr-1">{label}</span>
+            <div
+                className="relative flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl p-3 cursor-pointer transition-all duration-200 shadow-sm hover:shadow group w-full"
+                onClick={() => {
+                    if (inputRef.current) {
+                        try {
+                            if ('showPicker' in inputRef.current) {
+                                (inputRef.current as any).showPicker();
+                            } else {
+                                inputRef.current.focus();
+                                inputRef.current.click();
+                            }
+                        } catch (e) {
+                            inputRef.current.click();
+                        }
+                    }
+                }}
+            >
+                <div className="bg-blue-50 text-blue-600 p-2 rounded-lg group-hover:bg-blue-100 transition-colors">
+                    <Calendar size={18} />
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-sm font-black text-slate-700 group-hover:text-blue-700 transition-colors">
+                        {dateObj.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
+                    <span className="text-[10px] font-medium text-slate-400">
+                        {dateObj.toLocaleDateString('he-IL', { weekday: 'long' })}
+                    </span>
+                </div>
+                <input
+                    ref={inputRef}
+                    type="date"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                />
+            </div>
+        </div>
+    );
+};
+
 export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     isOpen, onClose, people, teams, tasks, settings, teamRotations, constraints, absences, onSaveRoster
 }) => {
@@ -956,17 +1003,15 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
-                                        <Input
-                                            type="date"
+                                        <CustomDatePicker
                                             label="מתאריך"
                                             value={startDate}
-                                            onChange={e => setStartDate(e.target.value)}
+                                            onChange={setStartDate}
                                         />
-                                        <Input
-                                            type="date"
+                                        <CustomDatePicker
                                             label="עד תאריך"
                                             value={endDate}
-                                            onChange={e => setEndDate(e.target.value)}
+                                            onChange={setEndDate}
                                         />
                                     </div>
 

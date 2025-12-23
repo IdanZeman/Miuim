@@ -8,6 +8,10 @@ import { Person, Team, Role } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../contexts/ToastContext';
 import { Select } from './ui/Select';
+import { Modal } from './ui/Modal';
+import { Input } from './ui/Input';
+import { Button } from './ui/Button';
+import { ConfirmationModal } from './ConfirmationModal';
 
 interface ScheduleItem {
     id: string;
@@ -197,9 +201,6 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     };
 
     // Filter relevant items for display IF not editing (or show all if admin?)
-    // Actually, usually admin wants to see what they are editing.
-    // But specific soldier wants to see only relevant.
-    // 1. Permission Based Filtering (Base)
     const baseItems = items.filter(item => {
         if (canEdit) return true; // Admin/Editor sees all available
         if (!myPerson) return item.targetType === 'all';
@@ -209,7 +210,6 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
         return false;
     });
 
-    // 2. View Filtering (User Selection)
     // 2. View Filtering (User Selection - Union Logic)
     const filteredItems = baseItems.filter(item => {
         if (filters.mode === 'all') return true;
@@ -227,95 +227,39 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
         return h * 60 + m;
     };
 
-    // Timeline Configuration
-    const START_HOUR = 0; // 00:00
-    const END_HOUR = 24;  // 24:00 / 00:00
-    const PX_PER_MIN = 2; // Increased from 2 for visibility
-
+    // SIMPLIFIED TIMELINE DATA FOR LIST VIEW
     const timelineData = React.useMemo(() => {
         if (filteredItems.length === 0) return { items: [], height: 0 };
 
         const sorted = [...filteredItems].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-        // 1. Group into Overlap Clusters for Width Calculation
-        const clusters: ScheduleItem[][] = [];
-        let currentCluster: ScheduleItem[] = [];
-        let clusterEnd = -1;
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-        sorted.forEach(item => {
+        const itemsWithStatus = sorted.map(item => {
             const start = minutesFromMidnight(item.startTime);
             const end = minutesFromMidnight(item.endTime);
-
-            if (currentCluster.length === 0) {
-                currentCluster.push(item);
-                clusterEnd = end;
-            } else {
-                if (start < clusterEnd) {
-                    currentCluster.push(item);
-                    clusterEnd = Math.max(clusterEnd, end);
-                } else {
-                    clusters.push(currentCluster);
-                    currentCluster = [item];
-                    clusterEnd = end;
-                }
-            }
-        });
-        if (currentCluster.length > 0) clusters.push(currentCluster);
-
-        // 2. Calculate Layout Props
-        const layoutItems: any[] = [];
-
-        clusters.forEach(cluster => {
-            // Apply Greedy Column Layout to Cluster
-            const columns: ScheduleItem[][] = [];
-            cluster.forEach(item => {
-                const start = minutesFromMidnight(item.startTime);
-                let placed = false;
-                for (let col of columns) {
-                    const lastInCol = col[col.length - 1];
-                    if (minutesFromMidnight(lastInCol.endTime) <= start) {
-                        col.push(item);
-                        placed = true;
-                        break;
-                    }
-                }
-                if (!placed) columns.push([item]);
-            });
-
-            // Map to Absolute Position
-            columns.forEach((col, colIdx) => {
-                col.forEach(item => {
-                    const startMin = minutesFromMidnight(item.startTime);
-                    const endMin = minutesFromMidnight(item.endTime);
-                    const startOffset = startMin - (START_HOUR * 60); // Offset from 06:00
-
-                    const top = startOffset * PX_PER_MIN;
-                    const height = (endMin - startMin) * PX_PER_MIN;
-                    const widthPct = 100 / columns.length;
-                    const leftPct = colIdx * widthPct;
-
-                    layoutItems.push({
-                        ...item,
-                        layout: { top, height, leftPct, widthPct }
-                    });
-                });
-            });
+            const isNow = currentMinutes >= start && currentMinutes < end;
+            const isPast = currentMinutes >= end;
+            return { ...item, isNow, isPast };
         });
 
-        const totalMinutes = (END_HOUR - START_HOUR) * 60;
-        return { items: layoutItems, height: totalMinutes * PX_PER_MIN };
+        return { items: itemsWithStatus, height: 'auto' };
     }, [filteredItems]);
 
-    // Auto-scroll to current time on mount/open
+
+    // Auto-scroll to active item on mount/open
     useEffect(() => {
         if (isOpen && scrollContainerRef.current) {
-            const now = new Date();
-            const currentHour = now.getHours();
-            // Scroll to 1 hour before current time (for context)
-            const scrollPx = Math.max(0, (currentHour - 1 - START_HOUR) * 60 * PX_PER_MIN);
-            scrollContainerRef.current.scrollTop = scrollPx;
+            // We need a small timeout to allow rendering to complete
+            setTimeout(() => {
+                const activeItem = document.getElementById('war-clock-active-item');
+                if (activeItem) {
+                    activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
         }
-    }, [isOpen, timelineData.height]);
+    }, [isOpen, timelineData]);
 
     const getItemColor = (item: ScheduleItem) => {
         let rawColor = '';
@@ -327,7 +271,6 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
             return '#94a3b8'; // Default Slate (All)
         }
 
-        // Convert Tailwind classes to Hex by stripping prefixes
         const colorKey = rawColor.replace(/^(border-|bg-|text-)/, '');
 
         const mapping: Record<string, string> = {
@@ -490,161 +433,252 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                         </div>
                     )}
 
-                    {/* Timeline View - SCROLLABLE & LIMITED HEIGHT */}
-                    <div
-                        ref={scrollContainerRef}
-                        className="relative w-full rounded-2xl bg-white shadow-sm border border-slate-100 overflow-y-auto scroll-smooth"
-                        style={{ height: '400px', maxHeight: '60vh' }}
-                    >
-                        <div className="relative w-full" style={{ height: `${Math.max(timelineData.height, 400)}px` }}>
-                            {/* Hour Grid */}
-                            {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i).map(h => (
-                                <div key={h} className="absolute w-full border-t border-slate-100" style={{ top: `${(h - START_HOUR) * 60 * PX_PER_MIN}px` }}>
-                                    <span className="absolute -top-3 right-3 text-xs font-mono font-bold text-slate-300 bg-white px-1 z-10">
-                                        {h.toString().padStart(2, '0')}:00
-                                    </span>
-                                </div>
-                            ))}
-
-                            {/* Current Time Indicator Line */}
+                    {/* Timeline View - LIST STYLE */}
+                    {timelineData.items.length > 0 ? (
+                        <div
+                            ref={scrollContainerRef}
+                            className="relative w-full rounded-2xl bg-white shadow-sm border border-slate-100 overflow-y-auto scroll-smooth p-2"
+                            style={{ height: '400px', maxHeight: '60vh' }}
+                        >
                             {(() => {
-                                const now = new Date();
-                                const currentMin = now.getHours() * 60 + now.getMinutes();
-                                const startMin = START_HOUR * 60;
-                                if (currentMin >= startMin && currentMin <= END_HOUR * 60) {
-                                    const top = (currentMin - startMin) * PX_PER_MIN;
-                                    return (
-                                        <div className="absolute w-full border-t-2 border-red-400 z-30 pointer-events-none flex items-center" style={{ top: `${top}px` }}>
-                                            <div className="absolute right-0 -translate-y-1/2 w-2 h-2 rounded-full bg-red-500"></div>
-                                        </div>
-                                    );
-                                }
-                                return null;
-                            })()}
+                                // Clustering Logic for Parallel View
+                                const sorted = timelineData.items;
+                                type ItemWithStatus = typeof sorted[0];
+                                const clusters: ItemWithStatus[][] = [];
+                                let currentCluster: ItemWithStatus[] = [];
+                                let clusterEnd = -1;
 
-                            {/* Empty State */}
-                            {timelineData.items.length === 0 && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pointer-events-none">
-                                    <Clock size={48} className="opacity-20 mb-2" />
-                                    <p className="text-sm font-medium">אין אירועים בטווח הזמן הזה</p>
-                                </div>
-                            )}
+                                sorted.forEach(item => {
+                                    const start = minutesFromMidnight(item.startTime);
+                                    const end = minutesFromMidnight(item.endTime);
 
-                            {/* Items */}
-                            {timelineData.items.map(item => {
-                                const { top, height, leftPct, widthPct } = item.layout;
-                                const itemColor = getItemColor(item);
-                                const isShort = height < 50;
+                                    if (currentCluster.length === 0) {
+                                        currentCluster.push(item);
+                                        clusterEnd = end;
+                                    } else {
+                                        // Overlap check: Item starts before cluster ends
+                                        // Using a slightly more lenient overlap for visual grouping (soft overlap)
+                                        // Or strict overlap. User said "Events happening at the same time".
+                                        if (start < clusterEnd) {
+                                            currentCluster.push(item);
+                                            clusterEnd = Math.max(clusterEnd, end);
+                                        } else {
+                                            clusters.push(currentCluster);
+                                            currentCluster = [item];
+                                            clusterEnd = end;
+                                        }
+                                    }
+                                });
+                                if (currentCluster.length > 0) clusters.push(currentCluster);
 
                                 return (
-                                    <div
-                                        key={item.id}
-                                        className="absolute rounded-lg border-l-[3px] shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden group hover:z-50"
-                                        style={{
-                                            top: `${top}px`,
-                                            height: `${height}px`,
-                                            right: `${leftPct}%`,
-                                            width: `${widthPct}%`,
-                                            backgroundColor: itemColor + '15', // 10% opacity
-                                            borderColor: itemColor
-                                        }}
-                                        onClick={() => { if (canEdit) { setEditItem(item); setIsEditing(true); } }}
-                                    >
-                                        <div className={`h-full w-full p-1.5 flex ${isShort ? 'flex-row items-center gap-2' : 'flex-col justify-start'}`}>
-                                            <div className={`flex items-center gap-1 shrink-0 ${isShort ? '' : 'mb-0.5'}`}>
-                                                <div style={{ color: itemColor }}>
-                                                    {getTargetIcon(item.targetType, item.targetId)}
+                                    <div className="flex flex-col gap-2">
+                                        {clusters.map((cluster, clusterIndex) => (
+                                            <div key={clusterIndex} className="flex gap-2">
+                                                {/* Time Anchor for the Cluster */}
+                                                <div className="flex flex-col items-center justify-start min-w-[3.5rem] pt-2">
+                                                    <span className="text-xs font-mono font-bold text-slate-500">{cluster[0].startTime}</span>
+                                                    <div className="w-px h-full bg-slate-200 my-1 dashed"></div>
                                                 </div>
-                                                {!isShort && (
-                                                    <span className="text-[10px] font-mono font-bold text-slate-400 leading-none">
-                                                        {item.startTime}
-                                                    </span>
-                                                )}
-                                            </div>
 
-                                            <div className="min-w-0 flex-1">
-                                                <h4 className={`font-bold leading-none text-slate-900 ${isShort ? 'text-xs truncate' : 'text-sm md:text-base line-clamp-3'}`}>
-                                                    {item.description}
-                                                </h4>
-                                                {isShort && (
-                                                    <span className="text-[10px] text-slate-400 font-mono ml-1">{item.startTime}</span>
-                                                )}
+                                                {/* Parallel Items Container */}
+                                                <div className="flex-1 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                                                    {(() => {
+                                                        // -----------------------------------------------------------
+                                                        // 1. Column Packing Algorithm (Fit First Strategy)
+                                                        // -----------------------------------------------------------
+                                                        // We want to stack items vertically if they don't overlap,
+                                                        // but place them side-by-side if they do.
+
+                                                        const columns: ItemWithStatus[][] = [];
+
+                                                        // Sort by start time, then duration (longest first) for better packing
+                                                        const sortedCluster = [...cluster].sort((a, b) => {
+                                                            const startA = minutesFromMidnight(a.startTime);
+                                                            const startB = minutesFromMidnight(b.startTime);
+                                                            if (startA !== startB) return startA - startB;
+                                                            // If same start, put longer first? Or end first?
+                                                            return minutesFromMidnight(b.endTime) - minutesFromMidnight(a.endTime);
+                                                        });
+
+                                                        sortedCluster.forEach(item => {
+                                                            const itemStart = minutesFromMidnight(item.startTime);
+
+                                                            // Try to find a column where this item fits
+                                                            // A column fits if the LAST item in that column ends BEFORE (or at) this item starts.
+                                                            let placed = false;
+
+                                                            for (let i = 0; i < columns.length; i++) {
+                                                                const col = columns[i];
+                                                                const lastItem = col[col.length - 1];
+                                                                const lastEnd = minutesFromMidnight(lastItem.endTime);
+
+                                                                if (lastEnd <= itemStart) {
+                                                                    col.push(item);
+                                                                    placed = true;
+                                                                    break;
+                                                                }
+                                                            }
+
+                                                            // If didn't fit in any existing column, create a new one
+                                                            if (!placed) {
+                                                                columns.push([item]);
+                                                            }
+                                                        });
+
+                                                        // -----------------------------------------------------------
+                                                        // 2. Render Columns
+                                                        // -----------------------------------------------------------
+                                                        return columns.map((colItems, colIndex) => (
+                                                            <div key={colIndex} className="flex flex-col gap-2 min-w-[140px] md:min-w-[200px] flex-1">
+                                                                {colItems.map(item => {
+                                                                    const itemColor = getItemColor(item);
+                                                                    return (
+                                                                        <div
+                                                                            key={item.id}
+                                                                            id={item.isNow ? 'war-clock-active-item' : undefined}
+                                                                            className={`
+                                                                                relative flex-1 flex flex-col rounded-lg border-2 transition-all cursor-pointer group hover:shadow-md
+                                                                                ${item.isNow ? 'ring-2 ring-blue-400 ring-offset-2 z-10 bg-white' : 'bg-slate-50/50 hover:bg-white'}
+                                                                                ${item.isPast ? 'opacity-60 saturate-50' : ''}
+                                                                            `}
+                                                                            style={{
+                                                                                borderColor: item.isNow ? '#3b82f6' : '#e2e8f0',
+                                                                                borderTopColor: itemColor,
+                                                                                borderTopWidth: '4px'
+                                                                            }}
+                                                                            onClick={() => { if (canEdit) { setEditItem(item); setIsEditing(true); } }}
+                                                                        >
+                                                                            <div className="p-2 md:p-3 flex flex-col h-full justify-between gap-1">
+                                                                                <div>
+                                                                                    <div className="flex justify-between items-start mb-1">
+                                                                                        <div className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 w-fit max-w-full">
+                                                                                            <span style={{ color: itemColor }} className="shrink-0">
+                                                                                                {getTargetIcon(item.targetType, item.targetId)}
+                                                                                            </span>
+                                                                                            <span className="truncate">{getTargetLabel(item)}</span>
+                                                                                        </div>
+                                                                                        {canEdit && (
+                                                                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600">
+                                                                                                <Edit2 size={12} />
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+
+                                                                                    <h4 className={`font-bold text-slate-800 leading-tight break-words ${item.isNow ? 'text-sm md:text-base' : 'text-xs md:text-sm'}`}>{item.description}</h4>
+                                                                                </div>
+
+                                                                                <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-100/50">
+                                                                                    <span className="text-[10px] md:text-xs font-mono text-slate-400 tracking-tight">
+                                                                                        {item.startTime} - {item.endTime}
+                                                                                    </span>
+                                                                                    {item.isNow && <span className="flex h-1.5 w-1.5 relative">
+                                                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                                                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
+                                                                                    </span>}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        ));
+                                                    })()}
+                                                </div>
                                             </div>
-                                        </div>
+                                        ))}
                                     </div>
                                 );
-                            })}
+                            })()}
                         </div>
-                    </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center p-12 bg-slate-50 rounded-2xl border border-slate-100 border-dashed text-center">
+                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm text-slate-300">
+                                <Clock size={32} />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-700 mb-1">היומן פנוי</h3>
+                            <p className="text-slate-500 text-sm">אין לו"ז כרגע להיום.</p>
+                            {canEdit && (
+                                <button
+                                    onClick={() => { setEditItem({ targetType: 'all', startTime: '08:00', endTime: '09:00' }); setIsEditing(true); }}
+                                    className="mt-4 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-bold hover:bg-blue-200 transition-colors"
+                                >
+                                    + הוסף אירוע ראשון
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* Modals */}
-            {isEditing && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                            <h3 className="font-bold text-lg text-slate-800">{editItem.id ? 'עריכת אירוע' : 'אירוע חדש'}</h3>
-                            <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500">התחלה</label>
-                                    <input type="time" value={editItem.startTime || ''} onChange={e => setEditItem({ ...editItem, startTime: e.target.value })} className="w-full p-2 border rounded-lg bg-slate-50 focus:bg-white transition-colors" />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-slate-500">סיום</label>
-                                    <input type="time" value={editItem.endTime || ''} onChange={e => setEditItem({ ...editItem, endTime: e.target.value })} className="w-full p-2 border rounded-lg bg-slate-50 focus:bg-white transition-colors" />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500">תיאור</label>
-                                <input type="text" value={editItem.description || ''} onChange={e => setEditItem({ ...editItem, description: e.target.value })} className="w-full p-2 border rounded-lg" placeholder="זמן מנוחה / שמירה..." />
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-500">שיוך</label>
-                                <div className="grid grid-cols-3 gap-2 mb-2">
-                                    <button onClick={() => setEditItem({ ...editItem, targetType: 'all', targetId: null })} className={`p-2 rounded-lg text-xs font-bold border ${editItem.targetType === 'all' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:bg-slate-50'}`}>כולם</button>
-                                    <button onClick={() => setEditItem({ ...editItem, targetType: 'team', targetId: teams[0]?.id || null })} className={`p-2 rounded-lg text-xs font-bold border ${editItem.targetType === 'team' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:bg-slate-50'}`}>צוות</button>
-                                    <button onClick={() => setEditItem({ ...editItem, targetType: 'role', targetId: roles[0]?.id || null })} className={`p-2 rounded-lg text-xs font-bold border ${editItem.targetType === 'role' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 hover:bg-slate-50'}`}>תפקיד</button>
-                                </div>
-                                {editItem.targetType !== 'all' && (
-                                    <Select
-                                        value={editItem.targetId || ''}
-                                        onChange={(val) => setEditItem({ ...editItem, targetId: val })}
-                                        options={(editItem.targetType === 'team' ? teams : roles).map(t => ({ value: t.id, label: t.name }))}
-                                        placeholder={editItem.targetType === 'team' ? 'בחר צוות' : 'בחר תפקיד'}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
-                            {editItem.id && (
-                                <button onClick={() => { setItemToDeleteId(editItem.id!); setIsEditing(false); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={20} /></button>
-                            )}
-                            <div className="flex-1"></div>
-                            <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-200 rounded-lg font-bold text-sm">ביטול</button>
-                            <button onClick={handleSaveItem} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700">שמור</button>
+            <Modal
+                isOpen={isEditing}
+                onClose={() => setIsEditing(false)}
+                title={editItem.id ? 'עריכת אירוע' : 'אירוע חדש'}
+                footer={
+                    <div className="flex justify-between w-full">
+                        {editItem.id ? (
+                            <Button variant="danger" icon={Trash2} onClick={() => { setItemToDeleteId(editItem.id!); setIsEditing(false); }} />
+                        ) : <div></div>}
+                        <div className="flex gap-2">
+                            <Button variant="ghost" onClick={() => setIsEditing(false)}>ביטול</Button>
+                            <Button onClick={handleSaveItem}>שמור</Button>
                         </div>
                     </div>
-                </div>
-            )}
+                }
+            >
+                <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <Input
+                            type="time"
+                            label="התחלה"
+                            value={editItem.startTime || ''}
+                            onChange={e => setEditItem({ ...editItem, startTime: e.target.value })}
+                        />
+                        <Input
+                            type="time"
+                            label="סיום"
+                            value={editItem.endTime || ''}
+                            onChange={e => setEditItem({ ...editItem, endTime: e.target.value })}
+                        />
+                    </div>
 
-            {itemToDeleteId && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95">
-                        <h3 className="font-bold text-lg text-slate-800 mb-2">מחיקת אירוע?</h3>
-                        <p className="text-slate-500 mb-6">פעולה זו לא ניתנת לביטול.</p>
-                        <div className="flex gap-3">
-                            <button onClick={() => setItemToDeleteId(null)} className="flex-1 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200">ביטול</button>
-                            <button onClick={() => { handleDelete(itemToDeleteId); setItemToDeleteId(null); }} className="flex-1 py-2 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-200 hover:bg-red-600">מחק</button>
+                    <Input
+                        label="תיאור"
+                        value={editItem.description || ''}
+                        onChange={e => setEditItem({ ...editItem, description: e.target.value })}
+                        placeholder="זמן מנוחה / שמירה..."
+                    />
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700">שיוך</label>
+                        <div className="flex bg-slate-100 p-1 rounded-xl mb-3">
+                            <button onClick={() => setEditItem({ ...editItem, targetType: 'all', targetId: null })} className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${editItem.targetType === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>כולם</button>
+                            <button onClick={() => setEditItem({ ...editItem, targetType: 'team', targetId: teams[0]?.id || null })} className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${editItem.targetType === 'team' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>צוות</button>
+                            <button onClick={() => setEditItem({ ...editItem, targetType: 'role', targetId: roles[0]?.id || null })} className={`flex-1 py-1.5 text-sm font-bold rounded-lg transition-all ${editItem.targetType === 'role' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>תפקיד</button>
                         </div>
+                        {editItem.targetType !== 'all' && (
+                            <Select
+                                value={editItem.targetId || ''}
+                                onChange={(val) => setEditItem({ ...editItem, targetId: val })}
+                                options={(editItem.targetType === 'team' ? teams : roles).map(t => ({ value: t.id, label: t.name }))}
+                                placeholder={editItem.targetType === 'team' ? 'בחר צוות' : 'בחר תפקיד'}
+                            />
+                        )}
                     </div>
                 </div>
-            )}
+            </Modal>
+
+            <ConfirmationModal
+                isOpen={!!itemToDeleteId}
+                title="מחיקת אירוע?"
+                message="פעולה זו לא ניתנת לביטול."
+                confirmText="מחק"
+                type="danger"
+                onConfirm={() => { if (itemToDeleteId) handleDelete(itemToDeleteId); setItemToDeleteId(null); }}
+                onCancel={() => setItemToDeleteId(null)}
+            />
         </div>
     );
 };

@@ -380,13 +380,15 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 <ListChecks size={20} />
                             </button>
                             <div className="w-px h-4 bg-slate-200 mx-0.5" />
-                            <button
-                                onClick={() => setShowRotaWizard(true)}
-                                className="p-2 text-amber-500 hover:text-amber-600 transition-all active:scale-95"
-                                title="מחולל סבבים"
-                            >
-                                <Wand2 size={20} />
-                            </button>
+                            {!isViewer && (
+                                <button
+                                    onClick={() => setShowRotaWizard(true)}
+                                    className="p-2 text-amber-500 hover:text-amber-600 transition-all active:scale-95"
+                                    title="מחולל סבבים"
+                                >
+                                    <Wand2 size={20} />
+                                </button>
+                            )}
                         </div>
 
                         {/* Left Side: Back Button (Integrated into Header) */}
@@ -572,13 +574,15 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         >
                             חודש נוכחי
                         </button>
-                        <button
-                            onClick={() => setShowRotaWizard(true)}
-                            className="px-3 py-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 border border-amber-100"
-                        >
-                            <Sparkles size={16} />
-                            מחולל סבבים
-                        </button>
+                        {!isViewer && (
+                            <button
+                                onClick={() => setShowRotaWizard(true)}
+                                className="px-3 py-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 border border-amber-100"
+                            >
+                                <Sparkles size={16} />
+                                מחולל סבבים
+                            </button>
+                        )}
                         <button onClick={handleExport} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 text-sm font-bold transition-colors">ייצוא</button>
                     </div>
                 </div>
@@ -612,7 +616,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     if (isBulkMode) handleToggleSelectPerson(p.id);
                                     else setSelectedPersonForCalendar(p);
                                 }}
-                                onUpdateAvailability={handleUpdateAvailability}
+                                onUpdateAvailability={isViewer ? undefined : handleUpdateAvailability}
                                 className="h-full"
                             />
                         </div>
