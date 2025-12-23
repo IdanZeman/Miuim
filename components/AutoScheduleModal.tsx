@@ -91,27 +91,34 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
 
     return createPortal(
         <div
-            className={`fixed inset-0 z-[9999] flex flex-col justify-end transition-colors duration-300 ${isVisible ? 'bg-slate-900/60 backdrop-blur-sm' : 'bg-transparent'}`}
+            className={`fixed inset-0 z-[9999] flex flex-col justify-end md:justify-center md:items-center transition-colors duration-300 ${isVisible ? 'bg-slate-900/60 backdrop-blur-sm' : 'bg-transparent'}`}
             onClick={handleBackdropClick}
         >
             <div
-                className={`bg-white w-full rounded-t-3xl shadow-2xl flex flex-col max-h-[85vh] transform transition-transform duration-300 ease-out ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}
+                className={`bg-white w-full md:w-full md:max-w-lg rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col max-h-[85vh] md:max-h-[90vh] transform transition-transform duration-300 ease-out ${isVisible ? 'translate-y-0' : 'translate-y-full md:translate-y-0 md:scale-100 md:opacity-100'} ${!isVisible && 'md:scale-95 md:opacity-0'}`}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Drag Handle */}
-                <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-3 shrink-0" />
+                {/* Drag Handle (Mobile Only) */}
+                <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-3 shrink-0 md:hidden" />
 
                 {/* Header */}
-                <div className="px-6 pb-4 shrink-0 flex items-center justify-between">
+                <div className="px-6 pb-4 md:py-6 shrink-0 flex items-center justify-between md:border-b md:border-slate-100 md:bg-slate-50 md:rounded-t-2xl">
                     <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                         <Sparkles className="text-idf-yellow" size={20} />
                         שיבוץ אוטומטי
                     </h2>
+                    {/* Close Button (Desktop Only) */}
+                    <button
+                        onClick={onClose}
+                        className="hidden md:block p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+                    >
+                        <X size={20} />
+                    </button>
                 </div>
 
                 {/* Content */}
                 <div className="overflow-y-auto flex-1 bg-white">
-                    <div className="px-6">
+                    <div className="px-6 md:p-6">
                         {/* Mode Selection - Segmented Control */}
                         <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
                             <button
@@ -121,6 +128,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                     : 'text-slate-500 hover:text-slate-700'
                                     }`}
                             >
+                                <Calendar size={16} className={`inline-block ml-2 ${mode === 'single' ? 'text-idf-yellow' : ''}`} />
                                 יום בודד
                             </button>
                             <button
@@ -130,6 +138,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                     : 'text-slate-500 hover:text-slate-700'
                                     }`}
                             >
+                                <Calendar size={16} className={`inline-block ml-2 ${mode === 'range' ? 'text-idf-yellow' : ''}`} />
                                 טווח תאריכים
                             </button>
                         </div>
@@ -175,7 +184,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                     </div>
 
                     {/* Team Organic Toggle - Full width row */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 md:bg-slate-50 md:mx-6 md:rounded-xl md:mb-4 md:border-none">
                         <div>
                             <h4 className="text-sm font-bold text-slate-800">שמור על אורגניות מתחם</h4>
                             <p className="text-xs text-slate-500">שיבוץ לפי צוותים</p>
@@ -189,9 +198,9 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                     </div>
 
                     {/* Tasks Selection List */}
-                    <div className="divide-y divide-slate-100">
+                    <div className="divide-y divide-slate-100 md:px-6">
                         {/* Header for list */}
-                        <div className="px-6 py-3 bg-slate-50 text-xs font-bold text-slate-500 flex justify-between items-center sticky top-0 z-10">
+                        <div className="px-6 md:px-0 py-3 bg-slate-50 md:bg-white text-xs font-bold text-slate-500 flex justify-between items-center sticky top-0 z-10">
                             <span>בחירת משימות</span>
                             <button
                                 onClick={handleSelectAllTasks}
@@ -206,49 +215,52 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                 לא נמצאו משימות
                             </div>
                         ) : (
-                            tasks.map(task => (
-                                <label
-                                    key={task.id}
-                                    className="flex items-center gap-4 px-6 py-4 bg-white active:bg-slate-50 cursor-pointer transition-colors relative overflow-hidden"
-                                >
-                                    {/* Checkbox (Right) */}
-                                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all shrink-0 ${selectedTaskIds.has(task.id)
-                                        ? 'bg-idf-yellow border-idf-yellow text-slate-900'
-                                        : 'border-slate-300 bg-white'
-                                        }`}>
-                                        {selectedTaskIds.has(task.id) && <CheckSquare size={16} strokeWidth={3} />}
-                                    </div>
-                                    <input
-                                        type="checkbox"
-                                        className="hidden"
-                                        checked={selectedTaskIds.has(task.id)}
-                                        onChange={() => handleToggleTask(task.id)}
-                                    />
-
-                                    {/* Info (Center) */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-bold text-slate-900 text-base mb-0.5">{task.name}</div>
-                                        <div className="text-xs text-slate-500 flex items-center gap-1.5">
-                                            <span>{task.segments?.length || 0} מקטעים</span>
-                                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                            <span>{task.difficulty === 3 || task.difficulty === 'hard' ? 'מורכב' : (task.difficulty === 2 || task.difficulty === 'medium' ? 'בינוני' : 'קל')}</span>
+                            <div className="md:border md:border-slate-200 md:rounded-xl md:overflow-hidden">
+                                {tasks.map(task => (
+                                    <label
+                                        key={task.id}
+                                        className="flex items-center gap-4 px-6 py-4 bg-white hover:bg-slate-50 cursor-pointer transition-colors relative overflow-hidden md:border-b md:last:border-0 border-b border-slate-100 last:border-0"
+                                    >
+                                        {/* Checkbox (Right) */}
+                                        <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all shrink-0 ${selectedTaskIds.has(task.id)
+                                            ? 'bg-idf-yellow border-idf-yellow text-slate-900'
+                                            : 'border-slate-300 bg-white'
+                                            }`}>
+                                            {selectedTaskIds.has(task.id) && <CheckSquare size={16} strokeWidth={3} />}
                                         </div>
-                                    </div>
+                                        <input
+                                            type="checkbox"
+                                            className="hidden"
+                                            checked={selectedTaskIds.has(task.id)}
+                                            onChange={() => handleToggleTask(task.id)}
+                                        />
 
-                                    {/* Color Strip (Left) */}
-                                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${task.color.replace('border-l-', 'bg-')}`}></div>
-                                </label>
-                            ))
+                                        {/* Info (Center) */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-bold text-slate-900 text-base mb-0.5">{task.name}</div>
+                                            <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                                                <span>{task.segments?.length || 0} מקטעים</span>
+                                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                                <span>{task.difficulty === 3 || task.difficulty === 'hard' ? 'מורכב' : (task.difficulty === 2 || task.difficulty === 'medium' ? 'בינוני' : 'קל')}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Color Strip (Left) */}
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${task.color.replace('border-l-', 'bg-')}`}></div>
+                                    </label>
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>
 
-                {/* Sticky Footer */}
-                <div className="p-4 border-t border-slate-100 bg-white shrink-0 pb-6 md:pb-6">
+                {/* Footer */}
+                <div className="p-4 md:p-6 border-t border-slate-100 bg-white shrink-0 pb-6 md:pb-6 flex gap-3 md:rounded-b-2xl">
+                    {/* "Start" Button - High priority */}
                     <button
                         onClick={handleSubmit}
                         disabled={isScheduling || !startDate || (mode === 'range' && !endDate) || selectedTaskIds.size === 0}
-                        className="w-full h-14 rounded-xl font-bold text-slate-900 bg-idf-yellow hover:bg-idf-yellow-hover disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center gap-2 text-lg"
+                        className="flex-1 h-14 md:h-12 rounded-xl font-bold text-slate-900 bg-idf-yellow hover:bg-idf-yellow-hover disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center gap-2 text-lg md:text-base relative overflow-hidden"
                     >
                         {isScheduling ? (
                             <>
@@ -261,6 +273,14 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                 <span>התחל שיבוץ</span>
                             </>
                         )}
+                    </button>
+
+                    {/* "Cancel" Button - Desktop Only */}
+                    <button
+                        onClick={onClose}
+                        className="hidden md:block w-32 h-12 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-all border border-slate-200 hover:border-slate-300"
+                    >
+                        ביטול
                     </button>
                 </div>
             </div>
