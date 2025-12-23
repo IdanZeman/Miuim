@@ -25,7 +25,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    people, shifts, tasks, roles, teams, teamRotations = [],
    isViewer = false, currentUserEmail, currentUserName
 }) => {
-   const [reportType, setReportType] = useState<ReportType>('manpower');
+   const [reportType, setReportType] = useState<ReportType>(isViewer ? 'tasks' : 'manpower');
 
    return (
       <div className="space-y-6">

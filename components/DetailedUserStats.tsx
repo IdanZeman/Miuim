@@ -20,9 +20,19 @@ interface DetailedUserStatsProps {
     onBack: () => void;
     nightShiftStart?: string;
     nightShiftEnd?: string;
+    showBackButton?: boolean; // NEW
 }
 
-export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, shifts, tasks, roles, onBack, nightShiftStart = '22:00', nightShiftEnd = '06:00' }) => {
+export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
+    person,
+    shifts,
+    tasks,
+    roles,
+    onBack,
+    nightShiftStart = '22:00',
+    nightShiftEnd = '06:00',
+    showBackButton = true // Default true
+}) => {
     const { organization } = useAuth(); // NEW: Get organization
     const [viewerDaysLimit, setViewerDaysLimit] = useState(2); // NEW: Default 2 days
 
@@ -121,12 +131,14 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({ person, sh
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     {/* Top Section: Back Button + Avatar + Name */}
                     <div className="flex items-center gap-3 md:gap-6">
-                        <button
-                            onClick={onBack}
-                            className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 flex-shrink-0"
-                        >
-                            <ArrowRight size={20} />
-                        </button>
+                        {showBackButton && (
+                            <button
+                                onClick={onBack}
+                                className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 flex-shrink-0"
+                            >
+                                <ArrowRight size={20} />
+                            </button>
+                        )}
                         {/* Avatar with Initials */}
                         <div
                             className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center text-lg md:text-2xl font-bold text-white shadow-md flex-shrink-0 ${person.color}`}
