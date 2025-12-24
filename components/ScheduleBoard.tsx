@@ -218,6 +218,53 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     // Scroll Synchronization Refs
     const headerScrollRef = useRef<HTMLDivElement>(null);
     const bodyScrollRef = useRef<HTMLDivElement>(null);
+    const verticalScrollRef = useRef<HTMLDivElement>(null);
+
+    // FIXED HEIGHT CONTAINER to ensure internal scrolling works
+    // Desktop: 100vh - header padding (32=8rem) - bottom padding (10=2.5rem) approx 11rem
+    // Mobile: 100vh - header padding (32=8rem) - bottom nav (24=6rem) approx 15rem
+    const containerHeightClass = "h-[calc(100vh-15rem)] md:h-[calc(100vh-11rem)]";
+
+    // Auto-scroll to current time on mount or date change (if Today)
+    // Auto-scroll to current time on mount or date change (if Today)
+    useEffect(() => {
+        if (verticalScrollRef.current) {
+            const now = new Date();
+            const isToday = selectedDate.getDate() === now.getDate() &&
+                selectedDate.getMonth() === now.getMonth() &&
+                selectedDate.getFullYear() === now.getFullYear();
+
+            if (isToday) {
+                // Scroll to 1 hour before now for context
+                const currentHour = now.getHours();
+                const targetHour = Math.max(0, currentHour - 1);
+                // PIXELS_PER_HOUR = 60 (defined at top of file)
+                const scrollPosition = targetHour * 60;
+
+                // Use requestAnimationFrame to ensure layout is ready
+                requestAnimationFrame(() => {
+                    if (verticalScrollRef.current) {
+                        verticalScrollRef.current.scrollTo({ top: scrollPosition, behavior: 'smooth' });
+
+                        // Fallback check - ensures we scroll even if smooth scroll is interrupted or fails
+                        setTimeout(() => {
+                            if (verticalScrollRef.current) {
+                                const { scrollHeight, clientHeight, scrollTop } = verticalScrollRef.current;
+                                const diff = Math.abs(scrollTop - scrollPosition);
+
+                                // Only force scroll if we're significantly off and it's possible to scroll that far
+                                if (diff > 20 && (scrollHeight - clientHeight >= scrollPosition)) {
+                                    verticalScrollRef.current.scrollTop = scrollPosition;
+                                }
+                            }
+                        }, 500);
+                    }
+                });
+            } else {
+                verticalScrollRef.current.scrollTop = 0;
+            }
+        }
+    }, [selectedDate]);
 
     // Synchronize horizontal scrolling between header and body
     useEffect(() => {
@@ -1020,7 +1067,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     };
 
     return (
-        <div className="flex flex-col gap-2 h-full">
+        <div className={`flex flex-col gap-2 ${containerHeightClass}`}>
             {isViewer && renderFeaturedCard()}
             {selectedShift && <AssignmentModal />}
 
@@ -1115,10 +1162,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 </div>
 
                 {/* Scrollable Grid Area */}
-                <div className="flex-1 overflow-y-auto relative border-t border-slate-200">
+                <div
+                    ref={verticalScrollRef}
+                    className="flex-1 overflow-y-auto relative border-t border-slate-200"
+                >
 
-                    {/* MOBILE VIEW */}
-                    <div className="block md:hidden h-full overflow-y-auto p-4">
+                    {/* MOBILE VIEW - Removed internal scroll to let parent handle it */}
+                    <div className="block md:hidden p-4">
                         <MobileScheduleList
                             shifts={shifts}
                             people={people}
