@@ -146,11 +146,15 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                 <label className="block text-xs font-bold text-slate-500 mb-1">
                                     {mode === 'single' ? 'תאריך לשיבוץ' : 'תאריך התחלה'}
                                 </label>
-                                <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-idf-yellow transition-colors">
+                                <div
+                                    className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-idf-yellow transition-colors cursor-pointer"
+                                    onClick={() => (document.getElementById('startDateInput') as HTMLInputElement)?.showPicker()}
+                                >
                                     <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${startDate ? 'text-slate-900' : 'text-slate-400'}`}>
                                         {startDate ? new Date(startDate).toLocaleDateString('he-IL') : 'בחר תאריך'}
                                     </span>
                                     <input
+                                        id="startDateInput"
                                         type="date"
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
@@ -162,11 +166,15 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                             {mode === 'range' && (
                                 <div className="animate-fadeIn">
                                     <label className="block text-xs font-bold text-slate-500 mb-1">תאריך סיום</label>
-                                    <div className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-idf-yellow transition-colors">
+                                    <div
+                                        className="relative flex items-center bg-slate-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-idf-yellow transition-colors cursor-pointer"
+                                        onClick={() => (document.getElementById('endDateInput') as HTMLInputElement)?.showPicker()}
+                                    >
                                         <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${endDate ? 'text-slate-900' : 'text-slate-400'}`}>
                                             {endDate ? new Date(endDate).toLocaleDateString('he-IL') : 'בחר תאריך'}
                                         </span>
                                         <input
+                                            id="endDateInput"
                                             type="date"
                                             value={endDate}
                                             min={startDate}

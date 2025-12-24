@@ -1,9 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, Search, RefreshCw, Filter, Download, User as UserIcon, Activity } from 'lucide-react';
 import type { LogLevel } from '../services/loggingService';
 import { Select } from './ui/Select';
+import { OrganizationStats } from './OrganizationStats';
 
 // Consistent interface with Admin Logs
 interface LogEntry {
@@ -32,6 +34,8 @@ interface OrganizationLogsViewerProps {
 
 export const OrganizationLogsViewer: React.FC<OrganizationLogsViewerProps> = ({ limit: initialLimit = 50 }) => {
     const { organization, profile, user } = useAuth();
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'logs'>('dashboard');
+
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('');
@@ -46,10 +50,10 @@ export const OrganizationLogsViewer: React.FC<OrganizationLogsViewerProps> = ({ 
         profile?.permissions?.screens?.['logs'] === 'edit';
 
     useEffect(() => {
-        if (canView && organization?.id) {
+        if (canView && organization?.id && activeTab === 'logs') {
             fetchLogs();
         }
-    }, [organization?.id, limit, canView]);
+    }, [organization?.id, limit, canView, activeTab]);
 
     const fetchLogs = async () => {
         if (!organization?.id) return;
@@ -212,7 +216,7 @@ export const OrganizationLogsViewer: React.FC<OrganizationLogsViewerProps> = ({ 
     }
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]">
             {/* Header */}
             <div className="p-4 border-b border-slate-100 bg-gradient-to-l from-slate-50 to-white">
                 <div className="flex items-center justify-between flex-wrap gap-4">
@@ -221,315 +225,346 @@ export const OrganizationLogsViewer: React.FC<OrganizationLogsViewerProps> = ({ 
                             <Activity className="text-blue-600" size={24} />
                             יומן פעילות
                         </h2>
-                        <p className="text-sm text-slate-500 mt-1">תיעוד פעולות בארגון</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={exportToCSV}
-                            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium"
-                        >
-                            <Download size={16} />
-                            <span>ייצוא CSV</span>
-                        </button>
+                        <p className="text-sm text-slate-500 mt-1">תיעוד וניתוח פעולות בארגון</p>
                     </div>
                 </div>
-            </div>
 
-            {/* Filters */}
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-3">
-                <div className="relative flex-1">
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="חיפוש לפי פעולה, שם או תיאור..."
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                        className="w-full pr-10 pl-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    />
-                </div>
-
-
-
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
-                    <Select
-                        value={categoryFilter}
-                        onChange={(val) => setCategoryFilter(val)}
-                        options={[
-                            { value: 'ALL', label: 'כל הקטגוריות' },
-                            { value: 'auth', label: 'כניסה/יציאה' },
-                            { value: 'data', label: 'נתונים (יצירה/עריכה)' },
-                            { value: 'scheduling', label: 'שיבוץ ומשמרות' },
-                            { value: 'security', label: 'אבטחה והרשאות' },
-                            { value: 'settings', label: 'הגדרות' }
-                        ]}
-                        placeholder="קטגוריה"
-                    />
-
-                    <Select
-                        value={limit.toString()}
-                        onChange={(val) => setLimit(Number(val))}
-                        options={[
-                            { value: '50', label: '50 אחרונים' },
-                            { value: '100', label: '100 אחרונים' },
-                            { value: '200', label: '200 אחרונים' }
-                        ]}
-                    />
-
+                {/* Tabs */}
+                <div className="flex gap-1 mt-6 border-b border-slate-200">
                     <button
-                        onClick={fetchLogs}
-                        className="p-2 bg-white hover:bg-slate-100 rounded-lg border border-slate-200 text-slate-600 transition-colors"
-                        title="רענן נתונים"
+                        onClick={() => setActiveTab('dashboard')}
+                        className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'dashboard'
+                                ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
                     >
-                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                        דשבורד וסטטיסטיקות
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('logs')}
+                        className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'logs'
+                                ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
+                    >
+                        מבט רשומות (טבלה)
                     </button>
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto min-h-0">
-                <table className="w-full text-sm text-right min-w-[800px]">
-                    <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-                        <tr>
-                            <th className="px-4 py-3 whitespace-nowrap w-32">זמן</th>
-                            <th className="px-4 py-3 whitespace-nowrap w-24">קטגוריה</th>
-                            <th className="px-4 py-3 whitespace-nowrap w-32">סוג אירוע</th>
-                            <th className="px-4 py-3 whitespace-nowrap">תיאור</th>
-                            <th className="px-4 py-3 whitespace-nowrap w-40">משתמש</th>
-                            <th className="px-4 py-3 whitespace-nowrap w-20">ישות</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {filteredLogs.map((log) => (
-                            <React.Fragment key={log.id}>
-                                <tr
-                                    className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
-                                    onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
+            {/* Content Area */}
+            <div className="bg-white">
+                {activeTab === 'dashboard' ? (
+                    <div className="p-4 md:p-6 bg-slate-50/30">
+                        {organization?.id && <OrganizationStats organizationId={organization.id} />}
+                    </div>
+                ) : (
+                    <>
+                        {/* Filters */}
+                        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-3">
+                            <div className="relative flex-1">
+                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                <input
+                                    type="text"
+                                    placeholder="חיפוש לפי פעולה, שם או תיאור..."
+                                    value={filter}
+                                    onChange={(e) => setFilter(e.target.value)}
+                                    className="w-full pr-10 pl-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+                                <Select
+                                    value={categoryFilter}
+                                    onChange={(val) => setCategoryFilter(val)}
+                                    options={[
+                                        { value: 'ALL', label: 'כל הקטגוריות' },
+                                        { value: 'auth', label: 'כניסה/יציאה' },
+                                        { value: 'data', label: 'נתונים (יצירה/עריכה)' },
+                                        { value: 'scheduling', label: 'שיבוץ ומשמרות' },
+                                        { value: 'security', label: 'אבטחה והרשאות' },
+                                        { value: 'settings', label: 'הגדרות' }
+                                    ]}
+                                    placeholder="קטגוריה"
+                                />
+
+                                <Select
+                                    value={limit.toString()}
+                                    onChange={(val) => setLimit(Number(val))}
+                                    options={[
+                                        { value: '50', label: '50 אחרונים' },
+                                        { value: '100', label: '100 אחרונים' },
+                                        { value: '200', label: '200 אחרונים' }
+                                    ]}
+                                />
+
+                                <button
+                                    onClick={exportToCSV}
+                                    className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium whitespace-nowrap"
+                                    title="ייצוא CSV"
                                 >
-                                    <td className="px-4 py-3 text-slate-500" dir="ltr">
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-slate-700 text-xs text-right">
-                                                {new Date(log.created_at).toLocaleDateString('he-IL')}
-                                            </span>
-                                            <span className="text-[10px] text-slate-400 font-mono text-right">
-                                                {new Date(log.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${getCategoryColor(log.event_category)}`}>
-                                            {log.event_category}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 font-medium text-slate-700">
-                                        {log.event_type}
-                                    </td>
-                                    <td className="px-4 py-3 text-slate-600">
-                                        {log.action_description}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xs">
-                                                {log.user_name ? log.user_name.charAt(0) : <UserIcon size={12} />}
-                                            </div>
-                                            <div className="w-full overflow-hidden">
-                                                <div className="text-slate-800 font-medium truncate text-xs" title={log.user_email}>
-                                                    {log.user_name || 'מערכת'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                                            {log.entity_type || '-'}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {expandedRow === log.id && (log.before_data || log.after_data) && (
-                                    <tr className="bg-slate-50">
-                                        <td colSpan={6} className="px-4 py-3">
-                                            <div className="bg-white rounded border border-slate-200 p-3 shadow-sm">
-                                                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">פירוט שינויי נתונים:</h4>
-                                                {(() => {
-                                                    const { before, after } = getDiff(log.before_data, log.after_data);
+                                    <Download size={16} />
+                                    <span className="hidden md:inline">ייצוא</span>
+                                </button>
 
-                                                    // Translations map
-                                                    const translations: Record<string, string> = {
-                                                        name: 'שם',
-                                                        email: 'אימייל',
-                                                        phone: 'טלפון',
-                                                        roleId: 'תפקיד',
-                                                        teamId: 'צוות',
-                                                        color: 'צבע',
-                                                        isActive: 'סטטוס',
-                                                        maxShiftsPerWeek: 'מקס׳ משמרות',
-                                                        customFields: 'שדות מותאמים',
-                                                        preferences: 'העדפות',
-                                                        dailyAvailability: 'זמינות',
-                                                        personalRotation: 'סבב אישי',
-                                                        organization_id: 'מזהה ארגון',
-                                                        created_at: 'נוצר ב',
-                                                        updated_at: 'עודכן ב',
-                                                        id: 'מזהה',
-                                                        permissions: 'הרשאות',
-                                                        role: 'תפקיד מערכת',
-                                                        dataScope: 'היקף נתונים',
-                                                        allowedTeamIds: 'צוותים מורשים',
-                                                        screens: 'גישה למסכים'
-                                                    };
+                                <button
+                                    onClick={fetchLogs}
+                                    className="p-2 bg-white hover:bg-slate-100 rounded-lg border border-slate-200 text-slate-600 transition-colors"
+                                    title="רענן נתונים"
+                                >
+                                    <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                                </button>
+                            </div>
+                        </div>
 
-                                                    // Format value for display
-                                                    const formatVal = (val: any) => {
-                                                        if (val === null || val === undefined) return 'ריק';
-                                                        if (val === true) return 'פעיל/כן';
-                                                        if (val === false) return 'לא פעיל/לא';
-                                                        if (typeof val === 'object') return JSON.stringify(val); // Fallback for complex
-                                                        return String(val);
-                                                    };
-
-                                                    const changes: React.JSX.Element[] = [];
-                                                    const allKeys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
-
-                                                    if (allKeys.size === 0) {
-                                                        return <div className="text-slate-400 text-xs italic">לא נמצאו שינויים בנתונים</div>;
-                                                    }
-
-                                                    allKeys.forEach(key => {
-                                                        const valBefore = before?.[key];
-                                                        const valAfter = after?.[key];
-                                                        const label = translations[key] || key;
-
-                                                        // Handle Custom Fields specifically
-                                                        if (key === 'customFields' && typeof valAfter === 'object') {
-                                                            const cfKeys = new Set([...Object.keys(valBefore || {}), ...Object.keys(valAfter || {})]);
-                                                            cfKeys.forEach(cfKey => {
-                                                                const vB = valBefore?.[cfKey];
-                                                                const vA = valAfter?.[cfKey];
-                                                                if (vB !== vA) {
-                                                                    if (!vB && vA) changes.push(<div key={`cf-add-${cfKey}`}>📌 <b>{translations['customFields']}</b>: התווסף נתון <u>{cfKey}</u> עם ערך <b>{vA}</b></div>);
-                                                                    else if (vB && !vA) changes.push(<div key={`cf-rem-${cfKey}`}>📌 <b>{translations['customFields']}</b>: הוסר נתון <u>{cfKey}</u></div>);
-                                                                    else changes.push(<div key={`cf-upd-${cfKey}`}>📝 <b>{translations['customFields']}</b>: <u>{cfKey}</u> שונה מ-<i>{vB}</i> ל-<b>{vA}</b></div>);
-                                                                }
-                                                            });
-                                                            return;
-                                                        }
-
-                                                        // Handle Preferences
-                                                        if (key === 'preferences' && typeof valAfter === 'object') {
-                                                            changes.push(<div key="pref-upd">⚙️ <b>העדפות</b> עודכנו</div>);
-                                                            return;
-                                                        }
-
-                                                        // Handle Permissions
-                                                        if (key === 'permissions' && typeof valAfter === 'object') {
-                                                            const permDiffBefore = valBefore || {};
-                                                            const permDiffAfter = valAfter || {};
-
-                                                            // Check specific permission fields
-                                                            if (permDiffBefore.dataScope !== permDiffAfter.dataScope) {
-                                                                changes.push(<div key="perm-scope">🛡️ <b>היקף נתונים</b> שונה מ-<u>{permDiffBefore.dataScope || 'רגיל'}</u> ל-<b>{permDiffAfter.dataScope}</b></div>);
-                                                            }
-
-                                                            // Check restricted teams
-                                                            const teamsBefore = (permDiffBefore.allowedTeamIds || []).length;
-                                                            const teamsAfter = (permDiffAfter.allowedTeamIds || []).length;
-                                                            if (teamsBefore !== teamsAfter) {
-                                                                changes.push(<div key="perm-teams">🛡️ <b>צוותים מורשים</b>: עודכן (כעת {teamsAfter} צוותים)</div>);
-                                                            }
-
-                                                            // Check Screens
-                                                            const screensBefore = permDiffBefore.screens || {};
-                                                            const screensAfter = permDiffAfter.screens || {};
-                                                            const allScreens = new Set([...Object.keys(screensBefore), ...Object.keys(screensAfter)]);
-                                                            let screenChanges = 0;
-                                                            allScreens.forEach(s => {
-                                                                if (screensBefore[s] !== screensAfter[s]) screenChanges++;
-                                                            });
-
-                                                            if (screenChanges > 0) {
-                                                                changes.push(<div key="perm-screens">🛡️ <b>הרשאות מסכים</b>: עודכנו {screenChanges} מסכים</div>);
-                                                            }
-
-                                                            if (changes.length === 0) {
-                                                                changes.push(<div key="perm-gen">🛡️ <b>הרשאות</b> עודכנו</div>);
-                                                            }
-                                                            return;
-                                                        }
-
-                                                        // Handle Availability
-                                                        if (key === 'dailyAvailability' && typeof valAfter === 'object') {
-                                                            changes.push(<div key="avail-upd">📅 <b>זמינות</b> עודכנה עבור {Object.keys(valAfter).length} תאריכים</div>);
-                                                            return;
-                                                        }
-
-                                                        // General Changes
-                                                        if (valBefore !== undefined && valAfter !== undefined) {
-                                                            // Changed
-                                                            changes.push(
-                                                                <div key={key} className="flex items-start gap-2 text-slate-700">
-                                                                    <span className="w-5 text-center">📝</span>
-                                                                    <span>
-                                                                        <b>{label}</b> שונה מ-
-                                                                        <span className="bg-red-50 text-red-600 px-1 rounded mx-1 line-through decoration-red-300 decoration-1 text-[10px]">{formatVal(valBefore)}</span>
-                                                                        ל-
-                                                                        <span className="bg-emerald-50 text-emerald-600 px-1 rounded mx-1 font-medium">{formatVal(valAfter)}</span>
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        } else if (valBefore === undefined && valAfter !== undefined) {
-                                                            // Added
-                                                            changes.push(
-                                                                <div key={key} className="flex items-start gap-2 text-slate-700">
-                                                                    <span className="w-5 text-center">➕</span>
-                                                                    <span>
-                                                                        התווסף <b>{label}</b>: <span className="bg-blue-50 text-blue-600 px-1 rounded font-medium">{formatVal(valAfter)}</span>
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        } else if (valBefore !== undefined && valAfter === undefined) {
-                                                            // Removed
-                                                            changes.push(
-                                                                <div key={key} className="flex items-start gap-2 text-slate-700">
-                                                                    <span className="w-5 text-center">➖</span>
-                                                                    <span>
-                                                                        הוסר <b>{label}</b>
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        }
-                                                    });
-
-                                                    return (
-                                                        <div className="bg-slate-50 rounded-lg border border-slate-100 p-3 space-y-2 text-xs font-mono">
-                                                            {changes}
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </div>
-                                        </td>
+                        {/* Table */}
+                        <div className="overflow-x-auto min-h-0">
+                            <table className="w-full text-sm text-right min-w-[800px]">
+                                <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-4 py-3 whitespace-nowrap w-32">זמן</th>
+                                        <th className="px-4 py-3 whitespace-nowrap w-24">קטגוריה</th>
+                                        <th className="px-4 py-3 whitespace-nowrap w-32">סוג אירוע</th>
+                                        <th className="px-4 py-3 whitespace-nowrap">תיאור</th>
+                                        <th className="px-4 py-3 whitespace-nowrap w-40">משתמש</th>
+                                        <th className="px-4 py-3 whitespace-nowrap w-20">ישות</th>
                                     </tr>
-                                )}
-                            </React.Fragment>
-                        ))}
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredLogs.map((log) => (
+                                        <React.Fragment key={log.id}>
+                                            <tr
+                                                className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                                                onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
+                                            >
+                                                <td className="px-4 py-3 text-slate-500" dir="ltr">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-slate-700 text-xs text-right">
+                                                            {new Date(log.created_at).toLocaleDateString('he-IL')}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 font-mono text-right">
+                                                            {new Date(log.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${getCategoryColor(log.event_category)}`}>
+                                                        {log.event_category}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 font-medium text-slate-700">
+                                                    {log.event_type}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600">
+                                                    {log.action_description}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 text-xs">
+                                                            {log.user_name ? log.user_name.charAt(0) : <UserIcon size={12} />}
+                                                        </div>
+                                                        <div className="w-full overflow-hidden">
+                                                            <div className="text-slate-800 font-medium truncate text-xs" title={log.user_email}>
+                                                                {log.user_name || 'מערכת'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                                        {log.entity_type || '-'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {expandedRow === log.id && (log.before_data || log.after_data) && (
+                                                <tr className="bg-slate-50">
+                                                    <td colSpan={6} className="px-4 py-3">
+                                                        <div className="bg-white rounded border border-slate-200 p-3 shadow-sm">
+                                                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">פירוט שינויי נתונים:</h4>
+                                                            {(() => {
+                                                                const { before, after } = getDiff(log.before_data, log.after_data);
 
-                        {filteredLogs.length === 0 && !loading && (
-                            <tr>
-                                <td colSpan={6} className="py-12 text-center text-slate-400">
-                                    <div className="flex flex-col items-center justify-center">
-                                        <Search size={32} className="mb-2 opacity-20" />
-                                        <p>לא נמצאו פעולות התואמות את החיפוש</p>
-                                    </div>
-                                </td>
-                            </tr>
+                                                                // Translations map
+                                                                const translations: Record<string, string> = {
+                                                                    name: 'שם',
+                                                                    email: 'אימייל',
+                                                                    phone: 'טלפון',
+                                                                    roleId: 'תפקיד',
+                                                                    teamId: 'צוות',
+                                                                    color: 'צבע',
+                                                                    isActive: 'סטטוס',
+                                                                    maxShiftsPerWeek: 'מקס׳ משמרות',
+                                                                    customFields: 'שדות מותאמים',
+                                                                    preferences: 'העדפות',
+                                                                    dailyAvailability: 'זמינות',
+                                                                    personalRotation: 'סבב אישי',
+                                                                    organization_id: 'מזהה ארגון',
+                                                                    created_at: 'נוצר ב',
+                                                                    updated_at: 'עודכן ב',
+                                                                    id: 'מזהה',
+                                                                    permissions: 'הרשאות',
+                                                                    role: 'תפקיד מערכת',
+                                                                    dataScope: 'היקף נתונים',
+                                                                    allowedTeamIds: 'צוותים מורשים',
+                                                                    screens: 'גישה למסכים'
+                                                                };
+
+                                                                // Format value for display
+                                                                const formatVal = (val: any) => {
+                                                                    if (val === null || val === undefined) return 'ריק';
+                                                                    if (val === true) return 'פעיל/כן';
+                                                                    if (val === false) return 'לא פעיל/לא';
+                                                                    if (typeof val === 'object') return JSON.stringify(val); // Fallback for complex
+                                                                    return String(val);
+                                                                };
+
+                                                                const changes: React.JSX.Element[] = [];
+                                                                const allKeys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
+
+                                                                if (allKeys.size === 0) {
+                                                                    return <div className="text-slate-400 text-xs italic">לא נמצאו שינויים בנתונים</div>;
+                                                                }
+
+                                                                allKeys.forEach(key => {
+                                                                    const valBefore = before?.[key];
+                                                                    const valAfter = after?.[key];
+                                                                    const label = translations[key] || key;
+
+                                                                    // Handle Custom Fields specifically
+                                                                    if (key === 'customFields' && typeof valAfter === 'object') {
+                                                                        const cfKeys = new Set([...Object.keys(valBefore || {}), ...Object.keys(valAfter || {})]);
+                                                                        cfKeys.forEach(cfKey => {
+                                                                            const vB = valBefore?.[cfKey];
+                                                                            const vA = valAfter?.[cfKey];
+                                                                            if (vB !== vA) {
+                                                                                if (!vB && vA) changes.push(<div key={`cf-add-${cfKey}`}>📌 <b>{translations['customFields']}</b>: התווסף נתון <u>{cfKey}</u> עם ערך <b>{vA}</b></div>);
+                                                                                else if (vB && !vA) changes.push(<div key={`cf-rem-${cfKey}`}>📌 <b>{translations['customFields']}</b>: הוסר נתון <u>{cfKey}</u></div>);
+                                                                                else changes.push(<div key={`cf-upd-${cfKey}`}>📝 <b>{translations['customFields']}</b>: <u>{cfKey}</u> שונה מ-<i>{vB}</i> ל-<b>{vA}</b></div>);
+                                                                            }
+                                                                        });
+                                                                        return;
+                                                                    }
+
+                                                                    // Handle Preferences
+                                                                    if (key === 'preferences' && typeof valAfter === 'object') {
+                                                                        changes.push(<div key="pref-upd">⚙️ <b>העדפות</b> עודכנו</div>);
+                                                                        return;
+                                                                    }
+
+                                                                    // Handle Permissions
+                                                                    if (key === 'permissions' && typeof valAfter === 'object') {
+                                                                        const permDiffBefore = valBefore || {};
+                                                                        const permDiffAfter = valAfter || {};
+
+                                                                        // Check specific permission fields
+                                                                        if (permDiffBefore.dataScope !== permDiffAfter.dataScope) {
+                                                                            changes.push(<div key="perm-scope">🛡️ <b>היקף נתונים</b> שונה מ-<u>{permDiffBefore.dataScope || 'רגיל'}</u> ל-<b>{permDiffAfter.dataScope}</b></div>);
+                                                                        }
+
+                                                                        // Check restricted teams
+                                                                        const teamsBefore = (permDiffBefore.allowedTeamIds || []).length;
+                                                                        const teamsAfter = (permDiffAfter.allowedTeamIds || []).length;
+                                                                        if (teamsBefore !== teamsAfter) {
+                                                                            changes.push(<div key="perm-teams">🛡️ <b>צוותים מורשים</b>: עודכן (כעת {teamsAfter} צוותים)</div>);
+                                                                        }
+
+                                                                        // Check Screens
+                                                                        const screensBefore = permDiffBefore.screens || {};
+                                                                        const screensAfter = permDiffAfter.screens || {};
+                                                                        const allScreens = new Set([...Object.keys(screensBefore), ...Object.keys(screensAfter)]);
+                                                                        let screenChanges = 0;
+                                                                        allScreens.forEach(s => {
+                                                                            if (screensBefore[s] !== screensAfter[s]) screenChanges++;
+                                                                        });
+
+                                                                        if (screenChanges > 0) {
+                                                                            changes.push(<div key="perm-screens">🛡️ <b>הרשאות מסכים</b>: עודכנו {screenChanges} מסכים</div>);
+                                                                        }
+
+                                                                        if (changes.length === 0) {
+                                                                            changes.push(<div key="perm-gen">🛡️ <b>הרשאות</b> עודכנו</div>);
+                                                                        }
+                                                                        return;
+                                                                    }
+
+                                                                    // Handle Availability
+                                                                    if (key === 'dailyAvailability' && typeof valAfter === 'object') {
+                                                                        changes.push(<div key="avail-upd">📅 <b>זמינות</b> עודכנה עבור {Object.keys(valAfter).length} תאריכים</div>);
+                                                                        return;
+                                                                    }
+
+                                                                    // General Changes
+                                                                    if (valBefore !== undefined && valAfter !== undefined) {
+                                                                        // Changed
+                                                                        changes.push(
+                                                                            <div key={key} className="flex items-start gap-2 text-slate-700">
+                                                                                <span className="w-5 text-center">📝</span>
+                                                                                <span>
+                                                                                    <b>{label}</b> שונה מ-
+                                                                                    <span className="bg-red-50 text-red-600 px-1 rounded mx-1 line-through decoration-red-300 decoration-1 text-[10px]">{formatVal(valBefore)}</span>
+                                                                                    ל-
+                                                                                    <span className="bg-emerald-50 text-emerald-600 px-1 rounded mx-1 font-medium">{formatVal(valAfter)}</span>
+                                                                                </span>
+                                                                            </div>
+                                                                        );
+                                                                    } else if (valBefore === undefined && valAfter !== undefined) {
+                                                                        // Added
+                                                                        changes.push(
+                                                                            <div key={key} className="flex items-start gap-2 text-slate-700">
+                                                                                <span className="w-5 text-center">➕</span>
+                                                                                <span>
+                                                                                    התווסף <b>{label}</b>: <span className="bg-blue-50 text-blue-600 px-1 rounded font-medium">{formatVal(valAfter)}</span>
+                                                                                </span>
+                                                                            </div>
+                                                                        );
+                                                                    } else if (valBefore !== undefined && valAfter === undefined) {
+                                                                        // Removed
+                                                                        changes.push(
+                                                                            <div key={key} className="flex items-start gap-2 text-slate-700">
+                                                                                <span className="w-5 text-center">➖</span>
+                                                                                <span>
+                                                                                    הוסר <b>{label}</b>
+                                                                                </span>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                });
+
+                                                                return (
+                                                                    <div className="bg-slate-50 rounded-lg border border-slate-100 p-3 space-y-2 text-xs font-mono">
+                                                                        {changes}
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+
+                                    {filteredLogs.length === 0 && !loading && (
+                                        <tr>
+                                            <td colSpan={6} className="py-12 text-center text-slate-400">
+                                                <div className="flex flex-col items-center justify-center">
+                                                    <Search size={32} className="mb-2 opacity-20" />
+                                                    <p>לא נמצאו פעולות התואמות את החיפוש</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {loading && (
+                            <div className="p-12 flex justify-center text-blue-600">
+                                <RefreshCw size={32} className="animate-spin opacity-50" />
+                            </div>
                         )}
-                    </tbody>
-                </table>
+                    </>
+                )}
             </div>
-
-            {loading && (
-                <div className="p-12 flex justify-center text-blue-600">
-                    <RefreshCw size={32} className="animate-spin opacity-50" />
-                </div>
-            )}
         </div>
     );
 };
