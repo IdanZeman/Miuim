@@ -14,9 +14,8 @@ interface TaskManagerProps {
     tasks: TaskTemplate[];
     roles: Role[];
     teams: Team[];
-    onAddTask: (t: TaskTemplate) => void;
-    onUpdateTask: (t: TaskTemplate) => void;
     onDeleteTask: (id: string) => void;
+    isViewer?: boolean;
 }
 
 const COLORS = [
@@ -31,10 +30,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     teams,
     onAddTask,
     onUpdateTask,
-    onDeleteTask
+    onDeleteTask,
+    isViewer = false
 }) => {
     const { checkAccess } = useAuth();
-    const canEdit = checkAccess('tasks', 'edit');
+    const canEdit = !isViewer && checkAccess('tasks', 'edit');
 
     const [isAdding, setIsAdding] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);

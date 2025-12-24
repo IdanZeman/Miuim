@@ -27,6 +27,7 @@ interface PersonnelManagerProps {
     onDeleteRole: (id: string) => void;
     onUpdateRole: (role: Role) => void;
     initialTab?: 'people' | 'teams' | 'roles';
+    isViewer?: boolean;
 }
 
 type Tab = 'people' | 'teams' | 'roles';
@@ -44,7 +45,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     onAddRole,
     onDeleteRole,
     onUpdateRole,
-    initialTab = 'people'
+    initialTab = 'people',
+    isViewer = false
 }) => {
     // Log component view
     useEffect(() => {
@@ -58,7 +60,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         });
     }, []);
     const { checkAccess } = useAuth();
-    const canEdit = checkAccess('personnel', 'edit');
+    const canEdit = !isViewer && checkAccess('personnel', 'edit');
     const { showToast } = useToast();
 
     // -- State --
@@ -842,7 +844,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         onClick={() => {
                                             if (selectedItemIds.size > 0 || isSelected) {
                                                 toggleSelection(person.id);
-                                            } else {
+                                            } else if (canEdit) {
                                                 handleEditPersonClick(person);
                                             }
                                         }}
@@ -994,7 +996,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             className={`flex items-center gap-3 py-3 px-1 border-b border-slate-100 bg-white transition-colors cursor-pointer select-none ${isSelected ? 'bg-blue-50' : 'active:bg-slate-50'}`}
                             onClick={() => {
                                 if (selectedItemIds.size > 0 || isSelected) toggleSelection(team.id);
-                                else handleEditTeamClick(team);
+                                else if (canEdit) handleEditTeamClick(team);
                             }}
                         >
                             {/* Checkbox */}
@@ -1036,7 +1038,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             className={`flex items-center gap-3 py-3 px-1 border-b border-slate-100 bg-white transition-colors cursor-pointer select-none ${isSelected ? 'bg-blue-50' : 'active:bg-slate-50'}`}
                             onClick={() => {
                                 if (selectedItemIds.size > 0 || isSelected) toggleSelection(role.id);
-                                else handleEditRoleClick(role);
+                                else if (canEdit) handleEditRoleClick(role);
                             }}
                         >
                             {/* Checkbox */}

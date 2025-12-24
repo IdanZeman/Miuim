@@ -1004,7 +1004,7 @@ const MainApp: React.FC = () => {
                         />
                     </div>
                 );
-            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onUpdatePerson={handleUpdatePerson} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} />;
+            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onUpdatePerson={handleUpdatePerson} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} isViewer={!checkAccess('personnel', 'edit')} />;
             case 'attendance': return <AttendanceManager
                 people={state.people}
                 teams={state.teams}
@@ -1021,7 +1021,7 @@ const MainApp: React.FC = () => {
                 onAddShifts={(newShifts) => setState(prev => ({ ...prev, shifts: [...prev.shifts, ...newShifts] }))}
                 isViewer={!checkAccess('attendance', 'edit')}
             />;
-            case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} />;
+            case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} isViewer={!checkAccess('tasks', 'edit')} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
             case 'settings': return <OrganizationSettingsComponent organizationId={organization?.id || ''} teams={state.teams} />;
 
@@ -1042,6 +1042,7 @@ const MainApp: React.FC = () => {
                     onAddEquipment={handleAddEquipment}
                     onUpdateEquipment={handleUpdateEquipment}
                     onDeleteEquipment={handleDeleteEquipment}
+                    isViewer={!checkAccess('equipment', 'edit')}
                 />;
             case 'absences':
                 return checkAccess('attendance') ? (
@@ -1051,6 +1052,7 @@ const MainApp: React.FC = () => {
                         onAddAbsence={handleAddAbsence}
                         onUpdateAbsence={handleUpdateAbsence}
                         onDeleteAbsence={handleDeleteAbsence}
+                        isViewer={!checkAccess('attendance', 'edit')}
                     />
                 ) : <Navigate to="/" />;
             default:

@@ -12,11 +12,12 @@ interface PersonalAttendanceCalendarProps {
     teamRotations: TeamRotation[];
     onClose: () => void;
     onUpdatePerson: (p: Person) => void;
+    isViewer?: boolean;
 }
 
 const formatTime = (time?: string) => time?.slice(0, 5) || '';
 
-export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({ person: initialPerson, teamRotations, onClose, onUpdatePerson }) => {
+export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({ person: initialPerson, teamRotations, onClose, onUpdatePerson, isViewer = false }) => {
     const [person, setPerson] = useState(initialPerson);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [editingDate, setEditingDate] = useState<Date | null>(null);
@@ -164,9 +165,9 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             days.push(
                 <div
                     key={d}
-                    onClick={() => setEditingDate(date)}
-                    className={`h-24 border border-slate-100 relative p-1 transition-all hover:bg-opacity-70 cursor-pointer hover:shadow-inner ${bgClass} ${isToday ? 'ring-2 ring-inset ring-blue-400' : ''}`}
-                    title="לחץ לעריכת נוכחות"
+                    onClick={() => !isViewer && setEditingDate(date)}
+                    className={`h-24 border border-slate-100 relative p-1 transition-all ${isViewer ? '' : 'hover:bg-opacity-70 cursor-pointer hover:shadow-inner'} ${bgClass} ${isToday ? 'ring-2 ring-inset ring-blue-400' : ''}`}
+                    title={isViewer ? "" : "לחץ לעריכת נוכחות"}
                 >
                     <span className={`absolute top-1 right-2 text-xs font-bold ${isToday ? 'text-blue-600 bg-blue-100 px-1.5 rounded-full' : 'text-slate-400'}`}>
                         {d}
@@ -227,14 +228,16 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         >
                             ייצוא
                         </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            icon={RotateCcw}
-                            onClick={() => setShowRotationSettings(true)}
-                        >
-                            הגדרת סבב אישי
-                        </Button>
+                        {!isViewer && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                icon={RotateCcw}
+                                onClick={() => setShowRotationSettings(true)}
+                            >
+                                הגדרת סבב אישי
+                            </Button>
+                        )}
                     </div>
                 </div>
 

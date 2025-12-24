@@ -16,9 +16,10 @@ interface AbsenceManagerProps {
     onAddAbsence: (absence: Absence) => void;
     onUpdateAbsence: (absence: Absence) => void;
     onDeleteAbsence: (id: string) => void;
+    isViewer?: boolean;
 }
 
-export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences, onAddAbsence, onUpdateAbsence, onDeleteAbsence }) => {
+export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences, onAddAbsence, onUpdateAbsence, onDeleteAbsence, isViewer = false }) => {
     const { organization } = useAuth();
     const { showToast } = useToast();
     const [viewDate, setViewDate] = useState(new Date());
@@ -150,9 +151,11 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                         <p className="text-sm text-slate-500 hidden md:block">הזנת ימי חופש, מחלה והיעדרויות קבועות</p>
                     </div>
                 </div>
-                <Button onClick={() => openAddModal()} icon={Plus} className="bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-200">
-                    <span className="hidden md:inline">הוסף היעדרות</span>
-                </Button>
+                {!isViewer && (
+                    <Button onClick={() => openAddModal()} icon={Plus} className="bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-200">
+                        <span className="hidden md:inline">הוסף היעדרות</span>
+                    </Button>
+                )}
             </div>
 
             <div className="flex flex-col md:flex-row flex-1 overflow-hidden gap-4 md:gap-6">
@@ -268,10 +271,12 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                                                                 {absence.reason && <span className="bg-slate-100 px-2 py-0.5 rounded text-xs truncate max-w-[200px]">{absence.reason}</span>}
                                                             </div>
                                                         </div>
-                                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <Button size="sm" variant="ghost" onClick={() => openEditModal(absence)} icon={Edit2} />
-                                                            <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteConfirmId(absence.id)} icon={Trash2} />
-                                                        </div>
+                                                        {!isViewer && (
+                                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Button size="sm" variant="ghost" onClick={() => openEditModal(absence)} icon={Edit2} />
+                                                                <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteConfirmId(absence.id)} icon={Trash2} />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
@@ -318,9 +323,13 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                                         return (
                                             <div
                                                 key={dateStr}
-                                                onClick={() => absence ? openEditModal(absence) : openAddModal(selectedPersonId, dateStr)}
+                                                onClick={() => {
+                                                    if (isViewer) return;
+                                                    if (absence) openEditModal(absence);
+                                                    else openAddModal(selectedPersonId, dateStr);
+                                                }}
                                                 className={`
-                                                    aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all border-2 relative group cursor-pointer
+                                                    aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all border-2 relative group ${isViewer ? '' : 'cursor-pointer'}
                                                     ${absence ? 'bg-red-50 border-red-500 shadow-md' : 'bg-white border-slate-100 hover:border-blue-400 hover:shadow-md'}
                                                     ${isToday ? 'ring-2 ring-blue-200' : ''}
                                                 `}
@@ -331,7 +340,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                                                         {absence.reason || 'היעדרות'}
                                                     </span>
                                                 )}
-                                                {!absence && (
+                                                {!absence && !isViewer && (
                                                     <span className="opacity-0 group-hover:opacity-100 absolute bottom-2 text-blue-500"><Plus size={16} /></span>
                                                 )}
                                             </div>

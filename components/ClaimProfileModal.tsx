@@ -172,7 +172,7 @@ export const ClaimProfileModal: React.FC<ClaimProfileModalProps> = ({ isOpen, on
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 md:p-8 bg-slate-50 border-t border-slate-100 shrink-0">
+                <div className="p-6 md:p-8 pb-10 md:pb-8 bg-slate-50 border-t border-slate-100 shrink-0">
                     {error && (
                         <div className="mb-4 bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-red-200">
                             <AlertCircle size={20} className="shrink-0" />

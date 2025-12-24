@@ -83,7 +83,7 @@ export const ClaimProfile: React.FC = () => {
     );
 
     return (
-        <div className="h-screen bg-[#f8fafc] overflow-y-auto font-sans">
+        <div className="min-h-[100dvh] bg-[#f8fafc] flex flex-col font-sans">
             {/* Minimal Navigation */}
             <header className="bg-white border-b border-slate-200 h-16 flex items-center shadow-sm sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 w-full flex items-center justify-between">
@@ -96,8 +96,8 @@ export const ClaimProfile: React.FC = () => {
                 </div>
             </header>
 
-            <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-0 md:p-12">
-                <div className="bg-white md:rounded-[2.5rem] shadow-2xl max-w-5xl w-full overflow-hidden border-0 md:border border-slate-200/60 flex flex-col md:flex-row h-full md:h-auto">
+            <div className="flex-1 flex items-center justify-center p-0 md:p-12">
+                <div className="bg-white md:rounded-[2.5rem] shadow-2xl max-w-5xl w-full overflow-hidden border-0 md:border border-slate-200/60 flex flex-col md:flex-row min-h-full md:min-h-0">
 
                     {/* Dark Side Branding (Mobile Top, Desktop Left) */}
                     <div className="w-full md:w-[400px] h-[25vh] md:h-auto bg-emerald-900 p-6 md:p-12 text-white flex flex-col justify-between relative overflow-hidden shrink-0">
@@ -145,7 +145,7 @@ export const ClaimProfile: React.FC = () => {
                                     />
                                 </div>
 
-                                <div className="h-64 overflow-y-auto border-2 border-slate-100 rounded-2xl bg-white custom-scrollbar">
+                                <div className="h-48 md:h-64 overflow-y-auto border-2 border-slate-100 rounded-2xl bg-white custom-scrollbar">
                                     {loading ? (
                                         <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3">
                                             <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div>
@@ -188,7 +188,7 @@ export const ClaimProfile: React.FC = () => {
                                 </div>
                             )}
 
-                            <div className="space-y-4 pt-4">
+                            <div className="space-y-4 pt-4 pb-12 md:pb-0">
                                 <button
                                     onClick={handleClaim}
                                     disabled={!selectedPerson || claiming}

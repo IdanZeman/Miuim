@@ -311,14 +311,16 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
             <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden relative">
                 <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                     <h3 className="text-xl font-bold text-slate-800">הגדרת חוקי משימות</h3>
-                    <button
-                        onClick={() => openRuleModal()}
-                        className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-colors text-sm"
-                    >
-                        <Plus size={18} />
-                        <span className="hidden md:inline">הוסף חוק חדש</span>
-                        <span className="md:hidden">חדש</span>
-                    </button>
+                    {!isViewer && (
+                        <button
+                            onClick={() => openRuleModal()}
+                            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-colors text-sm"
+                        >
+                            <Plus size={18} />
+                            <span className="hidden md:inline">הוסף חוק חדש</span>
+                            <span className="md:hidden">חדש</span>
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50">
@@ -345,10 +347,12 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                             <div className="font-bold text-slate-800 text-lg">{name}</div>
                                         </div>
                                         {/* Mobile Actions */}
-                                        <div className="flex md:hidden gap-2">
-                                            <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg"><Edit2 size={18} /></button>
-                                            <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={18} /></button>
-                                        </div>
+                                        {!isViewer && (
+                                            <div className="flex md:hidden gap-2">
+                                                <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg"><Edit2 size={18} /></button>
+                                                <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={18} /></button>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
@@ -374,10 +378,12 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                     </div>
 
                                     {/* Desktop Actions */}
-                                    <div className="hidden md:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={20} /></button>
-                                        <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={20} /></button>
-                                    </div>
+                                    {!isViewer && (
+                                        <div className="hidden md:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={20} /></button>
+                                            <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={20} /></button>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}

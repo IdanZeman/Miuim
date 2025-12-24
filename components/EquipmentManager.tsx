@@ -13,6 +13,7 @@ interface EquipmentManagerProps {
     onUpdateEquipment: (e: Equipment) => void;
     onAddEquipment: (e: Equipment) => void;
     onDeleteEquipment: (id: string) => void;
+    isViewer?: boolean;
 }
 
 const PersonSearchSelect = ({
@@ -107,7 +108,8 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
     equipment,
     onUpdateEquipment,
     onAddEquipment,
-    onDeleteEquipment
+    onDeleteEquipment,
+    isViewer = false
 }) => {
     const { showToast } = useToast();
     const [viewMode, setViewMode] = useState<'list' | 'verify'>('list');
@@ -299,13 +301,15 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                         </div>
                     </div>
                     <div className="mr-auto">
-                        <button
-                            onClick={() => { setEditingItem({}); setIsAddEditModalOpen(true); }}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all active:scale-95"
-                        >
-                            <Plus size={20} />
-                            <span>הוסף פריט חדש</span>
-                        </button>
+                        {!isViewer && (
+                            <button
+                                onClick={() => { setEditingItem({}); setIsAddEditModalOpen(true); }}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:shadow-xl transition-all active:scale-95"
+                            >
+                                <Plus size={20} />
+                                <span>הוסף פריט חדש</span>
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -418,8 +422,13 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                             return (
                                 <button
                                     key={item.id}
-                                    onClick={() => { setEditingItem(item); setIsAddEditModalOpen(true); }}
-                                    className="w-full flex items-center justify-between p-3.5 bg-white border-b border-slate-50 hover:bg-slate-50 transition-colors last:border-0 text-right group"
+                                    onClick={() => {
+                                        if (!isViewer) {
+                                            setEditingItem(item);
+                                            setIsAddEditModalOpen(true);
+                                        }
+                                    }}
+                                    className={`w-full flex items-center justify-between p-3.5 bg-white border-b border-slate-50 transition-colors last:border-0 text-right group ${!isViewer ? 'hover:bg-slate-50' : ''}`}
                                 >
                                     {/* Left Info */}
                                     <div className="flex items-center gap-4">
@@ -449,7 +458,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                         <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getStatusColor(item.status)}`}>
                                             {getStatusLabel(item.status)}
                                         </div>
-                                        <ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-400" />
+                                        {!isViewer && <ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-400" />}
                                     </div>
                                 </button>
                             );
@@ -507,22 +516,24 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                     {item.last_verified_at ? new Date(item.last_verified_at).toLocaleDateString('he-IL') : '-'}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button
-                                                            onClick={() => { setEditingItem(item); setIsAddEditModalOpen(true); }}
-                                                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                                            title="ערוך"
-                                                        >
-                                                            <Edit3 size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => onDeleteEquipment(item.id)}
-                                                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                                            title="מחק"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
+                                                    {!isViewer && (
+                                                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button
+                                                                onClick={() => { setEditingItem(item); setIsAddEditModalOpen(true); }}
+                                                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                                title="ערוך"
+                                                            >
+                                                                <Edit3 size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => onDeleteEquipment(item.id)}
+                                                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                                                title="מחק"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );
@@ -623,33 +634,34 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                         <div className="flex gap-2 justify-end">
 
                                                             <button
-                                                                onClick={() => handleVerify(item.id, 'present')}
+                                                                onClick={() => !isViewer && handleVerify(item.id, 'present')}
+                                                                disabled={isViewer}
                                                                 className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${displayStatus === 'present'
                                                                     ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 ring-2 ring-emerald-100'
                                                                     : 'bg-slate-50 text-slate-300 hover:bg-emerald-50 hover:text-emerald-500'
-                                                                    }`}
+                                                                    } ${isViewer ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 title="תקין / נמצא"
                                                             >
                                                                 <CheckCircle2 size={18} />
                                                             </button>
-
                                                             <button
-                                                                onClick={() => handleVerify(item.id, 'damaged')}
+                                                                onClick={() => !isViewer && handleVerify(item.id, 'damaged')}
+                                                                disabled={isViewer}
                                                                 className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${displayStatus === 'damaged'
                                                                     ? 'bg-amber-500 text-white shadow-md shadow-amber-200 ring-2 ring-amber-100'
                                                                     : 'bg-slate-50 text-slate-300 hover:bg-amber-50 hover:text-amber-500'
-                                                                    }`}
+                                                                    } ${isViewer ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 title="תקול / דורש תיקון"
                                                             >
                                                                 <Hammer size={18} />
                                                             </button>
-
                                                             <button
-                                                                onClick={() => handleVerify(item.id, 'missing')}
+                                                                onClick={() => !isViewer && handleVerify(item.id, 'missing')}
+                                                                disabled={isViewer}
                                                                 className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${displayStatus === 'missing'
                                                                     ? 'bg-rose-500 text-white shadow-md shadow-rose-200 ring-2 ring-rose-100'
                                                                     : 'bg-slate-50 text-slate-300 hover:bg-rose-50 hover:text-rose-500'
-                                                                    }`}
+                                                                    } ${isViewer ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 title="חסר / אבד"
                                                             >
                                                                 <AlertCircle size={18} />
@@ -670,24 +682,28 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                             <Package size={48} className="mx-auto text-slate-300 mb-4" />
                             <h3 className="text-lg font-bold text-slate-700">לא נמצאו פריטים</h3>
                             <p className="text-slate-400 mb-6">נסה לשנות את הפילטרים או הוסף פריט חדש</p>
-                            <button
-                                onClick={() => { setEditingItem({}); setIsAddEditModalOpen(true); }}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-bold shadow-sm transition-all"
-                            >
-                                צור פריט ראשון
-                            </button>
+                            {!isViewer && (
+                                <button
+                                    onClick={() => { setEditingItem({}); setIsAddEditModalOpen(true); }}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl font-bold shadow-sm transition-all"
+                                >
+                                    צור פריט ראשון
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Floating Action Button (FAB) - Mobile Only */}
-            <button
-                onClick={() => { setEditingItem({}); setIsAddEditModalOpen(true); }}
-                className="md:hidden fixed bottom-24 left-6 z-50 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl shadow-indigo-600/30 flex items-center justify-center hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all"
-            >
-                <Plus size={28} />
-            </button>
+            {!isViewer && (
+                <button
+                    onClick={() => { setEditingItem({}); setIsAddEditModalOpen(true); }}
+                    className="md:hidden fixed bottom-24 left-6 z-50 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl shadow-indigo-600/30 flex items-center justify-center hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all"
+                >
+                    <Plus size={28} />
+                </button>
+            )}
 
             {/* Add/Edit Modal (Existing) */}
             <Modal
