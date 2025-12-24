@@ -34,7 +34,9 @@ const RoleTemplateManager: React.FC<{
     templates: PermissionTemplate[];
     teams: Team[];
     onRefresh: () => void;
-}> = ({ organizationId, templates, teams, onRefresh }) => {
+    onRestorePresets?: () => void; // NEW
+    isAdmin?: boolean; // NEW
+}> = ({ organizationId, templates, teams, onRefresh, onRestorePresets, isAdmin }) => {
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
     const [isCreating, setIsCreating] = useState(false);
@@ -94,15 +96,40 @@ const RoleTemplateManager: React.FC<{
                         <p className="text-xs md:text-sm text-slate-500 font-bold">הגדר תפקידים מובנים כמו "מפקד מחלקה", "חייל" וכו'</p>
                     </div>
                 </div>
-                <Button
-                    variant="primary"
-                    icon={Plus}
-                    onClick={() => setIsCreating(true)}
-                    className="shadow-md"
-                >
-                    <span className="hidden md:inline">תבנית חדשה</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                    {isAdmin && onRestorePresets && (
+                        <Button
+                            variant="secondary"
+                            icon={RefreshCw}
+                            onClick={onRestorePresets}
+                            className="hidden md:flex"
+                        >
+                            שחזר תבניות מערכת
+                        </Button>
+                    )}
+                    <Button
+                        variant="primary"
+                        icon={Plus}
+                        onClick={() => setIsCreating(true)}
+                        className="shadow-md"
+                    >
+                        <span className="hidden md:inline">תבנית חדשה</span>
+                    </Button>
+                </div>
             </div>
+
+            {isAdmin && onRestorePresets && (
+                <div className="md:hidden">
+                    <Button
+                        variant="secondary"
+                        icon={RefreshCw}
+                        onClick={onRestorePresets}
+                        className="w-full"
+                    >
+                        שחזר תבניות מערכת
+                    </Button>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {templates.map(tmp => (
@@ -203,7 +230,6 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
     const [daysOn, setDaysOn] = useState(11);
     const [daysOff, setDaysOff] = useState(3);
     const [minStaff, setMinStaff] = useState(0);
-    const [optimizationMode, setOptimizationMode] = useState<'ratio' | 'min_staff' | 'tasks'>('ratio');
     const [rotationStart, setRotationStart] = useState('');
 
     useEffect(() => {
@@ -232,7 +258,6 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 setDaysOff(data.default_days_off || 3);
                 setMinStaff(data.min_daily_staff || 0);
                 setRotationStart(data.rotation_start_date || '');
-                setOptimizationMode(data.optimization_mode || 'ratio');
             }
         } catch (err) {
             console.warn('Failed to fetch settings, using defaults');
@@ -253,8 +278,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 default_days_on: daysOn,
                 default_days_off: daysOff,
                 rotation_start_date: rotationStart || null,
-                min_daily_staff: minStaff,
-                optimization_mode: optimizationMode
+                min_daily_staff: minStaff
             });
 
         if (error) {
@@ -306,27 +330,6 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
             </div>
 
             <div className="border-t border-slate-100 pt-6">
-                <label className="text-sm font-bold text-slate-700 block mb-2">מטרת השיבוץ</label>
-                <div className="flex bg-gray-50 p-1 rounded-xl gap-2 mb-4">
-                    <button
-                        onClick={() => setOptimizationMode('ratio')}
-                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'ratio' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
-                    >
-                        <span>⚖️ יחס</span>
-                    </button>
-                    <button
-                        onClick={() => setOptimizationMode('min_staff')}
-                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'min_staff' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
-                    >
-                        <span>🛡️ סד״כ</span>
-                    </button>
-                    <button
-                        onClick={() => setOptimizationMode('tasks')}
-                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex flex-col items-center gap-1 ${optimizationMode === 'tasks' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
-                    >
-                        <span>📋 משימות</span>
-                    </button>
-                </div>
 
 
                 <Input
@@ -389,40 +392,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
             .eq('organization_id', organization.id);
 
         if (!error && data) {
-            // Check for missing defaults and create them if needed
-            let currentTemplates = data;
-            const missingPresets = SYSTEM_ROLE_PRESETS.filter(preset =>
-                !currentTemplates.some(t => t.name === preset.name)
-            );
-
-            if (missingPresets.length > 0) {
-                console.log('🛠️ Creating missing default templates:', missingPresets.map(p => p.name));
-                const newTemplatesPayload = missingPresets.map(preset => ({
-                    organization_id: organization.id,
-                    name: preset.name,
-                    permissions: preset.permissions({
-                        dataScope: 'organization',
-                        allowedTeamIds: [],
-                        screens: {},
-                        canManageUsers: false,
-                        canManageSettings: false
-                    })
-                }));
-
-                const { data: createdTemplates, error: createError } = await supabase
-                    .from('permission_templates')
-                    .insert(newTemplatesPayload)
-                    .select();
-
-                if (!createError && createdTemplates) {
-                    currentTemplates = [...currentTemplates, ...createdTemplates];
-                    showToast('תבניות ברירת מחדל נוצרו בהצלחה', 'success');
-                } else {
-                    console.error('Failed to create default templates', createError);
-                }
-            }
-
-            setTemplates(currentTemplates);
+            setTemplates(data);
         }
     };
 
@@ -541,7 +511,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
 
     const navigationTabs = [
         { id: 'general', label: 'כללי', icon: Settings },
-        { id: 'roles', label: 'תפקידים', icon: Shield },
+        { id: 'roles', label: 'תבניות הרשאות', icon: Shield },
         { id: 'members', label: 'חברים', icon: Users },
     ];
 
@@ -658,7 +628,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <RoleTemplateManager
                                     organizationId={organization?.id || ''}
-                                    templates={templates}
+                                    templates={templates.filter(t => !SYSTEM_ROLE_PRESETS.some(p => p.name === t.name))}
                                     teams={teams}
                                     onRefresh={fetchTemplates}
                                 />
@@ -703,10 +673,23 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                             </div>
 
                                             <div className="flex items-center gap-2 pl-1 self-end sm:self-auto">
-                                                <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${member.permission_template_id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
-                                                    {member.permission_template_id
-                                                        ? templates.find(t => t.id === member.permission_template_id)?.name || 'תבנית לא נמצאה'
-                                                        : (member.is_super_admin || member.permissions ? 'תבנית אישית' : 'ללא הרשאות')}
+                                                <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${member.permission_template_id ? (templates.find(t => t.id === member.permission_template_id) ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700') : 'bg-slate-200 text-slate-600'}`}>
+                                                    {(() => {
+                                                        // 1. Try to find by ID in current templates
+                                                        const activeTmp = templates.find(t => t.id === member.permission_template_id);
+                                                        if (activeTmp) return activeTmp.name;
+
+                                                        // 2. Try to match by virtual system ID
+                                                        const sysPreset = SYSTEM_ROLE_PRESETS.find(p => p.id === member.permission_template_id);
+                                                        if (sysPreset) return sysPreset.name;
+
+                                                        // 3. Fallback: If no template or missing row, infer from properties
+                                                        if (member.is_super_admin) return 'מנהל על';
+                                                        if (member.permissions?.canManageSettings) return 'מנהל מלא';
+                                                        if (member.permissions?.dataScope === 'organization') return 'עורך / צופה';
+
+                                                        return member.permission_template_id ? 'תבנית לא נמצאה' : 'תבנית אישית';
+                                                    })()}
                                                 </span>
                                                 {member.id !== user?.id && (
                                                     <Button
@@ -791,8 +774,15 @@ const InviteLinkSettings: React.FC<{
         try {
             let token = inviteToken;
             if (!isActive && !token) {
-                const { data, error: rpcError } = await supabase.rpc('generate_invite_token', { org_id: organization.id });
-                if (rpcError) throw rpcError;
+                console.log('🔗 [InviteLink] No token found, calling RPC: generate_invite_token');
+                const { data, error: rpcError } = await supabase.rpc('generate_invite_token');
+
+                if (rpcError) {
+                    console.error('❌ [InviteLink] RPC Error:', rpcError);
+                    throw rpcError;
+                }
+
+                console.log('✅ [InviteLink] RPC Success, Token:', data);
                 token = data;
                 setInviteToken(token);
             }
@@ -821,8 +811,15 @@ const InviteLinkSettings: React.FC<{
             onConfirm: async () => {
                 setLoading(true);
                 try {
-                    const { data, error } = await supabase.rpc('generate_invite_token', { org_id: organization.id });
-                    if (error) throw error;
+                    console.log('🔗 [InviteLink] Regenerating... Calling RPC: generate_invite_token');
+                    const { data, error } = await supabase.rpc('generate_invite_token');
+
+                    if (error) {
+                        console.error('❌ [InviteLink] RPC Error during regeneration:', error);
+                        throw error;
+                    }
+
+                    console.log('✅ [InviteLink] RPC Success, New Token:', data);
                     setInviteToken(data);
                     setIsActive(true);
                     showToast('קישור חדש נוצר', 'success');

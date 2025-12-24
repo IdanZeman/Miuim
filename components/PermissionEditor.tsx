@@ -62,37 +62,26 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
         setActiveTemplateId(template.id);
     };
 
-    const handlePermissionsChange = (newPermissions: UserPermissions) => {
-        setPermissions(newPermissions);
-        // We do NOT clear activeTemplateId here immediately to allow minor tweaks
-        // checking if permissions drastically change? 
-        // Actually, if users tweak, it is technically a 'Custom' template based on X.
-        // But for our UI logic, if we want to show the tag, we probably want to keep the ID 
-        // unless the user explicitly wants to detach?
-        // Let's Keep the ID. The backend doesn't enforce that `permissions` must match `template`.
-        // The ID is just a label/reference.
-    };
-
     const applyRolePreset = (presetId: string) => {
         const preset = SYSTEM_ROLE_PRESETS.find(p => p.id === presetId);
         if (!preset) return;
 
-        const newPerms = preset.permissions(DEFAULT_PERMISSIONS);
-        setPermissions(newPerms);
+        setPermissions(preset.permissions(DEFAULT_PERMISSIONS));
+        setActiveTemplateId(preset.id); // Use preset ID as active ID
+    };
 
-        // Try to find a matching template in the organization's templates
-        const match = templates.find(t => t.name === preset.name);
-        if (match) {
-            setActiveTemplateId(match.id);
-        } else {
-            setActiveTemplateId(null);
-        }
+    const handlePermissionsChange = (newPermissions: UserPermissions) => {
+        setPermissions(newPermissions);
+        // If they start editing, we should technically clear the active preset/template if it no longer matches
+        // but for now we keep it simple as labels.
     };
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            await onSave(targetUser.id, permissions, activeTemplateId);
+            // If it's a system preset, we save it as custom permissions (templateId: null)
+            const isSystemPreset = SYSTEM_ROLE_PRESETS.some(p => p.id === activeTemplateId);
+            await onSave(targetUser.id, permissions, isSystemPreset ? null : activeTemplateId);
             onClose();
         } catch (error) {
             console.error('Failed to save permissions', error);
@@ -102,6 +91,21 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
     };
 
     if (!isOpen) return null;
+
+    // Filter out templates that match system preset names to avoid duplication
+    const customTemplates = templates.filter(t => !SYSTEM_ROLE_PRESETS.some(p => p.name === t.name));
+
+    // Determine current effective active ID (maps legacy DB templates to virtual system presets by name)
+    let effectiveActiveId = activeTemplateId;
+    if (activeTemplateId) {
+        const dbTemplate = templates.find(t => t.id === activeTemplateId);
+        if (dbTemplate) {
+            const sysMatch = SYSTEM_ROLE_PRESETS.find(p => p.name === dbTemplate.name);
+            if (sysMatch) {
+                effectiveActiveId = sysMatch.id;
+            }
+        }
+    }
 
     return (
         <Modal
@@ -139,13 +143,32 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
             )}
         >
             <div className="space-y-6 md:space-y-8">
-                {/* Presets Removed as they are now in templates */}
+                {/* --- System Presets Area --- */}
+                <section>
+                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2 mb-3">
+                        <Globe size={14} />
+                        תבניות מערכת (קבועות)
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        {SYSTEM_ROLE_PRESETS.map(preset => (
+                            <button
+                                key={preset.id}
+                                onClick={() => applyRolePreset(preset.id)}
+                                className={`px-4 py-2 rounded-xl text-sm font-black border transition-all flex items-center gap-2 shadow-sm ${effectiveActiveId === preset.id ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-200' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-100'}`}
+                            >
+                                {effectiveActiveId === preset.id && <Check size={14} />}
+                                {preset.name}
+                            </button>
+                        ))}
+                    </div>
+                </section>
 
+                {/* --- Custom Organization Templates Area --- */}
                 <section>
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
                             <Shield size={14} />
-                            תבניות תפקיד (Role Templates)
+                            תבניות מותאמות לארגון
                         </h3>
                         {onManageTemplates && (
                             <button
@@ -159,34 +182,22 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                             </button>
                         )}
                     </div>
-                    {templates.length > 0 ? (
+                    {customTemplates.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                            {templates.map(tmp => (
+                            {customTemplates.map(tmp => (
                                 <button
                                     key={tmp.id}
                                     onClick={() => applyTemplate(tmp)}
-                                    className={`px-4 py-2 rounded-xl text-sm font-black border transition-all flex items-center gap-2 shadow-sm ${activeTemplateId === tmp.id ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-200' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-100'}`}
+                                    className={`px-4 py-2 rounded-xl text-sm font-black border transition-all flex items-center gap-2 shadow-sm ${effectiveActiveId === tmp.id ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-200' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-100'}`}
                                 >
-                                    {activeTemplateId === tmp.id && <Check size={14} />}
+                                    {effectiveActiveId === tmp.id && <Check size={14} />}
                                     {tmp.name}
                                 </button>
                             ))}
                         </div>
                     ) : (
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
-                            <p className="text-xs text-slate-500 font-medium mb-2">לא הוגדרו עדיין תבניות מותאמות אישית לארגון.</p>
-                            {onManageTemplates && (
-                                <button
-                                    onClick={() => {
-                                        onClose();
-                                        onManageTemplates();
-                                    }}
-                                    className="text-xs font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-all"
-                                >
-                                    <Plus size={12} />
-                                    צור תבנית חדשה בניהול תפקידים
-                                </button>
-                            )}
+                            <p className="text-xs text-slate-500 font-medium">לא הוגדרו עדיין תבניות מותאמות אישית לארגון.</p>
                         </div>
                     )}
                 </section>
