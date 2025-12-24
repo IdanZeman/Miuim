@@ -50,7 +50,8 @@ export interface OrganizationInvite {
   id: string;
   organization_id: string;
   email: string;
-  role: UserRole;
+//   role?: UserRole; // REMOVED
+  template_id?: string; // NEW: Link to permission template
   invited_by: string;
   created_at: string;
   expires_at: string;
@@ -162,8 +163,6 @@ export interface Shift {
   };
 }
 
-
-
 export type AccessLevel = 'view' | 'edit' | 'none';
 export type DataScope = 'organization' | 'team' | 'personal' | 'my_team';
 
@@ -179,6 +178,8 @@ export interface UserPermissions {
   dataScope: DataScope;
   allowedTeamIds?: string[]; // IDs of teams the user can access if scope is 'team'
   screens: Partial<Record<ViewMode, AccessLevel>>; // Per-screen access overrides
+  canManageUsers: boolean;
+  canManageSettings: boolean;
 }
 
 export interface Profile {
@@ -186,9 +187,10 @@ export interface Profile {
   email: string;
   full_name?: string;
   organization_id: string | null;
-  role: UserRole;
+//   role?: UserRole; // REMOVED
   permissions?: UserPermissions; // JSONB storage for custom permissions
-  is_super_admin?: boolean;
+  is_super_admin?: boolean; // Keeping for now as emergency, but practically deprecated favor of permissions
+  permission_template_id?: string; // NEW: Link to assigned template
   terms_accepted_at?: string; // ISO timestamp
 }
 

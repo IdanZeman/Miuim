@@ -93,7 +93,8 @@ export const Onboarding: React.FC = () => {
                 .from('profiles')
                 .update({
                     organization_id: pendingInvite.organization_id,
-                    role: pendingInvite.role || 'viewer'
+                    role: pendingInvite.role || 'viewer', // Keep deprecated role for now
+                    permission_template_id: pendingInvite.template_id || null // NEW: Save template ID
                 })
                 .eq('id', user.id);
 
@@ -177,7 +178,9 @@ export const Onboarding: React.FC = () => {
                     .from('profiles')
                     .update({
                         organization_id: createdOrgId,
-                        role: 'admin'
+                        role: 'admin',
+                        // Grant Full Access (Personal Template) to the creator
+                        permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization", "canManageUsers": true, "canManageSettings": true }
                     })
                     .eq('id', user.id);
                 if (profileError) throw profileError;
@@ -218,7 +221,8 @@ export const Onboarding: React.FC = () => {
                     .from('profiles')
                     .update({
                         organization_id: createdOrgId,
-                        role: 'admin'
+                        role: 'admin',
+                        permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization", "canManageUsers": true, "canManageSettings": true }
                     })
                     .eq('id', user.id);
 

@@ -58,24 +58,22 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   // ... (Access check logic remains the same, skipping lines for brevity if possible, keeping context stable)
   // Re-stating critical parts to ensure file integrity during replace
   const checkAccess = (screen: ViewMode): boolean => {
-    // 1. Admin always has access
+    // 1. Super Admin always has access
+    if (profile?.is_super_admin) return true;
+
+    // 2. Admin Role (Backward Compatibility)
     if (profile?.role === 'admin') return true;
-    // ... existing logic ...
-    // 2. Check explicit permissions object
+
+    // 3. Check explicit permissions object (New RBAC)
     if (profile?.permissions?.screens) {
-      const access = profile?.permissions?.screens?.[screen];
-      return access === 'view' || access === 'edit';
+      const access = profile?.permissions.screens[screen];
+      if (access) return access !== 'none';
     }
-    // 3. Fallback to context check
+
+    // 4. Fallback to context check (which we updated to be strict)
     if (contextCheckAccess) return contextCheckAccess(screen);
 
-    // 4. Hard fallback defaults
-    if (profile?.role === 'editor') return screen !== 'settings' && screen !== 'logs' && screen !== 'system'; // Editors can access planner
-
-
-    if (profile?.role === 'viewer') return ['home', 'dashboard', 'contact'].includes(screen);
-    if (profile?.role === 'attendance_only') return ['home', 'attendance', 'contact'].includes(screen);
-
+    // 5. Default restrictive fallback
     return false;
   };
 
@@ -184,7 +182,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 )}
 
                 {/* System Management (Admin Only) */}
-                {(isAdmin && profile?.is_super_admin) && (
+                {profile?.is_super_admin && (
                   <TopNavLink
                     active={currentView === 'system' || currentView === 'logs' || currentView === 'tickets'}
                     onClick={() => setView('system')}
@@ -420,7 +418,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 </button>
               )}
 
-              {isAdmin && profile?.is_super_admin && (
+              {profile?.is_super_admin && (
                 <button
                   className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'system' || currentView === 'logs' || currentView === 'tickets'
                     ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
@@ -500,7 +498,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
             )}
 
             <button
-              onClick={() => setIsMobileMenuOpen(true)}
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
               <Menu size={20} />

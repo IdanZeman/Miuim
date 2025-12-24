@@ -14,7 +14,7 @@ import { useConfirmation } from '../hooks/useConfirmation';
 import { Select } from './ui/Select';
 import { PermissionEditorContent } from './PermissionEditorContent';
 
-import { canManageOrganization, getRoleDisplayName, getRoleDescription } from '../utils/permissions';
+import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../utils/permissions';
 
 const SCREENS: { id: ViewMode; label: string; icon: any }[] = [
     { id: 'dashboard', label: 'לוח שיבוצים', icon: Layout },
@@ -362,7 +362,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const [invites, setInvites] = useState<OrganizationInvite[]>([]);
     const [loading, setLoading] = useState(true);
     const [inviteEmail, setInviteEmail] = useState('');
-    const [inviteRole, setInviteRole] = useState<UserRole>('viewer');
+    const [inviteTemplateId, setInviteTemplateId] = useState<string>(''); // NEW: Selected template for invite
     const [sending, setSending] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
@@ -371,7 +371,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
 
-    const isAdmin = profile?.role === 'admin';
+    const isAdmin = profile?.is_super_admin || profile?.permissions?.canManageSettings;
 
     useEffect(() => {
         if (organization) {
@@ -389,7 +389,40 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
             .eq('organization_id', organization.id);
 
         if (!error && data) {
-            setTemplates(data);
+            // Check for missing defaults and create them if needed
+            let currentTemplates = data;
+            const missingPresets = SYSTEM_ROLE_PRESETS.filter(preset =>
+                !currentTemplates.some(t => t.name === preset.name)
+            );
+
+            if (missingPresets.length > 0) {
+                console.log('🛠️ Creating missing default templates:', missingPresets.map(p => p.name));
+                const newTemplatesPayload = missingPresets.map(preset => ({
+                    organization_id: organization.id,
+                    name: preset.name,
+                    permissions: preset.permissions({
+                        dataScope: 'organization',
+                        allowedTeamIds: [],
+                        screens: {},
+                        canManageUsers: false,
+                        canManageSettings: false
+                    })
+                }));
+
+                const { data: createdTemplates, error: createError } = await supabase
+                    .from('permission_templates')
+                    .insert(newTemplatesPayload)
+                    .select();
+
+                if (!createError && createdTemplates) {
+                    currentTemplates = [...currentTemplates, ...createdTemplates];
+                    showToast('תבניות ברירת מחדל נוצרו בהצלחה', 'success');
+                } else {
+                    console.error('Failed to create default templates', createError);
+                }
+            }
+
+            setTemplates(currentTemplates);
         }
     };
 
@@ -400,7 +433,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
             .from('profiles')
             .select('*')
             .eq('organization_id', organization.id)
-            .order('role', { ascending: true });
+            .order('full_name', { ascending: true });
 
         if (error) {
             console.error('Error fetching members:', error);
@@ -436,14 +469,14 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                 .insert({
                     organization_id: organization.id,
                     email: inviteEmail.trim().toLowerCase(),
-                    role: inviteRole,
+                    template_id: inviteTemplateId || null, // Updated to use template_id
                     invited_by: user.id
                 });
 
             if (error) throw error;
             showToast(`הזמנה נשלחה ל-${inviteEmail}`, 'success');
             setInviteEmail('');
-            setInviteRole('viewer');
+            setInviteTemplateId('');
             fetchInvites();
         } catch (error: any) {
             console.error('Error sending invite:', error);
@@ -458,52 +491,41 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     };
 
 
-    const handleChangeRole = async (memberId: string, newRole: UserRole) => {
-        confirm({
-            title: 'שינוי הרשאה',
-            message: 'האם אתה בטוח שברצונך לשנות את ההרשאה?',
-            confirmText: 'עדכן',
-            type: 'warning',
-            onConfirm: async () => {
-                const { error } = await supabase
-                    .from('profiles')
-                    .update({ role: newRole })
-                    .eq('id', memberId);
-
-                if (error) {
-                    showToast('שגיאה בעדכון ההרשאה', 'error');
-                } else {
-                    const member = members.find(m => m.id === memberId);
-                    await logger.logUpdate('profile', memberId, member?.full_name || 'Member', { role: member?.role }, { role: newRole });
-                    showToast('ההרשאה עודכנה בהצלחה', 'success');
-                    fetchMembers();
-                }
-            }
-        });
-    };
-
     const [editingPermissionsFor, setEditingPermissionsFor] = useState<Profile | null>(null);
 
     const handleOpenPermissionEditor = (member: Profile) => {
         setEditingPermissionsFor(member);
     };
 
-    const handleSavePermissions = async (userId: string, permissions: UserPermissions) => {
+    const handleSavePermissions = async (userId: string, permissions: UserPermissions, templateId?: string | null) => {
+        const payload: any = { permissions };
+
+        // If templateId is provided (or explicitly null), update it. 
+        // If undefined, we might leave it? No, checking logic below. 
+        // Actually best to always update it if passed.
+        if (templateId !== undefined) {
+            payload.permission_template_id = templateId;
+        }
+
         const { error } = await supabase
             .from('profiles')
-            .update({ permissions: permissions as any })
+            .update(payload)
             .eq('id', userId);
 
         if (error) {
             showToast('שגיאה בשמירת הרשאות', 'error');
         } else {
             showToast('הרשאות עודכנו בהצלחה', 'success');
-            setMembers(prev => prev.map(m => m.id === userId ? { ...m, permissions } : m));
+            setMembers(prev => prev.map(m => m.id === userId ? {
+                ...m,
+                permissions,
+                permission_template_id: templateId !== undefined ? (templateId || undefined) : m.permission_template_id
+            } : m));
         }
         setEditingPermissionsFor(null);
     };
 
-    if (!canManageOrganization(profile?.role || 'viewer')) {
+    if (!profile?.permissions?.canManageSettings && !profile?.is_super_admin) {
         return (
             <div className="bg-white rounded-xl p-8 shadow-sm border border-red-200 text-center">
                 <Shield className="mx-auto text-red-500 mb-4" size={40} />
@@ -611,6 +633,12 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                         onUpdate={fetchMembers}
                                         templates={templates}
                                         onViewTemplates={() => setActiveTab('roles')}
+                                        onSendInvite={handleSendInvite}
+                                        inviteEmail={inviteEmail}
+                                        setInviteEmail={setInviteEmail}
+                                        inviteTemplateId={inviteTemplateId}
+                                        setInviteTemplateId={setInviteTemplateId}
+                                        sending={sending}
                                     />
                                 </section>
 
@@ -675,8 +703,10 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                             </div>
 
                                             <div className="flex items-center gap-2 pl-1 self-end sm:self-auto">
-                                                <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${member.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-600'}`}>
-                                                    {getRoleDisplayName(member.role)}
+                                                <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${member.permission_template_id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
+                                                    {member.permission_template_id
+                                                        ? templates.find(t => t.id === member.permission_template_id)?.name || 'תבנית לא נמצאה'
+                                                        : (member.is_super_admin || member.permissions ? 'תבנית אישית' : 'ללא הרשאות')}
                                                 </span>
                                                 {member.id !== user?.id && (
                                                     <Button
@@ -718,8 +748,28 @@ const InviteLinkSettings: React.FC<{
     organization: any;
     onUpdate: () => void;
     templates: PermissionTemplate[],
-    onViewTemplates: () => void
-}> = ({ organization, onUpdate, templates, onViewTemplates }) => {
+    onViewTemplates: () => void;
+    // New props for email invite form which is now inside here or parallel? 
+    // Wait, the previous code had InviteLinkSettings ONLY for the Link. 
+    // But I see I didn't inject the Email Form logic into InviteLinkSettings in the previous step, I just passed props.
+    // I need to update InviteLinkSettings signature and content to include the Email Invite form OR move the Email Invite form outside.
+    // Let's UPDATE the signature to accept the email invite props so I can render both forms if needed, or better yet, just keep them separate?
+    // The previous code had `InviteLinkSettings` component just for the link toggle.
+    // AND a separate "Send Invite" area? Actually I missed where the "Send Invite" form was rendered in the original file! 
+    // It was probably passed as children or I missed it. 
+    // Checking lines 609... it just renders `InviteLinkSettings`.
+    // Ah, `handleSendInvite` was defined in the parent but WHERE is the JSX for the email input?
+    // I don't see the email input in the original file snippet I read (lines 600-628).
+    // It must be inside `InviteLinkSettings`? NO, `InviteLinkSettings` is defined at line 717.
+    // Let me check `InviteLinkSettings` content via view_file first to be sure.
+    // I will ABORT this specific chunk replacement and verify first.
+    inviteEmail: string;
+    setInviteEmail: (s: string) => void;
+    inviteTemplateId: string;
+    setInviteTemplateId: (s: string) => void;
+    onSendInvite: (e: React.FormEvent) => void;
+    sending: boolean;
+}> = ({ organization, onUpdate, templates, onViewTemplates, inviteEmail, setInviteEmail, inviteTemplateId, setInviteTemplateId, onSendInvite, sending }) => {
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
     const [loading, setLoading] = useState(false);
@@ -814,77 +864,80 @@ const InviteLinkSettings: React.FC<{
     };
 
     return (
-        <div className="bg-gray-50 border border-slate-200 rounded-2xl p-4 md:p-6 space-y-6">
-            {/* 1. Toggle Row */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-sm font-bold text-slate-800">סטטוס קישור הצטרפות</h3>
-                    <p className="text-xs text-slate-500">אפשר למשתמשים להצטרף באופן עצמאי</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={isActive}
-                        onChange={handleToggleActive}
-                        disabled={loading}
-                    />
-                    <div className="w-12 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-500"></div>
-                </label>
-            </div>
-
-            {/* 2. Active State Controls */}
-            {isActive && inviteToken && (
-                <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-1">
-                    {/* Template Selector - Compact */}
+        <div className="space-y-6">
+            {/* --- Link Invite Section --- */}
+            <div className="bg-gray-50 border border-slate-200 rounded-2xl p-4 md:p-6 space-y-6">
+                {/* 1. Toggle Row */}
+                <div className="flex items-center justify-between">
                     <div>
-                        <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
-                            <Shield size={12} /> תבנית הרשאות למצטרפים
-                        </label>
-                        <div className="flex gap-2">
-                            <div className="flex-1">
-                                <Select
-                                    value={templateId || ''}
-                                    onChange={handleTemplateChange}
-                                    options={[
-                                        { value: '', label: 'ללא (צפייה בלבד)' },
-                                        ...templates.map(t => ({ value: t.id, label: t.name }))
-                                    ]}
-                                    className="!bg-white !h-10 text-sm"
-                                    placeholder="בחר תבנית..."
-                                />
+                        <h3 className="text-sm font-bold text-slate-800">סטטוס קישור הצטרפות</h3>
+                        <p className="text-xs text-slate-500">אפשר למשתמשים להצטרף באופן עצמאי</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={isActive}
+                            onChange={handleToggleActive}
+                            disabled={loading}
+                        />
+                        <div className="w-12 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                </div>
+
+                {/* 2. Active State Controls */}
+                {isActive && inviteToken && (
+                    <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-1">
+                        {/* Template Selector - Compact */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
+                                <Shield size={12} /> תבנית הרשאות למצטרפים (דרך הקישור)
+                            </label>
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <Select
+                                        value={templateId || ''}
+                                        onChange={handleTemplateChange}
+                                        options={[
+                                            { value: '', label: 'ללא (צפייה בלבד)' },
+                                            ...templates.map(t => ({ value: t.id, label: t.name }))
+                                        ]}
+                                        className="!bg-white !h-10 text-sm"
+                                        placeholder="בחר תבנית..."
+                                    />
+                                </div>
+                                <button onClick={onViewTemplates} className="bg-white border border-slate-200 rounded-lg px-3 hover:bg-slate-50 text-slate-500">
+                                    <Settings size={16} />
+                                </button>
                             </div>
-                            <button onClick={onViewTemplates} className="bg-white border border-slate-200 rounded-lg px-3 hover:bg-slate-50 text-slate-500">
-                                <Settings size={16} />
+                        </div>
+
+                        {/* Copy Link Button */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-600 mb-1.5 block">קישור ייחודי</label>
+                            <button
+                                onClick={copyToClipboard}
+                                className="w-full flex items-center justify-between bg-white border-2 border-slate-200 hover:border-blue-400 hover:text-blue-600 text-slate-600 rounded-xl p-3 transition-all group"
+                            >
+                                <span className="text-sm font-mono truncate dir-ltr px-2 opacity-80 group-hover:opacity-100">
+                                    {window.location.origin}/join/{inviteToken.slice(0, 8)}...
+                                </span>
+                                <div className="flex items-center gap-2 font-bold text-sm bg-slate-100 px-3 py-1.5 rounded-lg group-hover:bg-blue-50 group-hover:text-blue-700">
+                                    {copied ? <CheckCircle size={16} /> : <Copy size={16} />}
+                                    <span>{copied ? 'הועתק' : 'העתק'}</span>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div className="flex justify-center">
+                            <button onClick={handleRegenerate} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors">
+                                <RefreshCw size={10} /> אפס קישור קיים
                             </button>
                         </div>
                     </div>
-
-                    {/* Copy Link Button */}
-                    <div>
-                        <label className="text-xs font-bold text-slate-600 mb-1.5 block">קישור ייחודי</label>
-                        <button
-                            onClick={copyToClipboard}
-                            className="w-full flex items-center justify-between bg-white border-2 border-slate-200 hover:border-blue-400 hover:text-blue-600 text-slate-600 rounded-xl p-3 transition-all group"
-                        >
-                            <span className="text-sm font-mono truncate dir-ltr px-2 opacity-80 group-hover:opacity-100">
-                                {window.location.origin}/join/{inviteToken.slice(0, 8)}...
-                            </span>
-                            <div className="flex items-center gap-2 font-bold text-sm bg-slate-100 px-3 py-1.5 rounded-lg group-hover:bg-blue-50 group-hover:text-blue-700">
-                                {copied ? <CheckCircle size={16} /> : <Copy size={16} />}
-                                <span>{copied ? 'הועתק' : 'העתק'}</span>
-                            </div>
-                        </button>
-                    </div>
-
-                    <div className="flex justify-center">
-                        <button onClick={handleRegenerate} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors">
-                            <RefreshCw size={10} /> אפס קישור קיים
-                        </button>
-                    </div>
-                </div>
-            )}
-            <ConfirmationModal {...modalProps} />
+                )}
+                <ConfirmationModal {...modalProps} />
+            </div>
         </div>
     );
 };

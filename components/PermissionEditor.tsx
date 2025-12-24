@@ -8,7 +8,7 @@ interface PermissionEditorProps {
     isOpen: boolean;
     onClose: () => void;
     user: Profile;
-    onSave: (userId: string, permissions: UserPermissions) => Promise<void>;
+    onSave: (userId: string, permissions: UserPermissions, templateId?: string | null) => Promise<void>;
     teams: Team[];
     templates?: PermissionTemplate[];
     onManageTemplates?: () => void;
@@ -31,15 +31,19 @@ const DEFAULT_PERMISSIONS: UserPermissions = {
     dataScope: 'organization',
     allowedTeamIds: [],
     screens: {},
+    canManageUsers: false,
+    canManageSettings: false,
 };
 
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 
 import { PermissionEditorContent } from './PermissionEditorContent';
+import { SYSTEM_ROLE_PRESETS } from '../utils/permissions';
 
 export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onClose, user: targetUser, onSave, teams, templates = [], onManageTemplates }) => {
     const [permissions, setPermissions] = useState<UserPermissions>(targetUser.permissions || DEFAULT_PERMISSIONS);
+    const [activeTemplateId, setActiveTemplateId] = useState<string | null>(targetUser.permission_template_id || null);
     const [saving, setSaving] = useState(false);
 
     // Reset when user changes
@@ -47,53 +51,48 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
         if (targetUser.permissions) {
             setPermissions(targetUser.permissions);
         } else {
-            // Apply logic based on current role if no custom permissions exist
-            applyRolePreset(targetUser.role);
+            // Fallback if no permissions exist yet (should contain checks)
+            applyRolePreset('viewer');
         }
+        setActiveTemplateId(targetUser.permission_template_id || null);
     }, [targetUser]);
 
     const applyTemplate = (template: PermissionTemplate) => {
         setPermissions(template.permissions);
+        setActiveTemplateId(template.id);
     };
 
-    const applyRolePreset = (role: UserRole) => {
-        const newPerms: UserPermissions = { ...DEFAULT_PERMISSIONS, screens: {} };
+    const handlePermissionsChange = (newPermissions: UserPermissions) => {
+        setPermissions(newPermissions);
+        // We do NOT clear activeTemplateId here immediately to allow minor tweaks
+        // checking if permissions drastically change? 
+        // Actually, if users tweak, it is technically a 'Custom' template based on X.
+        // But for our UI logic, if we want to show the tag, we probably want to keep the ID 
+        // unless the user explicitly wants to detach?
+        // Let's Keep the ID. The backend doesn't enforce that `permissions` must match `template`.
+        // The ID is just a label/reference.
+    };
 
-        switch (role) {
-            case 'admin':
-                newPerms.dataScope = 'organization';
-                SCREENS.forEach(s => newPerms.screens[s.id] = 'edit');
-                break;
-            case 'editor':
-                newPerms.dataScope = 'organization';
-                SCREENS.forEach(s => {
-                    if (s.id === 'settings' || s.id === 'logs') newPerms.screens[s.id] = 'none';
-                    else newPerms.screens[s.id] = 'edit';
-                });
-                break;
-            case 'viewer':
-                newPerms.dataScope = 'organization';
-                SCREENS.forEach(s => {
-                    if (['settings', 'logs', 'personnel', 'tasks'].includes(s.id)) newPerms.screens[s.id] = 'none';
-                    else newPerms.screens[s.id] = 'view';
-                });
-                // Viewers can view dashboard
-                newPerms.screens['dashboard'] = 'view';
-                break;
-            case 'attendance_only':
-                newPerms.dataScope = 'organization';
-                SCREENS.forEach(s => newPerms.screens[s.id] = 'none');
-                newPerms.screens['attendance'] = 'edit';
-                newPerms.screens['dashboard'] = 'view';
-                break;
-        }
+    const applyRolePreset = (presetId: string) => {
+        const preset = SYSTEM_ROLE_PRESETS.find(p => p.id === presetId);
+        if (!preset) return;
+
+        const newPerms = preset.permissions(DEFAULT_PERMISSIONS);
         setPermissions(newPerms);
+
+        // Try to find a matching template in the organization's templates
+        const match = templates.find(t => t.name === preset.name);
+        if (match) {
+            setActiveTemplateId(match.id);
+        } else {
+            setActiveTemplateId(null);
+        }
     };
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            await onSave(targetUser.id, permissions);
+            await onSave(targetUser.id, permissions, activeTemplateId);
             onClose();
         } catch (error) {
             console.error('Failed to save permissions', error);
@@ -140,22 +139,13 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
             )}
         >
             <div className="space-y-6 md:space-y-8">
-                {/* Presets */}
-                <section>
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">תבניות מהירות (System Presets)</h3>
-                    <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3">
-                        <button onClick={() => applyRolePreset('admin')} className="px-3 py-2 md:px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-sm border border-purple-100">מנהל מלא</button>
-                        <button onClick={() => applyRolePreset('editor')} className="px-3 py-2 md:px-4 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-sm border border-blue-100">עורך תוכן</button>
-                        <button onClick={() => applyRolePreset('viewer')} className="px-3 py-2 md:px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-sm border border-slate-200">צפייה בלבד</button>
-                        <button onClick={() => applyRolePreset('attendance_only')} className="px-3 py-2 md:px-4 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-sm border border-amber-100">נוכחות בלבד</button>
-                    </div>
-                </section>
+                {/* Presets Removed as they are now in templates */}
 
                 <section>
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
                             <Shield size={14} />
-                            תבניות ארגוניות (Custom Roles)
+                            תבניות תפקיד (Role Templates)
                         </h3>
                         {onManageTemplates && (
                             <button
@@ -175,8 +165,9 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                                 <button
                                     key={tmp.id}
                                     onClick={() => applyTemplate(tmp)}
-                                    className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-sm font-black border border-indigo-100 transition-all flex items-center gap-2 shadow-sm"
+                                    className={`px-4 py-2 rounded-xl text-sm font-black border transition-all flex items-center gap-2 shadow-sm ${activeTemplateId === tmp.id ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-200' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-100'}`}
                                 >
+                                    {activeTemplateId === tmp.id && <Check size={14} />}
                                     {tmp.name}
                                 </button>
                             ))}
@@ -200,7 +191,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                     )}
                 </section>
 
-                <PermissionEditorContent permissions={permissions} setPermissions={setPermissions} teams={teams} />
+                <PermissionEditorContent permissions={permissions} setPermissions={handlePermissionsChange} teams={teams} />
             </div>
         </Modal>
     );

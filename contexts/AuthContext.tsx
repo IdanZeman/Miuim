@@ -35,6 +35,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkAccess = (screen: ViewMode, requiredLevel: 'view' | 'edit' = 'view'): boolean => {
     if (!profile) return false;
 
+    // Map 'absences' view to 'attendance' permission
+    const permissionKey = screen === 'absences' ? 'attendance' : screen;
+
     // Always allow home and contact for authenticated users
     if (screen === 'home' || screen === 'contact') return true;
 
@@ -43,7 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 1. Check Custom Permissions Override (New RBAC)
     if (profile.permissions?.screens) {
-      const level = profile.permissions.screens[screen];
+      const level = profile.permissions.screens[permissionKey];
       if (level) {
         if (level === 'none') return false;
         if (requiredLevel === 'edit' && level !== 'edit') return false;
@@ -51,28 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 2. Fallback to Role-Based Defaults (Backward Compatibility)
-    if (screen === 'system' || screen === 'logs') return false;
-
-    const role = profile.role;
-    if (role === 'admin') return true;
-
-    if (role === 'editor') {
-      if (screen === 'settings') return false;
-      return true; // editors can edit everything else
-    }
-
-    if (role === 'viewer') {
-      if (requiredLevel === 'edit') return false;
-      return ['dashboard', 'stats', 'lottery', 'equipment'].includes(screen);
-    }
-
-    if (role === 'attendance_only') {
-      if (screen === 'attendance') return true;
-      if (screen === 'dashboard' && requiredLevel === 'view') return true;
-      return false;
-    }
-
+    // Default to false if no permission granted
     return false;
   };
 
@@ -135,7 +117,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: userId,
             email: email,
             full_name: fullName,
-            role: 'viewer', // Default to viewer for security. First admin is set during org creation.
+            // role: 'viewer', // REMOVED
+            permissions: {
+              dataScope: 'personal',
+              screens: {},
+              canManageUsers: false,
+              canManageSettings: false
+            },
             organization_id: existingPerson?.organization_id || null,
             created_at: new Date().toISOString()
           }, {
