@@ -35,8 +35,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkAccess = (screen: ViewMode, requiredLevel: 'view' | 'edit' = 'view'): boolean => {
     if (!profile) return false;
 
-    // Map 'absences' view to 'attendance' permission
-    const permissionKey = screen === 'absences' ? 'attendance' : screen;
+    // Map 'absences' view to 'attendance' permission, and 'org-logs' to 'logs'
+    const permissionKey = screen === 'absences' ? 'attendance' :
+      screen === 'org-logs' ? 'logs' : screen;
 
     // Always allow home and contact for authenticated users
     if (screen === 'home' || screen === 'contact') return true;
