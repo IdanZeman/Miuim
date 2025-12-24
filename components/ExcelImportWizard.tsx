@@ -223,16 +223,25 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 }
             }
 
+            const getCellValue = (idx: number) => {
+                if (idx === -1) return '';
+                const val = row[idx];
+                return (val !== null && val !== undefined) ? String(val).trim() : '';
+            };
+
             // Check Person Duplicates
-            let name = '';
-            if (nameColIdx !== -1) name = row[nameColIdx]?.toString().trim() || '';
+            let name = getCellValue(nameColIdx);
 
             if (!name && fNameIdx !== -1 && lNameIdx !== -1) {
-                name = `${row[fNameIdx] || ''} ${row[lNameIdx] || ''}`.trim();
+                const fName = getCellValue(fNameIdx);
+                const lName = getCellValue(lNameIdx);
+                if (fName || lName) {
+                    name = `${fName} ${lName}`.trim();
+                }
             }
 
-            const phone = phoneColIdx !== -1 ? row[phoneColIdx]?.toString().trim() : '';
-            const email = emailColIdx !== -1 ? row[emailColIdx]?.toString().trim().toLowerCase() : '';
+            const phone = getCellValue(phoneColIdx);
+            const email = getCellValue(emailColIdx).toLowerCase();
 
             // Normalize for matching
             const normPhone = phone.replace(/\D/g, '');

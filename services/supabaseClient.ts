@@ -1,8 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment } from '../types';
 
-const supabaseUrl = 'https://rfqkkzhhvytkkgrnyarm.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmcWtremhodnl0a2tncm55YXJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwNjgxMjMsImV4cCI6MjA3NzY0NDEyM30.4kMkKtzq4eowtOQvQXVxwBU5iiEfNqw0f2JYBrVXR4E';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Expose on window for Cypress/Playwright testing
+if (typeof window !== 'undefined') {
+    (window as any).supabase = createClient(supabaseUrl, supabaseKey);
+}
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseKey);
 
