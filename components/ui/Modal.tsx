@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, ArrowRight } from 'lucide-react';
 
 interface ModalProps {
     isOpen: boolean;
@@ -10,6 +10,7 @@ interface ModalProps {
     size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
     scrollableContent?: boolean; // If false, content container will be overflow-hidden (bring your own scroll)
     footer?: React.ReactNode; // Content for sticky footer
+    closeIcon?: 'close' | 'back';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -19,7 +20,8 @@ export const Modal: React.FC<ModalProps> = ({
     children,
     size = 'md',
     scrollableContent = true,
-    footer
+    footer,
+    closeIcon = 'close'
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -69,19 +71,33 @@ export const Modal: React.FC<ModalProps> = ({
             <div className={`
                 bg-white md:rounded-2xl rounded-t-[2.5rem] shadow-2xl w-full 
                 flex flex-col overflow-hidden transform transition-all duration-300 ease-out
-                ${size === 'full' ? 'h-[95dvh] md:h-[90dvh]' : 'max-h-[90dvh]'}
+                ${size === 'full' ? 'h-[90dvh] md:h-[90dvh]' : 'max-h-[85dvh]'}
                 ${getSizeClasses()} 
                 ${isOpen ? 'translate-y-0 scale-100' : 'translate-y-full md:translate-y-4 md:scale-95'}
             `}>
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-100 flex-shrink-0 bg-white z-10">
-                    <div className="text-xl md:text-2xl font-bold text-slate-800">{title}</div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                    >
-                        <X size={24} />
-                    </button>
+                <div className="flex items-center gap-4 p-4 md:p-6 border-b border-slate-100 flex-shrink-0 bg-white z-10">
+                    {closeIcon === 'back' && (
+                        <button
+                            onClick={onClose}
+                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                        >
+                            <ArrowRight size={24} />
+                        </button>
+                    )}
+
+                    <div className="text-xl md:text-2xl font-bold text-slate-800 flex-1">
+                        {title}
+                    </div>
+
+                    {closeIcon === 'close' && (
+                        <button
+                            onClick={onClose}
+                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                        >
+                            <X size={24} />
+                        </button>
+                    )}
                 </div>
 
                 {/* Content */}

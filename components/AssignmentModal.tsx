@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, SchedulingConstraint } from '../types';
 import { Modal as GenericModal } from './ui/Modal';
+import { SheetModal } from './ui/SheetModal';
 import { Button } from './ui/Button';
 import {
     X, Plus, Search, Wand2, RotateCcw, Sparkles, ChevronDown, ChevronRight,
@@ -378,32 +380,12 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     if (!selectedShift) return null;
 
     return (
-        <GenericModal
-            isOpen={true}
-            onClose={handleClose}
-            title={
-                isEditingTime ? (
-                    <div className="flex items-center gap-2 animate-fadeIn bg-slate-50 p-1.5 rounded-lg border border-blue-200 shadow-sm w-full">
-                        <Clock size={16} className="text-blue-500" />
-                        <div className="flex items-center gap-2 flex-1 justify-center">
-                            <input
-                                type="time"
-                                value={newStart}
-                                onChange={(e) => setNewStart(e.target.value)}
-                                className="bg-white border border-slate-200 rounded px-2 py-0.5 text-sm font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-20 text-center"
-                            />
-                            <span className="text-slate-300">-</span>
-                            <input
-                                type="time"
-                                value={newEnd}
-                                onChange={(e) => setNewEnd(e.target.value)}
-                                className="bg-white border border-slate-200 rounded px-2 py-0.5 text-sm font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-20 text-center"
-                            />
-                        </div>
-                        <button onClick={handleSaveTime} className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-all"><CheckCircle size={16} /></button>
-                        <button onClick={() => setIsEditingTime(false)} className="p-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"><X size={16} /></button>
-                    </div>
-                ) : (
+        <>
+            <GenericModal
+                isOpen={true}
+                onClose={handleClose}
+                closeIcon="back"
+                title={
                     <div className="flex flex-col w-full">
                         <div className="flex items-start justify-between gap-4">
                             <div className="flex flex-col">
@@ -414,278 +396,151 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                         {new Date(selectedShift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
                                     </div>
                                     <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-                                    <div dir="ltr" className="flex items-center gap-1.5 font-mono">
-                                        <Clock size={14} className="text-slate-400" />
-                                        {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                        -
-                                        {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                    <div className="flex items-center gap-1.5" dir="ltr">
+                                        {!isViewer && (
+                                            <button
+                                                onClick={() => setIsEditingTime(true)}
+                                                className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                                            >
+                                                <MoreVertical size={16} />
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => !isViewer && setIsEditingTime(true)}
+                                            className={`flex items-center gap-1.5 font-mono ${!isViewer ? 'hover:bg-slate-100 px-2 py-1 -mx-2 rounded-lg cursor-pointer transition-colors group' : ''}`}
+                                            title={!isViewer ? "לחץ לעריכת זמנים" : ""}
+                                        >
+                                            {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                            -
+                                            {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                            <Clock size={14} className={`text-slate-400 ${!isViewer ? 'group-hover:text-blue-500' : ''}`} />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
 
                             {!isViewer && (
                                 <div className="relative">
-                                    <button
-                                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                                        className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${isMenuOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}`}
-                                    >
-                                        <MoreVertical size={20} />
-                                    </button>
-                                    {isMenuOpen && (
-                                        <div className="absolute left-0 top-full mt-2 bg-white shadow-xl rounded-xl border border-slate-100 w-48 z-50 overflow-hidden text-right animate-in fade-in zoom-in-95 origin-top-left">
-                                            <button
-                                                onClick={() => { setIsEditingTime(true); setIsMenuOpen(false); }}
-                                                className="w-full px-4 py-3 hover:bg-slate-50 flex items-center gap-2 text-sm text-slate-700 font-medium transition-colors"
-                                            >
-                                                <Pencil size={16} className="text-blue-500" /> ערוך זמנים
-                                            </button>
-                                            <div className="h-px bg-slate-100 my-0"></div>
-                                            <button
-                                                onClick={() => { onToggleCancelShift(selectedShift.id); onClose(); }}
-                                                className={`w-full px-4 py-3 flex items-center gap-2 text-sm font-medium transition-colors ${selectedShift.isCancelled ? 'hover:bg-green-50 text-green-600' : 'hover:bg-red-50 text-red-600'}`}
-                                            >
-                                                {selectedShift.isCancelled ? <><Undo2 size={16} /> שחזר משמרת</> : <><Ban size={16} /> בטל משמרת</>}
-                                            </button>
-                                        </div>
-                                    )}
+                                    {/* Action buttons if needed, or keeping it clean */}
                                 </div>
                             )}
                         </div>
                     </div>
-                )
-            }
-            size="2xl"
-            scrollableContent={false}
-        >
-            <div className="flex flex-col h-full overflow-hidden max-h-[80dvh]">
+                }
+                size="2xl"
+                scrollableContent={false}
+            >
 
-                {confirmationState.isOpen && (
-                    <div className="absolute inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 rounded-2xl backdrop-blur-sm animate-in fade-in">
-                        <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm animate-in zoom-in-95">
-                            <h3 className="text-lg font-bold mb-2">{confirmationState.title}</h3>
-                            <p className="text-sm text-slate-600 mb-4 leading-relaxed">{confirmationState.message}</p>
-                            <div className="flex justify-end gap-2">
-                                <Button variant="outline" onClick={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}>ביטול</Button>
-                                <Button onClick={confirmationState.onConfirm}>אשר</Button>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
-                {(() => {
-                    if (roleComposition.length === 0) return null;
+                <div className="flex flex-col h-full overflow-hidden max-h-[80dvh]">
 
-                    return (
-                        <div className="flex flex-col gap-2.5 pb-4 border-b border-slate-100 sticky top-0 bg-white z-30">
-                            <div className="flex items-center justify-between">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">דרישות תפקיד</h4>
-                                <span className="text-[10px] font-bold text-slate-400">
-                                    {/* Clarify that this is the sum of roles */}
-                                    סד"כ נדרש: {totalRequired} (סה"כ תפקידים)
-                                </span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {roleComposition.map((rc, idx) => {
-                                    const role = roles.find(r => r.id === rc.roleId);
-                                    // Use our smart count
-                                    const currentCount = allocationMap.get(rc.roleId) || 0;
-                                    const isMet = currentCount >= rc.count;
-
-                                    return (
-                                        <div
-                                            key={idx}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all shadow-sm border ${isMet
-                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50'
-                                                : 'bg-red-50 text-red-700 font-black border-red-200 animate-in zoom-in-95'}`}
-                                        >
-                                            {isMet ? (
-                                                <CheckCircle size={14} className="text-emerald-500" />
-                                            ) : (
-                                                <AlertTriangle size={14} className="text-red-500" />
-                                            )}
-                                            <span>{role?.name || 'תפקיד'}</span>
-                                            <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${isMet ? 'bg-emerald-100/50' : 'bg-red-100'}`}>
-                                                {currentCount}/{rc.count}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    );
-                })()}
-
-                <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0 bg-white -mx-4 md:mx-0">
-                    <div className={`${!isAddMode ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-80 md:border-l border-slate-100 h-full relative bg-white`}>
-                        <div className="p-4 bg-slate-50/50 sticky top-0 z-10 border-b border-slate-100 flex justify-between items-center">
-                            <h4 className="font-black text-slate-800 text-[11px] uppercase tracking-wider">
-                                חיילים משובצים ({assignedPeople.length})
-                            </h4>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-0 pb-4 md:pb-0">
-                            {assignedPeople.map(p => (
-                                <div key={p.id} className="flex items-center justify-between p-4 border-b border-slate-100 last:border-0 bg-white hover:bg-slate-50 transition-colors min-h-[72px]">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm ${p.color}`}>
-                                            {getPersonInitials(p.name)}
-                                        </div>
-                                        <div>
-                                            <div className="font-bold text-slate-800 text-sm">{p.name}</div>
-                                            <div className="flex flex-wrap gap-1 mt-0.5">
-                                                {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => (
-                                                    <span key={r.id} className="text-[10px] text-slate-500 bg-slate-100 px-1.5 rounded-md">
-                                                        {r.name}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {!isViewer && (
-                                        <button
-                                            onClick={() => onUnassign(selectedShift.id, p.id)}
-                                            className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                                        >
-                                            <X size={18} />
-                                        </button>
-                                    )}
+                    {confirmationState.isOpen && (
+                        <div className="absolute inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 rounded-2xl backdrop-blur-sm animate-in fade-in">
+                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm animate-in zoom-in-95">
+                                <h3 className="text-lg font-bold mb-2">{confirmationState.title}</h3>
+                                <p className="text-sm text-slate-600 mb-4 leading-relaxed">{confirmationState.message}</p>
+                                <div className="flex justify-end gap-2">
+                                    <Button variant="outline" onClick={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}>ביטול</Button>
+                                    <Button onClick={confirmationState.onConfirm}>אשר</Button>
                                 </div>
-                            ))}
-                            {assignedPeople.length === 0 && (
-                                <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 gap-4">
-                                    <div className="bg-slate-50 p-4 rounded-full">
-                                        <User size={32} className="opacity-50" />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <span className="font-bold text-slate-600">המשמרת ריקה</span>
-                                        <span className="text-xs">הוסף חיילים כדי לאייש את המשמרת</span>
-                                    </div>
-                                </div>
-                            )}
+                            </div>
                         </div>
+                    )}
 
-                        {currentSuggestion && (
-                            <div className="mx-4 mt-4 mb-4 bg-blue-50 border border-blue-100 rounded-xl p-3 animate-fadeIn hidden md:block">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold ${currentSuggestion.person.color} ring-2 ring-white shadow-sm`}>
-                                            {getPersonInitials(currentSuggestion.person.name)}
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-slate-800">{currentSuggestion.person.name}</span>
-                                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 rounded-full font-bold flex items-center gap-0.5">
-                                                    <Sparkles size={8} /> מומלץ
+                    {(() => {
+                        if (roleComposition.length === 0) return null;
+
+                        return (
+                            <div className="flex flex-col gap-2.5 pb-4 border-b border-slate-100 sticky top-0 bg-white z-30">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">דרישות תפקיד</h4>
+                                    <span className="text-[10px] font-bold text-slate-400">
+                                        {/* Clarify that this is the sum of roles */}
+                                        סד"כ נדרש: {totalRequired} (סה"כ תפקידים)
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {roleComposition.map((rc, idx) => {
+                                        const role = roles.find(r => r.id === rc.roleId);
+                                        // Use our smart count
+                                        const currentCount = allocationMap.get(rc.roleId) || 0;
+                                        const isMet = currentCount >= rc.count;
+
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all shadow-sm border ${isMet
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/50'
+                                                    : 'bg-red-50 text-red-700 font-black border-red-200 animate-in zoom-in-95'}`}
+                                            >
+                                                {isMet ? (
+                                                    <CheckCircle size={14} className="text-emerald-500" />
+                                                ) : (
+                                                    <AlertTriangle size={14} className="text-red-500" />
+                                                )}
+                                                <span>{role?.name || 'תפקיד'}</span>
+                                                <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${isMet ? 'bg-emerald-100/50' : 'bg-red-100'}`}>
+                                                    {currentCount}/{rc.count}
                                                 </span>
                                             </div>
-                                            <div className="text-xs text-slate-500 leading-tight mt-0.5">{currentSuggestion.reason}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2 mt-3 pl-12">
-                                    <button
-                                        onClick={() => {
-                                            const p = currentSuggestion.person;
-                                            if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
-                                                setConfirmationState({
-                                                    isOpen: true,
-                                                    title: 'שיבוץ מחוץ לצוות',
-                                                    message: `שים לב: משימה זו מוגדרת עבור צוות ${teams.find(t => t.id === task.assignedTeamId)?.name}. האם אתה בטוח שברצונך לשבץ את ${p.name}?`,
-                                                    onConfirm: () => {
-                                                        onAssign(selectedShift.id, p.id);
-                                                        setSuggestedCandidates([]);
-                                                        setConfirmationState(prev => ({ ...prev, isOpen: false }));
-                                                    }
-                                                });
-                                                return;
-                                            }
-                                            onAssign(selectedShift.id, p.id);
-                                            setSuggestedCandidates([]);
-                                        }}
-                                        className="flex-1 bg-blue-600 text-white text-xs h-8 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm"
-                                    >
-                                        שבץ את {currentSuggestion.person.name.split(' ')[0]}
-                                    </button>
-                                    <button onClick={handleNextSuggestion} className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-lg hover:border-blue-300 hover:text-blue-600">
-                                        <RotateCcw size={14} />
-                                    </button>
-                                    <button onClick={() => setSuggestedCandidates([])} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600">
-                                        <X size={14} />
-                                    </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
-                        )}
+                        );
+                    })()}
 
-                        <div className="p-4 bg-white border-t border-slate-100 flex flex-col gap-3 md:hidden z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                            <Button
-                                onClick={() => setIsAddMode(true)}
-                                className="w-full h-12 text-lg font-bold bg-blue-600 hover:bg-blue-700 shadow-blue-200 shadow-lg"
-                            >
-                                <Plus className="ml-2" size={20} />
-                                הוסף חיילים
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={onClose}
-                                className="w-full h-10 border-slate-200 text-slate-600"
-                            >
-                                סיום
-                            </Button>
-                        </div>
-                    </div>
+                    <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0 bg-white -mx-4 md:mx-0">
+                        <div className={`${!isAddMode ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-80 md:border-l border-slate-100 h-full relative bg-white`}>
+                            <div className="p-4 bg-slate-50/50 sticky top-0 z-10 border-b border-slate-100 flex justify-between items-center">
+                                <h4 className="font-black text-slate-800 text-[11px] uppercase tracking-wider">
+                                    חיילים משובצים ({assignedPeople.length})
+                                </h4>
+                            </div>
 
-                    {!isViewer && (
-                        <div className={`${isAddMode ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-h-0 bg-slate-50/30`}>
-                            <div className="p-4 bg-white border-b border-slate-100 sticky top-0 z-20">
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => setIsAddMode(false)}
-                                        className="md:hidden w-10 h-10 flex items-center justify-center bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 active:scale-95 transition-all"
-                                    >
-                                        <ChevronRight size={20} />
-                                    </button>
-                                    <div className="relative flex items-center flex-1">
-                                        <Search className="absolute right-3 text-slate-400" size={16} />
-                                        <input
-                                            type="text"
-                                            placeholder="חפש חייל או תפקיד..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="w-full pl-10 pr-9 py-2.5 bg-slate-100 border-transparent focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-50 rounded-xl text-sm font-medium transition-all outline-none"
-                                        />
-                                        <div className="absolute left-1.5 flex items-center gap-1">
+                            <div className="flex-1 overflow-y-auto p-0 pb-4 md:pb-0">
+                                {assignedPeople.map(p => (
+                                    <div key={p.id} className="flex items-center justify-between p-4 border-b border-slate-100 last:border-0 bg-white hover:bg-slate-50 transition-colors min-h-[72px]">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm ${p.color}`}>
+                                                {getPersonInitials(p.name)}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-slate-800 text-sm">{p.name}</div>
+                                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                                    {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => (
+                                                        <span key={r.id} className="text-[10px] text-slate-500 bg-slate-100 px-1.5 rounded-md">
+                                                            {r.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {!isViewer && (
                                             <button
-                                                onClick={handleSuggestBest}
-                                                title="הצע לי שיבוץ חכם"
-                                                className="w-7 h-7 flex items-center justify-center bg-white text-blue-600 rounded-lg shadow-sm border border-slate-100 hover:border-blue-300 hover:shadow-md transition-all active:scale-95"
+                                                onClick={() => onUnassign(selectedShift.id, p.id)}
+                                                className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
                                             >
-                                                <Wand2 size={14} />
+                                                <X size={18} />
                                             </button>
+                                        )}
+                                    </div>
+                                ))}
+                                {assignedPeople.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 gap-4">
+                                        <div className="bg-slate-50 p-4 rounded-full">
+                                            <User size={32} className="opacity-50" />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="font-bold text-slate-600">המשמרת ריקה</span>
+                                            <span className="text-xs">הוסף חיילים כדי לאייש את המשמרת</span>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar pb-1">
-                                    <button
-                                        onClick={() => setSelectedRoleFilter('')}
-                                        className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold transition-colors ${!selectedRoleFilter ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
-                                    >
-                                        הכל
-                                    </button>
-                                    {roles.map(r => (
-                                        <button
-                                            key={r.id}
-                                            onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
-                                            className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold transition-colors ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white border border-slate-200 text-slate-600'}`}
-                                        >
-                                            {r.name}
-                                        </button>
-                                    ))}
-                                </div>
+                                )}
                             </div>
 
                             {currentSuggestion && (
-                                <div className="mx-4 mt-2 mb-2 bg-blue-50 border border-blue-100 rounded-xl p-3 animate-fadeIn block md:hidden">
+                                <div className="mx-4 mt-4 mb-4 bg-blue-50 border border-blue-100 rounded-xl p-3 animate-fadeIn hidden md:block">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold ${currentSuggestion.person.color} ring-2 ring-white shadow-sm`}>
@@ -704,7 +559,24 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                     </div>
                                     <div className="flex gap-2 mt-3 pl-12">
                                         <button
-                                            onClick={() => handleAttemptAssign(currentSuggestion.person.id)}
+                                            onClick={() => {
+                                                const p = currentSuggestion.person;
+                                                if (task.assignedTeamId && p.teamId !== task.assignedTeamId) {
+                                                    setConfirmationState({
+                                                        isOpen: true,
+                                                        title: 'שיבוץ מחוץ לצוות',
+                                                        message: `שים לב: משימה זו מוגדרת עבור צוות ${teams.find(t => t.id === task.assignedTeamId)?.name}. האם אתה בטוח שברצונך לשבץ את ${p.name}?`,
+                                                        onConfirm: () => {
+                                                            onAssign(selectedShift.id, p.id);
+                                                            setSuggestedCandidates([]);
+                                                            setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                                                        }
+                                                    });
+                                                    return;
+                                                }
+                                                onAssign(selectedShift.id, p.id);
+                                                setSuggestedCandidates([]);
+                                            }}
                                             className="flex-1 bg-blue-600 text-white text-xs h-8 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm"
                                         >
                                             שבץ את {currentSuggestion.person.name.split(' ')[0]}
@@ -719,111 +591,277 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                 </div>
                             )}
 
-                            <div className="flex-1 overflow-y-auto px-4 pb-2">
-                                {(() => {
-                                    const groupedPeople = teams.map(team => ({
-                                        team,
-                                        members: availablePeople.filter(p => p.teamId === team.id)
-                                    })).filter(g => g.members.length > 0);
-
-                                    if (task.assignedTeamId) {
-                                        groupedPeople.sort((a, b) => {
-                                            if (a.team.id === task.assignedTeamId) return -1;
-                                            if (b.team.id === task.assignedTeamId) return 1;
-                                            return 0;
-                                        });
-                                    }
-
-                                    if (groupedPeople.length === 0) {
-                                        return (
-                                            <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 opacity-60">
-                                                <Search size={32} strokeWidth={1.5} />
-                                                <span className="text-sm">לא נמצאו חיילים זמינים</span>
-                                            </div>
-                                        );
-                                    }
-
-                                    return groupedPeople.map(group => {
-                                        const isCollapsed = collapsedTeams.has(group.team.id);
-                                        return (
-                                            <div key={group.team.id} className="mb-2 last:mb-20">
-                                                <div
-                                                    onClick={() => toggleTeam(group.team.id)}
-                                                    className="flex items-center justify-between gap-2 mb-2 sticky top-0 bg-slate-50 p-2 z-10 mx-[-16px] px-4 border-b border-slate-100 shadow-sm cursor-pointer hover:bg-slate-100"
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`w-1 h-4 rounded-full ${group.team.color?.replace('border-', 'bg-') || 'bg-slate-400'}`}></div>
-                                                        <h5 className="font-bold text-slate-500 text-xs uppercase tracking-wider">{group.team.name}</h5>
-                                                        <span className="bg-white border border-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full font-mono">{group.members.length}</span>
-                                                    </div>
-                                                    <ChevronDown
-                                                        size={16}
-                                                        className={`text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90 rtl:rotate-90' : ''}`}
-                                                    />
-                                                </div>
-
-                                                {!isCollapsed && (
-                                                    <div className="bg-white border border-slate-100 rounded-xl shadow-sm divide-y divide-slate-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
-                                                        {group.members.map(p => {
-                                                            const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => (p.roleIds || [p.roleId]).includes(rc.roleId));
-                                                            const isFull = assignedPeople.length >= task.requiredPeople;
-                                                            const canAssign = hasRole;
-
-                                                            return (
-                                                                <div
-                                                                    key={p.id}
-                                                                    onClick={() => {
-                                                                        if (!canAssign) return;
-                                                                        handleAttemptAssign(p.id);
-                                                                    }}
-                                                                    className={`flex items-center justify-between p-3 transition-colors ${canAssign ? 'cursor-pointer hover:bg-blue-50/50' : 'opacity-50 cursor-not-allowed grayscale'}`}
-                                                                >
-                                                                    <div className="flex items-center gap-3 min-w-0">
-                                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm ${p.color}`}>
-                                                                            {getPersonInitials(p.name)}
-                                                                        </div>
-                                                                        <div className="flex flex-col min-w-0">
-                                                                            <span className="font-bold text-slate-800 text-sm truncate bg-transparent">{p.name}</span>
-                                                                            <div className="flex items-center gap-1 mt-0.5">
-                                                                                {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => (
-                                                                                    <span key={r.id} className="text-[10px] text-slate-500 bg-slate-100 px-1.5 rounded-md truncate max-w-[80px]">
-                                                                                        {r.name}
-                                                                                    </span>
-                                                                                ))}
-                                                                                {!hasRole && <span className="text-[9px] text-red-500 font-bold px-1">אין התאמה</span>}
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <button
-                                                                        disabled={!canAssign}
-                                                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${canAssign ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-110 active:scale-95' : 'bg-slate-100 text-slate-300 shadow-none'}`}
-                                                                    >
-                                                                        <Plus size={20} strokeWidth={3} />
-                                                                    </button>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })
-                                })()}
+                            <div className="p-4 bg-white border-t border-slate-100 flex flex-col gap-3 md:hidden z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                                <Button
+                                    onClick={() => setIsAddMode(true)}
+                                    className="w-full h-12 text-lg font-bold bg-blue-600 hover:bg-blue-700 shadow-blue-200 shadow-lg"
+                                >
+                                    <Plus className="ml-2" size={20} />
+                                    הוסף חיילים
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={onClose}
+                                    className="w-full h-10 border-slate-200 text-slate-600"
+                                >
+                                    סיום
+                                </Button>
                             </div>
                         </div>
-                    )}
-                </div>
 
-                <div className="hidden md:flex p-4 bg-white border-t border-slate-100 justify-end shrink-0 z-20">
-                    <Button
-                        onClick={onClose}
-                        className="bg-slate-800 text-white hover:bg-slate-900 w-full md:w-auto font-bold"
-                    >
-                        סיום
-                    </Button>
+                        {!isViewer && (
+                            <div className={`${isAddMode ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-h-0 bg-slate-50/30`}>
+                                <div className="p-4 bg-white border-b border-slate-100 sticky top-0 z-20">
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setIsAddMode(false)}
+                                            className="md:hidden w-10 h-10 flex items-center justify-center bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 active:scale-95 transition-all"
+                                        >
+                                            <ChevronRight size={20} />
+                                        </button>
+                                        <div className="relative flex items-center flex-1">
+                                            <Search className="absolute right-3 text-slate-400" size={16} />
+                                            <input
+                                                type="text"
+                                                placeholder="חפש חייל או תפקיד..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="w-full pl-10 pr-9 py-2.5 bg-slate-100 border-transparent focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-50 rounded-xl text-sm font-medium transition-all outline-none"
+                                            />
+                                            <div className="absolute left-1.5 flex items-center gap-1">
+                                                <button
+                                                    onClick={handleSuggestBest}
+                                                    title="הצע לי שיבוץ חכם"
+                                                    className="w-7 h-7 flex items-center justify-center bg-white text-blue-600 rounded-lg shadow-sm border border-slate-100 hover:border-blue-300 hover:shadow-md transition-all active:scale-95"
+                                                >
+                                                    <Wand2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar pb-1">
+                                        <button
+                                            onClick={() => setSelectedRoleFilter('')}
+                                            className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold transition-colors ${!selectedRoleFilter ? 'bg-slate-800 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
+                                        >
+                                            הכל
+                                        </button>
+                                        {roles.map(r => (
+                                            <button
+                                                key={r.id}
+                                                onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
+                                                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold transition-colors ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white border border-slate-200 text-slate-600'}`}
+                                            >
+                                                {r.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {currentSuggestion && (
+                                    <div className="mx-4 mt-2 mb-2 bg-blue-50 border border-blue-100 rounded-xl p-3 animate-fadeIn block md:hidden">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold ${currentSuggestion.person.color} ring-2 ring-white shadow-sm`}>
+                                                    {getPersonInitials(currentSuggestion.person.name)}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-bold text-slate-800">{currentSuggestion.person.name}</span>
+                                                        <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 rounded-full font-bold flex items-center gap-0.5">
+                                                            <Sparkles size={8} /> מומלץ
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 leading-tight mt-0.5">{currentSuggestion.reason}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2 mt-3 pl-12">
+                                            <button
+                                                onClick={() => handleAttemptAssign(currentSuggestion.person.id)}
+                                                className="flex-1 bg-blue-600 text-white text-xs h-8 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                                            >
+                                                שבץ את {currentSuggestion.person.name.split(' ')[0]}
+                                            </button>
+                                            <button onClick={handleNextSuggestion} className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-lg hover:border-blue-300 hover:text-blue-600">
+                                                <RotateCcw size={14} />
+                                            </button>
+                                            <button onClick={() => setSuggestedCandidates([])} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600">
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex-1 overflow-y-auto px-4 pb-2">
+                                    {(() => {
+                                        const groupedPeople = teams.map(team => ({
+                                            team,
+                                            members: availablePeople.filter(p => p.teamId === team.id)
+                                        })).filter(g => g.members.length > 0);
+
+                                        if (task.assignedTeamId) {
+                                            groupedPeople.sort((a, b) => {
+                                                if (a.team.id === task.assignedTeamId) return -1;
+                                                if (b.team.id === task.assignedTeamId) return 1;
+                                                return 0;
+                                            });
+                                        }
+
+                                        if (groupedPeople.length === 0) {
+                                            return (
+                                                <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 opacity-60">
+                                                    <Search size={32} strokeWidth={1.5} />
+                                                    <span className="text-sm">לא נמצאו חיילים זמינים</span>
+                                                </div>
+                                            );
+                                        }
+
+                                        return groupedPeople.map(group => {
+                                            const isCollapsed = collapsedTeams.has(group.team.id);
+                                            return (
+                                                <div key={group.team.id} className="mb-2 last:mb-20">
+                                                    <div
+                                                        onClick={() => toggleTeam(group.team.id)}
+                                                        className="flex items-center justify-between gap-2 mb-2 sticky top-0 bg-slate-50 p-2 z-10 mx-[-16px] px-4 border-b border-slate-100 shadow-sm cursor-pointer hover:bg-slate-100"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-1 h-4 rounded-full ${group.team.color?.replace('border-', 'bg-') || 'bg-slate-400'}`}></div>
+                                                            <h5 className="font-bold text-slate-500 text-xs uppercase tracking-wider">{group.team.name}</h5>
+                                                            <span className="bg-white border border-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full font-mono">{group.members.length}</span>
+                                                        </div>
+                                                        <ChevronDown
+                                                            size={16}
+                                                            className={`text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90 rtl:rotate-90' : ''}`}
+                                                        />
+                                                    </div>
+
+                                                    {!isCollapsed && (
+                                                        <div className="bg-white border border-slate-100 rounded-xl shadow-sm divide-y divide-slate-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                                                            {group.members.map(p => {
+                                                                const hasRole = !task.roleComposition || task.roleComposition.length === 0 || task.roleComposition.some(rc => (p.roleIds || [p.roleId]).includes(rc.roleId));
+                                                                const isFull = assignedPeople.length >= task.requiredPeople;
+                                                                const canAssign = hasRole;
+
+                                                                return (
+                                                                    <div
+                                                                        key={p.id}
+                                                                        onClick={() => {
+                                                                            if (!canAssign) return;
+                                                                            handleAttemptAssign(p.id);
+                                                                        }}
+                                                                        className={`flex items-center justify-between p-3 transition-colors ${canAssign ? 'cursor-pointer hover:bg-blue-50/50' : 'opacity-50 cursor-not-allowed grayscale'}`}
+                                                                    >
+                                                                        <div className="flex items-center gap-3 min-w-0">
+                                                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm ${p.color}`}>
+                                                                                {getPersonInitials(p.name)}
+                                                                            </div>
+                                                                            <div className="flex flex-col min-w-0">
+                                                                                <span className="font-bold text-slate-800 text-sm truncate bg-transparent">{p.name}</span>
+                                                                                <div className="flex items-center gap-1 mt-0.5">
+                                                                                    {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => (
+                                                                                        <span key={r.id} className="text-[10px] text-slate-500 bg-slate-100 px-1.5 rounded-md truncate max-w-[80px]">
+                                                                                            {r.name}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                    {!hasRole && <span className="text-[9px] text-red-500 font-bold px-1">אין התאמה</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <button
+                                                                            disabled={!canAssign}
+                                                                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${canAssign ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-110 active:scale-95' : 'bg-slate-100 text-slate-300 shadow-none'}`}
+                                                                        >
+                                                                            <Plus size={20} strokeWidth={3} />
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                    })()}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="hidden md:flex p-4 bg-white border-t border-slate-100 justify-end shrink-0 z-20">
+                        <Button
+                            onClick={onClose}
+                            className="bg-slate-800 text-white hover:bg-slate-900 w-full md:w-auto font-bold"
+                        >
+                            סיום
+                        </Button>
+                    </div>
                 </div>
-            </div>
-        </GenericModal>
+            </GenericModal>
+
+
+            {/* Time Editor Bottom Sheet / Modal */}
+            <SheetModal
+                isOpen={isEditingTime}
+                onClose={() => setIsEditingTime(false)}
+                title="עריכת זמנים"
+                zIndex={10000}
+                closeIcon="back"
+            >
+                <div className="flex flex-col gap-6">
+                    <div className="flex items-center justify-center gap-2" dir="ltr">
+                        <div className="flex flex-col items-center gap-1 w-full">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">התחלה</label>
+                            <input
+                                type="time"
+                                value={newStart}
+                                onChange={(e) => setNewStart(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-lg font-mono text-center font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+                            />
+                        </div>
+                        <span className="text-slate-300 text-xl font-light pt-5">-</span>
+                        <div className="flex flex-col items-center gap-1 w-full">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">סיום</label>
+                            <input
+                                type="time"
+                                value={newEnd}
+                                onChange={(e) => setNewEnd(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-lg font-mono text-center font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 mt-2">
+                        <button
+                            onClick={handleSaveTime}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+                        >
+                            <CheckCircle size={20} />
+                            שמור שינויים
+                        </button>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => { onToggleCancelShift(selectedShift.id); setIsEditingTime(false); }}
+                                className={`py-3 rounded-xl font-bold text-sm border transition-colors flex items-center justify-center gap-2 ${selectedShift.isCancelled
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                    : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}`}
+                            >
+                                {selectedShift.isCancelled ? <><Undo2 size={16} /> שחזר משמרת</> : <><Ban size={16} /> בטל משמרת</>}
+                            </button>
+
+                            <button
+                                onClick={() => setIsEditingTime(false)}
+                                className="py-3 rounded-xl font-bold text-sm text-slate-500 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors"
+                            >
+                                ביטול
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </SheetModal>
+        </>
     );
 };

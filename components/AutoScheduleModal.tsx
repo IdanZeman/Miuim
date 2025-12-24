@@ -98,19 +98,16 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                 className={`bg-white w-full md:w-full md:max-w-lg rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col max-h-[85vh] md:max-h-[90vh] transform transition-transform duration-300 ease-out ${isVisible ? 'translate-y-0' : 'translate-y-full md:translate-y-0 md:scale-100 md:opacity-100'} ${!isVisible && 'md:scale-95 md:opacity-0'}`}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Drag Handle (Mobile Only) */}
-                <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto my-3 shrink-0 md:hidden" />
-
                 {/* Header */}
                 <div className="px-6 pb-4 md:py-6 shrink-0 flex items-center justify-between md:border-b md:border-slate-100 md:bg-slate-50 md:rounded-t-2xl">
                     <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                         <Sparkles className="text-idf-yellow" size={20} />
                         שיבוץ אוטומטי
                     </h2>
-                    {/* Close Button (Desktop Only) */}
+                    {/* Close Button */}
                     <button
                         onClick={onClose}
-                        className="hidden md:block p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
                     >
                         <X size={20} />
                     </button>

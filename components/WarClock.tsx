@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../services/supabaseClient';
-import { Clock, Plus, Trash2, Edit2, Copy, Save, X, Eye, Users, Shield, Globe, ChevronUp, ChevronDown, Filter, AlertTriangle } from 'lucide-react';
+import { Clock, Plus, Trash2, Edit2, Copy, Save, X, Eye, Users, Shield, Globe, ChevronUp, ChevronDown, Filter, AlertTriangle, Check } from 'lucide-react';
 import * as AllIcons from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Person, Team, Role } from '../types';
@@ -9,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../contexts/ToastContext';
 import { Select } from './ui/Select';
 import { Modal } from './ui/Modal';
+import { SheetModal } from './ui/SheetModal';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { ConfirmationModal } from './ConfirmationModal';
@@ -20,7 +22,18 @@ interface ScheduleItem {
     description: string;
     targetType: 'all' | 'team' | 'role';
     targetId: string | null; // teamId or roleId
+    daysOfWeek?: number[]; // 0=Sunday, 6=Saturday
 }
+
+const DAYS = [
+    { id: 0, label: 'א', full: 'ראשון' },
+    { id: 1, label: 'ב', full: 'שני' },
+    { id: 2, label: 'ג', full: 'שלישי' },
+    { id: 3, label: 'ד', full: 'רביעי' },
+    { id: 4, label: 'ה', full: 'חמישי' },
+    { id: 5, label: 'ו', full: 'שישי' },
+    { id: 6, label: 'ש', full: 'שבת' },
+];
 
 interface WarClockProps {
     myPerson: Person | undefined;
@@ -95,6 +108,8 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const [itemToDeleteId, setItemToDeleteId] = useState<string | null>(null);
 
+    const [selectedDay, setSelectedDay] = useState<number>(new Date().getDay());
+
     const fetchItems = async () => {
         let loadedFromDb = false;
 
@@ -114,7 +129,8 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                         endTime: d.end_time,
                         description: d.description,
                         targetType: d.target_type,
-                        targetId: d.target_id
+                        targetId: d.target_id,
+                        daysOfWeek: d.days_of_week || [0, 1, 2, 3, 4, 5, 6]
                     }));
                     mappedItems.sort((a, b) => a.startTime.localeCompare(b.startTime));
                     setItems(mappedItems);
@@ -166,7 +182,8 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                 end_time: editItem.endTime,
                 description: editItem.description,
                 target_type: editItem.targetType || 'all',
-                target_id: cleanTargetId
+                target_id: cleanTargetId,
+                days_of_week: editItem.daysOfWeek || [0, 1, 2, 3, 4, 5, 6]
             };
 
             try {
@@ -199,7 +216,8 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
             endTime: editItem.endTime,
             description: editItem.description,
             targetType: editItem.targetType || 'all',
-            targetId: cleanTargetId
+            targetId: cleanTargetId,
+            daysOfWeek: editItem.daysOfWeek || [0, 1, 2, 3, 4, 5, 6]
         };
 
         const newItems = editItem.id
@@ -258,6 +276,10 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
 
     // 2. View Filtering (User Selection - Union Logic)
     const filteredItems = baseItems.filter(item => {
+        // Day Filter
+        const days = item.daysOfWeek || [0, 1, 2, 3, 4, 5, 6];
+        if (!days.includes(selectedDay)) return false;
+
         if (filters.mode === 'all') return true;
 
         let match = false;
@@ -365,119 +387,70 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     return (
         <div className="w-full relative animate-in fade-in flex flex-col gap-4 transition-all">
             {/* Minimal Header */}
-            <div
-                className="flex items-center justify-between px-2 cursor-pointer hover:bg-slate-50/50 p-2 rounded-xl transition-colors select-none"
-                onClick={() => setIsOpen(!isOpen)}
-            >
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg transition-colors ${isOpen ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                        <Clock size={20} />
+            <div className="flex flex-col gap-2">
+                <div
+                    className="flex items-center justify-between px-2 cursor-pointer hover:bg-slate-50/50 p-2 rounded-xl transition-colors select-none"
+                    onClick={() => setIsOpen(!isOpen)}
+                >
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <div className={`p-1.5 rounded-lg transition-colors ${isOpen ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                            <Clock size={20} />
+                        </div>
+                        סדר יום
+                        {!isOpen && <span className="text-xs font-normal text-slate-400 px-2 py-0.5 bg-slate-100 rounded-full">{timelineData.items.length} אירועים</span>}
+                    </h3>
+                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                        {isOpen && (
+                            <button
+                                onClick={() => setShowFilters(true)}
+                                className={`p-2 rounded-full transition-colors ${filters.mode !== 'all' || filters.teams.length > 0 || filters.roles.length > 0 ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100'}`}
+                            >
+                                <Filter size={18} />
+                            </button>
+                        )}
+                        {canEdit && isOpen && (
+                            <button
+                                onClick={() => {
+                                    setEditItem({
+                                        targetType: 'all',
+                                        startTime: '08:00',
+                                        endTime: '09:00',
+                                        daysOfWeek: [0, 1, 2, 3, 4, 5, 6]
+                                    });
+                                    setIsEditing(true);
+                                }}
+                                className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 shadow-md shadow-blue-200"
+                            >
+                                <Plus size={18} />
+                            </button>
+                        )}
+                        <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-slate-400 hover:text-slate-600">
+                            {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </button>
                     </div>
-                    סדר יום
-                    {!isOpen && <span className="text-xs font-normal text-slate-400 px-2 py-0.5 bg-slate-100 rounded-full">{timelineData.items.length} אירועים</span>}
-                </h3>
-                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                    {isOpen && (
-                        <button
-                            onClick={() => setShowFilters(!showFilters)}
-                            className={`p-2 rounded-full transition-colors ${showFilters || filters.mode !== 'all' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100'}`}
-                        >
-                            <Filter size={18} />
-                        </button>
-                    )}
-                    {canEdit && isOpen && (
-                        <button
-                            onClick={() => { setEditItem({ targetType: 'all', startTime: '08:00', endTime: '09:00' }); setIsEditing(true); }}
-                            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 shadow-md shadow-blue-200"
-                        >
-                            <Plus size={18} />
-                        </button>
-                    )}
-                    <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-slate-400 hover:text-slate-600">
-                        {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                    </button>
                 </div>
+
+                {/* Day Selector */}
+                {isOpen && (
+                    <div className="flex items-center justify-between bg-slate-100 p-1 rounded-xl mx-2 mb-2">
+                        {DAYS.map(day => (
+                            <button
+                                key={day.id}
+                                onClick={() => setSelectedDay(day.id)}
+                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${selectedDay === day.id ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                {day.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Collapsible Content */}
             {isOpen && (
                 <div className="animate-in slide-in-from-top-4 duration-300 ease-out">
 
-                    {/* Filters Banner */}
-                    {showFilters && (
-                        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm mb-4 z-20">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-bold text-slate-500 ml-2">הצג:</span>
-                                <button onClick={() => setFilters({ mode: 'all', general: false, teams: [], roles: [] })} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.mode === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>הכל</button>
 
-                                <div className="w-px h-4 bg-slate-300 mx-1"></div>
-
-                                {canEdit ? (
-                                    <>
-                                        {/* Team Selector */}
-                                        <div className="flex-1 min-w-[100px] max-w-[140px]">
-                                            <Select
-                                                value=""
-                                                onChange={(val) => {
-                                                    if (val && !filters.teams.includes(val)) setFilters(p => ({ ...p, mode: 'custom', teams: [...p.teams, val] }));
-                                                }}
-                                                options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                                placeholder="צוות +"
-                                                className="py-1.5 px-3 h-[34px] min-h-0 text-xs font-medium bg-slate-50 border-slate-200"
-                                            />
-                                        </div>
-
-                                        {/* Role Selector */}
-                                        <div className="flex-1 min-w-[100px] max-w-[140px]">
-                                            <Select
-                                                value=""
-                                                onChange={(val) => {
-                                                    if (val && !filters.roles.includes(val)) setFilters(p => ({ ...p, mode: 'custom', roles: [...p.roles, val] }));
-                                                }}
-                                                options={roles.map(r => ({ value: r.id, label: r.name }))}
-                                                placeholder="תפקיד +"
-                                                className="py-1.5 px-3 h-[34px] min-h-0 text-xs font-medium bg-slate-50 border-slate-200"
-                                            />
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        {myPerson?.teamId && (
-                                            <button onClick={() => setFilters(p => ({ ...p, mode: 'custom', teams: p.teams.includes(myPerson.teamId!) ? p.teams.filter(t => t !== myPerson.teamId) : [...p.teams, myPerson.teamId!] }))} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.teams.includes(myPerson.teamId) ? 'bg-blue-100 text-blue-700' : 'bg-slate-50 text-slate-600'}`}>הצוות שלי</button>
-                                        )}
-                                        {myPerson?.roleId && (
-                                            <button onClick={() => setFilters(p => ({ ...p, mode: 'custom', roles: p.roles.includes(myPerson.roleId!) ? p.roles.filter(r => r !== myPerson.roleId) : [...p.roles, myPerson.roleId!] }))} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filters.roles.includes(myPerson.roleId) ? 'bg-purple-100 text-purple-700' : 'bg-slate-50 text-slate-600'}`}>התפקיד שלי</button>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-
-                            {/* Active Chips */}
-                            {(filters.teams.length > 0 || filters.roles.length > 0) && (
-                                <div className="flex flex-wrap items-center gap-2 pt-3 mt-2 border-t border-slate-100">
-                                    {filters.teams.map(tid => {
-                                        const team = teams.find(t => t.id === tid);
-                                        return (
-                                            <span key={tid} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100 animate-in zoom-in-50">
-                                                {team?.name}
-                                                <button onClick={() => setFilters(prev => ({ ...prev, teams: prev.teams.filter(t => t !== tid) }))} className="hover:bg-blue-200 rounded p-0.5 transition-colors"><X size={12} /></button>
-                                            </span>
-                                        );
-                                    })}
-                                    {filters.roles.map(rid => {
-                                        const role = roles.find(r => r.id === rid);
-                                        return (
-                                            <span key={rid} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs font-medium border border-purple-100 animate-in zoom-in-50">
-                                                {role?.name}
-                                                <button onClick={() => setFilters(prev => ({ ...prev, roles: prev.roles.filter(r => r !== rid) }))} className="hover:bg-purple-200 rounded p-0.5 transition-colors"><X size={12} /></button>
-                                            </span>
-                                        );
-                                    })}
-                                    <button onClick={() => setFilters({ mode: 'all', general: false, teams: [], roles: [] })} className="text-xs text-slate-400 hover:text-slate-600 underline px-2">נקה הכל</button>
-                                </div>
-                            )}
-                        </div>
-                    )}
 
                     {/* Timeline View - LIST STYLE */}
                     {timelineData.items.length > 0 ? (
@@ -657,6 +630,85 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                 </div>
             )}
 
+
+
+            {/* Filters Bottom Sheet */}
+            <SheetModal
+                isOpen={showFilters}
+                onClose={() => setShowFilters(false)}
+                title="סינון לוח זמנים"
+            >
+                <div className="flex flex-col gap-4">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase">תצוגה כללית</label>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setFilters({ mode: 'all', general: false, teams: [], roles: [] })}
+                                className={`flex-1 py-3 px-4 rounded-xl border font-bold text-sm transition-all flex items-center justify-center gap-2 ${filters.mode === 'all' ? 'bg-slate-800 text-white border-slate-800 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                            >
+                                {filters.mode === 'all' && <Check size={16} />}
+                                הצג הכל
+                            </button>
+                        </div>
+                    </div>
+
+                    {canEdit ? (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase">סינון לפי צוותים</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {teams.map(team => {
+                                        const isSelected = filters.teams.includes(team.id);
+                                        return (
+                                            <button
+                                                key={team.id}
+                                                onClick={() => {
+                                                    const newTeams = isSelected ? filters.teams.filter(t => t !== team.id) : [...filters.teams, team.id];
+                                                    setFilters(p => ({ ...p, mode: 'custom', teams: newTeams }));
+                                                }}
+                                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${isSelected ? `bg-blue-50 text-blue-700 border-blue-200` : 'bg-slate-50 text-slate-600 border-transparent hover:bg-slate-100'}`}
+                                            >
+                                                {team.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase">סינון לפי תפקידים</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {roles.map(role => {
+                                        const isSelected = filters.roles.includes(role.id);
+                                        return (
+                                            <button
+                                                key={role.id}
+                                                onClick={() => {
+                                                    const newRoles = isSelected ? filters.roles.filter(r => r !== role.id) : [...filters.roles, role.id];
+                                                    setFilters(p => ({ ...p, mode: 'custom', roles: newRoles }));
+                                                }}
+                                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${isSelected ? `bg-purple-50 text-purple-700 border-purple-200` : 'bg-slate-50 text-slate-600 border-transparent hover:bg-slate-100'}`}
+                                            >
+                                                {role.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                            {myPerson?.teamId && (
+                                <button onClick={() => setFilters(p => ({ ...p, mode: 'custom', teams: p.teams.includes(myPerson.teamId!) ? p.teams.filter(t => t !== myPerson.teamId) : [...p.teams, myPerson.teamId!] }))} className={`py-3 px-4 rounded-xl border font-bold text-sm transition-all flex items-center justify-center gap-2 ${filters.teams.includes(myPerson.teamId) ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>הצוות שלי</button>
+                            )}
+                            {myPerson?.roleId && (
+                                <button onClick={() => setFilters(p => ({ ...p, mode: 'custom', roles: p.roles.includes(myPerson.roleId!) ? p.roles.filter(r => r !== myPerson.roleId) : [...p.roles, myPerson.roleId!] }))} className={`py-3 px-4 rounded-xl border font-bold text-sm transition-all flex items-center justify-center gap-2 ${filters.roles.includes(myPerson.roleId) ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>התפקיד שלי</button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </SheetModal>
+
             {/* Modals */}
             <Modal
                 isOpen={isEditing}
@@ -689,6 +741,34 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                 value={editItem.endTime || ''}
                                 onChange={val => setEditItem({ ...editItem, endTime: val })}
                             />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500">חזרה שבועית</label>
+                        <div className="flex items-center justify-between gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
+                            {DAYS.map(day => {
+                                const isSelected = (editItem.daysOfWeek || [0, 1, 2, 3, 4, 5, 6]).includes(day.id);
+                                return (
+                                    <button
+                                        key={day.id}
+                                        onClick={() => {
+                                            const current = editItem.daysOfWeek || [0, 1, 2, 3, 4, 5, 6];
+                                            let newDays;
+                                            if (isSelected) {
+                                                // Prevent deselecting all? Or allow it? Allowing for now, but usually at least 1 day needed.
+                                                newDays = current.filter(d => d !== day.id);
+                                            } else {
+                                                newDays = [...current, day.id];
+                                            }
+                                            setEditItem({ ...editItem, daysOfWeek: newDays });
+                                        }}
+                                        className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${isSelected ? 'bg-blue-500 text-white shadow-md shadow-blue-200 scale-105' : 'text-slate-400 hover:bg-white hover:text-slate-600'}`}
+                                    >
+                                        {day.label}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
