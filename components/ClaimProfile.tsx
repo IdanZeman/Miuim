@@ -123,18 +123,18 @@ export const ClaimProfile: React.FC = () => {
                     </div>
 
                     {/* Content Side */}
-                    <div className="flex-1 p-6 md:p-16 bg-white rounded-t-3xl -mt-6 md:mt-0 relative z-20 flex flex-col animate-in slide-in-from-bottom-6 duration-500">
-                        <div className="max-w-xl mx-auto w-full space-y-6 md:space-y-8">
+                    <div className="flex-1 p-6 md:p-16 bg-white rounded-t-3xl -mt-6 md:mt-0 relative z-20 flex flex-col animate-in slide-in-from-bottom-6 duration-500 overflow-hidden">
+                        <div className="max-w-xl mx-auto w-full flex flex-col h-full md:h-auto md:block">
 
-                            <div>
-                                <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-3 md:mb-4">מי אתה ברשימה?</h2>
-                                <p className="text-slate-600 text-base md:text-lg leading-relaxed">
-                                    המערכת עדיין לא יודעת איזה מהשמות ברשימה שייך לך. בחר את השם שלך כדי שנוכל להציג לך את המידע שרלוונטי עבורך (משמרות, משימות ונוכחות).
+                            <div className="shrink-0 mb-4 md:mb-8">
+                                <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-2 md:mb-4">מי אתה ברשימה?</h2>
+                                <p className="text-slate-600 text-sm md:text-lg leading-relaxed">
+                                    המערכת עדיין לא יודעת איזה מהשמות ברשימה שייך לך. בחר את השם שלך כדי שנוכל להציג לך את המידע שרלוונטי עבורך.
                                 </p>
                             </div>
 
-                            <div className="space-y-4">
-                                <div className="relative">
+                            <div className="flex-1 flex flex-col min-h-0 md:min-h-auto space-y-4 md:space-y-6">
+                                <div className="relative shrink-0">
                                     <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
                                     <input
                                         type="text"
@@ -145,7 +145,7 @@ export const ClaimProfile: React.FC = () => {
                                     />
                                 </div>
 
-                                <div className="h-48 md:h-64 overflow-y-auto border-2 border-slate-100 rounded-2xl bg-white custom-scrollbar">
+                                <div className="flex-1 md:h-64 overflow-y-auto border-2 border-slate-100 rounded-2xl bg-white custom-scrollbar min-h-[200px] md:min-h-[250px]">
                                     {loading ? (
                                         <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3">
                                             <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div>
@@ -182,13 +182,13 @@ export const ClaimProfile: React.FC = () => {
                             </div>
 
                             {error && (
-                                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-red-100 animate-in fade-in slide-in-from-top-2">
+                                <div className="shrink-0 mt-4 bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-red-100 animate-in fade-in slide-in-from-top-2">
                                     <AlertCircle size={18} className="shrink-0" />
                                     {error}
                                 </div>
                             )}
 
-                            <div className="space-y-4 pt-4 pb-12 md:pb-0">
+                            <div className="shrink-0 space-y-4 pt-4 pb-12 md:pb-0 mt-auto md:mt-6">
                                 <button
                                     onClick={handleClaim}
                                     disabled={!selectedPerson || claiming}
