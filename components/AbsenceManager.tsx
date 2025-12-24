@@ -139,9 +139,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-100px)] gap-4">
+        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] overflow-hidden">
             {/* Header */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between shrink-0">
+            <div className="bg-white p-4 md:p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="bg-red-100 p-2 rounded-lg text-red-600">
                         <UserX size={28} />
@@ -158,9 +158,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                 )}
             </div>
 
-            <div className="flex flex-col md:flex-row flex-1 overflow-hidden gap-4 md:gap-6">
+            <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
                 {/* Sidebar: People List - Hidden on mobile when person selected */}
-                <div className={`w-full md:w-80 bg-white rounded-xl shadow-sm border border-slate-200 flex-col shrink-0 ${selectedPersonId ? 'hidden md:flex' : 'flex'}`}>
+                <div className={`w-full md:w-80 bg-slate-50/50 border-l border-slate-100 flex-col shrink-0 ${selectedPersonId ? 'hidden md:flex' : 'flex'}`}>
                     <div className="p-4 border-b border-slate-100 space-y-3">
                         <Input
                             placeholder="חיפוש חייל..."
@@ -236,9 +236,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                     Focus on that.
                     Side effect: "All Absences" might be hard to reach on mobile.
                     I will add a `hidden md:flex` to main content if `!selectedPersonId`.
-                    
-                 */}
-                <div className={`flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex-col overflow-hidden relative ${!selectedPersonId ? 'hidden md:flex' : 'flex'}`}>
+                    {/* Content: Absence List / Empty State */}
+                <div className={`flex-1 flex flex-col min-w-0 bg-white overflow-hidden relative ${!selectedPersonId ? 'hidden md:flex' : 'flex'}`}>
                     {!selectedPersonId ? (
                         // All Absences List View (Desktop mostly, or if we enable it on mobile somehow)
                         // If we want this on mobile we need a toggle. For now, following the specific Person Tap requirement.

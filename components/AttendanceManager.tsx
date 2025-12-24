@@ -353,14 +353,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-64px)] bg-[#7cbd52] md:bg-slate-50 relative overflow-hidden">
+        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] relative overflow-hidden">
             {/* --- GREEN HEADER (Mobile & Desktop Unified or Mobile Only?) --- */}
 
             {/* --- UNIFIED MOBILE CONTAINER --- */}
             <div className={`
                 flex-1 flex flex-col md:hidden
-                bg-white 
-                mt-0 relative isolate z-10 overflow-hidden
+                relative isolate z-10 overflow-hidden
             `}>
                 {/* Mobile Header (Integrated into Sheet) */}
                 <div className="px-4 pt-6 pb-4 border-b border-slate-50 flex flex-col gap-5 shrink-0">
@@ -587,10 +586,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     </div>
                 </div>
 
-                <div className="flex-1 p-6 pt-4 bg-slate-50 overflow-hidden flex flex-col isolate z-10">
+                <div className="flex-1 overflow-hidden flex flex-col isolate z-10">
                     {/* Content Render (Desktop) */}
                     {viewMode === 'calendar' ? (
-                        <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
+                        <div className="h-full flex flex-col bg-white overflow-hidden">
                             <GlobalTeamCalendar
                                 teams={teams}
                                 people={people}

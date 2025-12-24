@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Person, Shift, TaskTemplate, Team } from '../types';
 import { MapPin, Home, Briefcase, Download, Filter, Copy, ChevronDown, Users, LayoutGrid, ArrowUpDown, User } from 'lucide-react';
@@ -42,7 +43,6 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
         return team ? team.name : 'כללי';
     };
 
-    // ... existing generateReport logic ...
     const generateReport = () => {
         const checkTime = new Date(selectedDate);
         const [hours, minutes] = selectedTime.split(':').map(Number);
@@ -110,10 +110,8 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
 
     const reportData = generateReport();
 
-    // Grouping Logic
     const renderContent = () => {
         if (groupBy === 'status') {
-            const statusSortOrder = { mission: 0, base: 1, home: 2 };
             const grouped = {
                 mission: reportData.filter(r => r.status === 'mission').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name)),
                 base: reportData.filter(r => r.status === 'base').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name)),
@@ -130,7 +128,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
             ) => (
                 <div
                     onClick={() => toggleSection(key)}
-                    className={`flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 cursor-pointer select-none transition-all shadow-sm ${bgClass} ${borderClass}`}
+                    className={`flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 cursor-pointer select-none transition-all ${bgClass} ${borderClass}`}
                 >
                     <div className="flex items-center gap-3">
                         {icon}
@@ -145,7 +143,6 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
 
             return (
                 <div className="space-y-6">
-                    {/* Missions */}
                     <section>
                         {renderSectionHeader('mission', 'במשימה', grouped.mission.length, <Briefcase size={20} className="text-rose-500" />, 'bg-rose-50/50 hover:bg-rose-50', 'border-rose-100')}
                         {isSectionExpanded('mission') && (
@@ -156,7 +153,6 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                         )}
                     </section>
 
-                    {/* Base */}
                     <section>
                         {renderSectionHeader('base', 'בבסיס', grouped.base.length, <MapPin size={20} className="text-emerald-600" />, 'bg-emerald-50/50 hover:bg-emerald-50', 'border-emerald-100')}
                         {isSectionExpanded('base') && (
@@ -167,7 +163,6 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                         )}
                     </section>
 
-                    {/* Home */}
                     <section>
                         {renderSectionHeader('home', 'בבית', grouped.home.length, <Home size={20} className="text-slate-500" />, 'bg-slate-50 hover:bg-slate-100', 'border-slate-200')}
                         {isSectionExpanded('home') && (
@@ -180,12 +175,8 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                 </div>
             );
         } else if (groupBy === 'team') {
-            // Group by Team
             const teamsMap = new Map<string, PersonLocation[]>();
-
-            // Get all unique teams that have people in reportData
             const activeTeamIds = Array.from(new Set(reportData.map(r => r.person.teamId || 'no_team')));
-
             activeTeamIds.forEach(tid => {
                 const teamName = tid === 'no_team' ? 'כללי' : (teams.find(t => t.id === tid)?.name || 'כללי');
                 const members = reportData
@@ -231,7 +222,6 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                 </div>
             );
         } else {
-            // Alphabetical (Alpha)
             const sorted = [...reportData].sort((a, b) => a.person.name.localeCompare(b.person.name));
             return (
                 <div className="space-y-6">
@@ -258,124 +248,114 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
         }
     };
 
-    // Compact Action Row & Header
     return (
-        <div className="bg-slate-50 min-h-full flex flex-col">
-            {/* Sticky Header */}
-            <div className="bg-white sticky top-0 z-30 shadow-sm border-b border-slate-200">
-                <div className="px-4 pt-4 pb-2">
-                    <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                            <MapPin className="text-emerald-500" size={20} />
-                            דוח מיקום כוחות
-                        </h2>
-                        {/* More Actions (Export) */}
-                        <div className="flex items-center gap-1">
-                            <button
-                                onClick={() => {
-                                    let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
-                                    reportData.forEach(r => {
-                                        const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
-                                        const team = r.person.teamId || '';
-                                        csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
-                                    });
-                                    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-                                    const link = document.createElement('a');
-                                    const url = URL.createObjectURL(blob);
-                                    link.setAttribute('href', url);
-                                    link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                }}
-                                className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
-                            >
-                                <Download size={18} />
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
-                                    const grouped = {
-                                        mission: reportData.filter(r => r.status === 'mission'),
-                                        base: reportData.filter(r => r.status === 'base'),
-                                        home: reportData.filter(r => r.status === 'home')
-                                    };
-                                    if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
-                                    if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
-                                    if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
+        <div className="bg-transparent min-h-full flex flex-col">
+            <div className="bg-white pb-6 pt-2 border-b border-slate-100">
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <MapPin className="text-emerald-500" size={20} />
+                        דוח מיקום כוחות
+                    </h2>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => {
+                                let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
+                                reportData.forEach(r => {
+                                    const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
+                                    const team = r.person.teamId || '';
+                                    csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
+                                });
+                                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                                const link = document.createElement('a');
+                                const url = URL.createObjectURL(blob);
+                                link.setAttribute('href', url);
+                                link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }}
+                            className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                        >
+                            <Download size={18} />
+                        </button>
+                        <button
+                            onClick={async () => {
+                                let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
+                                const grouped = {
+                                    mission: reportData.filter(r => r.status === 'mission'),
+                                    base: reportData.filter(r => r.status === 'base'),
+                                    home: reportData.filter(r => r.status === 'home')
+                                };
+                                if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
+                                if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
+                                if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
 
-                                    try { await navigator.clipboard.writeText(text); showToast('הועתק', 'success'); } catch (e) { showToast('שגיאה', 'error'); }
-                                }}
-                                className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
-                            >
-                                <Copy size={18} />
-                            </button>
-                        </div>
+                                try { await navigator.clipboard.writeText(text); showToast('הועתק', 'success'); } catch (e) { showToast('שגיאה', 'error'); }
+                            }}
+                            className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                        >
+                            <Copy size={18} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 mb-3 px-1 max-w-full overflow-hidden">
+                    <div className="flex items-center bg-slate-100 p-1 rounded-lg shrink-0">
+                        <input
+                            type="date"
+                            value={selectedDate.toISOString().split('T')[0]}
+                            onChange={e => setSelectedDate(new Date(e.target.value))}
+                            className="bg-transparent border-0 text-xs font-bold text-slate-700 w-[110px] outline-none p-0.5"
+                        />
+                        <div className="w-px h-3 bg-slate-300 mx-0.5 shrink-0" />
+                        <input
+                            type="time"
+                            value={selectedTime}
+                            onChange={e => setSelectedTime(e.target.value)}
+                            className="bg-transparent border-0 text-xs font-bold text-slate-700 w-[65px] outline-none p-0.5 text-center"
+                        />
                     </div>
 
-                    {/* Controls Row: Date Right, Icons Left - Compact Version */}
-                    <div className="flex items-center justify-between gap-2 mb-3 px-1 max-w-full overflow-hidden">
-                        {/* Date/Time - Fixed Widths to prevent overflow */}
-                        <div className="flex items-center bg-slate-100 p-1 rounded-lg shrink-0">
-                            <input
-                                type="date"
-                                value={selectedDate.toISOString().split('T')[0]}
-                                onChange={e => setSelectedDate(new Date(e.target.value))}
-                                className="bg-transparent border-0 text-xs font-bold text-slate-700 w-[110px] outline-none p-0.5"
-                            />
-                            <div className="w-px h-3 bg-slate-300 mx-0.5 shrink-0" />
-                            <input
-                                type="time"
-                                value={selectedTime}
-                                onChange={e => setSelectedTime(e.target.value)}
-                                className="bg-transparent border-0 text-xs font-bold text-slate-700 w-[65px] outline-none p-0.5 text-center"
-                            />
-                        </div>
-
-                        {/* Filter Icons */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                            <Select
-                                triggerMode="icon"
-                                value={filterTeam}
-                                onChange={setFilterTeam}
-                                options={[
-                                    { value: 'all', label: 'כל הצוותים' },
-                                    ...(teams.length > 0
-                                        ? teams.map(t => ({ value: t.id, label: t.name }))
-                                        : Array.from(new Set(people.map(p => p.teamId).filter(Boolean))).map(tid => ({ value: tid!, label: tid! }))
-                                    )
-                                ]}
-                                placeholder="סינון לפי צוות"
-                                icon={Filter}
-                                className="bg-slate-50 border-slate-200 h-9 w-9 p-0" // Using height/width directly for compact icon
-                            />
-                            <Select
-                                triggerMode="icon"
-                                value={groupBy}
-                                onChange={(val) => setGroupBy(val as any)}
-                                options={[
-                                    { value: 'status', label: 'לפי סטטוס' },
-                                    { value: 'team', label: 'לפי צוות' },
-                                    { value: 'alpha', label: 'לפי א-ב' }
-                                ]}
-                                placeholder="מיון תצוגה"
-                                icon={ArrowUpDown}
-                                className="bg-slate-50 border-slate-200 h-9 w-9 p-0"
-                            />
-                        </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <Select
+                            triggerMode="icon"
+                            value={filterTeam}
+                            onChange={setFilterTeam}
+                            options={[
+                                { value: 'all', label: 'כל הצוותים' },
+                                ...(teams.length > 0
+                                    ? teams.map(t => ({ value: t.id, label: t.name }))
+                                    : Array.from(new Set(people.map(p => p.teamId).filter(Boolean))).map(tid => ({ value: tid!, label: tid! }))
+                                )
+                            ]}
+                            placeholder="סינון לפי צוות"
+                            icon={Filter}
+                            className="bg-slate-50 border-slate-200 h-9 w-9 p-0"
+                        />
+                        <Select
+                            triggerMode="icon"
+                            value={groupBy}
+                            onChange={(val) => setGroupBy(val as any)}
+                            options={[
+                                { value: 'status', label: 'לפי סטטוס' },
+                                { value: 'team', label: 'לפי צוות' },
+                                { value: 'alpha', label: 'לפי א-ב' }
+                            ]}
+                            placeholder="מיון תצוגה"
+                            icon={ArrowUpDown}
+                            className="bg-slate-50 border-slate-200 h-9 w-9 p-0"
+                        />
                     </div>
                 </div>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto pb-20 custom-scrollbar relative">
+            <div className="flex-1 overflow-y-auto pt-6 pb-20 custom-scrollbar relative">
                 {renderContent()}
             </div>
         </div>
     );
 };
 
-// Fix: Explicitly type props and use React.FC to ensure 'key' is accepted
 interface PersonCardProps {
     r: PersonLocation;
     type?: 'mission' | 'base' | 'home';
@@ -383,13 +363,10 @@ interface PersonCardProps {
     teamName?: string;
 }
 
-const PersonCard: React.FC<PersonCardProps> = ({ r, type = 'mission', showStatusBadge = false, teamName }) => {
-    // Flat Layout, No Cards
+const PersonCard: React.FC<PersonCardProps> = ({ r, showStatusBadge = false, teamName }) => {
     return (
         <div className="p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors flex items-start text-right bg-white">
-            {/* Left: Info */}
             <div className="flex-1 min-w-0">
-                {/* Name Row */}
                 <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-bold text-slate-800 text-sm">{r.person.name}</span>
                     {showStatusBadge && (
@@ -398,11 +375,9 @@ const PersonCard: React.FC<PersonCardProps> = ({ r, type = 'mission', showStatus
                         </span>
                     )}
                 </div>
-                {/* Subtext: Team */}
                 {teamName && <span className="text-[11px] text-slate-400 block">{teamName}</span>}
             </div>
 
-            {/* Right: Details & Time */}
             <div className="flex flex-col items-end gap-1 pl-2">
                 <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[120px]">
                     {r.details}

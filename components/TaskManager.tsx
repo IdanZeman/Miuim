@@ -155,8 +155,8 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-xl md:shadow-portal min-h-[600px] relative pb-20 md:pb-6">
-            <div className="flex flex-col md:flex-row justify-between items-center p-4 md:p-6 border-b border-slate-100 gap-4 sticky top-0 bg-white z-10">
+        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 min-h-[600px] relative pb-20 md:pb-6 overflow-hidden">
+            <div className="flex flex-col md:flex-row justify-between items-center p-4 md:p-6 border-b border-slate-100 gap-4 sticky top-0 bg-white z-10 transition-shadow">
                 <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 md:gap-3">
                     <span className="bg-blue-50 p-2 rounded-lg text-blue-600"><CheckSquare size={20} /></span>
                     ניהול משימות

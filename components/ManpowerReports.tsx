@@ -311,7 +311,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                     </div>
 
                     {/* Presence Overview Visual */}
-                    <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
                         <div className="flex justify-between items-center mb-1">
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">סקירת נוכחות ויזואלית</h3>
                             <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{stats.dailyStats.percentage}% זמינות</span>
@@ -344,7 +344,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="lg:col-span-2 space-y-6">
                             {/* Availability by Role - Refactored List */}
-                            <div className="rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-200 mt-6 md:mt-0">
+                            <div className="rounded-2xl overflow-hidden bg-white border border-slate-100 mt-6 md:mt-0">
                                 {/* White Header */}
                                 <div className="bg-white p-4 border-b border-slate-100">
                                     <div className="flex items-center justify-between gap-4">
@@ -416,7 +416,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
 
                         {/* Team Comparison Chart (Donut - Quantity) */}
                         {(selectedTeamIds.includes('all') || selectedTeamIds.length > 1) && (
-                            <div className="bg-white p-6 rounded-xl shadow-portal flex flex-col">
+                            <div className="bg-white p-6 rounded-2xl border border-slate-100 flex flex-col">
                                 <h3 className="text-lg font-bold text-slate-800 mb-2">התפלגות נוכחים לפי צוותים</h3>
                                 <div className="w-full h-[300px] relative">
                                     <ResponsiveContainer width="100%" height={300}>
@@ -531,7 +531,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Main Trend Chart */}
-                        <div className="bg-white p-6 rounded-xl shadow-portal border border-slate-100">
+                        <div className="bg-white p-6 rounded-2xl border border-slate-100">
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
                                 <TrendingUp className="text-blue-500" size={20} />
                                 גרף נוכחות - {trendPeriod} ימים
@@ -567,7 +567,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         </div>
 
                         {/* Weekday Analysis */}
-                        <div className="bg-white p-6 rounded-xl shadow-portal border border-slate-100">
+                        <div className="bg-white p-6 rounded-2xl border border-slate-100">
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
                                 <Calendar className="text-emerald-500" size={20} />
                                 ניתוח נוכחות לפי ימי שבוע

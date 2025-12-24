@@ -5,6 +5,7 @@ import { Person, Team, Role } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { Trophy, Users, RefreshCw, Sparkles, Shuffle, Dices, Check, Settings2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Select } from './ui/Select';
+import { Button } from './ui/Button';
 
 interface LotteryProps {
     people: Person[];
@@ -164,8 +165,6 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
         };
         fetchHistory();
     }, [organization?.id]);
-
-    // ... (rest of code)
 
     const saveToHistory = async (winners: Person[]) => {
         if (!organization?.id) {
@@ -384,103 +383,135 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
     )
 
     return (
-        <div className="min-h-screen font-sans bg-slate-50 relative overflow-hidden flex flex-col" dir="rtl">
+        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] relative overflow-hidden" dir="rtl">
 
             {/* Global Sound Toggle (Visible on both) */}
             {/* Global Sound Toggle Removed */}
 
             {/* ================= MOBILE VIEW (md:hidden) ================= */}
-            <div className="md:hidden flex flex-col h-full">
-                {/* 1. Green Header */}
-                {/* 1. White Header */}
-                <div className="bg-white text-slate-900 p-6 pb-12 rounded-b-[2rem] shadow-sm relative z-0 border-b border-slate-100">
-                    <h1 className="text-3xl font-black text-center mb-1">הגרלה</h1>
-                    <p className="text-slate-500 text-center text-sm opacity-90">סובב את הגלגל וגלה מי הזוכה!</p>
+            <div className="md:hidden flex flex-col h-full overflow-y-auto">
+                {/* 1. Header Area */}
+                <div className="bg-white text-slate-900 p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+                    <div>
+                        <h1 className="text-2xl font-black mb-0.5">הגרלה</h1>
+                        <p className="text-slate-500 text-xs font-bold">סובב את הגלגל וגלה מי הזוכה!</p>
+                    </div>
+                    <button
+                        onClick={() => setShowHistory(!showHistory)}
+                        className={`p-3 rounded-xl border transition-all ${showHistory ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                    >
+                        <Trophy size={20} />
+                    </button>
                 </div>
 
-                {/* 2. White Sheet (Pull Up) */}
-                <div className="flex-1 bg-white rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] -mt-8 relative z-10 px-4 pt-8 pb-4 flex flex-col overflow-y-auto">
+                {/* Content */}
+                <div className="flex-1 p-4 flex flex-col">
+                    {showHistory ? (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">זוכים אחרונים</h3>
+                            <div className="space-y-3">
+                                {history.length === 0 && <p className="text-xs text-slate-400 italic text-center py-8">טרם בוצעו הגרלות</p>}
+                                {history.map((h: any, idx: number) => (
+                                    <div key={h.id || idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-sm font-bold">
+                                                {h.winners[0]?.name ? getPersonInitials(h.winners[0].name) : '?'}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-800 text-sm">{h.winners.map((w: any) => w.name).join(', ')}</p>
+                                                <p className="text-[10px] text-slate-400">{new Date(h.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                                            </div>
+                                        </div>
+                                        <Trophy size={16} className="text-yellow-400" />
+                                    </div>
+                                ))}
+                            </div>
+                            <Button variant="secondary" onClick={() => setShowHistory(false)} className="w-full">חזרה להגרלה</Button>
+                        </div>
+                    ) : (
+                        <>
 
-                    {/* Wheel Section */}
-                    <div className="flex justify-center mb-6">
-                        {mode === 'single' && candidates.length > 0 ? (
-                            <WheelView sizeClass="w-72 h-72" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} />
-                        ) : mode === 'multiple' ? (
-                            <div className="w-72 h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold text-center p-4">
-                                {isSpinning ? (
+                            {/* Wheel Section */}
+                            <div className="flex justify-center mb-6">
+                                {mode === 'single' && candidates.length > 0 ? (
+                                    <WheelView sizeClass="w-72 h-72" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} />
+                                ) : mode === 'multiple' ? (
+                                    <div className="w-72 h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold text-center p-4">
+                                        {isSpinning ? (
+                                            <div className="animate-pulse text-indigo-500 font-bold text-xl">
+                                                ...מגריל...
+                                            </div>
+                                        ) : (
+                                            'הגרלה קבוצתית'
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="w-72 h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold">
+                                        אין משתתפים
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Winner / Status Display */}
+                            <div className="text-center mb-6 min-h-[4rem]">
+                                {winners.length > 0 && !isSpinning ? (
+                                    <div className="animate-bounce-in">
+                                        <p className="text-sm font-bold text-slate-400 mb-1">הזוכה הוא:</p>
+                                        <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                                            {winners[0].name}
+                                        </h2>
+                                    </div>
+                                ) : isSpinning ? (
                                     <div className="animate-pulse text-indigo-500 font-bold text-xl">
                                         ...מגריל...
                                     </div>
                                 ) : (
-                                    'הגרלה קבוצתית'
+                                    <p className="text-slate-400 font-medium">לחץ על הכפתור כדי להתחיל</p>
                                 )}
                             </div>
-                        ) : (
-                            <div className="w-72 h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold">
-                                אין משתתפים
-                            </div>
-                        )}
-                    </div>
 
-                    {/* Winner / Status Display */}
-                    <div className="text-center mb-6 min-h-[4rem]">
-                        {winners.length > 0 && !isSpinning ? (
-                            <div className="animate-bounce-in">
-                                <p className="text-sm font-bold text-slate-400 mb-1">הזוכה הוא:</p>
-                                <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                                    {winners[0].name}
-                                </h2>
-                            </div>
-                        ) : isSpinning ? (
-                            <div className="animate-pulse text-indigo-500 font-bold text-xl">
-                                ...מגריל...
-                            </div>
-                        ) : (
-                            <p className="text-slate-400 font-medium">לחץ על הכפתור כדי להתחיל</p>
-                        )}
-                    </div>
-
-                    {/* Primary Action Button */}
-                    <button
-                        onClick={handleSpin}
-                        disabled={candidates.length === 0 || isSpinning}
-                        className={`w-full py-4 rounded-2xl font-black text-xl shadow-xl transform transition-all active:scale-95 flex items-center justify-center gap-3 mb-6
+                            {/* Primary Action Button */}
+                            <button
+                                onClick={handleSpin}
+                                disabled={candidates.length === 0 || isSpinning}
+                                className={`w-full py-4 rounded-2xl font-black text-xl shadow-xl transform transition-all active:scale-95 flex items-center justify-center gap-3 mb-6
                             ${candidates.length === 0 || isSpinning
-                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
-                                : 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 shadow-yellow-500/30'
-                            }`}
-                    >
-                        {isSpinning ? <RefreshCw className="animate-spin" size={24} /> : <Sparkles size={24} />}
-                        {isSpinning ? 'מסתובב...' : 'סובב את הגלגל!'}
-                    </button>
+                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                                        : 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 shadow-yellow-500/30'
+                                    }`}
+                            >
+                                {isSpinning ? <RefreshCw className="animate-spin" size={24} /> : <Sparkles size={24} />}
+                                {isSpinning ? 'מסתובב...' : 'סובב את הגלגל!'}
+                            </button>
 
-                    {/* Collapsible Settings */}
-                    <div className="mt-auto border-t border-slate-100 pt-4">
-                        <button
-                            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                            className="flex items-center justify-between w-full p-3 bg-slate-50 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-100 transition-colors"
-                        >
-                            <span className="flex items-center gap-2">
-                                <Settings2 size={16} />
-                                הגדרות הגרלה
-                            </span>
-                            {isSettingsOpen ? <ChevronUp size={16} /> : <div className="bg-slate-200 px-2 py-0.5 rounded text-xs">{candidates.length} משתתפים</div>}
-                        </button>
+                            {/* Collapsible Settings */}
+                            <div className="mt-auto border-t border-slate-100 pt-4">
+                                <button
+                                    onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                                    className="flex items-center justify-between w-full p-3 bg-slate-50 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-100 transition-colors"
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <Settings2 size={16} />
+                                        הגדרות הגרלה
+                                    </span>
+                                    {isSettingsOpen ? <ChevronUp size={16} /> : <div className="bg-slate-200 px-2 py-0.5 rounded text-xs">{candidates.length} משתתפים</div>}
+                                </button>
 
-                        {isSettingsOpen && (
-                            <div className="mt-4 animate-fade-in pb-8">
-                                {ConfigPanelContent()}
+                                {isSettingsOpen && (
+                                    <div className="mt-4 animate-fade-in pb-8">
+                                        {ConfigPanelContent()}
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </div>
             </div>
 
             {/* ================= DESKTOP VIEW (hidden md:flex) ================= */}
-            <div className="hidden md:flex h-full p-6 gap-8 items-stretch">
-
+            <div className="hidden md:flex h-full p-0 flex-1 overflow-hidden">
                 {/* LEFT: Hero Wheel Area */}
-                <div className="flex-1 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl shadow-2xl relative overflow-hidden flex flex-col items-center justify-center p-12 border-4 border-white/20">
+                <div className="flex-1 bg-gradient-to-br from-indigo-600 to-purple-700 relative overflow-hidden flex flex-col items-center justify-center p-12">
                     {/* Pattern Background */}
                     <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
 
@@ -517,7 +548,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                 </div>
 
                 {/* RIGHT: Controls & History */}
-                <div className="w-[400px] bg-white rounded-3xl shadow-xl flex flex-col overflow-hidden border border-slate-100">
+                <div className="w-[400px] bg-white flex flex-col overflow-hidden border-r border-slate-100">
                     <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6">
                             <Settings2 className="text-indigo-600" />
@@ -625,6 +656,6 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                     border-radius: 20px;
                 }
             `}</style>
-        </div >
+        </div>
     );
 };

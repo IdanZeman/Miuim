@@ -77,9 +77,9 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
     ];
 
     return (
-        <div className="bg-slate-50 min-h-screen pb-20 -mx-4 sm:mx-0 -mt-4 sm:mt-0">
-            {/* Standard White Header */}
-            <div className="bg-white pt-6 pb-4 px-6 border-b border-slate-100 sticky top-0 z-20">
+        <div className="bg-transparent pb-20">
+            {/* Standard White Header - Non-sticky for dashboard */}
+            <div className="bg-white pb-6 pt-2 border-b border-slate-100">
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                         <h2 className="text-slate-800 text-xl font-bold flex items-center gap-2">
@@ -120,11 +120,11 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
             </div>
 
             {/* Content Area */}
-            <div className="p-4 space-y-6">
+            <div className="py-6 space-y-6">
                 {viewMode === 'overview' ? (
                     <div className="space-y-6">
                         {/* Horizontal Bar Chart */}
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div className="bg-white p-6 rounded-2xl border border-slate-100">
                             <h3 className="text-lg font-bold text-slate-800 mb-4">עומס שעות מצטבר</h3>
                             <div className="overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
                                 <div className="space-y-3 pt-2">
@@ -140,22 +140,10 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                                                 </div>
 
                                                 {/* Bar */}
-                                                <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden dir-ltr">
+                                                <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
                                                     <div
                                                         className={`h-full rounded-full ${data.hours > 100 ? 'bg-red-500' : 'bg-blue-500'}`}
-                                                        style={{ width: `${percentage}%`, marginLeft: 'auto' }} // RTL simulation or just use dir-ltr wrapper?
-                                                    // Actually, for "Growth from Right", we need the parent to be RTL (default) and the bar to be... wait.
-                                                    // Standard progress bars grow from Left to Right.
-                                                    // In Hebrew (RTL), "Start" is Right.
-                                                    // If I want the bar to start from the Right (near name) and grow Left:
-                                                    // Parent: RTL. Bar: standard div.
-                                                    // If I use `dir-ltr` on bar container, it grows from Left.
-                                                    // Let's stick to RTL (default) behavior.
-                                                    // If Parent is RTL:
-                                                    // <div bg-slate-100> <div width=50% bg-blue /> </div>
-                                                    // The inner div will align to Right (Start) and grow Leftwards. This is PERFECT for RTL content.
-                                                    // So I DON'T need `dir-ltr`.
-                                                    // I just need to ensure the layout is correct.
+                                                        style={{ width: `${percentage}%` }}
                                                     />
                                                 </div>
 
@@ -171,7 +159,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                         </div>
 
                         {/* Compact Gauge/Donut */}
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div className="bg-white p-6 rounded-2xl border border-slate-100">
                             <h3 className="text-lg font-bold text-slate-800 mb-2">סטטוס איוש</h3>
                             <div className="h-[200px] w-full"> {/* Reduced Height */}
                                 <ResponsiveContainer width="100%" height="100%">
@@ -205,12 +193,11 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                         </div>
 
                         {/* Advanced Stats: Night Leaders (Adapted) */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                             <div className="p-4 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2">
                                 <Moon className="text-indigo-500" size={18} />
                                 <h3 className="font-bold text-indigo-900">שיאני לילה</h3>
                             </div>
-                            {/* ... existing logic for night leaders ... */}
                             <div className="divide-y divide-slate-50">
                                 {people.map(person => {
                                     const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id));
@@ -246,7 +233,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                     </div>
                 ) : (
                     /* Personal Mode - List */
-                    <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200 divide-y divide-slate-100/50">
+                    <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 divide-y divide-slate-100/50">
                         {selectedPersonId ? ( // Keep legacy view capability if needed, but mainly use list
                             <DetailedUserStats
                                 person={people.find(p => p.id === selectedPersonId)!}

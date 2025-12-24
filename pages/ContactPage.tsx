@@ -123,24 +123,17 @@ export const ContactPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen md:min-h-0 bg-slate-50 md:bg-transparent" dir="rtl">
+        <div className="min-h-screen md:min-h-0 bg-transparent" dir="rtl">
 
             {/* ================= MOBILE LAYOUT (< md) ================= */}
             <div className="md:hidden">
-                {/* 1. White Header Area */}
-                <div className="bg-white text-slate-900 pt-10 pb-20 px-6 relative overflow-hidden rounded-b-[2.5rem] shadow-sm ring-1 ring-slate-100">
-                    <div className="relative z-10 text-center space-y-3 mb-4">
-                        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 shadow-sm mb-2">
-                            <Mail size={28} />
-                        </div>
-                        <h1 className="text-3xl font-black tracking-tight text-slate-900">צור קשר</h1>
-                        <p className="text-slate-500 font-medium text-base">אנחנו כאן לכל שאלה, רעיון או בעיה.</p>
-                    </div>
-                </div>
+                <div className="relative z-20 mb-8">
+                    <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-6 md:p-8 space-y-6">
 
-                {/* 2. White Form Card */}
-                <div className="mx-4 -mt-10 relative z-20 mb-8">
-                    <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 p-6 space-y-6 border border-slate-100">
+                        {/* Top spacing / indicator */}
+                        <div className="md:hidden flex justify-center mb-2">
+                            <div className="w-12 h-1.5 bg-slate-100 rounded-full"></div>
+                        </div>
 
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 mr-1">נושא הפנייה</label>
@@ -240,7 +233,7 @@ export const ContactPage: React.FC = () => {
 
             {/* ================= DESKTOP LAYOUT (md:flex) ================= */}
             <div className="hidden md:flex justify-center items-center py-12 px-4">
-                <div className="bg-white rounded-3xl shadow-2xl overflow-hidden max-w-5xl w-full grid grid-cols-5 min-h-[600px] border border-slate-100">
+                <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 overflow-hidden max-w-5xl w-full grid grid-cols-5 min-h-[600px]">
 
                     {/* Left Column: Info & Branding */}
                     <div className="col-span-2 bg-slate-900 text-white p-10 flex flex-col relative overflow-hidden">

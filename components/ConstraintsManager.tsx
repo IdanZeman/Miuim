@@ -295,9 +295,9 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-100px)] gap-4">
+        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] overflow-hidden">
             {/* Top Control Bar */}
-            <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between shrink-0">
+            <div className="bg-white p-4 md:p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <h2 className="text-lg font-bold text-slate-800 px-2 flex items-center gap-2">
                     <ShieldAlert className="text-blue-600" size={24} />
                     <span className="hidden md:inline">ניהול אילוצים</span>
@@ -308,7 +308,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                 </div>
             </div>
 
-            <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden relative">
+            <div className="flex-1 flex flex-col overflow-hidden relative">
                 <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                     <h3 className="text-xl font-bold text-slate-800">הגדרת חוקי משימות</h3>
                     {!isViewer && (

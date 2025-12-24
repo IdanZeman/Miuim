@@ -516,42 +516,9 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     ];
 
     return (
-        <div className="h-full bg-slate-50 md:bg-white" dir="rtl">
+        <div className="h-full bg-transparent md:bg-white" dir="rtl">
             {/* === Mobile Layout (< md) === */}
-            <div className="md:hidden">
-                {/* 1. Clean White Header Area */}
-                <div className="bg-white pt-8 pb-10 px-4 rounded-b-[2.5rem] shadow-sm border-b border-slate-100 relative overflow-hidden">
-                    {/* Organization Brand (Centered) */}
-                    <div className="relative z-10 flex flex-col items-center justify-center text-center gap-3 mb-6">
-                        <div className="w-16 h-16 bg-blue-50 p-1 rounded-full border border-blue-100 flex items-center justify-center">
-                            <span className="text-3xl font-black text-blue-600 select-none">
-                                {organization?.name?.charAt(0) || 'O'}
-                            </span>
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-black tracking-tight leading-tight text-slate-900">{organization?.name}</h1>
-                            <p className="text-slate-500 text-sm font-medium">הגדרות וניהול מערכת</p>
-                        </div>
-                    </div>
-
-                    {/* Segmented Control Tabs (Pill Shape) */}
-                    <div className="relative z-10 bg-slate-50 p-1.5 rounded-full flex border border-slate-200 mx-2">
-                        {navigationTabs.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id as any)}
-                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-sm font-bold transition-all ${activeTab === tab.id
-                                    ? 'bg-white text-slate-800 shadow-sm ring-1 ring-slate-200'
-                                    : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-600'
-                                    }`}
-                            >
-                                <tab.icon size={16} />
-                                <span className={activeTab === tab.id ? 'inline' : 'hidden sm:inline'}>{tab.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
+            {/* Header Removed - Content moved to main card */}
 
             {/* Content Container (Mobile: Pull-up Sheet, Desktop: Split View) */}
             <div className="md:flex h-full md:max-w-6xl md:mx-auto md:gap-8 md:p-6 md:h-[calc(100vh-100px)]">
@@ -588,8 +555,37 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                 </div>
 
                 {/* === Active Content Area === */}
-                <div className="flex-1 relative z-20 md:z-auto -mt-12 mx-0 md:mt-0 px-0 md:px-0 pb-20 md:pb-0 overflow-y-auto h-full hide-scrollbar">
-                    <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] md:shadow-sm md:border md:border-slate-200 p-6 md:p-8 min-h-[400px]">
+                {/* === Active Content Area === */}
+                <div className="flex-1 relative z-20 md:z-auto md:mt-0 md:mx-0 px-0 md:px-0 pb-20 md:pb-0 overflow-y-auto h-full hide-scrollbar">
+                    <div className="bg-white rounded-[2rem] md:rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-6 md:p-8 min-h-[400px]">
+
+                        {/* Mobile Only: Organization Info & Tabs */}
+                        <div className="md:hidden space-y-6 mb-8">
+                            <div className="text-center space-y-2">
+                                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl mb-2 shadow-sm border border-blue-100">
+                                    <span className="text-3xl font-black">{organization?.name?.charAt(0) || 'O'}</span>
+                                </div>
+                                <h1 className="text-2xl font-black text-slate-900">{organization?.name}</h1>
+                                <p className="text-slate-500 font-medium text-sm">הגדרות וניהול מערכת</p>
+                            </div>
+
+                            <div className="bg-slate-50 p-1.5 rounded-2xl flex border border-slate-200">
+                                {navigationTabs.map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === tab.id
+                                            ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+                                            : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-600'
+                                            }`}
+                                    >
+                                        <tab.icon size={16} />
+                                        <span className={activeTab === tab.id ? 'inline' : 'hidden sm:inline'}>{tab.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="h-px bg-slate-100 w-full"></div>
+                        </div>
 
                         {activeTab === 'general' && (
                             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">

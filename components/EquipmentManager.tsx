@@ -267,7 +267,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
             </div>
 
             {/* Content Sheet (Responsive) */}
-            <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] -mx-4 md:mx-0 px-4 py-6 min-h-[70vh] md:mt-6">
+            <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 px-4 py-6 min-h-[70vh] md:mt-6">
 
                 {/* DESKTOP: Stats Strip */}
                 <div className="hidden md:flex items-center gap-6 mb-6">

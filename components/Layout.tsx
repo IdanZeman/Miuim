@@ -511,7 +511,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       {/* Main Content - Scrollable */}
       <main ref={mainRef} className="flex-1 overflow-y-auto relative bg-idf-bg scroll-smooth">
         {/* Green Hero Section - Responsive height */}
-        <div className="bg-hero-pattern h-52 md:h-64 w-full absolute top-0 left-0 z-0">
+        <div className="bg-hero-pattern h-44 md:h-64 w-full absolute top-0 left-0 z-0 transition-all">
           <div className="max-w-7xl mx-auto px-4 pt-4 md:pt-8 lg:pt-10">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-slate-800">
               {currentView === 'home' && 'בית'}
@@ -526,13 +526,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'constraints' && 'ניהול אילוצים'}
               {currentView === 'absences' && 'ניהול היעדרויות'}
               {currentView === 'equipment' && 'דוח צלם / אמצעים'}
+              {currentView === 'contact' && 'צור קשר'}
             </h1>
-            <div className="w-12 md:w-16 h-1 md:h-1.5 bg-white/40 rounded-full mt-2 md:mt-3"></div>
+            <div className="w-12 md:w-16 h-1 md:h-1.5 bg-white/40 rounded-full mt-1.5 md:mt-3"></div>
           </div>
         </div>
 
         {/* Content Cards Container - Responsive spacing */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 pt-32 md:pt-32 pb-24 md:pb-10 min-h-full">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 pt-24 md:pt-32 pb-24 md:pb-10 min-h-full">
           {children}
         </div>
       </main>

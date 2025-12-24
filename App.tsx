@@ -169,14 +169,19 @@ const MainApp: React.FC = () => {
         );
     }, [organization, user, profile]);
 
-    const applyDataScoping = (people: Person[], shifts: Shift[]) => {
+    const applyDataScoping = (people: Person[], shifts: Shift[], equipment: Equipment[] = []) => {
         const dataScope = profile?.permissions?.dataScope || 'organization';
         const allowedTeamIds = profile?.permissions?.allowedTeamIds || [];
 
-        let scopedPeople = people;
-        let scopedShifts = shifts;
+        let scopedPeople: Person[] = [];
+        let scopedShifts: Shift[] = [];
+        let scopedEquipment: Equipment[] = [];
 
-        if (dataScope === 'team') {
+        if (dataScope === 'organization') {
+            scopedPeople = people;
+            scopedShifts = shifts;
+            scopedEquipment = equipment;
+        } else if (dataScope === 'team') {
             scopedPeople = people.filter(p =>
                 (p.teamId && allowedTeamIds.includes(p.teamId)) ||
                 p.userId === user?.id ||
@@ -187,16 +192,24 @@ const MainApp: React.FC = () => {
                 s.assignedPersonIds.some(pid => visiblePersonIds.includes(pid)) ||
                 s.assignedPersonIds.length === 0
             );
+            scopedEquipment = equipment.filter(e =>
+                !e.assigned_to_id || visiblePersonIds.includes(e.assigned_to_id)
+            );
         } else if (dataScope === 'personal') {
             const myPerson = people.find(p => p.userId === user?.id || (p as any).email === user?.email);
             if (myPerson) {
                 scopedPeople = [myPerson];
                 scopedShifts = shifts.filter(s => s.assignedPersonIds.includes(myPerson.id));
-            } else {
-                if (isLinkedToPerson) scopedPeople = [];
+                scopedEquipment = equipment.filter(e => e.assigned_to_id === myPerson.id);
+            } else if (!isLinkedToPerson) {
+                // If user is supposed to be personal but not linked yet, show nothing
+                scopedPeople = [];
+                scopedShifts = [];
+                scopedEquipment = [];
             }
         }
-        return { scopedPeople, scopedShifts };
+
+        return { scopedPeople, scopedShifts, scopedEquipment };
     };
 
     const processPresence = (people: Person[], presenceData: any[]) => {
@@ -342,10 +355,15 @@ const MainApp: React.FC = () => {
             ]);
 
             const fullShifts = (allShiftsRes.data || []).map(mapShiftFromDB);
+            const rawEquipment = (equipmentRes.data || []).map(mapEquipmentFromDB);
 
-            // Re-Apply Scoping to Full Shifts
+            // Re-Apply Scoping to Full Shifts and Equipment
             // We pass the RAW people here, so applyDataScoping will return the SCOPED people.
-            const { scopedPeople: scopedPeopleForState, scopedShifts: allScopedShifts } = applyDataScoping(initialScopedPeople, fullShifts);
+            const {
+                scopedPeople: scopedPeopleForState,
+                scopedShifts: allScopedShifts,
+                scopedEquipment: allScopedEquipment
+            } = applyDataScoping(initialScopedPeople, fullShifts, rawEquipment);
 
             // Process Presence on People (only on the scoped people we want to show)
             const peopleWithPresence = processPresence(scopedPeopleForState, presenceRes.data || []);
@@ -358,7 +376,7 @@ const MainApp: React.FC = () => {
                 constraints: (constraintsRes.data || []).map(mapConstraintFromDB),
                 teamRotations: (rotationsRes.data || []).map(mapRotationFromDB),
                 absences: (absencesRes.data || []).map(mapAbsenceFromDB),
-                equipment: (equipmentRes.data || []).map(mapEquipmentFromDB)
+                equipment: allScopedEquipment
             }));
 
         } catch (e) {

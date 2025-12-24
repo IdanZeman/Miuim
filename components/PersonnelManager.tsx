@@ -676,12 +676,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-xl md:shadow-portal p-0 md:p-6 min-h-[600px] relative">
+        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-0 md:p-6 min-h-[600px] relative overflow-hidden">
             {/* Sticky Header Container */}
             {/* Sticky Header Container */}
             {/* Sticky Header Container */}
             {/* Sticky Header Container */}
-            <div className="sticky top-0 bg-white z-40 pb-3 border-b border-slate-100 mb-0 -mx-4 md:-mx-6 px-4 md:px-6 pt-3 transition-all shadow-sm space-y-3">
+            <div className="sticky top-0 bg-white z-40 pb-3 border-b border-slate-100 mb-0 px-4 md:px-0 pt-4 transition-all shadow-sm space-y-3">
 
                 <div className="flex flex-col md:flex-row gap-3 md:items-center justify-between">
                     {/* Tabs Segmented Control */}

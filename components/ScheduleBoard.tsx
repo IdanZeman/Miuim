@@ -491,7 +491,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
 
             {/* Time Grid Board Container */}
-            <div className="bg-white rounded-xl shadow-portal p-2 flex flex-col flex-1 min-h-0">
+            <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-2 flex flex-col flex-1 min-h-0 overflow-hidden">
                 {/* Controls Header - Sticky */}
                 <div className="flex flex-col gap-2 mb-2 flex-shrink-0 sticky top-0 z-50 bg-white pb-2 border-b border-transparent">
                     {/* Desktop Title & Stats */}

@@ -135,68 +135,92 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header / Hero */}
-            {/* Header / Hero */}
-            <div className="mb-8">
-                <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-                    {getGreeting()}, <span className="text-blue-600">{myPerson.name.split(' ')[0]}</span>
-                </h1>
-                <p className="text-black flex items-center gap-2">
-                    <Calendar size={16} />
-                    <span>{now.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-                </p>
-            </div>
+            {/* Greeting and Status Card */}
 
             {/* Active Shift Card - Compact Banner */}
             {activeShift ? (
-                <div
-                    onClick={() => onNavigate('dashboard', activeShift.start)}
-                    className="bg-blue-600 rounded-2xl p-4 text-white shadow-lg shadow-blue-200 mb-6 flex items-center justify-between gap-4 cursor-pointer hover:bg-blue-700 transition-all"
-                >
-                    <div className="flex items-center gap-4 overflow-hidden">
-                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm shrink-0">
-                            {activeShift.task?.icon && (AllIcons as any)[activeShift.task.icon] ? (
-                                React.createElement((AllIcons as any)[activeShift.task.icon], { size: 24, className: "text-white" })
-                            ) : (
-                                <Clock size={24} className="text-white" />
-                            )}
-                        </div>
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.6)]"></span>
-                                <h3 className="text-lg font-bold truncate leading-tight">{activeShift.task?.name}</h3>
+                <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-6 md:p-8 mb-8 relative overflow-hidden transition-all">
+                    {/* Greeting Header inside Card area but above shift info */}
+                    <div className="mb-6">
+                        <h1 className="text-2xl md:text-4xl font-black text-slate-900 mb-1">
+                            {getGreeting()}, <span className="text-blue-600">{myPerson.name.split(' ')[0]}</span>
+                        </h1>
+                        <p className="text-slate-600 flex items-center gap-2 text-sm font-bold opacity-70">
+                            <Calendar size={14} />
+                            <span>{now.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                        </p>
+                        <div className="w-12 h-1 bg-blue-100 rounded-full mt-3"></div>
+                    </div>
+
+                    <div
+                        onClick={() => onNavigate('dashboard', activeShift.start)}
+                        className="bg-blue-600 rounded-2xl p-5 text-white shadow-lg shadow-blue-200 flex items-center justify-between gap-4 cursor-pointer hover:bg-blue-700 transition-all border-2 border-white/20"
+                    >
+                        <div className="flex items-center gap-4 overflow-hidden">
+                            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm shrink-0">
+                                {activeShift.task?.icon && (AllIcons as any)[activeShift.task.icon] ? (
+                                    React.createElement((AllIcons as any)[activeShift.task.icon], { size: 24, className: "text-white" })
+                                ) : (
+                                    <Clock size={24} className="text-white" />
+                                )}
                             </div>
-                            <p className="text-blue-100 text-sm font-medium flex items-center gap-2">
-                                <span>{activeShift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {activeShift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
-                                <span className="w-1 h-1 bg-blue-300 rounded-full"></span>
-                                <span className="font-mono">
-                                    {(() => {
-                                        const diff = activeShift.end.getTime() - currentTime.getTime();
-                                        if (diff <= 0) return "00:00";
-                                        const h = Math.floor(diff / (1000 * 60 * 60));
-                                        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                                        return `${h}:${m.toString().padStart(2, '0')}`;
-                                    })()} נותר
-                                </span>
-                            </p>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.6)]"></span>
+                                    <h3 className="text-lg font-bold truncate leading-tight">{activeShift.task?.name}</h3>
+                                </div>
+                                <p className="text-blue-100 text-sm font-medium flex items-center gap-2">
+                                    <span>{activeShift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {activeShift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span className="w-1 h-1 bg-blue-300 rounded-full"></span>
+                                    <span className="font-mono">
+                                        {(() => {
+                                            const diff = activeShift.end.getTime() - currentTime.getTime();
+                                            if (diff <= 0) return "00:00";
+                                            const h = Math.floor(diff / (1000 * 60 * 60));
+                                            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                                            return `${h}:${m.toString().padStart(2, '0')}`;
+                                        })()} נותר
+                                    </span>
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="bg-white border border-slate-100 p-4 rounded-2xl flex items-center gap-4 shadow-sm mb-6">
-                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 shrink-0">
-                        <Moon size={20} />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-slate-800">אין משמרת פעילה</h3>
-                        <p className="text-xs text-slate-500">זמן לנוח.</p>
+                <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-6 md:p-8 mb-8 relative overflow-hidden">
+                    {/* Background decorations */}
+                    <div className="absolute top-0 left-0 w-32 h-32 bg-slate-50 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2 opacity-60"></div>
+
+                    <div className="relative z-10">
+                        <div className="mb-6">
+                            <h1 className="text-2xl md:text-4xl font-black text-slate-900 mb-1">
+                                {getGreeting()}, <span className="text-blue-600">{myPerson.name.split(' ')[0]}</span>
+                            </h1>
+                            <p className="text-slate-600 flex items-center gap-2 text-sm font-bold opacity-70">
+                                <Calendar size={14} />
+                                <span>{now.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                            </p>
+                            <div className="w-12 h-1 bg-blue-100 rounded-full mt-3"></div>
+                        </div>
+
+                        <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-slate-400 shrink-0">
+                                <Moon size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800">אין משמרת פעילה</h3>
+                                <p className="text-sm text-slate-500">זה זמן מצוין לנוח ולצבור כוחות.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
 
             {/* War Clock / Daily Schedule */}
-            <div className="mb-8 animate-in slide-in-from-bottom-2 duration-700 delay-100">
-                <WarClock myPerson={myPerson} teams={teams} roles={roles} />
+            <div className="mb-6 animate-in slide-in-from-bottom-2 duration-700 delay-100">
+                <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-4 md:p-6 overflow-hidden">
+                    <WarClock myPerson={myPerson} teams={teams} roles={roles} />
+                </div>
             </div>
 
             {/* Content Grid */}

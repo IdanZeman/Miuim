@@ -28,7 +28,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    const [reportType, setReportType] = useState<ReportType>(isViewer ? 'tasks' : 'manpower');
 
    return (
-      <div className="space-y-6">
+      <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-4 md:p-8 min-h-[70vh]">
          {/* Top Navigation - Segmented Control Style */}
          {!isViewer && (
             <div className="flex justify-center mb-6">
