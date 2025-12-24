@@ -21,6 +21,8 @@ import { supabase } from '../services/supabaseClient';
 import { EmptyStateGuide } from './EmptyStateGuide';
 import { AssignmentModal } from './AssignmentModal';
 import { PageInfo } from './ui/PageInfo';
+import { ExportScheduleModal } from './ExportScheduleModal';
+import { FileDown } from 'lucide-react';
 
 interface ScheduleBoardProps {
     shifts: Shift[];
@@ -314,7 +316,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     // Local state for warnings
     const [localAcknowledgedWarnings, setLocalAcknowledgedWarnings] = useState<Set<string>>(new Set());
     const acknowledgedWarnings = propAcknowledgedWarnings || localAcknowledgedWarnings;
+
+
     const setAcknowledgedWarnings = setLocalAcknowledgedWarnings;
+
+    // Export Modal State
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
     // Helper to resolve warnings based on prop or local state
     // If prop is provided, we can't set it locally easily without callback. 
@@ -505,10 +512,21 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
             {/* Time Grid Board Container */}
             <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-2 flex flex-col flex-1 min-h-0 overflow-hidden">
-                {/* Controls Header - Sticky */}
-                <div className="flex flex-col gap-2 mb-2 flex-shrink-0 sticky top-0 z-50 bg-white pb-2 border-b border-transparent">
-                    {/* Desktop Title & Stats */}
-                    <div className="hidden md:flex flex-wrap items-center gap-3">
+
+                {/* Export Modal */}
+                <ExportScheduleModal
+                    isOpen={isExportModalOpen}
+                    onClose={() => setIsExportModalOpen(false)}
+                    shifts={shifts}
+                    people={people}
+                    tasks={visibleTasks}
+                />
+
+                {/* Controls Header - Sticky - SINGLE ROW LAYOUT */}
+                <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2 flex-shrink-0 sticky top-0 z-50 bg-white pb-2 border-b border-transparent">
+
+                    {/* Right Side: Title, Info, Stats */}
+                    <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
                         <div className="flex items-center gap-2">
                             <h3 className="text-xl font-bold text-slate-800">מבט יומי</h3>
                             <PageInfo
@@ -528,6 +546,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 }
                             />
                         </div>
+
+                        {/* Availability Badge (Hidden on very small screens if crowded, but useful) */}
                         {!isViewer && (() => {
                             const dateKey = selectedDate.toLocaleDateString('en-CA');
                             const unavailableCount = people.filter(p => {
@@ -538,9 +558,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             const availableCount = people.length - unavailableCount;
 
                             return (
-                                <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-4 py-2 rounded-full border border-emerald-200">
+                                <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-1.5 rounded-full border border-emerald-200">
                                     <User size={14} className="text-emerald-600" />
-                                    <span className="text-sm font-bold text-emerald-700">
+                                    <span className="text-xs font-bold text-emerald-700">
                                         זמינים: {availableCount}/{people.length}
                                     </span>
                                 </div>
@@ -548,16 +568,17 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         })()}
                     </div>
 
-                    {/* Main Toolbar (Mobile Optimized) */}
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-2">
-                        {/* Date Navigation - Primary on Mobile */}
-                        <div className="w-full md:w-auto flex items-center justify-between md:justify-center bg-slate-100/50 md:bg-slate-100 rounded-xl p-1 order-1 md:order-2">
-                            <Button variant="ghost" size="sm" onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); handleDateChange(d); } }} disabled={!canGoNext} className="rounded-lg">
-                                <ChevronRight size={20} />
+                    {/* Center/Left: Date Navigation & Actions */}
+                    <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+
+                        {/* Date Navigation */}
+                        <div className="bg-slate-50 flex items-center p-1 rounded-lg border border-slate-200 w-full md:w-auto justify-between">
+                            <Button variant="ghost" size="sm" onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); handleDateChange(d); } }} disabled={!canGoNext} className="h-8 w-8 p-0 rounded-md">
+                                <ChevronRight size={18} />
                             </Button>
 
                             <div
-                                className="relative group cursor-pointer px-4 text-center flex-1 md:flex-none"
+                                className="relative group cursor-pointer px-3 text-center min-w-[140px]"
                                 onClick={() => {
                                     if (dateInputRef.current) {
                                         if ('showPicker' in dateInputRef.current) {
@@ -569,12 +590,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     }
                                 }}
                             >
-                                <div className="flex flex-col items-center">
-                                    <span className="text-sm md:text-base font-bold text-slate-800 group-hover:text-blue-600 transition-colors flex items-center gap-2">
-                                        {selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
-                                        <CalendarIcon size={14} className="md:hidden opacity-50" />
-                                    </span>
-                                </div>
+                                <span className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors block">
+                                    {selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                </span>
                                 <input
                                     ref={dateInputRef}
                                     type="date"
@@ -582,27 +600,32 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     onChange={(e) => {
                                         if (e.target.valueAsDate) handleDateChange(e.target.valueAsDate);
                                     }}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    lang="he"
-                                    title="בחר תאריך"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                 />
                             </div>
 
-                            <Button variant="ghost" size="sm" onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); handleDateChange(d); } }} disabled={!canGoPrev} className="rounded-lg">
-                                <ChevronLeft size={20} />
+                            <Button variant="ghost" size="sm" onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); handleDateChange(d); } }} disabled={!canGoPrev} className="h-8 w-8 p-0 rounded-md">
+                                <ChevronLeft size={18} />
                             </Button>
                         </div>
 
-                        {/* Actions - Secondary on Mobile */}
-                        <div className="w-full md:w-auto flex justify-center md:justify-start gap-2 order-2 md:order-1">
-                            <button onClick={handleExportClick} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-slate-600 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 px-3 py-2 rounded-lg font-bold text-xs transition-colors">
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <button onClick={() => setIsExportModalOpen(true)} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-slate-700 hover:text-blue-700 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
+                                <FileDown size={14} />
+                                <span className="hidden md:inline">ייצוא</span>
+                                <span className="md:hidden">ייצוא נתונים</span>
+                            </button>
+
+                            <button onClick={handleExportClick} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
                                 <Copy size={14} />
                                 <span>העתק</span>
                             </button>
+
                             {!isViewer && (
-                                <button onClick={handleClearDayClick} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-slate-600 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 px-3 py-2 rounded-lg font-bold text-xs transition-colors">
+                                <button onClick={handleClearDayClick} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-slate-700 hover:text-red-700 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
                                     <Trash2 size={14} />
-                                    <span>נקה יום</span>
+                                    <span>נקה</span>
                                 </button>
                             )}
                         </div>

@@ -873,8 +873,38 @@ const MainApp: React.FC = () => {
                     // 3. Filter tasks to schedule (Now handled inside solveSchedule)
                     // We pass the FULL state so the solver knows about all tasks for constraints
 
-                    // 4. Solve schedule for this day
-                    const solvedShifts = solveSchedule(state, dateStart, dateEnd, historyScores, futureAssignments, selectedTaskIds);
+                    // 4. Determine shifts to solve (Start Today OR Overlap from Yesterday)
+                    const targetDateKey = dateStart.toLocaleDateString('en-CA');
+                    const dayStartMs = dateStart.getTime();
+
+                    // A. Shifts starting today (and match task filter)
+                    let shiftsToSchedule = state.shifts.filter(s => {
+                        const sDate = new Date(s.startTime).toLocaleDateString('en-CA');
+                        const matchesTask = !selectedTaskIds || selectedTaskIds.includes(s.taskId);
+                        return sDate === targetDateKey && !s.isLocked && matchesTask;
+                    });
+
+                    // B. Unassigned shifts starting BEFORE today but ending AFTER today begins (Spillover)
+                    // e.g. 23:00 Yesterday -> 07:00 Today.
+                    const overlapShifts = state.shifts.filter(s => {
+                        const sStart = new Date(s.startTime).getTime();
+                        const sEnd = new Date(s.endTime).getTime();
+                        const matchesTask = !selectedTaskIds || selectedTaskIds.includes(s.taskId);
+
+                        // Condition: Starts BEFORE today, Ends IN today (or later), Unassigned, Not Locked
+                        return matchesTask && !s.isLocked &&
+                            sStart < dayStartMs &&
+                            sEnd > dayStartMs &&
+                            s.assignedPersonIds.length === 0;
+                    });
+
+                    if (overlapShifts.length > 0) {
+                        console.log(`[AutoSchedule] Found ${overlapShifts.length} unassigned overlap shifts from previous day. Including them.`);
+                        shiftsToSchedule = [...shiftsToSchedule, ...overlapShifts];
+                    }
+
+                    // 5. Solve schedule for this day
+                    const solvedShifts = solveSchedule(state, dateStart, dateEnd, historyScores, futureAssignments, selectedTaskIds, shiftsToSchedule);
 
                     if (solvedShifts.length > 0) {
                         const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: organization!.id }));

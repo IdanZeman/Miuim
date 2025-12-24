@@ -267,7 +267,11 @@ const initializeUsers = (
           addToTimeline(algoUser, dayStart.getTime(), userStart.getTime(), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'availability');
         }
         // Block time AFTER departure
-        if (userEnd.getTime() < dayEnd.getTime()) {
+        // FIX: If departure is at 23:59, treat it as "End of Day" and DO NOT block the last minute.
+        // This allows shifts extending to 00:00 or crossing midnight.
+        const isEndOfDay = eH === 23 && eM >= 59;
+        
+        if (!isEndOfDay && userEnd.getTime() < dayEnd.getTime()) {
           addToTimeline(algoUser, userEnd.getTime(), dayEnd.getTime(), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'availability');
         }
       }
@@ -351,7 +355,8 @@ export const solveSchedule = (
   endDate: Date,
   historyScores: Record<string, { totalLoadScore: number, shiftsCount: number, criticalShiftCount: number }> = {},
   futureAssignments: Shift[] = [],
-  selectedTaskIds?: string[]
+  selectedTaskIds?: string[],
+  specificShiftsToSolve?: Shift[] // <--- NEW ARGUMENT
 ): Shift[] => {
   const { people, taskTemplates, shifts, constraints, settings } = currentState;
 
@@ -367,17 +372,39 @@ export const solveSchedule = (
   // 1. Prepare Data
   const targetDateKey = startDate.toLocaleDateString('en-CA');
 
-  const allShiftsOnDay = shifts.filter(s => {
-    const sDate = new Date(s.startTime).toLocaleDateString('en-CA');
-    return sDate === targetDateKey && !s.isLocked;
-  });
-
-  let shiftsToSolve = allShiftsOnDay;
+  // Logic: Use specific shifts if provided, otherwise filter by date
+  let shiftsToSolve: Shift[] = [];
   let fixedShiftsOnDay: Shift[] = [];
 
-  if (selectedTaskIds && selectedTaskIds.length > 0) {
-    shiftsToSolve = allShiftsOnDay.filter(s => selectedTaskIds.includes(s.taskId));
-    fixedShiftsOnDay = allShiftsOnDay.filter(s => !selectedTaskIds.includes(s.taskId));
+  if (specificShiftsToSolve) {
+      shiftsToSolve = specificShiftsToSolve;
+      // Fixed = All OTHER shifts on this day that are NOT in the solve list
+      // Note: We need to be careful not to double-count constraints.
+      // Ideally, fixedShifts should be "Shifts overlapping this day that are already assigned and not in shiftsToSolve"
+      
+      const solveIds = shiftsToSolve.map(s => s.id);
+      
+      const allShiftsOnDay = shifts.filter(s => {
+          const sDate = new Date(s.startTime).toLocaleDateString('en-CA');
+          return sDate === targetDateKey && !solveIds.includes(s.id);
+      });
+      fixedShiftsOnDay = allShiftsOnDay;
+
+  } else {
+      // Legacy behavior
+      const allShiftsOnDay = shifts.filter(s => {
+        const sDate = new Date(s.startTime).toLocaleDateString('en-CA');
+        return sDate === targetDateKey && !s.isLocked;
+      });
+
+      shiftsToSolve = allShiftsOnDay;
+      
+      if (selectedTaskIds && selectedTaskIds.length > 0) {
+        shiftsToSolve = allShiftsOnDay.filter(s => selectedTaskIds.includes(s.taskId));
+        fixedShiftsOnDay = allShiftsOnDay.filter(s => !selectedTaskIds.includes(s.taskId));
+      } else {
+        fixedShiftsOnDay = [];
+      }
   }
 
   if (shiftsToSolve.length === 0) {
