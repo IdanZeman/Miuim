@@ -83,12 +83,19 @@ export const ClaimProfile: React.FC = () => {
     );
 
     return (
-        <div className="min-h-[100dvh] bg-[#f8fafc] md:bg-slate-50 flex flex-col font-sans relative">
-            {/* Mobile Background (Dark Overlay style like Modal) */}
-            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-0 md:hidden" />
+        <div className="fixed inset-0 h-[100dvh] w-full bg-[#f8fafc] md:bg-slate-50 flex flex-col font-sans overflow-hidden">
+            {/* Mobile Background (Dark Overlay style with Image) */}
+            <div className="absolute inset-0 z-0 md:hidden">
+                <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm z-10" />
+                <img
+                    src="https://images.unsplash.com/photo-1542204165-65926c4cc58f?auto=format&fit=crop&q=80&w=2000"
+                    className="w-full h-full object-cover opacity-20 filter grayscale"
+                    alt="Background"
+                />
+            </div>
 
             {/* Desktop Navigation */}
-            <header className="hidden md:flex bg-white border-b border-slate-200 h-16 items-center shadow-sm sticky top-0 z-50">
+            <header className="hidden md:flex bg-white border-b border-slate-200 h-16 items-center shadow-sm sticky top-0 z-50 shrink-0">
                 <div className="max-w-7xl mx-auto px-4 w-full flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 p-1.5">
@@ -99,9 +106,9 @@ export const ClaimProfile: React.FC = () => {
                 </div>
             </header>
 
-            <div className="flex-1 flex items-end md:items-center justify-center p-0 md:p-12 relative z-10">
+            <div className="flex-1 flex max-h-[100dvh] md:items-center justify-center p-0 md:p-12 relative z-10 overflow-hidden">
                 {/* Main Card Container */}
-                <div className="bg-white rounded-t-[2.5rem] md:rounded-[2.5rem] shadow-2xl max-w-5xl w-full overflow-hidden border-0 md:border border-slate-200/60 flex flex-col md:flex-row h-[90dvh] md:h-auto md:min-h-0 animate-in slide-in-from-bottom-10 duration-500">
+                <div className="bg-white md:rounded-[2.5rem] shadow-2xl max-w-5xl w-full md:border border-slate-200/60 flex flex-col md:flex-row h-full md:h-auto md:max-h-[85vh] animate-in slide-in-from-bottom-10 duration-500 overflow-hidden">
 
                     {/* Dark Side Branding (Desktop Only) */}
                     <div className="hidden md:flex w-full md:w-[400px] bg-emerald-900 p-12 text-white flex-col justify-between relative overflow-hidden shrink-0">
@@ -119,16 +126,14 @@ export const ClaimProfile: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Content Side (Mobile: Full Modal Style, Desktop: Right Side) */}
-                    <div className="flex-1 flex flex-col bg-white h-full relative">
-                        {/* Mobile Handle */}
-                        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto my-3 shrink-0 md:hidden" />
+                    {/* Content Side */}
+                    <div className="flex-1 flex flex-col bg-white h-full relative overflow-hidden">
 
-                        {/* Mobile Header (Inside Card) */}
-                        <div className="px-6 pb-2 md:hidden shrink-0 text-center">
-                            <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-200/50 mx-auto mb-4">
-                                <User size={24} />
-                            </div>
+                        {/* Mobile Header (Fixed at top) */}
+                        <div className="px-6 pt-12 pb-4 md:hidden shrink-0 text-center bg-white border-b border-slate-50 relative">
+                            {/* Decorative Handle for "Sheet" look */}
+                            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-100 rounded-full" />
+
                             <h2 className="text-2xl font-black text-slate-900 mb-1">מי אתה ברשימה?</h2>
                             <p className="text-slate-500 text-sm leading-relaxed max-w-xs mx-auto">
                                 בחר את השם שלך כדי לסנכרן את הפרופיל.
@@ -136,67 +141,71 @@ export const ClaimProfile: React.FC = () => {
                         </div>
 
                         {/* Desktop Header */}
-                        <div className="hidden md:block p-8 pb-0">
+                        <div className="hidden md:block p-8 pb-0 shrink-0">
                             <h2 className="text-3xl font-black text-slate-900 mb-3">מי אתה ברשימה?</h2>
                             <p className="text-slate-600 text-lg leading-relaxed">
                                 בחר את השם שלך כדי שנוכל להציג לך את המידע שרלוונטי עבורך.
                             </p>
                         </div>
 
-                        {/* Search & List Area */}
-                        <div className="flex-1 flex flex-col min-h-0 p-6 md:p-8 space-y-4">
-                            <div className="relative shrink-0">
-                                <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
+                        {/* Search Area (Sticky / Fixed) */}
+                        <div className="px-6 md:px-8 py-4 shrink-0 bg-white z-10">
+                            <div className="relative">
+                                <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500" size={20} />
                                 <input
                                     type="text"
                                     placeholder="חפש את השם שלך..."
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
-                                    className="w-full pr-14 pl-6 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-500 focus:bg-white focus:outline-none text-slate-900 text-lg transition-all font-bold placeholder:font-normal placeholder:text-slate-300 shadow-inner"
+                                    className="w-full pr-12 pl-4 py-3.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:outline-none text-slate-900 font-bold transition-all shadow-sm"
                                 />
                             </div>
+                        </div>
 
-                            <div className="flex-1 overflow-y-auto border-2 border-slate-100 rounded-2xl bg-white custom-scrollbar relative">
+                        {/* Scrollable List Area */}
+                        <div className="flex-1 overflow-y-auto px-6 md:px-8 pb-4 custom-scrollbar">
+                            <div className="space-y-2 pb-24 md:pb-0"> {/* Extra padding for mobile fixed footer */}
                                 {loading ? (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-3">
+                                    <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-3">
                                         <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div>
                                         <span className="font-medium">טוען רשימה...</span>
                                     </div>
                                 ) : filteredPeople.length === 0 ? (
-                                    <div className="absolute inset-0 flex items-center justify-center text-slate-400 font-medium p-4 text-center">
+                                    <div className="flex items-center justify-center text-slate-400 font-medium py-12 text-center bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
                                         {searchTerm ? 'לא נמצאו תוצאות' : 'אין אנשים פנויים ברשימה'}
                                     </div>
                                 ) : (
-                                    <div className="divide-y divide-slate-100">
-                                        {filteredPeople.map(person => (
-                                            <button
-                                                key={person.id}
-                                                onClick={() => setSelectedPerson(person)}
-                                                className={`w-full p-4 text-right flex items-center justify-between hover:bg-emerald-50 transition-all duration-200 group ${selectedPerson?.id === person.id ? 'bg-emerald-50 ring-inset ring-2 ring-emerald-500 sticky top-0 bottom-0 z-10' : ''}`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${selectedPerson?.id === person.id ? 'bg-emerald-500' : 'bg-slate-300 group-hover:bg-emerald-400'}`}>
-                                                        {person.name.charAt(0)}
-                                                    </div>
-                                                    <span className={`text-lg transition-colors ${selectedPerson?.id === person.id ? 'text-emerald-900 font-black' : 'text-slate-700 font-bold group-hover:text-emerald-700'}`}>
-                                                        {person.name}
-                                                    </span>
+                                    filteredPeople.map(person => (
+                                        <button
+                                            key={person.id}
+                                            onClick={() => setSelectedPerson(person)}
+                                            className={`w-full p-3.5 text-right flex items-center justify-between rounded-xl border transition-all duration-200 group ${selectedPerson?.id === person.id
+                                                ? 'bg-emerald-50 border-emerald-500 shadow-sm ring-1 ring-emerald-500'
+                                                : 'bg-white border-slate-100 hover:border-emerald-200 hover:bg-slate-50'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 transition-colors ${selectedPerson?.id === person.id ? 'bg-emerald-500' : 'bg-slate-200 group-hover:bg-emerald-400'}`}>
+                                                    {person.name.charAt(0)}
                                                 </div>
-                                                {selectedPerson?.id === person.id && (
-                                                    <CheckCircle size={24} className="text-emerald-600 shrink-0" />
-                                                )}
-                                            </button>
-                                        ))}
-                                    </div>
+                                                <span className={`text-base transition-colors ${selectedPerson?.id === person.id ? 'text-emerald-900 font-black' : 'text-slate-700 font-bold group-hover:text-emerald-900'}`}>
+                                                    {person.name}
+                                                </span>
+                                            </div>
+                                            {selectedPerson?.id === person.id && (
+                                                <CheckCircle size={20} className="text-emerald-600 shrink-0" />
+                                            )}
+                                        </button>
+                                    ))
                                 )}
                             </div>
                         </div>
 
-                        {/* Footer Actions */}
-                        <div className="p-6 md:p-8 pt-2 bg-white md:bg-transparent shrink-0 space-y-3 pb-8 md:pb-8 border-t border-slate-100 md:border-0">
+                        {/* Footer Actions (Fixed at bottom for mobile) */}
+                        <div className="absolute md:relative bottom-0 left-0 right-0 p-6 md:p-8 bg-white border-t border-slate-100 md:border-0 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] md:shadow-none z-20">
                             {error && (
-                                <div className="mb-2 bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-red-100 animate-in fade-in slide-in-from-top-2">
-                                    <AlertCircle size={18} className="shrink-0" />
+                                <div className="mb-3 bg-red-50 text-red-600 p-3 rounded-lg text-sm font-bold flex items-center gap-2 border border-red-100 animate-in fade-in slide-in-from-top-2">
+                                    <AlertCircle size={16} className="shrink-0" />
                                     {error}
                                 </div>
                             )}
@@ -204,13 +213,13 @@ export const ClaimProfile: React.FC = () => {
                             <button
                                 onClick={handleClaim}
                                 disabled={!selectedPerson || claiming}
-                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 md:py-5 px-8 rounded-2xl transition-all shadow-xl shadow-emerald-600/20 hover:shadow-emerald-600/40 hover:-translate-y-1 flex items-center justify-center gap-4 text-xl disabled:opacity-50 disabled:translate-y-0 active:scale-95"
+                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl transition-all shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 active:scale-[0.98] flex items-center justify-center gap-2 text-lg disabled:opacity-50 disabled:active:scale-100"
                             >
                                 {claiming ? (
-                                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                 ) : (
                                     <>
-                                        <CheckCircle size={24} />
+                                        <CheckCircle size={20} />
                                         סיימנו, חבר אותי
                                     </>
                                 )}
@@ -218,7 +227,7 @@ export const ClaimProfile: React.FC = () => {
 
                             <button
                                 onClick={handleSkip}
-                                className="w-full py-2 text-slate-400 hover:text-emerald-600 font-bold transition-all text-sm hover:underline"
+                                className="w-full mt-3 py-2 text-slate-400 hover:text-emerald-600 font-bold transition-all text-sm hover:underline"
                             >
                                 אני לא מופיע ברשימה, המשך כאורח
                             </button>
