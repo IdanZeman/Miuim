@@ -138,6 +138,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
             title={initialSegment ? 'עריכת מקטע משמרת' : 'הוספת מקטע משמרת'}
             onSave={handleSave}
             saveLabel={initialSegment ? 'עדכן מקטע' : 'הוסף מקטע'}
+            closeIcon="back"
         >
             <div className="space-y-6">
                 {/* 1. Basic Info */}
