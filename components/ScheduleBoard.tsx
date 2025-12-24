@@ -16,6 +16,7 @@ import { MobileScheduleList } from './MobileScheduleList';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { analytics } from '../services/analytics';
+import { logger } from '../services/loggingService';
 import { supabase } from '../services/supabaseClient';
 import { EmptyStateGuide } from './EmptyStateGuide';
 import { AssignmentModal } from './AssignmentModal';
@@ -402,23 +403,33 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const handleDateChange = (newDate: Date) => {
         onDateChange(newDate);
         analytics.trackDateChanged(newDate.toISOString());
+        logger.log({
+            action: 'VIEW',
+            entityType: 'page',
+            entityName: 'schedule_board',
+            metadata: { date: newDate.toISOString().split('T')[0] },
+            category: 'navigation'
+        });
     };
 
     const handleShiftSelect = (shift: Shift) => {
         const task = taskTemplates.find(t => t.id === shift.taskId);
         if (task) {
             analytics.trackModalOpen(`shift_management:${task.name}`);
+            logger.logClick('shift_card', `task:${task.name}`);
         }
         setSelectedShiftId(shift.id);
     };
 
     const handleExportClick = async () => {
         analytics.trackButtonClick('export_schedule', 'schedule_board');
+        logger.log({ action: 'EXPORT', entityName: 'schedule_board', category: 'data' });
         await handleExportToClipboard();
     };
 
     const handleClearDayClick = () => {
         analytics.trackButtonClick('clear_day', 'schedule_board');
+        logger.log({ action: 'CLICK', entityType: 'button', entityName: 'clear_day', category: 'scheduling' });
         setConfirmationState({
             isOpen: true,
             title: 'ניקוי יום',
@@ -427,6 +438,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             type: 'danger',
             onConfirm: () => {
                 onClearDay();
+                logger.log({ action: 'CLEAR_DAY', category: 'scheduling', metadata: { date: selectedDate.toISOString() } });
                 showToast('היום נוקה בהצלחה', 'success');
                 setConfirmationState(prev => ({ ...prev, isOpen: false }));
             }

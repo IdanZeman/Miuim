@@ -14,9 +14,11 @@ const OrganizationLogsViewer = React.lazy(() => import('./components/Organizatio
 const Lottery = React.lazy(() => import('./components/Lottery').then(module => ({ default: module.Lottery })));
 const ConstraintsManager = React.lazy(() => import('./components/ConstraintsManager').then(module => ({ default: module.ConstraintsManager })));
 const AbsenceManager = React.lazy(() => import('./components/AbsenceManager').then(module => ({ default: module.AbsenceManager })));
+const FAQPage = React.lazy(() => import('./components/FAQPage').then(module => ({ default: module.FAQPage })));
 const EquipmentManager = React.lazy(() => import('./components/EquipmentManager').then(m => ({ default: m.EquipmentManager })));
 const ContactPage = React.lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
 const SystemManagementPage = React.lazy(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
+
 
 
 import { HomePage } from './components/HomePage';
@@ -1052,6 +1054,7 @@ const MainApp: React.FC = () => {
             case 'org-logs': return <OrganizationLogsViewer limit={100} />;
             case 'lottery': return <Lottery people={state.allPeople || state.people} teams={state.teams} roles={state.roles} />;
             case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} isViewer={!checkAccess('constraints', 'edit')} organizationId={organization?.id || ''} />;
+            case 'faq': return <FAQPage onNavigate={setView} />;
             case 'contact': return <ContactPage />;
             case 'tickets': return <SystemManagementPage />; // Redirect legacy tickets route
             case 'system': return <SystemManagementPage />; // NEW

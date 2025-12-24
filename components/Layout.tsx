@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX, Package, Activity } from 'lucide-react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX, Package, Activity, HelpCircle } from 'lucide-react';
 import { ViewMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
@@ -175,6 +175,9 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 {checkAccess('lottery') && (
                   <TopNavLink active={currentView === 'lottery'} onClick={() => setView('lottery')} label="הגרלה" icon={Dices} />
                 )}
+
+                {/* FAQ - Visible to everyone */}
+                <TopNavLink active={currentView === 'faq'} onClick={() => setView('faq')} label="עזרה" icon={HelpCircle} />
 
                 {/* Contact - Visible to everyone */}
                 <TopNavLink active={currentView === 'contact'} onClick={() => setView('contact')} label="צור קשר" icon={Mail} />
@@ -411,7 +414,17 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 </button>
               )}
 
-              {/* Contact - Visible to everyone */}
+              {/* FAQ - Visible to everyone */}
+              <button
+                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'faq'
+                  ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                  : 'hover:bg-slate-50 text-slate-700'
+                  }`}
+                onClick={() => { setView('faq'); setIsMobileMenuOpen(false) }}
+              >
+                <HelpCircle size={22} className={currentView === 'faq' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                <span>עזרה / מדריכים</span>
+              </button>
               <button
                 className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'contact'
                   ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
@@ -547,6 +560,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'constraints' && 'ניהול אילוצים'}
               {currentView === 'absences' && 'ניהול היעדרויות'}
               {currentView === 'equipment' && 'דוח צלם / אמצעים'}
+              {currentView === 'faq' && 'מרכז עזרה'}
               {currentView === 'contact' && 'צור קשר'}
             </h1>
             <div className="w-12 md:w-16 h-1 md:h-1.5 bg-white/40 rounded-full mt-1.5 md:mt-3"></div>

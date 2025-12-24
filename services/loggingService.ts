@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import { supabase } from './supabaseClient';
 
 // Log Levels (from most verbose to least)
@@ -8,16 +9,16 @@ export type LogAction =
     | 'CREATE' | 'UPDATE' | 'DELETE'
     | 'ASSIGN' | 'UNASSIGN'
     | 'AUTO_SCHEDULE' | 'CLEAR_DAY'
-    | 'VIEW' | 'EXPORT' | 'CLICK' | 'ERROR';
+    | 'VIEW' | 'EXPORT' | 'CLICK' | 'ERROR' | 'SUBMIT'; // Added SUBMIT
 
 export type EntityType = 
     | 'person' | 'shift' | 'task' | 'role' | 'team' 
-    | 'organization' | 'profile' | 'attendance' | 'button' | 'page';
+    | 'organization' | 'profile' | 'attendance' | 'button' | 'page' | 'form'; // Added form
 
 export type EventCategory = 'auth' | 'data' | 'scheduling' | 'settings' | 'system' | 'navigation' | 'ui' | 'security';
 
 interface LogEntry {
-    level?: LogLevel;  // NEW: Log level
+    level?: LogLevel;
     action: LogAction;
     entityType?: EntityType;
     entityId?: string;
@@ -25,10 +26,10 @@ interface LogEntry {
     oldData?: any;
     newData?: any;
     metadata?: Record<string, any>;
-    actionDescription?: string; // NEW: Human readable description
+    actionDescription?: string;
     category?: EventCategory;
-    component?: string;  // NEW: Component name
-    performanceMs?: number;  // NEW: Performance tracking
+    component?: string;
+    performanceMs?: number;
 }
 
 // Log level hierarchy (lower number = more verbose)
@@ -46,14 +47,17 @@ class LoggingService {
     private userId: string | null = null;
     private userEmail: string | null = null;
     private userName: string | null = null;
-    private minLevel: LogLevel = 'INFO';  // Default minimum level
+    private sessionId: string | null = null; // NEW: Session ID
+    private minLevel: LogLevel = 'INFO';
 
     constructor() {
-        // Set log level based on environment
         this.initializeLogLevel();
+        this.initializeSession();
     }
 
     private initializeLogLevel() {
+        if (typeof window === 'undefined') return;
+
         // Check localStorage override first
         const storedLevel = localStorage.getItem('miuim_log_level') as LogLevel;
         if (storedLevel && LOG_LEVELS[storedLevel] !== undefined) {
@@ -71,6 +75,18 @@ class LoggingService {
             this.minLevel = 'INFO';  // Production
             console.log('📝 Log level set to: INFO (production mode)');
         }
+    }
+
+    private initializeSession() {
+        if (typeof window === 'undefined') return;
+
+        let sid = localStorage.getItem('miuim_session_id');
+        if (!sid) {
+            sid = uuidv4();
+            localStorage.setItem('miuim_session_id', sid);
+            console.log('📝 New Session ID generated:', sid);
+        }
+        this.sessionId = sid;
     }
 
     /**
@@ -110,7 +126,8 @@ class LoggingService {
                 user_id: this.userId,
                 user_email: this.userEmail,
                 user_name: this.userName,
-                log_level: level,  // NEW
+                session_id: this.sessionId, // NEW: Include Session ID
+                log_level: level,
                 event_type: entry.action,
                 event_category: entry.category || this.getCategoryFromAction(entry.action),
                 action_description: this.getDescription(entry),
@@ -119,11 +136,11 @@ class LoggingService {
                 entity_name: entry.entityName,
                 before_data: entry.oldData || null,
                 after_data: entry.newData || null,
-                component_name: entry.component,  // NEW
-                performance_ms: entry.performanceMs,  // NEW
-                user_agent: navigator.userAgent,
-                ip_address: null,
-                session_id: null,
+                metadata: entry.metadata || null, // Ensure metadata is passed
+                component_name: entry.component,
+                performance_ms: entry.performanceMs,
+                user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+                url: typeof window !== 'undefined' ? window.location.href : null, // NEW: Current URL
                 created_at: new Date().toISOString()
             });
 
@@ -173,6 +190,7 @@ class LoggingService {
             case 'CREATE':
             case 'UPDATE':
             case 'DELETE':
+            case 'SUBMIT': // Added SUBMIT
                 return 'INFO';  // Important events
             case 'ERROR':
                 return 'ERROR';  // Errors
@@ -195,6 +213,7 @@ class LoggingService {
             case 'CREATE':
             case 'UPDATE':
             case 'DELETE':
+            case 'SUBMIT': // Added SUBMIT
                 return 'data';
             case 'VIEW':
                 return 'navigation';
@@ -219,6 +238,7 @@ class LoggingService {
             case 'LOGOUT': return `התנתק מהמערכת`;
             case 'VIEW': return `צפה בעמוד ${entityName}`;
             case 'CLICK': return `לחץ על ${entityName}`;
+            case 'SUBMIT': return `שלח טופס ${entityName}`; // Added SUBMIT
             case 'ERROR': return `שגיאת מערכת: ${entry.metadata?.message || 'שגיאה לא ידועה'}`;
             default: return entry.action;
         }
@@ -320,7 +340,7 @@ class LoggingService {
                 message: error.message,
                 stack: error.stack,
                 componentStack,
-                url: window.location.href
+                url: typeof window !== 'undefined' ? window.location.href : null
             }
         });
     }

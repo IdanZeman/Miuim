@@ -5,6 +5,8 @@ import { useToast } from '../contexts/ToastContext';
 import { TermsModal } from './TermsModal'; // Import TermsModal
 import { v4 as uuidv4 } from 'uuid';
 
+import { logger } from '../services/loggingService';
+
 export const LandingPage: React.FC = () => {
     const { showToast } = useToast();
     const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -12,6 +14,10 @@ export const LandingPage: React.FC = () => {
     const [showTermsModal, setShowTermsModal] = useState(false); // NEW
     const [termsAccepted, setTermsAccepted] = useState(false); // NEW
     const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        logger.logView('landing_page');
+    }, []);
 
     // Contact Form State
     const [name, setName] = useState('');
@@ -46,6 +52,7 @@ export const LandingPage: React.FC = () => {
     }, []);
 
     const handleGoogleLogin = async () => {
+        logger.logClick('google_login_button', 'login_modal');
         if (!termsAccepted) return; // Guard
         localStorage.setItem('terms_accepted_timestamp', new Date().toISOString()); // Save timestamp
 
@@ -63,6 +70,7 @@ export const LandingPage: React.FC = () => {
             console.error('Error logging in:', error);
             showToast('שגיאה בהתחברות: ' + error.message, 'error');
             setIsLoggingIn(false);
+            logger.logError(error, 'LandingPage:GoogleLogin');
         }
     };
 
@@ -75,6 +83,7 @@ export const LandingPage: React.FC = () => {
     const handleSubmitContact = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
+        logger.log({ action: 'CLICK', entityType: 'button', entityName: 'submit_contact_form', category: 'ui' });
 
         try {
             let imageUrl = null;
@@ -115,9 +124,18 @@ export const LandingPage: React.FC = () => {
             if (fileInputRef.current) fileInputRef.current.value = '';
             showToast('ההודעה נשלחה בהצלחה!', 'success');
 
-        } catch (error) {
+            logger.log({
+                action: 'SUBMIT',
+                entityType: 'form',
+                entityName: 'contact_form',
+                category: 'data',
+                metadata: { hasImage: !!imageUrl }
+            });
+
+        } catch (error: any) {
             console.error('Error submitting contact form:', error);
             showToast('שגיאה בשליחת ההודעה. אנא נסה שוב מאוחר יותר.', 'error');
+            logger.logError(error, 'LandingPage:ContactForm');
         } finally {
             setIsSubmitting(false);
         }

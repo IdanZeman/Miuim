@@ -176,9 +176,18 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
         if (window.confirm(`האם אתה בטוח שברצונך למחוק ${selectedItemIds.size} פריטים?`)) {
             selectedItemIds.forEach(id => {
-                if (activeTab === 'people') onDeletePerson(id);
-                else if (activeTab === 'teams') onDeleteTeam(id);
-                else if (activeTab === 'roles') onDeleteRole(id);
+                if (activeTab === 'people') {
+                    onDeletePerson(id);
+                    logger.logDelete('person', id, 'Unknown', { bulk: true });
+                }
+                else if (activeTab === 'teams') {
+                    onDeleteTeam(id);
+                    logger.logDelete('team', id, 'Unknown', { bulk: true });
+                }
+                else if (activeTab === 'roles') {
+                    onDeleteRole(id);
+                    logger.logDelete('role', id, 'Unknown', { bulk: true });
+                }
             });
             setSelectedItemIds(new Set());
             showToast('הפריטים נמחקו בהצלחה', 'success');
@@ -241,6 +250,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     };
 
     const handleExport = () => {
+        logger.log({ action: 'EXPORT', entityName: activeTab, category: 'data' });
         let csvContent = '';
         let fileName = '';
 
@@ -348,6 +358,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             } else {
                 showToast(`בוצע בהצלחה: ${added} נוספו, ${updated} עודכנו`, 'success');
             }
+            logger.log({ action: 'CREATE', entityType: 'person', entityName: 'bulk_import', metadata: { added, updated, failed } });
         } finally {
             setIsSaving(false);
         }
@@ -371,15 +382,19 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             if (editingPersonId) {
                 const person = people.find(p => p.id === editingPersonId);
                 await onUpdatePerson({ ...person, ...personData, id: editingPersonId } as Person);
+                logger.logUpdate('person', editingPersonId, personData.name, person, personData);
                 showToast('החייל עודכן בהצלחה', 'success');
             } else {
-                await onAddPerson({ ...personData, id: `person-${Date.now()}` } as Person);
+                const newId = `person-${Date.now()}`;
+                await onAddPerson({ ...personData, id: newId } as Person);
+                logger.logCreate('person', newId, personData.name, personData);
                 showToast('החייל נוסף בהצלחה', 'success');
             }
             closeForm();
         } catch (e: any) {
             console.error("Save Error", e);
             showToast(e.message || 'שגיאה בשמירה', 'error');
+            logger.logError(e, 'PersonnelManager:SavePerson');
         } finally {
             setIsSaving(false);
         }
