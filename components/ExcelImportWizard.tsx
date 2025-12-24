@@ -247,7 +247,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             const normPhone = phone.replace(/\D/g, '');
 
             if (name || normPhone || email) {
-                const match = people.find(p => {
+                const match = (people || []).find(p => {
                     // Phone Match
                     if (normPhone && p.phone) {
                         const pPhone = p.phone.replace(/\D/g, '');
@@ -491,7 +491,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         });
 
         await onImport(finalPeople, teamsToCreate, rolesToCreate);
-        onClose();
+        // onClose(); // Let parent handle navigation
     };
 
     if (!isOpen) return null;

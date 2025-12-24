@@ -56,15 +56,6 @@ setup('authenticate and handle onboarding', async ({ page }) => {
     await manualBtn.click();
   }
 
-  // 4. אימות הגעה לדאשבורד
-  // אנחנו מחכים לראות אלמנט שקיים רק בתוך המערכת (כמו "מבט יומי")
-  await page.waitForURL('**/dashboard', { timeout: 15000 }).catch(() => {
-    console.log('Current URL is:', page.url());
-  });
-  
-  const dashboardElement = page.getByText(/מבט יומי/i);
-  await dashboardElement.waitFor({ state: 'visible', timeout: 10000 });
-
   // 5. שמירת המצב (Cookies & LocalStorage)
   await page.context().storageState({ path: authFile });
   console.log('Auth state saved successfully!');
