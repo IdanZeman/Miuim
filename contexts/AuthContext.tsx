@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const dbPromise = supabase
         .from('profiles')
-        .select('*')
+        .select('*, organizations(*)')
         .eq('id', userId)
         .maybeSingle();
 
@@ -130,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }, {
             onConflict: 'id'
           })
-          .select()
+          .select('*, organizations(*)')
           .single();
 
         if (insertError) {
@@ -144,19 +144,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         console.log('✅ Profile created successfully');
-        console.log('👤 [AuthContext] Setting Profile:', newProfile);
-        setProfile(newProfile);
+        const { organizations: newOrgData, ...cleanNewProfile } = newProfile;
+
+        console.log('👤 [AuthContext] Setting Profile:', cleanNewProfile);
+        setProfile(cleanNewProfile);
+        // New profiles usually don't have orgs, but if upsert linked it, we set it:
+        if (newOrgData) setOrganization(newOrgData);
+
         return;
       }
 
       console.log('✅ Profile loaded successfully');
-      console.log('📊 [AuthContext] Full Profile Data:', profileData);
-      console.log('👤 [AuthContext] Setting Profile:', profileData);
 
-      if (!profileData.organization_id) {
+      const { organizations: orgData, ...cleanProfile } = profileData;
+      console.log('📊 [AuthContext] Full Profile Data:', cleanProfile);
+      console.log('👤 [AuthContext] Setting Profile:', cleanProfile);
+
+      if (!cleanProfile.organization_id) {
         // Fetch fresh user data to get phone
         const { data: userData } = await supabase.auth.getUser();
-        const email = userData?.user?.email || profileData.email;
+        const email = userData?.user?.email || cleanProfile.email;
         const phone = userData?.user?.phone || '';
 
         let query = supabase.from('people').select('organization_id, id');
@@ -179,46 +186,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .from('profiles')
             .update({ organization_id: existingPerson.organization_id })
             .eq('id', userId)
-            .select()
+            .select('*, organizations(*)')
             .single();
 
-          if (!updateError) {
-            console.log('👤 [AuthContext] Setting Profile (after link):', updatedProfile);
-            setProfile(updatedProfile);
+          if (!updateError && updatedProfile) {
+            const { organizations: updatedOrg, ...cleanUpdatedProfile } = updatedProfile;
+
+            console.log('👤 [AuthContext] Setting Profile (after link):', cleanUpdatedProfile);
+            setProfile(cleanUpdatedProfile);
             await supabase.from('people').update({ user_id: userId }).eq('id', existingPerson.id);
 
-            const { data: orgData } = await supabase
-              .from('organizations')
-              .select('*')
-              .eq('id', existingPerson.organization_id)
-              .single();
-            setOrganization(orgData);
+            // Set organization from the join
+            if (updatedOrg) {
+              setOrganization(updatedOrg);
+            } else {
+              // Fallback fetch if join failed for some reason
+              const { data: manualOrg } = await supabase
+                .from('organizations')
+                .select('*')
+                .eq('id', existingPerson.organization_id)
+                .single();
+              setOrganization(manualOrg);
+            }
             return;
           }
         }
       }
 
-      console.log('👤 [AuthContext] Setting Profile (final):', profileData);
-      setProfile(profileData);
+      console.log('👤 [AuthContext] Setting Profile (final):', cleanProfile);
+      setProfile(cleanProfile);
 
-      if (profileData.organization_id) {
-        try {
-          const { data: orgData, error: orgError } = await supabase
-            .from('organizations')
-            .select('*')
-            .eq('id', profileData.organization_id)
-            .single();
-
-          if (orgError) {
-            console.error('⚠️ Error fetching organization:', orgError);
+      if (cleanProfile.organization_id) {
+        if (orgData) {
+          console.log('✅ Organization loaded with profile (Optimized)');
+          setOrganization(orgData);
+        } else {
+          // Fallback if join wasn't populated (unexpected)
+          console.warn('⚠️ Organization ID present but join failed, fetching manually');
+          try {
+            const { data: manualOrg } = await supabase
+              .from('organizations')
+              .select('*')
+              .eq('id', cleanProfile.organization_id)
+              .single();
+            setOrganization(manualOrg);
+          } catch (e) {
+            console.error('Error in manual fallback fetch', e);
             setOrganization(null);
-          } else {
-            console.log('✅ Organization loaded successfully');
-            setOrganization(orgData);
           }
-        } catch (orgErr) {
-          console.error('⚠️ Unexpected error fetching organization:', orgErr);
-          setOrganization(null);
         }
       } else {
         setOrganization(null);
