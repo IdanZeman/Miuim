@@ -98,6 +98,7 @@ const MainApp: React.FC = () => {
     const [selectedDateKey, setSelectedDateKey] = useState<string>(new Date().toISOString().split('T')[0]);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
+    const [autoOpenRotaWizard, setAutoOpenRotaWizard] = useState(false);
 
     const [state, setState] = useState<{
         people: Person[];
@@ -1038,6 +1039,8 @@ const MainApp: React.FC = () => {
                 onDeleteRotation={handleDeleteRotation}
                 onAddShifts={(newShifts) => setState(prev => ({ ...prev, shifts: [...prev.shifts, ...newShifts] }))}
                 isViewer={!checkAccess('attendance', 'edit')}
+                initialOpenRotaWizard={autoOpenRotaWizard}
+                onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}
             />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} isViewer={!checkAccess('tasks', 'edit')} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
@@ -1071,6 +1074,7 @@ const MainApp: React.FC = () => {
                         onUpdateAbsence={handleUpdateAbsence}
                         onDeleteAbsence={handleDeleteAbsence}
                         isViewer={!checkAccess('attendance', 'edit')}
+                        onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); setView('attendance'); }}
                     />
                 ) : <Navigate to="/" />;
             default:

@@ -5,7 +5,8 @@ import { FileBarChart, Users, ClipboardList } from 'lucide-react';
 import { LocationReport } from './LocationReport';
 import { TaskReports } from './TaskReports';
 import { ManpowerReports } from './ManpowerReports';
-import { MapPin } from 'lucide-react';
+import { MapPin, BarChart3 } from 'lucide-react';
+import { PageInfo } from './ui/PageInfo';
 
 interface StatsDashboardProps {
    people: Person[];
@@ -29,6 +30,31 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
 
    return (
       <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-4 md:p-8 min-h-[70vh]">
+
+         {/* Header */}
+         <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+               <BarChart3 className="text-blue-600" size={28} />
+               דוחות ונתונים
+               <PageInfo
+                  title="דוחות ונתונים"
+                  description={
+                     <>
+                        <p className="mb-2">מרכז הנתונים והסטטיסטיקות של הארגון.</p>
+                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                           <li><b>כוח אדם:</b> התפלגות אנשים לפי תפקידים, צוותים וזמינות.</li>
+                           <li><b>שיבוץ:</b> ניתוח עומסים, הוגנות בשיבוץ (Fairness Score), ומעקב אחר ביצוע משימות.</li>
+                           <li><b>מיקום:</b> מצבת לוחמים בזמן אמת.</li>
+                        </ul>
+                        <p className="text-sm bg-blue-50 p-2 rounded text-blue-800">
+                           דשבורד זה נועד לסייע בקבלת החלטות מבוססות נתונים.
+                        </p>
+                     </>
+                  }
+               />
+            </h2>
+         </div>
+
          {/* Top Navigation - Segmented Control Style */}
          {!isViewer && (
             <div className="flex justify-center mb-6">

@@ -3,10 +3,11 @@ import { Person, Absence } from '../types';
 import { addAbsence, deleteAbsence, updateAbsence } from '../services/supabaseClient'; // Ensure these are exported
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext'; // To get organization
-import { Calendar as CalendarIcon, Search, Plus, Trash2, Edit2, Check, X, ChevronLeft, ChevronRight, UserX, FileText } from 'lucide-react';
+import { Calendar as CalendarIcon, Search, Plus, Trash2, Edit2, Check, X, ChevronLeft, ChevronRight, UserX, FileText, Info } from 'lucide-react';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { PageInfo } from './ui/PageInfo';
 import { createPortal } from 'react-dom';
 import { Select } from './ui/Select';
 
@@ -17,9 +18,10 @@ interface AbsenceManagerProps {
     onUpdateAbsence: (absence: Absence) => void;
     onDeleteAbsence: (id: string) => void;
     isViewer?: boolean;
+    onNavigateToAttendance?: () => void;
 }
 
-export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences, onAddAbsence, onUpdateAbsence, onDeleteAbsence, isViewer = false }) => {
+export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences, onAddAbsence, onUpdateAbsence, onDeleteAbsence, isViewer = false, onNavigateToAttendance }) => {
     const { organization } = useAuth();
     const { showToast } = useToast();
     const [viewDate, setViewDate] = useState(new Date());
@@ -147,7 +149,34 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                         <UserX size={28} />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800">ניהול היעדרויות</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-xl font-bold text-slate-800">ניהול היעדרויות</h2>
+                            <PageInfo
+                                title="על בקשות היעדרות"
+                                description={
+                                    <>
+                                        <h3 className="text-lg font-bold text-slate-800 mb-2">למה הכוונה ה"בקשות היעדרות"?</h3>
+                                        <p className="text-slate-600 mb-2">
+                                            בעמוד זה מזינים בקשות ואילוצים (חתונה, הפנייה, אירוע מיוחד או סתם יום חופש).
+                                        </p>
+                                        <p className="text-slate-600 font-medium">
+                                            נתונים אלו נלקחים בחשבון על ידי מחולל הסבבים החכם שלנו ביומן נוכחות, שמנסה לייצר סבב הוגן לכולם תוך התחשבות בכל האילוצים.
+                                        </p>
+                                    </>
+                                }
+                            >
+                                {onNavigateToAttendance && (
+                                    <Button
+                                        className="w-full justify-center bg-blue-600 hover:bg-blue-700 text-white"
+                                        onClick={() => {
+                                            if (onNavigateToAttendance) onNavigateToAttendance();
+                                        }}
+                                    >
+                                        מעבר ליומן נוכחות (מחולל הסבבים)
+                                    </Button>
+                                )}
+                            </PageInfo>
+                        </div>
                         <p className="text-sm text-slate-500 hidden md:block">הזנת ימי חופש, מחלה והיעדרויות קבועות</p>
                     </div>
                 </div>

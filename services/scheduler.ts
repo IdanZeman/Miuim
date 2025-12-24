@@ -2,13 +2,15 @@ import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint, TeamRotati
 import { getEffectiveAvailability } from "../utils/attendanceUtils";
 
 // --- Internal Types for the Algorithm ---
+// --- Internal Types for the Algorithm ---
 interface TimelineSegment {
   start: number;
   end: number;
   type: 'TASK' | 'REST' | 'EXTERNAL_CONSTRAINT';
+  subtype?: 'availability' | 'absence' | 'task' | 'rest'; // NEW: Distinguish constraint types
   taskId?: string;
   isCritical?: boolean;
-  isMismatch?: boolean; // NEW: Flag for role mismatch (Level 4 assignments)
+  isMismatch?: boolean;
 }
 
 interface AlgoUser {
@@ -16,7 +18,7 @@ interface AlgoUser {
   timeline: TimelineSegment[];
   loadScore: number;
   shiftsCount: number;
-  criticalShiftCount: number; // NEW: counts critical shifts assigned
+  criticalShiftCount: number;
 }
 
 interface AlgoTask {
@@ -28,49 +30,57 @@ interface AlgoTask {
   difficulty: number;
   roleComposition: { roleId: string; count: number }[];
   requiredPeople: number;
-  minRest: number; // Hours of rest required AFTER this task
-  isCritical: boolean; // Difficulty >= 4 OR Rare Role
-  currentAssignees: string[]; // IDs of people already assigned
+  minRest: number;
+  isCritical: boolean;
+  currentAssignees: string[];
 }
 
 // --- Helpers ---
 
-/**
- * Check if a shift is during night hours (using dynamic settings)
- */
 const isNightShift = (startTime: number, endTime: number, nightStartStr: string = '21:00', nightEndStr: string = '07:00'): boolean => {
   const start = new Date(startTime);
   const end = new Date(endTime);
-  
   const [startH, startM] = nightStartStr.split(':').map(Number);
   const [endH, endM] = nightEndStr.split(':').map(Number);
-  
   const startHour = start.getHours();
   const endHour = end.getHours();
-  
-  // Handle overnight range (e.g. 21:00 to 07:00)
   if (startH > endH) {
     return startHour >= startH || endHour <= endH;
   }
-  // Handle same-day range (e.g. 00:00 to 06:00)
   return startHour >= startH && endHour <= endH;
 }
 
 /**
- * Check if a specific time slot is completely free in the user's timeline.
- * INCLUDES checking if rest period after the task is also free!
+ * Check if a specific time slot is completely free.
  */
-const canFit = (user: AlgoUser, taskStart: number, taskEnd: number, restDurationMs: number): boolean => {
-  // The TOTAL period we need to check is: task time + rest time
+const canFit = (user: AlgoUser, taskStart: number, taskEnd: number, restDurationMs: number, ignoreTypes: string[] = []): boolean => {
   const totalEnd = taskEnd + restDurationMs;
   
   for (const segment of user.timeline) {
+    if (ignoreTypes.includes(segment.type)) continue;
+
     // Check for overlap: (StartA < EndB) and (EndA > StartB)
     if (taskStart < segment.end && totalEnd > segment.start) {
-      return false; // Collision with task OR rest period
+      return false; // Collision
     }
   }
   return true;
+};
+
+
+
+/**
+ * Helper: Get human-readable availability status for a user at a specific time
+ */
+const getAvailabilityStatus = (user: AlgoUser, time: number): string => {
+  const segment = user.timeline.find(s => s.start <= time && s.end > time);
+  if (!segment) return 'Available';
+  
+  const timeLeft = Math.ceil((segment.end - time) / (1000 * 60));
+  if (segment.type === 'REST') return `Resting (${timeLeft}m left)`;
+  if (segment.type === 'TASK') return `Busy: Task ${segment.taskId || '?'} (${timeLeft}m left)`;
+  if (segment.type === 'EXTERNAL_CONSTRAINT') return `Unavailable: ${segment.subtype || 'Constraint'}`;
+  return segment.type;
 };
 
 /**
@@ -86,6 +96,14 @@ const findBestCandidates = (
   constraints: SchedulingConstraint[] = []
 ): AlgoUser[] => {
   const restDurationMs = task.minRest * 60 * 60 * 1000;
+  
+  const rejectionStats = {
+    role: 0,
+    alreadyAssigned: 0,
+    neverAssign: 0,
+    exclusive: 0,
+    collision: 0
+  };
 
   let candidates = algoUsers.filter(u => {
     // 0. Check Constraints (Person > Team > Role Hierarchical Check)
@@ -97,52 +115,81 @@ const findBestCandidates = (
     
     // NEVER_ASSIGN: If user has ANY "never assign" constraint for this task
     if (userConstraints.some(c => c.type === 'never_assign' && c.taskId === task.taskId)) {
+        rejectionStats.neverAssign++;
         return false;
     }
 
-    // REMOVED: "time_block" check here - it's handled in initializeUsers/Attendance logic.
-
-    // ALWAYS_ASSIGN (Restriction): If user has "always assign to X", they CANNOT do Y (unless Y is X)
+    // ALWAYS_ASSIGN
     const exclusiveTaskConstraints = userConstraints.filter(c => c.type === 'always_assign');
     if (exclusiveTaskConstraints.length > 0) {
         const permittedTaskIds = exclusiveTaskConstraints.map(c => c.taskId);
         if (!permittedTaskIds.includes(task.taskId)) {
+            rejectionStats.exclusive++;
             return false;
         }
     }
 
-    // 1. Already assigned to this task? (Always check)
-    if (task.currentAssignees.includes(u.person.id)) return false;
+    // 1. Already assigned to this task?
+    if (task.currentAssignees.includes(u.person.id)) {
+        rejectionStats.alreadyAssigned++;
+        return false;
+    }
 
     // 2. Role Check - SKIPPED IN LEVEL 4 (Force Assign)
     if (relaxationLevel < 4) {
-      if (!(u.person.roleIds || []).includes(roleId)) return false;
+      if (!(u.person.roleIds || []).includes(roleId)) {
+        rejectionStats.role++;
+        return false;
+      }
     }
 
     // LEVEL-SPECIFIC CHECKS
+    let fit = false;
+    
     if (relaxationLevel === 1) {
-      // LEVEL 1: STRICT (Ideal conditions)
-      // REMOVED: 36h Critical Task blocking (Burnout Protection)
-      return canFit(u, task.startTime, task.endTime, restDurationMs);
-    }
-
-    if (relaxationLevel === 2) {
+      fit = canFit(u, task.startTime, task.endTime, restDurationMs);
+    } 
+    else if (relaxationLevel === 2) {
       // LEVEL 2: FLEXIBLE ("Fair Grind") - 50% rest
       const reducedRestMs = restDurationMs * 0.5;
-      return canFit(u, task.startTime, task.endTime, reducedRestMs);
+      fit = canFit(u, task.startTime, task.endTime, reducedRestMs);
+    } 
+    else if (relaxationLevel >= 3) {
+      // Level 3 & 4: EMERGENCY/FORCE (Only physical availability)
+      // NEW: Level 4 ignores 'REST' segments (Force Assign)
+      const ignoreTypes = relaxationLevel === 4 ? ['REST'] : [];
+      fit = canFit(u, task.startTime, task.endTime, 0, ignoreTypes);
     }
 
-    if (relaxationLevel >= 3) {
-      // LEVEL 3 & 4: EMERGENCY/FORCE (Only physical availability)
-      return canFit(u, task.startTime, task.endTime, 0);
+    if (!fit) {
+        rejectionStats.collision++;
     }
-
-    return false;
+    return fit;
   });
+
+  // LOGGING FOR FAILURES (Level 4 or Critical)
+  if (candidates.length < count && (relaxationLevel === 4 || task.isCritical)) {
+      console.warn(`[Scheduler] ⚠️ Low Candidates for Task ${task.taskId} (Level ${relaxationLevel}). Found: ${candidates.length}/${count}`);
+      console.warn(`   Stats: RoleMismatch=${rejectionStats.role}, Assigned=${rejectionStats.alreadyAssigned}, Locked=${rejectionStats.neverAssign+rejectionStats.exclusive}, Collision=${rejectionStats.collision}`);
+      
+      if (relaxationLevel === 4) {
+          console.log(`   🔎 Deep Dive for Role ${roleId}:`);
+          const potential = algoUsers.filter(u => (u.person.roleIds || []).includes(roleId) || relaxationLevel === 4);
+          potential.forEach(u => {
+              const status = getAvailabilityStatus(u, task.startTime);
+              const isAssigned = task.currentAssignees.includes(u.person.id);
+              if (!candidates.includes(u) && !isAssigned) {
+                  console.log(`      - ${u.person.name}: REJECTED (${status})`);
+              }
+          });
+      }
+  }
 
   // SORTING LOGIC
   if (task.isCritical || relaxationLevel === 4) {
     candidates.sort((a, b) => {
+      // Prioritize those who don't *need* force override first (if mixed pool, though likely filtered)
+      // But mainly prioritize load.
       if (a.criticalShiftCount !== b.criticalShiftCount) {
         return a.criticalShiftCount - b.criticalShiftCount;
       }
@@ -155,17 +202,11 @@ const findBestCandidates = (
   return candidates.slice(0, count);
 };
 
-/**
- * Add a segment to the user's timeline and sort it.
- */
-const addToTimeline = (user: AlgoUser, start: number, end: number, type: TimelineSegment['type'], taskId?: string, isCritical?: boolean, isMismatch?: boolean) => {
-  user.timeline.push({ start, end, type, taskId, isCritical, isMismatch });
+const addToTimeline = (user: AlgoUser, start: number, end: number, type: TimelineSegment['type'], taskId?: string, isCritical?: boolean, isMismatch?: boolean, subtype?: TimelineSegment['subtype']) => {
+  user.timeline.push({ start, end, type, taskId, isCritical, isMismatch, subtype });
   user.timeline.sort((a, b) => a.start - b.start);
 };
 
-/**
- * Initialize users with external constraints (Attendance/Availability) AND Future Assignments.
- */
 const initializeUsers = (
   people: Person[],
   targetDate: Date,
@@ -190,10 +231,7 @@ const initializeUsers = (
       criticalShiftCount: history.criticalShiftCount
     };
 
-    // NOTE: Removed all "time_block" constraint logic.
-    // Soldier availability is now purely driven by getEffectiveAvailability (Attendance/Rotation/Absences).
-
-    // 1. Absences - Create EXTERNAL_CONSTRAINT for any absence overlapping this day
+    // 1. Absences
     absences.forEach(a => {
         if (a.person_id === p.id) {
             const aStart = new Date(a.start_date).getTime();
@@ -203,17 +241,18 @@ const initializeUsers = (
             const dayEnd = new Date(targetDate); dayEnd.setHours(23,59,59,999);
             
             if (aStart < dayEnd.getTime() && aEnd > dayStart.getTime()) {
-                addToTimeline(algoUser, Math.max(aStart, dayStart.getTime()), Math.min(aEnd, dayEnd.getTime()), 'EXTERNAL_CONSTRAINT');
+                addToTimeline(algoUser, Math.max(aStart, dayStart.getTime()), Math.min(aEnd, dayEnd.getTime()), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'absence');
             }
         }
     });
 
-    // 2. Check Availability (Attendance Manager + Rotation) - Using Shared Utility
+    // 2. Availability (Attendance/Rotation)
     const avail = getEffectiveAvailability(p, targetDate, teamRotations);
 
     if (avail) {
       if (!avail.isAvailable) {
-        addToTimeline(algoUser, targetDate.setHours(0, 0, 0, 0), targetDate.setHours(23, 59, 59, 999), 'EXTERNAL_CONSTRAINT');
+        // Block whole day as 'availability'
+        addToTimeline(algoUser, targetDate.setHours(0, 0, 0, 0), targetDate.setHours(23, 59, 59, 999), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'availability');
       } else if (avail.startHour && avail.endHour) {
         const [sH, sM] = avail.startHour!.split(':').map(Number);
         const [eH, eM] = avail.endHour!.split(':').map(Number);
@@ -225,16 +264,16 @@ const initializeUsers = (
 
         // Block time BEFORE arrival
         if (dayStart.getTime() < userStart.getTime()) {
-          addToTimeline(algoUser, dayStart.getTime(), userStart.getTime(), 'EXTERNAL_CONSTRAINT');
+          addToTimeline(algoUser, dayStart.getTime(), userStart.getTime(), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'availability');
         }
         // Block time AFTER departure
         if (userEnd.getTime() < dayEnd.getTime()) {
-          addToTimeline(algoUser, userEnd.getTime(), dayEnd.getTime(), 'EXTERNAL_CONSTRAINT');
+          addToTimeline(algoUser, userEnd.getTime(), dayEnd.getTime(), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'availability');
         }
       }
     }
 
-    // 3. Block PAST shifts that END during the target day (Cross-Day Tasks)
+    // 3. Past Shifts
     const dayStart = new Date(targetDate);
     dayStart.setHours(0, 0, 0, 0);
 
@@ -263,16 +302,16 @@ const initializeUsers = (
 
       const blockStart = dayStart.getTime();
       const isCritical = task && (task.difficulty >= 4);
-      addToTimeline(algoUser, blockStart, shiftEnd, 'TASK', s.taskId, isCritical);
+      addToTimeline(algoUser, blockStart, shiftEnd, 'TASK', s.taskId, isCritical, undefined, 'task');
 
       const minRest = requirements?.minRest ?? 0;
       if (minRest > 0) {
         const restEnd = shiftEnd + (minRest * 60 * 60 * 1000);
-        addToTimeline(algoUser, shiftEnd, restEnd, 'REST');
+        addToTimeline(algoUser, shiftEnd, restEnd, 'REST', undefined, undefined, undefined, 'rest');
       }
     });
 
-    // 4. Block Future Assignments (48h Lookahead)
+    // 4. Future Assignments
     const userFutureShifts = futureAssignments.filter(s => s.assignedPersonIds.includes(p.id));
     userFutureShifts.forEach(s => {
       const sStart = new Date(s.startTime).getTime();
@@ -286,18 +325,22 @@ const initializeUsers = (
       }
 
       const isCritical = task && (task.difficulty >= 4);
-      addToTimeline(algoUser, sStart, sEnd, 'EXTERNAL_CONSTRAINT', s.taskId, isCritical);
+      addToTimeline(algoUser, sStart, sEnd, 'EXTERNAL_CONSTRAINT', s.taskId, isCritical, undefined, 'task');
 
       const minRest = requirements?.minRest ?? 0;
       if (minRest > 0) {
         const restEnd = sEnd + (minRest * 60 * 60 * 1000);
-        addToTimeline(algoUser, sEnd, restEnd, 'REST');
+        addToTimeline(algoUser, sEnd, restEnd, 'REST', undefined, undefined, undefined, 'rest');
       }
     });
 
     return algoUser;
   });
 };
+
+
+// getAvailabilityStatus moved from here
+
 
 /**
  * The Main Solver Function
@@ -354,6 +397,28 @@ export const solveSchedule = (
 
   const effectiveConstraints = [...futureAssignments, ...fixedShiftsOnDay];
   const algoUsers = initializeUsers(people, startDate, historyScores, effectiveConstraints, taskTemplates, shifts, rolePoolCounts, constraints || [], currentState.teamRotations || [], currentState.absences || []);
+
+  // --- DAILY SADAM REPORT ---
+  console.log(`\n📊 [Daily Sadam Report] ${startDate.toLocaleDateString()}`);
+  console.log(`   Total Personnel: ${people.length}`);
+  
+  const fullyUnavailable = algoUsers.filter(u => 
+      u.timeline.some(t => t.type === 'EXTERNAL_CONSTRAINT' && (t.end - t.start) >= 24 * 60 * 60 * 1000)
+  ).length;
+  console.log(`   Fully Unavailable (Absence/Off-duty): ${fullyUnavailable}`);
+  console.log(`   Effective Pool: ${people.length - fullyUnavailable}`);
+  
+  console.log(`   Role Breakdown (Total / Available):`);
+  const allRoleIds = Array.from(rolePoolCounts.keys());
+  allRoleIds.forEach(rid => {
+      const total = rolePoolCounts.get(rid);
+      const available = algoUsers.filter(u => 
+          (u.person.roleIds || []).includes(rid) && 
+          !u.timeline.some(t => t.type === 'EXTERNAL_CONSTRAINT' && (t.end - t.start) >= 12 * 60 * 60 * 1000) // Rough check for "mostly available"
+      ).length;
+      console.log(`   - ${rid}: ${available} / ${total}`);
+  });
+  console.log(`----------------------------------------\n`);
 
   const algoTasks: AlgoTask[] = shiftsToSolve.map(s => {
     const template = taskTemplates.find(t => t.id === s.taskId);

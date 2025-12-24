@@ -19,6 +19,7 @@ import { analytics } from '../services/analytics';
 import { supabase } from '../services/supabaseClient';
 import { EmptyStateGuide } from './EmptyStateGuide';
 import { AssignmentModal } from './AssignmentModal';
+import { PageInfo } from './ui/PageInfo';
 
 interface ScheduleBoardProps {
     shifts: Shift[];
@@ -496,7 +497,25 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 <div className="flex flex-col gap-2 mb-2 flex-shrink-0 sticky top-0 z-50 bg-white pb-2 border-b border-transparent">
                     {/* Desktop Title & Stats */}
                     <div className="hidden md:flex flex-wrap items-center gap-3">
-                        <h3 className="text-xl font-bold text-slate-800">מבט יומי</h3>
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-xl font-bold text-slate-800">מבט יומי</h3>
+                            <PageInfo
+                                title="על לוח השיבוצים"
+                                description={
+                                    <>
+                                        <p className="mb-2">כאן תוכלו לראות את סידור השיבוצים למשימות של הפלוגה.</p>
+                                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                            <li>ניתן לגרור משמרות כדי לשנות שיבוץ (במחשב).</li>
+                                            <li>לחיצה על משמרת פותחת פרטים נוספים ואפשרויות עריכה.</li>
+                                        </ul>
+                                        <p className="font-bold mb-1">שיבוץ אוטומטי:</p>
+                                        <p className="mb-2">
+                                            המערכת יודעת לשבץ את הלוחמים בצורה חכמה תוך התחשבות בזמינות, אילוצים, והיסטוריית שיבוצים כדי לשמור על הוגנות.
+                                        </p>
+                                    </>
+                                }
+                            />
+                        </div>
                         {!isViewer && (() => {
                             const dateKey = selectedDate.toLocaleDateString('en-CA');
                             const unavailableCount = people.filter(p => {

@@ -13,6 +13,7 @@ import { AttendanceTable } from './AttendanceTable';
 import { BulkAttendanceModal } from './BulkAttendanceModal';
 import { useToast } from '../contexts/ToastContext';
 import { RotaWizardModal } from './RotaWizardModal';
+import { PageInfo } from './ui/PageInfo';
 
 interface AttendanceManagerProps {
     people: Person[];
@@ -29,6 +30,8 @@ interface AttendanceManagerProps {
     onDeleteRotation?: (id: string) => void;
     onAddShifts?: (shifts: Shift[]) => void; // NEW
     isViewer?: boolean;
+    initialOpenRotaWizard?: boolean;
+    onDidConsumeInitialAction?: () => void;
 }
 
 export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
@@ -36,7 +39,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     tasks = [], constraints = [], absences = [], settings = null,
     onUpdatePerson, onUpdatePeople,
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
-    isViewer = false
+    isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction
 }) => {
     const { showToast } = useToast();
     const [viewMode, setViewMode] = useState<'calendar' | 'day_detail'>('calendar');
@@ -54,7 +57,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [isBulkMode, setIsBulkMode] = useState(false);
     const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
     const [showBulkModal, setShowBulkModal] = useState(false);
-    const [showRotaWizard, setShowRotaWizard] = useState(false); // NEW
+    const [showRotaWizard, setShowRotaWizard] = useState(initialOpenRotaWizard); // Initialize from prop
+
+    React.useEffect(() => {
+        if (initialOpenRotaWizard && onDidConsumeInitialAction) {
+            onDidConsumeInitialAction();
+        }
+    }, [initialOpenRotaWizard, onDidConsumeInitialAction]);
 
     const getPersonAvailability = (person: Person) => {
         return getEffectiveAvailability(person, selectedDate, teamRotations);
@@ -515,6 +524,22 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
                             <Calendar className="text-idf-green" />
                             יומן נוכחות
+                            <PageInfo
+                                title="יומן נוכחות"
+                                description={
+                                    <>
+                                        <p className="mb-2">כאן ניתן לראות ולנהל את זמינות הלוחמים.</p>
+                                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                            <li><b>תצוגת לוח שנה:</b> מבט חודשי גלובלי על הסבבים והנוכחות.</li>
+                                            <li><b>תצוגת רשימה:</b> ניהול מפורט של זמינות לכל לוחם ברמה היומית.</li>
+                                            <li><b>סבבים:</b> הגדרת סבבי יציאות (11/3, חצאים וכו') לניהול מהיר.</li>
+                                        </ul>
+                                        <p className="text-sm bg-blue-50 p-2 rounded text-blue-800">
+                                            הנתונים כאן משפיעים ישירות על יכולת השיבוץ של המערכת.
+                                        </p>
+                                    </>
+                                }
+                            />
                         </h2>
                         <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
                             <button

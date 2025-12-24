@@ -13,6 +13,7 @@ import { logger } from '../services/loggingService';
 import { useConfirmation } from '../hooks/useConfirmation';
 import { Select } from './ui/Select';
 import { PermissionEditorContent } from './PermissionEditorContent';
+import { PageInfo } from './ui/PageInfo';
 
 import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../utils/permissions';
 
@@ -565,7 +566,23 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                 <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl mb-2 shadow-sm border border-blue-100">
                                     <span className="text-3xl font-black">{organization?.name?.charAt(0) || 'O'}</span>
                                 </div>
-                                <h1 className="text-2xl font-black text-slate-900">{organization?.name}</h1>
+                                <h1 className="text-2xl font-black text-slate-900 flex items-center justify-center gap-2">
+                                    {organization?.name}
+                                    <PageInfo
+                                        title="הגדרות ארגון"
+                                        description={
+                                            <>
+                                                <p className="mb-2">ניהול מרכזי של הגדרות המערכת והמשתמשים.</p>
+                                                <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                                    <li><b>הזמנות:</b> יצירה וניהול של קישורי הצטרפות לארגון.</li>
+                                                    <li><b>תבניות הרשאות:</b> הגדרת תפקידים (כמו מ"מ, סמ"פ) ורמות גישה.</li>
+                                                    <li><b>משתמשים:</b> ניהול חברי הארגון, עריכת פרטים והרשאות אישיות.</li>
+                                                    <li><b>הגדרות כלליות:</b> שעות לילה, הגדרות לו"ז ועוד.</li>
+                                                </ul>
+                                            </>
+                                        }
+                                    />
+                                </h1>
                                 <p className="text-slate-500 font-medium text-sm">הגדרות וניהול מערכת</p>
                             </div>
 
@@ -589,6 +606,26 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
 
                         {activeTab === 'general' && (
                             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div className="hidden md:flex items-center gap-2 mb-2 border-b border-slate-100 pb-4">
+                                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                        <Settings className="text-slate-600" size={28} />
+                                        הגדרות וניהול
+                                        <PageInfo
+                                            title="הגדרות ארגון"
+                                            description={
+                                                <>
+                                                    <p className="mb-2">ניהול מרכזי של הגדרות המערכת והמשתמשים.</p>
+                                                    <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                                        <li><b>הזמנות:</b> יצירה וניהול של קישורי הצטרפות לארגון.</li>
+                                                        <li><b>תבניות הרשאות:</b> הגדרת תפקידים (כמו מ"מ, סמ"פ) ורמות גישה.</li>
+                                                        <li><b>משתמשים:</b> ניהול חברי הארגון, עריכת פרטים והרשאות אישיות.</li>
+                                                        <li><b>הגדרות כלליות:</b> שעות לילה, הגדרות לו"ז ועוד.</li>
+                                                    </ul>
+                                                </>
+                                            }
+                                        />
+                                    </h2>
+                                </div>
                                 <section>
                                     <div className="flex items-center gap-2 mb-4 text-slate-800">
                                         <LinkIcon className="text-blue-500" size={20} />

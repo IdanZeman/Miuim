@@ -4,6 +4,7 @@ import { CheckSquare, Plus, Pencil, Trash2, Copy, Layers, Clock, Users, Calendar
 import { useToast } from '../contexts/ToastContext';
 import { SheetModal } from './ui/SheetModal';
 import { Modal } from './ui/Modal';
+import { PageInfo } from './ui/PageInfo';
 import { useAuth } from '../contexts/AuthContext';
 import { SegmentEditor } from './SegmentEditor';
 import { Input } from './ui/Input';
@@ -160,6 +161,24 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 md:gap-3">
                     <span className="bg-blue-50 p-2 rounded-lg text-blue-600"><CheckSquare size={20} /></span>
                     ניהול משימות
+                    <PageInfo
+                        title="ניהול משימות ומשמרות"
+                        description={
+                            <>
+                                <p className="mb-2">כאן מגדירים את סוגי המשמרות והמשימות בפלוגה.</p>
+                                <p className="text-sm font-bold mb-1">עבור כל משימה ניתן לקבוע:</p>
+                                <ul className="list-disc list-inside space-y-1 mb-2 text-right text-sm">
+                                    <li>שעות התחלה וסיום.</li>
+                                    <li>כמות אנשים נדרשת.</li>
+                                    <li>תפקידים נדרשים.</li>
+                                    <li>רמת קושי וצבע תצוגה.</li>
+                                </ul>
+                                <p className="text-sm bg-slate-50 p-2 rounded border border-slate-100">
+                                    ניתן ליצור משימות מורכבות עם מספר מקטעים (למשל: סיור בוקר, צהריים ולילה) תחת אותה הגדרה.
+                                </p>
+                            </>
+                        }
+                    />
                 </h2>
                 {canEdit && (
                     <Button

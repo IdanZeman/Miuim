@@ -6,6 +6,7 @@ import { Shield, Search, RefreshCw, Filter, Download, User as UserIcon, Activity
 import type { LogLevel } from '../services/loggingService';
 import { Select } from './ui/Select';
 import { OrganizationStats } from './OrganizationStats';
+import { PageInfo } from './ui/PageInfo';
 
 // Consistent interface with Admin Logs
 interface LogEntry {
@@ -224,6 +225,23 @@ export const OrganizationLogsViewer: React.FC<OrganizationLogsViewerProps> = ({ 
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                             <Activity className="text-blue-600" size={24} />
                             יומן פעילות
+                            <PageInfo
+                                title="יומן פעילות"
+                                description={
+                                    <>
+                                        <p className="mb-2">תיעוד מלא של כל הפעולות שבוצעו במערכת.</p>
+                                        <p className="mb-2">היומן מאפשר מעקב ושקיפות על:</p>
+                                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                            <li><b>שינויי שיבוץ:</b> מי שיבץ, את מי, ומתי.</li>
+                                            <li><b>עריכת נתונים:</b> עדכוני פרטי חיילים, יצירת משימות, ומחיקת אילוצים.</li>
+                                            <li><b>אבטחה:</b> כניסות למערכת ושינויי הרשאות.</li>
+                                        </ul>
+                                        <p className="text-sm bg-slate-100 p-2 rounded text-slate-600">
+                                            רק מנהלים מורשים יכולים לצפות ביומן זה.
+                                        </p>
+                                    </>
+                                }
+                            />
                         </h2>
                         <p className="text-sm text-slate-500 mt-1">תיעוד וניתוח פעולות בארגון</p>
                     </div>
@@ -234,8 +252,8 @@ export const OrganizationLogsViewer: React.FC<OrganizationLogsViewerProps> = ({ 
                     <button
                         onClick={() => setActiveTab('dashboard')}
                         className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'dashboard'
-                                ? 'border-blue-500 text-blue-600 bg-blue-50/50'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                             }`}
                     >
                         דשבורד וסטטיסטיקות
@@ -243,8 +261,8 @@ export const OrganizationLogsViewer: React.FC<OrganizationLogsViewerProps> = ({ 
                     <button
                         onClick={() => setActiveTab('logs')}
                         className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'logs'
-                                ? 'border-blue-500 text-blue-600 bg-blue-50/50'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                             }`}
                     >
                         מבט רשומות (טבלה)

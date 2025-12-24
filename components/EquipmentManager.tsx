@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Person, Equipment, EquipmentStatus, Team } from '../types';
 import { Package, Search, Plus, User, CheckCircle2, AlertCircle, History, QrCode, ClipboardCheck, Trash2, Edit3, Filter, Tag, ChevronRight, Users, ChevronLeft, Calendar as CalendarIcon, Hammer } from 'lucide-react';
 import { Modal } from './ui/Modal';
+import { PageInfo } from './ui/PageInfo';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { useToast } from '../contexts/ToastContext';
@@ -268,6 +269,31 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
 
             {/* Content Sheet (Responsive) */}
             <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 px-4 py-6 min-h-[70vh] md:mt-6">
+
+
+                {/* Header Section */}
+                <div className="mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <Package className="text-indigo-600" size={28} />
+                        ניהול ושו"ב אמצעים
+                        <PageInfo
+                            title="ניהול ושו&quot;ב אמצעים"
+                            description={
+                                <>
+                                    <p className="mb-2">מערכת למעקב וניהול הציוד היחידתי (נשק, אופטיקה, קשר וכו').</p>
+                                    <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                        <li><b>מעקב חתימות:</b> מי חתום על איזה ציוד כרגע.</li>
+                                        <li><b>סטטוס תקינות:</b> דיווח ומעקב אחר ציוד תקול, חסר או בתיקון.</li>
+                                        <li><b>בדיקה יומית:</b> (בלשונית 'בדיקה יומית') ביצוע ספירת מלאי יומית ואימות הימצאות הציוד.</li>
+                                    </ul>
+                                    <p className="text-sm bg-indigo-50 p-2 rounded text-indigo-800">
+                                        ניהול נכון כאן מונע אובדן ציוד ומבטיח כשירות מבצעית.
+                                    </p>
+                                </>
+                            }
+                        />
+                    </h2>
+                </div>
 
                 {/* DESKTOP: Stats Strip */}
                 <div className="hidden md:flex items-center gap-6 mb-6">

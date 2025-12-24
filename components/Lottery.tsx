@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Person, Team, Role } from '../types';
 import { getPersonInitials } from '../utils/nameUtils';
 import { Trophy, Users, RefreshCw, Sparkles, Shuffle, Dices, Check, Settings2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { PageInfo } from './ui/PageInfo';
 import { Select } from './ui/Select';
 import { Button } from './ui/Button';
 
@@ -393,7 +394,22 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                 {/* 1. Header Area */}
                 <div className="bg-white text-slate-900 p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
                     <div>
-                        <h1 className="text-2xl font-black mb-0.5">הגרלה</h1>
+                        <h1 className="text-2xl font-black mb-0.5 flex items-center gap-2">
+                            הגרלה
+                            <PageInfo
+                                title="הגרלה"
+                                description={
+                                    <>
+                                        <p className="mb-2">כלי להגרלת משימות, תורנויות או סתם בשביל הכיף.</p>
+                                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                            <li><b>גלגל מזל:</b> בחירת זוכה יחיד בצורה ויזואלית ומהנה.</li>
+                                            <li><b>הגרלה קבוצתית:</b> בחירת מספר זוכים במקביל (למשל: 3 תורנים למטבח).</li>
+                                            <li><b>סינון:</b> ניתן להגריל מתוך כל הארגון, צוות מסוים, או תפקיד ספציפי.</li>
+                                        </ul>
+                                    </>
+                                }
+                            />
+                        </h1>
                         <p className="text-slate-500 text-xs font-bold">סובב את הגלגל וגלה מי הזוכה!</p>
                     </div>
                     <button
@@ -553,6 +569,19 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6">
                             <Settings2 className="text-indigo-600" />
                             לוח בקרה
+                            <PageInfo
+                                title="הגרלה"
+                                description={
+                                    <>
+                                        <p className="mb-2">כלי להגרלת משימות, תורנויות או סתם בשביל הכיף.</p>
+                                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                            <li><b>גלגל מזל:</b> בחירת זוכה יחיד בצורה ויזואלית ומהנה.</li>
+                                            <li><b>הגרלה קבוצתית:</b> בחירת מספר זוכים במקביל (למשל: 3 תורנים למטבח).</li>
+                                            <li><b>סינון:</b> ניתן להגריל מתוך כל הארגון, צוות מסוים, או תפקיד ספציפי.</li>
+                                        </ul>
+                                    </>
+                                }
+                            />
                         </h2>
                         {ConfigPanelContent()}
                     </div>

@@ -26,6 +26,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
     const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
     const [prioritizeTeamOrganic, setPrioritizeTeamOrganic] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
+    const [localIsSubmitting, setLocalIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -63,21 +64,30 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!startDate) return;
 
+        setLocalIsSubmitting(true);
+
+        // Allow UI to render the spinner before starting the heavy calculation
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         const start = new Date(startDate);
-        const end = mode === 'single' ? new Date(startDate) : new Date(endDate);
+        const end = mode === 'range' ? new Date(endDate) : new Date(startDate);
 
         // Set end of day for the end date
         end.setHours(23, 59, 59, 999);
 
-        onSchedule({
-            startDate: start,
-            endDate: end,
-            selectedTaskIds: Array.from(selectedTaskIds),
-            prioritizeTeamOrganic
-        });
+        try {
+            await onSchedule({
+                startDate: start,
+                endDate: end,
+                selectedTaskIds: Array.from(selectedTaskIds),
+                prioritizeTeamOrganic
+            });
+        } finally {
+            setLocalIsSubmitting(false);
+        }
     };
 
     // Close on backdrop click
@@ -261,13 +271,19 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
 
                 {/* Footer */}
                 <div className="p-4 md:p-6 border-t border-slate-100 bg-white shrink-0 pb-6 md:pb-6 flex gap-3 md:rounded-b-2xl">
-                    {/* "Start" Button - High priority */}
+                    <button
+                        onClick={onClose}
+                        className="flex-1 h-14 md:h-12 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-all border border-slate-200 hover:border-slate-300"
+                        disabled={isScheduling || localIsSubmitting}
+                    >
+                        ביטול
+                    </button>
                     <button
                         onClick={handleSubmit}
-                        disabled={isScheduling || !startDate || (mode === 'range' && !endDate) || selectedTaskIds.size === 0}
+                        disabled={isScheduling || localIsSubmitting || !startDate || (mode === 'range' && !endDate) || selectedTaskIds.size === 0}
                         className="flex-1 h-14 md:h-12 rounded-xl font-bold text-slate-900 bg-idf-yellow hover:bg-idf-yellow-hover disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center gap-2 text-lg md:text-base relative overflow-hidden"
                     >
-                        {isScheduling ? (
+                        {isScheduling || localIsSubmitting ? (
                             <>
                                 <Loader2 className="animate-spin" size={20} />
                                 <span>משבץ...</span>
@@ -278,14 +294,6 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                 <span>התחל שיבוץ</span>
                             </>
                         )}
-                    </button>
-
-                    {/* "Cancel" Button - Desktop Only */}
-                    <button
-                        onClick={onClose}
-                        className="hidden md:block w-32 h-12 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-all border border-slate-200 hover:border-slate-300"
-                    >
-                        ביטול
                     </button>
                 </div>
             </div>

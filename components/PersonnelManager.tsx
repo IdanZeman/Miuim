@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { logger } from '../services/loggingService';
 import { Modal } from './ui/Modal';
+import { PageInfo } from './ui/PageInfo';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { Button } from './ui/Button';
@@ -682,8 +683,43 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             {/* Sticky Header Container */}
             {/* Sticky Header Container */}
             <div className="sticky top-0 bg-white z-40 pb-3 border-b border-slate-100 mb-0 px-4 md:px-0 pt-4 transition-all shadow-sm space-y-3">
+                <div className="flex items-center gap-2 mb-2 md:hidden">
+                    <h2 className="text-xl font-bold text-slate-800">ניהול כוח אדם</h2>
+                    <PageInfo
+                        title="ניהול כוח אדם"
+                        description={
+                            <>
+                                <p className="mb-2">כאן מנהלים את האנשים, הצוותים והתפקידים ביחידה.</p>
+                                <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                    <li><b>חיילים:</b> הוספה, עריכה, ומחיקה של אנשי צוות.</li>
+                                    <li><b>צוותים:</b> חלוקה לצוותים אורגניים.</li>
+                                    <li><b>תפקידים:</b> הגדרת הסמכות ומקצועות.</li>
+                                </ul>
+                                <p className="text-sm bg-blue-50 p-2 rounded text-blue-800">
+                                    <b>טיפ:</b> הקפידו שפרטי הקשר מעודכנים כדי שהמערכת תוכל לשלוח הודעות בצורה תקינה.
+                                </p>
+                            </>
+                        }
+                    />
+                </div>
 
                 <div className="flex flex-col md:flex-row gap-3 md:items-center justify-between">
+                    <div className="hidden md:flex items-center gap-2 mr-2">
+                        <h2 className="text-xl font-bold text-slate-800">ניהול כוח אדם</h2>
+                        <PageInfo
+                            title="ניהול כוח אדם"
+                            description={
+                                <>
+                                    <p className="mb-2">כאן מנהלים את האנשים, הצוותים והתפקידים ביחידה.</p>
+                                    <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                        <li><b>חיילים:</b> הוספה, עריכה, ומחיקה של אנשי צוות.</li>
+                                        <li><b>צוותים:</b> הוספה ועריכה.</li>
+                                        <li><b>תפקידים:</b> הגדרת פקלים הסמכות ומקצועות.</li>
+                                    </ul>
+                                </>
+                            }
+                        />
+                    </div>
                     {/* Tabs Segmented Control */}
                     <div className="flex p-1 bg-slate-100 rounded-lg w-full md:w-auto shrink-0 order-2 md:order-1 overflow-x-auto no-scrollbar">
                         {(['people', 'teams', 'roles'] as const).map((tab) => (

@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Team, SchedulingConstraint, TaskTemplate, Role } from '../types';
 import { useToast } from '../contexts/ToastContext';
+import { ConfirmationModal } from './ConfirmationModal';
 import { Search, Filter, ShieldAlert, Briefcase, User, Users, Shield, Ban, Pin, Trash2, Plus, Edit2, AlertCircle } from 'lucide-react';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { MultiSelect } from './ui/MultiSelect';
 import { Modal } from './ui/Modal';
+import { PageInfo } from './ui/PageInfo';
 
 interface ConstraintsManagerProps {
     people: Person[];
@@ -166,11 +168,19 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
         setIsRuleModalOpen(true);
     };
 
+    // State for Confirmation Modal
+    const [groupToDelete, setGroupToDelete] = useState<typeof taskConstraintsGrouped[0] | null>(null);
+
     const handleDeleteGroup = (group: typeof taskConstraintsGrouped[0]) => {
         if (isViewer) return;
-        if (confirm('האם למחוק את חוקי המשימות לקבוצה זו?')) {
-            group.ids.forEach(id => onDeleteConstraint(id, true)); // Silent
+        setGroupToDelete(group);
+    };
+
+    const confirmDelete = () => {
+        if (groupToDelete) {
+            groupToDelete.ids.forEach(id => onDeleteConstraint(id, true)); // Silent
             showToast('החוקים נמחקו בהצלחה', 'success');
+            setGroupToDelete(null);
         }
     };
 
@@ -301,6 +311,22 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                 <h2 className="text-lg font-bold text-slate-800 px-2 flex items-center gap-2">
                     <ShieldAlert className="text-blue-600" size={24} />
                     <span className="hidden md:inline">ניהול אילוצים</span>
+                    <PageInfo
+                        title="ניהול אילוצים"
+                        description={
+                            <>
+                                <p className="mb-2">כאן ניתן להגדיר כללים ומגבלות על השיבוץ האוטומטי.</p>
+                                <p className="font-bold mb-1">סוגי אילוצים:</p>
+                                <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                    <li><b>לא לשבץ לעולם:</b> מונע מהמערכת לשבץ את האדם/הצוות למשימה ספציפית.</li>
+                                    <li><b>שבץ רק למשימה זו:</b> כאשר האדם משובץ, הוא ישובץ <b>רק</b> למשימה זו (מונע שיבוץ למשימות אחרות באותו זמן).</li>
+                                </ul>
+                                <p className="text-sm bg-red-50 p-2 rounded text-red-800">
+                                    <b>שים לב:</b> שימוש מוגזם באילוצים עלול לגרום לכך שהמערכת לא תמצא פתרון שיבוץ תקין.
+                                </p>
+                            </>
+                        }
+                    />
                     <span className="md:hidden">אילוצים</span>
                 </h2>
                 <div className="text-xs text-slate-500 font-medium bg-slate-100 px-3 py-1 rounded-md">
@@ -485,6 +511,17 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                         </div>
                     </div>
                 </Modal>
+
+                <ConfirmationModal
+                    isOpen={!!groupToDelete}
+                    title="מחיקת חוקים"
+                    message="האם אתה בטוח שברצונך למחוק את החוקים לקבוצה זו?"
+                    confirmText="מחק"
+                    cancelText="ביטול"
+                    type="danger"
+                    onConfirm={confirmDelete}
+                    onCancel={() => setGroupToDelete(null)}
+                />
             </div>
         </div>
     );
