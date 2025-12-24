@@ -248,9 +248,7 @@ export const OrganizationLogsViewer: React.FC<OrganizationLogsViewerProps> = ({ 
                     />
                 </div>
 
-                import {Select} from './ui/Select';
 
-                // ... inside the component ...
 
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
                     <Select

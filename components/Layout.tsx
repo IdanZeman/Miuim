@@ -363,6 +363,20 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 </button>
               )}
 
+              {/* Organization Logs - Admin Only */}
+              {(profile?.role === 'admin' || profile?.is_super_admin) && (
+                <button
+                  className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'org-logs'
+                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                    : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  onClick={() => { setView('org-logs'); setIsMobileMenuOpen(false) }}
+                >
+                  <Activity size={22} className={currentView === 'org-logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                  <span>יומן פעילות</span>
+                </button>
+              )}
+
               {/* Equipment */}
               {checkAccess('equipment') && (
                 <button
@@ -522,6 +536,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'stats' && 'מרכז נתונים'}
               {currentView === 'settings' && 'הגדרות ארגון'}
               {currentView === 'logs' && 'לוגים'}
+              {currentView === 'org-logs' && 'יומן פעילות'}
               {currentView === 'lottery' && 'הגרלות'}
               {currentView === 'constraints' && 'ניהול אילוצים'}
               {currentView === 'absences' && 'ניהול היעדרויות'}
