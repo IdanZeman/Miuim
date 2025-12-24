@@ -675,10 +675,10 @@ const MainApp: React.FC = () => {
             maxPeople = task.segments?.[0]?.requiredPeople || 1;
         }
 
-        if (shift.assignedPersonIds.length >= maxPeople) {
-            showToast('לא ניתן לשבץ: המשמרת מלאה', 'error');
-            return;
-        }
+        // if (shift.assignedPersonIds.length >= maxPeople) {
+        //     showToast('לא ניתן לשבץ: המשמרת מלאה', 'error');
+        //     return;
+        // }
 
         // --- Validation: Check Constraints ---
         const userConstraints = state.constraints.filter(c => c.personId === personId);

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Clock, ArrowLeft } from 'lucide-react';
 
 interface StatusEditPopoverProps {
@@ -20,16 +21,17 @@ export const StatusEditPopover: React.FC<StatusEditPopoverProps> = ({
     const [customEnd, setCustomEnd] = useState(defaultDepartureHour);
     const [customType, setCustomType] = useState<null | 'arrival' | 'departure' | 'custom'>(null);
     const [isMobile, setIsMobile] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
-    React.useEffect(() => {
+    useEffect(() => {
+        setMounted(true);
         const checkMobile = () => setIsMobile(window.innerWidth < 768);
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // Reset state when opening
-    React.useEffect(() => {
+    useEffect(() => {
         if (isOpen) {
             setCustomType(null);
             setCustomStart(defaultArrivalHour);
@@ -37,21 +39,21 @@ export const StatusEditPopover: React.FC<StatusEditPopoverProps> = ({
         }
     }, [isOpen, defaultArrivalHour, defaultDepartureHour]);
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
     const handleApply = (status: 'base' | 'home' | 'unavailable', times?: { start: string, end: string }) => {
         onApply(status, times);
     };
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 z-[1000] flex cursor-default bg-black/5"
+            className="fixed inset-0 z-[99999] flex cursor-default bg-black/20 backdrop-blur-[1px]"
             onClick={onClose}
         >
             <div
                 className={`bg-white shadow-2xl flex flex-col gap-1 transition-all duration-300 ${isMobile
-                    ? 'fixed bottom-0 left-0 right-0 rounded-t-[2rem] p-6 animate-in slide-in-from-bottom duration-300 ease-out z-[10001]'
-                    : 'absolute rounded-lg shadow-xl border border-slate-200 p-2 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 z-[10001]'
+                    ? 'fixed bottom-0 left-0 right-0 rounded-t-[2rem] p-6 pb-10 animate-in slide-in-from-bottom duration-300 ease-out'
+                    : 'absolute rounded-lg shadow-xl border border-slate-200 p-2 min-w-[200px] animate-in fade-in zoom-in-95 duration-100'
                     }`}
                 style={isMobile ? {} : {
                     top: position.top,
@@ -93,57 +95,77 @@ export const StatusEditPopover: React.FC<StatusEditPopoverProps> = ({
                         </button>
                     </>
                 ) : (
-                    <div className="flex flex-col gap-2 p-1">
-                        <button onClick={() => setCustomType(null)} className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 mb-2 font-bold">
-                            <ArrowLeft size={12} />
-                            <span className="text-[10px]">חזרה</span>
+                    <div className="flex flex-col gap-3 p-1">
+                        <button onClick={() => setCustomType(null)} className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 font-bold">
+                            <ArrowLeft size={14} />
+                            <span className="text-xs">חזרה</span>
                         </button>
 
                         {customType === 'departure' && (
-                            <div className="flex flex-col gap-1">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">שעת יציאה להיום</span>
-                                <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border border-slate-100 rounded px-2 py-1.5 text-sm font-black w-full text-center outline-none focus:ring-1 ring-blue-500/30" />
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">שעת יציאה להיום</span>
+                                <input
+                                    type="time"
+                                    value={customEnd}
+                                    onChange={e => setCustomEnd(e.target.value)}
+                                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base font-bold w-full text-center outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 h-10"
+                                />
                             </div>
                         )}
 
                         {customType === 'arrival' && (
-                            <div className="flex flex-col gap-1">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">שעת הגעה להיום</span>
-                                <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border border-slate-100 rounded px-2 py-1.5 text-sm font-black w-full text-center outline-none focus:ring-1 ring-blue-500/30" />
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">שעת הגעה להיום</span>
+                                <input
+                                    type="time"
+                                    value={customStart}
+                                    onChange={e => setCustomStart(e.target.value)}
+                                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base font-bold w-full text-center outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 h-10"
+                                />
                             </div>
                         )}
 
                         {customType === 'custom' && (
-                            <div className="flex items-center gap-2">
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase">התחלה</span>
-                                    <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border border-slate-100 rounded px-1 py-1 text-xs font-bold w-16 text-center" />
+                            <div className="flex items-center justify-between gap-2 px-1">
+                                <div className="flex flex-col gap-1 flex-1">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase text-center">התחלה</span>
+                                    <input
+                                        type="time"
+                                        value={customStart}
+                                        onChange={e => setCustomStart(e.target.value)}
+                                        className="bg-slate-50 border border-slate-200 rounded-md px-1 py-1 text-sm font-bold w-full text-center h-9 outline-none focus:border-blue-500 focus:ring-1 ring-blue-500/20"
+                                    />
                                 </div>
-                                <span className="text-slate-300 mt-4">—</span>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase">סיום</span>
-                                    <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border border-slate-100 rounded px-1 py-1 text-xs font-bold w-16 text-center" />
+                                <span className="text-slate-300 mt-5 font-light text-xl">—</span>
+                                <div className="flex flex-col gap-1 flex-1">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase text-center">סיום</span>
+                                    <input
+                                        type="time"
+                                        value={customEnd}
+                                        onChange={e => setCustomEnd(e.target.value)}
+                                        className="bg-slate-50 border border-slate-200 rounded-md px-1 py-1 text-sm font-bold w-full text-center h-9 outline-none focus:border-blue-500 focus:ring-1 ring-blue-500/20"
+                                    />
                                 </div>
                             </div>
                         )}
 
-                        <div className="flex gap-2 mt-2">
-                            <button onClick={() => setCustomType(null)} className="flex-1 py-1.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold hover:bg-slate-200">ביטול</button>
+                        <div className="flex gap-2 mt-2 pt-2 border-t border-slate-50">
+                            <button onClick={() => setCustomType(null)} className="flex-1 py-2 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-colors">ביטול</button>
                             <button
                                 onClick={() => {
                                     const start = customType === 'departure' ? '00:00' : customStart;
                                     const end = customType === 'arrival' ? '23:59' : customEnd;
                                     handleApply('base', { start, end });
                                 }}
-                                className="flex-1 py-1.5 rounded bg-blue-600 text-white text-[10px] font-black hover:bg-blue-700"
+                                className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-xs font-black hover:bg-blue-700 transition-colors shadow-sm"
                             >
-                                שמור
+                                שמור שינויים
                             </button>
                         </div>
                     </div>
                 )}
-                {isMobile && <div className="h-4" />}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

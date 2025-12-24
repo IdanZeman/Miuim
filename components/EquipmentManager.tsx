@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Person, Equipment, EquipmentStatus, EquipmentVerification, Team } from '../types';
-import { Package, Search, Plus, User, Calendar, CheckCircle2, AlertCircle, History, QrCode, ClipboardCheck, Trash2, Edit3, Filter, ShieldCheck, Tag, ChevronRight, Users, UserPlus, ChevronDown, Hammer } from 'lucide-react';
+import { Person, Equipment, EquipmentStatus, Team } from '../types';
+import { Package, Search, Plus, User, CheckCircle2, AlertCircle, History, QrCode, ClipboardCheck, Trash2, Edit3, Filter, Tag, ChevronRight, Users, ChevronLeft, Calendar as CalendarIcon, Hammer } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { useToast } from '../contexts/ToastContext';
-import { supabase } from '../services/supabaseClient';
 
 interface EquipmentManagerProps {
     people: Person[];
@@ -111,10 +110,13 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
     onDeleteEquipment
 }) => {
     const { showToast } = useToast();
-    const [viewMode, setViewMode] = useState<'list' | 'verify' | 'history'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'verify'>('list');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
+
+    // Date Navigation State
+    const [selectedDate, setSelectedDate] = useState(new Date());
 
     // Modal State
     const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
@@ -152,7 +154,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
         } else {
             const newItem: Equipment = {
                 id: Math.random().toString(36).substr(2, 9),
-                organization_id: '', // Handled by App.tsx
+                organization_id: '',
                 type: editingItem.type,
                 serial_number: editingItem.serial_number,
                 assigned_to_id: editingItem.assigned_to_id || null,
@@ -172,14 +174,19 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
         const item = equipment.find(e => e.id === itemId);
         if (!item) return;
 
-        const now = new Date().toISOString();
+        // Create timestamp based on selected date + current time
+        const timestamp = new Date(selectedDate);
+        const now = new Date();
+        timestamp.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+
         const updated: Equipment = {
             ...item,
             status,
-            last_verified_at: now
+            last_verified_at: timestamp.toISOString()
         };
+
         onUpdateEquipment(updated);
-        showToast(`וידוא בוצע בהצלחה עבור ${item.serial_number}`, 'success');
+        showToast(`עודכן סטטוס לתאריך ${selectedDate.toLocaleDateString('he-IL')}`, 'success');
     };
 
     const getStatusColor = (status: EquipmentStatus) => {
@@ -202,26 +209,6 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
         }
     };
 
-    // Helper for chip styling - This is no longer used, but kept for context if needed.
-    // const FilterChip = ({ label, value, onChange, options, icon: Icon }: any) => (
-    //     <div className="relative shrink-0">
-    //         <div className={`flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs font-bold transition-all ${value !== 'all' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-    //             {Icon && <Icon size={14} />}
-    //             <span>{label}: {options.find((o: any) => o.value === value)?.label || value}</span>
-    //             <ChevronDown size={14} className="opacity-50" />
-    //         </div>
-    //         <select
-    //             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-    //             value={value}
-    //             onChange={(e) => onChange(e.target.value)}
-    //         >
-    //             {options.map((opt: any) => (
-    //                 <option key={opt.value} value={opt.value}>{opt.label}</option>
-    //             ))}
-    //         </select>
-    //     </div>
-    // );
-
     // Stats calculation
     const stats = useMemo(() => ({
         total: equipment.length,
@@ -229,6 +216,23 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
         missing: equipment.filter(e => e.status === 'missing' || e.status === 'lost').length,
         checkedOut: equipment.filter(e => e.assigned_to_id).length
     }), [equipment]);
+
+    // Date Navigation Helpers
+    const handlePrevDay = () => {
+        const d = new Date(selectedDate);
+        d.setDate(d.getDate() - 1);
+        setSelectedDate(d);
+    };
+
+    const handleNextDay = () => {
+        const d = new Date(selectedDate);
+        d.setDate(d.getDate() + 1);
+        setSelectedDate(d);
+    };
+
+    const isToday = (date: Date) => {
+        return date.toDateString() === new Date().toDateString();
+    };
 
     return (
         <div className="min-h-screen text-right font-sans pb-32" dir="rtl">
@@ -305,99 +309,103 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                     </div>
                 </div>
 
-                {/* MOBILE Controls */}
-                <div className="md:hidden flex items-center gap-2 mb-6">
-                    <div className="relative flex-1">
-                        <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder="חיפוש..."
-                            className="w-full pr-10 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-medium"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                {/* MOBILE Controls (Only for List View) */}
+                {viewMode === 'list' && (
+                    <div className="md:hidden flex items-center gap-2 mb-6">
+                        <div className="relative flex-1">
+                            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder="חיפוש..."
+                                className="w-full pr-10 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-medium"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="w-[42px] shrink-0">
+                            <Select
+                                value={filterType}
+                                onChange={setFilterType}
+                                options={[{ value: 'all', label: 'כל הסוגים' }, ...equipmentTypes.map(t => ({ value: t, label: t }))]}
+                                triggerMode="icon"
+                                icon={Tag}
+                                className="bg-slate-50 border-slate-200"
+                            />
+                        </div>
+                        <div className="w-[42px] shrink-0">
+                            <Select
+                                value={filterStatus}
+                                onChange={setFilterStatus}
+                                options={[
+                                    { value: 'all', label: 'כל הסטטוסים' },
+                                    { value: 'present', label: 'נמצא' },
+                                    { value: 'missing', label: 'חסר' },
+                                    { value: 'damaged', label: 'תקול' },
+                                    { value: 'lost', label: 'אבד' }
+                                ]}
+                                triggerMode="icon"
+                                icon={Filter}
+                                className="bg-slate-50 border-slate-200"
+                            />
+                        </div>
+                        {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
+                            <button
+                                onClick={() => { setFilterType('all'); setFilterStatus('all'); setSearchTerm(''); }}
+                                className="w-[42px] h-[42px] flex items-center justify-center bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
                     </div>
-                    <div className="w-[42px] shrink-0">
-                        <Select
-                            value={filterType}
-                            onChange={setFilterType}
-                            options={[{ value: 'all', label: 'כל הסוגים' }, ...equipmentTypes.map(t => ({ value: t, label: t }))]}
-                            triggerMode="icon"
-                            icon={Tag}
-                            className="bg-slate-50 border-slate-200"
-                        />
-                    </div>
-                    <div className="w-[42px] shrink-0">
-                        <Select
-                            value={filterStatus}
-                            onChange={setFilterStatus}
-                            options={[
-                                { value: 'all', label: 'כל הסטטוסים' },
-                                { value: 'present', label: 'נמצא' },
-                                { value: 'missing', label: 'חסר' },
-                                { value: 'damaged', label: 'תקול' },
-                                { value: 'lost', label: 'אבד' }
-                            ]}
-                            triggerMode="icon"
-                            icon={Filter}
-                            className="bg-slate-50 border-slate-200"
-                        />
-                    </div>
-                    {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
-                        <button
-                            onClick={() => { setFilterType('all'); setFilterStatus('all'); setSearchTerm(''); }}
-                            className="w-[42px] h-[42px] flex items-center justify-center bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors"
-                        >
-                            <Trash2 size={18} />
-                        </button>
-                    )}
-                </div>
+                )}
 
-                {/* DESKTOP Controls */}
-                <div className="hidden md:flex items-center gap-4 mb-6">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder="חיפוש לפי צלם, שם חייל, או סוג..."
-                            className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-medium"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                {/* DESKTOP Controls (Only for List View) */}
+                {viewMode === 'list' && (
+                    <div className="hidden md:flex items-center gap-4 mb-6">
+                        <div className="relative flex-1 max-w-md">
+                            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder="חיפוש לפי צלם, שם חייל, או סוג..."
+                                className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-medium"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="w-48">
+                            <Select
+                                value={filterType}
+                                onChange={setFilterType}
+                                options={[{ value: 'all', label: 'סינון לפי סוג: הכל' }, ...equipmentTypes.map(t => ({ value: t, label: t }))]}
+                                triggerMode="default"
+                                className="bg-slate-50 border-slate-200 py-2.5"
+                            />
+                        </div>
+                        <div className="w-48">
+                            <Select
+                                value={filterStatus}
+                                onChange={setFilterStatus}
+                                options={[
+                                    { value: 'all', label: 'סינון לפי סטטוס: הכל' },
+                                    { value: 'present', label: 'נמצא' },
+                                    { value: 'missing', label: 'חסר' },
+                                    { value: 'damaged', label: 'תקול' },
+                                    { value: 'lost', label: 'אבד' }
+                                ]}
+                                triggerMode="default"
+                                className="bg-slate-50 border-slate-200 py-2.5"
+                            />
+                        </div>
+                        {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
+                            <button
+                                onClick={() => { setFilterType('all'); setFilterStatus('all'); setSearchTerm(''); }}
+                                className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
                     </div>
-                    <div className="w-48">
-                        <Select
-                            value={filterType}
-                            onChange={setFilterType}
-                            options={[{ value: 'all', label: 'סינון לפי סוג: הכל' }, ...equipmentTypes.map(t => ({ value: t, label: t }))]}
-                            triggerMode="default"
-                            className="bg-slate-50 border-slate-200 py-2.5"
-                        />
-                    </div>
-                    <div className="w-48">
-                        <Select
-                            value={filterStatus}
-                            onChange={setFilterStatus}
-                            options={[
-                                { value: 'all', label: 'סינון לפי סטטוס: הכל' },
-                                { value: 'present', label: 'נמצא' },
-                                { value: 'missing', label: 'חסר' },
-                                { value: 'damaged', label: 'תקול' },
-                                { value: 'lost', label: 'אבד' }
-                            ]}
-                            triggerMode="default"
-                            className="bg-slate-50 border-slate-200 py-2.5"
-                        />
-                    </div>
-                    {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
-                        <button
-                            onClick={() => { setFilterType('all'); setFilterStatus('all'); setSearchTerm(''); }}
-                            className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors"
-                        >
-                            <Trash2 size={18} />
-                        </button>
-                    )}
-                </div>
+                )}
 
                 {/* Content Area */}
                 <div className="space-y-2">
@@ -527,6 +535,36 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                     {/* VERIFY VIEW */}
                     {viewMode === 'verify' && (
                         <div className="space-y-4">
+
+                            {/* Date Navigation Bar */}
+                            <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200">
+                                {/* Prev Day - Right in RTL */}
+                                <button
+                                    onClick={handlePrevDay}
+                                    className="p-2 rounded-lg hover:bg-white text-indigo-600 transition-colors"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+
+                                <div className="flex items-center gap-2">
+                                    <CalendarIcon size={16} className="text-slate-500" />
+                                    <span className="font-bold text-slate-700">
+                                        {selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                    </span>
+                                    {isToday(selectedDate) && (
+                                        <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">היום</span>
+                                    )}
+                                </div>
+
+                                {/* Next Day - Left in RTL */}
+                                <button
+                                    onClick={handleNextDay}
+                                    className={`p-2 rounded-lg hover:bg-white transition-colors ${!isToday(selectedDate) ? 'text-indigo-600' : 'text-slate-300 cursor-not-allowed'}`}
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                            </div>
+
                             {/* Legend - Clean & Explicit */}
                             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap gap-4 items-center justify-center text-xs text-slate-600">
                                 <div className="flex items-center gap-1.5">
@@ -554,18 +592,31 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                     <thead className="bg-slate-50">
                                         <tr>
                                             <th className="px-4 py-3 text-xs font-black text-slate-500">פריט</th>
-                                            <th className="px-4 py-3 text-xs font-black text-slate-500">סטטוס בדיקה</th>
+                                            <th className="px-4 py-3 text-xs font-black text-slate-500">סטטוס בדיקה ליום זה</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {equipment.map(item => {
-                                            const isVerifiedToday = item.last_verified_at && new Date(item.last_verified_at).toDateString() === new Date().toDateString();
+                                            // Check if the verification date matches the selected date
+                                            const isVerifiedOnSelectedDate = item.last_verified_at &&
+                                                new Date(item.last_verified_at).toDateString() === selectedDate.toDateString();
+
+                                            // If not verified on this specific date, show as "Not Verified" (Gray)
+                                            // regardless of its current global status
+                                            const displayStatus = isVerifiedOnSelectedDate ? item.status : 'unverified';
+
                                             return (
                                                 <tr key={item.id} className="hover:bg-slate-50">
                                                     <td className="px-4 py-3">
                                                         <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
                                                             <span className="font-bold text-slate-800 text-sm md:text-base">{item.serial_number}</span>
                                                             <span className="text-[10px] text-slate-500 md:text-sm md:bg-slate-100 md:px-2 md:py-0.5 md:rounded w-fit">{item.type}</span>
+
+                                                            {!isVerifiedOnSelectedDate && (
+                                                                <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-bold border border-red-100 w-fit mt-1 md:mt-0">
+                                                                    חסר דיווח ליום זה
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-3">
@@ -573,7 +624,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
 
                                                             <button
                                                                 onClick={() => handleVerify(item.id, 'present')}
-                                                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${item.status === 'present' && isVerifiedToday
+                                                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${displayStatus === 'present'
                                                                     ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 ring-2 ring-emerald-100'
                                                                     : 'bg-slate-50 text-slate-300 hover:bg-emerald-50 hover:text-emerald-500'
                                                                     }`}
@@ -584,7 +635,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
 
                                                             <button
                                                                 onClick={() => handleVerify(item.id, 'damaged')}
-                                                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${item.status === 'damaged' && isVerifiedToday
+                                                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${displayStatus === 'damaged'
                                                                     ? 'bg-amber-500 text-white shadow-md shadow-amber-200 ring-2 ring-amber-100'
                                                                     : 'bg-slate-50 text-slate-300 hover:bg-amber-50 hover:text-amber-500'
                                                                     }`}
@@ -595,7 +646,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
 
                                                             <button
                                                                 onClick={() => handleVerify(item.id, 'missing')}
-                                                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${item.status === 'missing' && isVerifiedToday
+                                                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${displayStatus === 'missing'
                                                                     ? 'bg-rose-500 text-white shadow-md shadow-rose-200 ring-2 ring-rose-100'
                                                                     : 'bg-slate-50 text-slate-300 hover:bg-rose-50 hover:text-rose-500'
                                                                     }`}
