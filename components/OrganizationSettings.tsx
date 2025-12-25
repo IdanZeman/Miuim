@@ -378,12 +378,20 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const isAdmin = profile?.is_super_admin || profile?.permissions?.canManageSettings;
 
     useEffect(() => {
-        if (organization) {
-            fetchMembers();
-            fetchInvites();
-            fetchTemplates();
+        if (organization?.id) {
+            loadInitialData();
         }
-    }, [organization]);
+    }, [organization?.id]);
+
+    const loadInitialData = async () => {
+        setLoading(true);
+        await Promise.all([
+            fetchMembers(),
+            fetchInvites(),
+            fetchTemplates()
+        ]);
+        setLoading(false);
+    };
 
     const fetchTemplates = async () => {
         if (!organization) return;
@@ -411,7 +419,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         } else {
             setMembers(data || []);
         }
-        setLoading(false);
+        // setLoading(false); // Handled in loadInitialData
     };
 
     const fetchInvites = async () => {

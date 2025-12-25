@@ -4,15 +4,17 @@ import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence,
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Create client
+const supabaseInstance = createClient(supabaseUrl, supabaseKey);
+
 // Expose on window for Cypress/Playwright testing
 if (typeof window !== 'undefined') {
-    (window as any).supabase = createClient(supabaseUrl, supabaseKey);
+    (window as any).supabase = supabaseInstance;
 }
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseKey);
 
-// Create client
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = supabaseInstance;
 
 // --- Mappers (App Types <-> DB Types) ---
 
