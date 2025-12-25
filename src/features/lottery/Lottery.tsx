@@ -3,7 +3,7 @@ import { supabase } from '@/services/supabaseClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Person, Team, Role } from '@/types';
 import { getPersonInitials } from '@/utils/nameUtils';
-import { Trophy, Users, RefreshCw, Sparkles, Shuffle, Dices, Check, Settings2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trophy, Users, RefreshCw, Shuffle, Dices, Check, Settings2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -43,8 +43,8 @@ const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }:
             {/* Wheel Segments Text */}
             {candidates.map((p, i) => {
                 const angle = (360 / candidates.length) * i + (360 / candidates.length) / 2;
-                // Dynamic font size logic (slightly adjusted for readability)
-                const fontSize = candidates.length > 50 ? '9px' : candidates.length > 20 ? '11px' : '14px';
+                // Dynamic font size logic via Tailwind classes
+                const baseSize = candidates.length > 50 ? 'text-[8px] md:text-[9px]' : candidates.length > 20 ? 'text-[10px] md:text-[11px]' : 'text-[12px] md:text-[14px]';
 
                 return (
                     <div
@@ -55,10 +55,9 @@ const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }:
                         }}
                     >
                         <span
-                            className="text-white font-bold truncate max-h-[70%] drop-shadow-md whitespace-nowrap px-1"
+                            className={`text-white font-bold truncate max-h-[70%] drop-shadow-md whitespace-nowrap px-1 ${baseSize}`}
                             style={{
                                 writingMode: 'vertical-rl',
-                                fontSize: fontSize,
                                 textOrientation: 'mixed',
                                 transform: 'rotate(180deg)',
                                 fontFamily: 'sans-serif'
@@ -74,7 +73,7 @@ const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }:
         {/* Center Hub */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full shadow-xl flex items-center justify-center z-10">
             <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-white">
-                <Sparkles size={20} />
+                <Dices size={20} />
             </div>
         </div>
     </div>
@@ -450,9 +449,9 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                             {/* Wheel Section */}
                             <div className="flex justify-center mb-6">
                                 {mode === 'single' && candidates.length > 0 ? (
-                                    <WheelView sizeClass="w-72 h-72" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} />
+                                    <WheelView sizeClass="w-64 h-64 sm:w-72 sm:h-72" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} />
                                 ) : mode === 'multiple' ? (
-                                    <div className="w-72 h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold text-center p-4">
+                                    <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold text-center p-4">
                                         {isSpinning ? (
                                             <div className="animate-pulse text-indigo-500 font-bold text-xl">
                                                 ...מגריל...
@@ -462,7 +461,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="w-72 h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold">
+                                    <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold">
                                         אין משתתפים
                                     </div>
                                 )}
@@ -496,7 +495,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                                         : 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 shadow-yellow-500/30'
                                     }`}
                             >
-                                {isSpinning ? <RefreshCw className="animate-spin" size={24} /> : <Sparkles size={24} />}
+                                {isSpinning ? <RefreshCw className="animate-spin" size={24} /> : <Dices size={24} />}
                                 {isSpinning ? 'מסתובב...' : 'סובב את הגלגל!'}
                             </button>
 
@@ -527,18 +526,17 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
             {/* ================= DESKTOP VIEW (hidden md:flex) ================= */}
             <div className="hidden md:flex h-full p-0 flex-1 overflow-hidden">
                 {/* LEFT: Hero Wheel Area */}
-                <div className="flex-1 bg-gradient-to-br from-indigo-600 to-purple-700 relative overflow-hidden flex flex-col items-center justify-center p-12">
+                <div className="flex-1 bg-gradient-to-br from-indigo-600 to-purple-700 relative overflow-hidden flex flex-col items-center justify-center p-4 lg:p-12 gap-8">
                     {/* Pattern Background */}
                     <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
 
-                    {/* Floating Title */}
-                    <h1 className="absolute top-8 text-white/90 text-4xl font-black tracking-tight drop-shadow-md">הגרלת המזל</h1>
+                    {/* Relative Title (No Overlap) */}
 
-                    <div className="relative z-10 transform scale-110">
+                    <div className="relative z-10 transform transition-transform shrink-0">
                         {mode === 'single' && candidates.length > 0 ? (
-                            <WheelView sizeClass="w-[500px] h-[500px]" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} />
+                            <WheelView sizeClass="w-[280px] h-[280px] lg:w-[350px] lg:h-[350px] xl:w-[450px] xl:h-[450px]" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} />
                         ) : mode === 'multiple' ? (
-                            <div className="w-[500px] h-[500px] rounded-full border-4 border-dashed border-white/30 flex items-center justify-center text-white/50 font-bold text-xl text-center p-8">
+                            <div className="w-[280px] h-[280px] lg:w-[350px] lg:h-[350px] xl:w-[450px] xl:h-[450px] rounded-full border-4 border-dashed border-white/30 flex items-center justify-center text-white/50 font-bold text-xl text-center p-8">
                                 {isSpinning ? (
                                     <div className="animate-pulse text-white font-bold text-3xl">
                                         ...מגריל...
@@ -548,7 +546,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                                 )}
                             </div>
                         ) : (
-                            <div className="w-[400px] h-[400px] rounded-full border-4 border-dashed border-white/30 flex items-center justify-center text-white/50 font-bold text-xl">
+                            <div className="w-[280px] h-[280px] lg:w-[350px] lg:h-[350px] xl:w-[450px] xl:h-[450px] rounded-full border-4 border-dashed border-white/30 flex items-center justify-center text-white/50 font-bold text-xl">
                                 נא לבחור משתתפים
                             </div>
                         )}
@@ -556,17 +554,17 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
 
                     {/* Winner Display Desktop */}
                     {winners.length > 0 && !isSpinning && (
-                        <div className="absolute bottom-12 bg-white/10 backdrop-blur-lg border border-white/20 px-12 py-6 rounded-2xl text-center animate-bounce-in shadow-xl">
-                            <p className="text-indigo-200 font-bold mb-2 uppercase tracking-widest text-sm">המנצח הוא</p>
-                            <h2 className="text-5xl font-black text-white drop-shadow-lg">{winners[0].name}</h2>
+                        <div className="absolute bottom-6 lg:bottom-12 z-50 bg-white/10 backdrop-blur-lg border border-white/20 px-8 lg:px-12 py-4 lg:py-6 rounded-2xl text-center animate-bounce-in shadow-xl max-w-[90%]">
+                            <p className="text-indigo-200 font-bold mb-2 uppercase tracking-widest text-xs lg:text-sm">המנצח הוא</p>
+                            <h2 className="text-3xl lg:text-5xl font-black text-white drop-shadow-lg truncate">{winners[0].name}</h2>
                         </div>
                     )}
                 </div>
 
                 {/* RIGHT: Controls & History */}
-                <div className="w-[400px] bg-white flex flex-col overflow-hidden border-r border-slate-100">
-                    <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6">
+                <div className="w-[320px] lg:w-[400px] bg-white flex flex-col overflow-hidden border-r border-slate-100 shrink-0 transition-all">
+                    <div className="p-4 lg:p-6 border-b border-slate-100 bg-slate-50/50">
+                        <h2 className="text-lg lg:text-xl font-bold text-slate-800 flex items-center gap-2 mb-4 lg:mb-6">
                             <Settings2 className="text-indigo-600" />
                             לוח בקרה
                             <PageInfo
@@ -586,23 +584,23 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                         {ConfigPanelContent()}
                     </div>
 
-                    <div className="p-6">
+                    <div className="p-4 lg:p-6">
                         <button
                             onClick={handleSpin}
                             disabled={candidates.length === 0 || isSpinning}
-                            className={`w-full py-5 rounded-2xl font-black text-2xl shadow-xl transform transition-all active:scale-95 flex items-center justify-center gap-3
+                            className={`w-full py-4 lg:py-5 rounded-2xl font-black text-xl lg:text-2xl shadow-xl transform transition-all active:scale-95 flex items-center justify-center gap-3
                                 ${candidates.length === 0 || isSpinning
                                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
                                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-indigo-500/30 hover:-translate-y-1'
                                 }`}
                         >
-                            {isSpinning ? <RefreshCw className="animate-spin" size={28} /> : <Sparkles size={28} />}
+                            {isSpinning ? <RefreshCw className="animate-spin" size={24} /> : <Dices size={24} />}
                             {isSpinning ? 'מגריל...' : 'סובב עכשיו!'}
                         </button>
                     </div>
 
                     {/* Recent Winners List */}
-                    <div className="flex-1 overflow-y-auto px-6 pb-6 bg-slate-50/30">
+                    <div className="flex-1 overflow-y-auto px-4 lg:px-6 pb-6 bg-slate-50/30">
                         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 mt-2">זוכים אחרונים</h3>
                         <div className="space-y-3">
                             {history.length === 0 && <p className="text-xs text-slate-400 italic">טרם בוצעו הגרלות</p>}
