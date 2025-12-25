@@ -144,6 +144,7 @@ export interface TaskTemplate {
   organization_id?: string;
   is247?: boolean; // Legacy flag, might be relevant for default filling
   assignedTeamId?: string; // NEW: Limit task to specific team
+  icon?: string;
 }
 
 export interface Shift {

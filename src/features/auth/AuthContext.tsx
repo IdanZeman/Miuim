@@ -262,7 +262,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Log successful login activity
       if (organization?.id) {
-        logger.logLogin();
+        logger.logLogin(userId);
       }
     }
   };
