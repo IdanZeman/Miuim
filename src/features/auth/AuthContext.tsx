@@ -160,6 +160,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('📊 [AuthContext] Full Profile Data:', cleanProfile);
       console.log('👤 [AuthContext] Setting Profile:', cleanProfile);
 
+      // Update logger context
+      logger.setUser({ id: userId, email: cleanProfile.email }, cleanProfile);
+
       // Identify user in LogRocket
       if (cleanProfile?.email) {
         import('../../services/logRocket').then(({ identifyUser }) => {
@@ -441,6 +444,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Sign out with 'local' scope to clear local session only
+      logger.clearUser();
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) throw error;
 
