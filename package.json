@@ -29,6 +29,8 @@
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@vercel/node": "^5.5.16",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.23",
