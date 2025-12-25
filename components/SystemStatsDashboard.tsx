@@ -67,38 +67,36 @@ export const SystemStatsDashboard: React.FC = () => {
     const [growthTimeframe, setGrowthTimeframe] = useState<'today' | 'week' | 'month'>('today');
     const [activityTimeframe, setActivityTimeframe] = useState<'today' | 'week' | 'month'>('today');
 
-    // Initial Load
+    // Initial Load - KPIs and Static Lists only
     useEffect(() => {
         if (profile?.is_super_admin) {
-            fetchAllData();
+            fetchStaticData();
         }
     }, [user, profile]);
 
-    // Leaderboard Effect - Re-fetch when filter changes
+    // Leaderboard Effect - Re-fetch when filter changes (Initial fetch handled here too)
     useEffect(() => {
         if (profile?.is_super_admin) {
             fetchTopUsers(userLeaderboardTimeframe);
         }
     }, [userLeaderboardTimeframe, user, profile]);
 
-    // Activity Chart Effect - Re-fetch when filter changes
+    // Activity Chart Effect - Re-fetch when filter changes (Initial fetch handled here too)
     useEffect(() => {
         if (profile?.is_super_admin) {
             fetchActivityChart(activityTimeframe);
         }
     }, [activityTimeframe, user, profile]);
 
-    const fetchAllData = async () => {
+    const fetchStaticData = async () => {
+        // Only fetch things that don't depend on independent filters
         setLoading(true);
         try {
             await Promise.all([
                 fetchKPIs(),
                 fetchTopOrgs(),
-                fetchNewOrgs(),
-                fetchActivityChart('today'),
-                fetchTopUsers('week')
+                fetchNewOrgs()
             ]);
-            setActivityTimeframe('today');
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
         } finally {
@@ -107,262 +105,94 @@ export const SystemStatsDashboard: React.FC = () => {
     };
 
     const fetchKPIs = async () => {
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        const { data, error } = await supabase.rpc('get_dashboard_kpis');
+        if (error) throw error;
 
-        const weekAgo = new Date(now);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const weekIso = weekAgo.toISOString();
-
-        const monthAgo = new Date(now);
-        monthAgo.setDate(monthAgo.getDate() - 30);
-        const monthIso = monthAgo.toISOString();
-
-        // Basic Counts
-        const { count: orgsCount } = await supabase.from('organizations').select('*', { count: 'exact', head: true });
-        const { count: usersCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
-
-        // New Growth
-        const { count: newOrgsToday } = await supabase.from('organizations').select('*', { count: 'exact', head: true }).gte('created_at', todayStart);
-        const { count: newOrgsWeek } = await supabase.from('organizations').select('*', { count: 'exact', head: true }).gte('created_at', weekIso);
-        const { count: newOrgsMonth } = await supabase.from('organizations').select('*', { count: 'exact', head: true }).gte('created_at', monthIso);
-
-        const { count: newUsersToday } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', todayStart);
-        const { count: newUsersWeek } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', weekIso);
-        const { count: newUsersMonth } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', monthIso);
-
-        // Active Now (15 mins)
-        const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-        const { data: activeLogs } = await supabase
-            .from('audit_logs')
-            .select('user_id')
-            .gte('created_at', fifteenMinsAgo);
-        const activeUsersNow = new Set(activeLogs?.map(l => l.user_id).filter(Boolean)).size;
-
-        // Activity 24h
-        const { count: actions24h } = await supabase
-            .from('audit_logs')
-            .select('*', { count: 'exact', head: true })
-            .gte('created_at', todayStart);
-
-        setStats(prev => ({
-            ...prev,
-            totalOrgs: orgsCount || 0,
-            totalUsers: usersCount || 0,
-            activeUsersNow,
-            newUsersToday: newUsersToday || 0,
-            newUsersWeek: newUsersWeek || 0,
-            newUsersMonth: newUsersMonth || 0,
-            newOrgsToday: newOrgsToday || 0,
-            newOrgsWeek: newOrgsWeek || 0,
-            newOrgsMonth: newOrgsMonth || 0,
-            actions24h: actions24h || 0,
-        }));
+        if (data) {
+            setStats(prev => ({
+                ...prev,
+                totalOrgs: data.total_orgs,
+                totalUsers: data.total_users,
+                activeUsersNow: data.active_users_now,
+                newUsersToday: data.new_users_today,
+                newUsersWeek: data.new_users_week,
+                newUsersMonth: data.new_users_month,
+                newOrgsToday: data.new_orgs_today,
+                newOrgsWeek: data.new_orgs_week,
+                newOrgsMonth: data.new_orgs_month,
+                actions24h: data.actions_24h,
+            }));
+        }
     };
 
     const fetchActivityChart = async (range: 'today' | 'week' | 'month') => {
-        const now = new Date();
-        const activityMap = new Map();
-        let startIso = '';
+        const { data, error } = await supabase.rpc('get_system_activity_chart', { time_range: range });
+        if (error) console.error('Error fetching activity:', error);
 
-        if (range === 'today') {
-            // Breakdown directly by hour for today (00:00 to now)
-            startIso = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-
-            // Initialize all hours 0-23
-            for (let i = 0; i < 24; i++) {
-                const hourStr = `${i.toString().padStart(2, '0')}:00`;
-                activityMap.set(hourStr, 0);
-            }
-        } else {
-            const days = range === 'week' ? 7 : 30;
-            const startDate = new Date();
-            startDate.setDate(startDate.getDate() - days);
-            startIso = startDate.toISOString();
-
-            for (let i = days - 1; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                activityMap.set(d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }), 0);
-            }
+        if (data) {
+            // Map RPC result to chart format
+            const activityData = data.map((d: any) => ({
+                date: d.date_label,
+                count: d.action_count
+            }));
+            setStats(prev => ({ ...prev, activityData }));
         }
-
-        const { data: logs } = await supabase
-            .from('audit_logs')
-            .select('created_at')
-            .gte('created_at', startIso);
-
-        logs?.forEach(log => {
-            const date = new Date(log.created_at);
-            let key = '';
-
-            if (range === 'today') {
-                key = `${date.getHours().toString().padStart(2, '0')}:00`;
-            } else {
-                key = date.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
-            }
-
-            if (activityMap.has(key)) activityMap.set(key, activityMap.get(key) + 1);
-        });
-
-        const activityData = Array.from(activityMap.entries()).map(([date, count]) => ({ date, count }));
-
-        // Sort if necessary (Map iteration order is insertion order, usually fine if initialized correctly)
-        // Ensure today sort by hour
-        if (range === 'today') {
-            activityData.sort((a, b) => a.date.localeCompare(b.date));
-        }
-
-        setStats(prev => ({ ...prev, activityData }));
     };
 
     const fetchTopOrgs = async () => {
-        // "Active Organizations" - based on TRAFFIC (audit_logs)
-        const monthAgo = new Date();
-        monthAgo.setDate(monthAgo.getDate() - 30);
-
-        // Fetch logs with org_id
-        const { data: logs } = await supabase
-            .from('audit_logs')
-            .select('organization_id')
-            .gte('created_at', monthAgo.toISOString())
-            .not('organization_id', 'is', null);
-
-        const orgActivityCounts: Record<string, number> = {};
-        logs?.forEach(l => {
-            if (l.organization_id) {
-                orgActivityCounts[l.organization_id] = (orgActivityCounts[l.organization_id] || 0) + 1;
-            }
+        const { data, error } = await supabase.rpc('get_top_organizations', {
+            time_range: 'month',
+            limit_count: 10
         });
 
-        // Always fetch user counts
-        const { data: profiles } = await supabase.from('profiles').select('organization_id');
-        const userCounts: Record<string, number> = {};
-        profiles?.forEach(p => {
-            if (p.organization_id) userCounts[p.organization_id] = (userCounts[p.organization_id] || 0) + 1;
-        });
+        if (error) console.error('Error fetching top orgs:', error);
 
-        // Fetch top orgs based on activity
-        let topOrgIds = Object.entries(orgActivityCounts)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 10)
-            .map(([id]) => id);
-
-        // Fallback: If no activity, show largest orgs (by user count)
-        if (topOrgIds.length === 0) {
-            topOrgIds = Object.entries(userCounts)
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, 10)
-                .map(([id]) => id);
+        if (data) {
+            setTopOrgs(data.map((org: any) => ({
+                id: org.org_id,
+                name: org.org_name,
+                shifts_count: org.shifts_count,
+                users_count: org.users_count
+            })));
         }
-
-        // Fallback: If still nothing, just grab any orgs
-        if (topOrgIds.length === 0) {
-            const { data: anyOrgs } = await supabase.from('organizations').select('id').limit(10);
-            if (anyOrgs) topOrgIds = anyOrgs.map(o => o.id);
-        }
-
-        if (topOrgIds.length === 0) return;
-
-        const { data: orgs } = await supabase
-            .from('organizations')
-            .select('id, name, created_at')
-            .in('id', topOrgIds);
-
-        const processedOrgs = orgs?.map(org => ({
-            ...org,
-            shifts_count: orgActivityCounts[org.id] || 0,
-            users_count: userCounts[org.id] || 0
-        })).sort((a, b) => {
-            if (b.shifts_count !== a.shifts_count) return b.shifts_count - a.shifts_count;
-            return b.users_count - a.users_count;
-        }) || [];
-
-        setTopOrgs(processedOrgs);
     };
 
     const fetchNewOrgs = async () => {
-        const { data } = await supabase
-            .from('organizations')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(5);
+        const { data, error } = await supabase.rpc('get_new_orgs_stats', { limit_count: 5 });
+
+        if (error) console.error('Error fetching new orgs:', error);
 
         if (data) {
-            const { data: profiles } = await supabase.from('profiles').select('organization_id');
-            const userCounts: Record<string, number> = {};
-            profiles?.forEach(p => {
-                if (p.organization_id) userCounts[p.organization_id] = (userCounts[p.organization_id] || 0) + 1;
-            });
-
-            setNewOrgs(data.map(o => ({
+            setNewOrgs(data.map((o: any) => ({
                 id: o.id,
                 name: o.name,
                 created_at: o.created_at,
                 shifts_count: 0,
-                users_count: userCounts[o.id] || 0
+                users_count: o.users_count
             })));
         }
     };
 
     const fetchTopUsers = async (range: 'all' | 'month' | 'week' | 'today') => {
-        const now = new Date();
-        let startTime = new Date(0); // Epoch
+        // Map 'all' to a very long time range or handle in RPC
+        const rpcRange = range === 'all' ? 'year' : range; // RPC supports today/week/month. 'year' will fall to default/all in SQL logic if not handled, checking SQL... SQL handles "else" as 1970.
 
-        if (range === 'month') startTime = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-        if (range === 'week') startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-        if (range === 'today') startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Midnight local
-
-        const { data: logs } = await supabase
-            .from('audit_logs')
-            .select('user_id, user_email, user_name, organization_id')
-            .gte('created_at', startTime.toISOString());
-
-        if (!logs || logs.length === 0) {
-            setTopUsers([]);
-            return;
-        }
-
-        const activityCount: Record<string, number> = {};
-        const userInfo: Record<string, any> = {};
-
-        logs.forEach(log => {
-            if (!log.user_id) return;
-            activityCount[log.user_id] = (activityCount[log.user_id] || 0) + 1;
-            if (!userInfo[log.user_id]) {
-                userInfo[log.user_id] = {
-                    email: log.user_email,
-                    name: log.user_name,
-                    org_id: log.organization_id
-                };
-            }
+        const { data, error } = await supabase.rpc('get_top_users', {
+            time_range: rpcRange,
+            limit_count: 10
         });
 
-        const topUserIds = Object.entries(activityCount)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 10)
-            .map(([id]) => id);
+        if (error) console.error('Error fetching top users:', error);
 
-        const orgIds = [...new Set(Object.values(userInfo).map(u => u.org_id).filter(Boolean))];
-        let orgNameMap: Record<string, string> = {};
-
-        if (orgIds.length > 0) {
-            const { data: orgs } = await supabase
-                .from('organizations')
-                .select('id, name')
-                .in('id', orgIds as string[]);
-            orgs?.forEach(o => orgNameMap[o.id] = o.name);
+        if (data) {
+            setTopUsers(data.map((u: any) => ({
+                id: u.user_id,
+                email: u.email,
+                full_name: u.full_name,
+                org_name: u.org_name,
+                activity_count: u.activity_count
+            })));
         }
-
-        const leaderboard = topUserIds.map(id => ({
-            id,
-            email: userInfo[id].email,
-            full_name: userInfo[id].name || userInfo[id].email,
-            org_name: orgNameMap[userInfo[id].org_id] || 'N/A',
-            activity_count: activityCount[id]
-        }));
-
-        setTopUsers(leaderboard);
     };
 
     const getGrowthValue = (type: 'users' | 'orgs') => {
