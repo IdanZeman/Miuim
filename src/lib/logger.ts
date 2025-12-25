@@ -57,11 +57,9 @@ class LoggingService {
         const storedLevel = localStorage.getItem('miuim_log_level');
         if (storedLevel && Object.keys(LOG_LEVELS).includes(storedLevel)) {
             this.minLogLevel = storedLevel as LogLevel;
-        } else if (import.meta.env.PROD) {
-            // In production, default can still be INFO or WARN
-             this.minLogLevel = 'TRACE'; // Updated per user request in task list
         } else {
-            this.minLogLevel = 'TRACE';
+            // Default to TRACE (Highest Level) as per user request to capture all data
+            this.minLogLevel = 'TRACE'; 
         }
     }
 
