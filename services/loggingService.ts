@@ -68,13 +68,17 @@ class LoggingService {
 
         // Environment-based defaults
         const hostname = window.location.hostname;
+        // User requested MAXIMUM logging for now (TRACE) in both Dev and Prod
+        this.minLevel = 'TRACE';
+        console.log('📝 Log level set to: TRACE (User Requested - Monitor Everything)');
+
+        /* Previous logic preserved for reference:
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            this.minLevel = 'DEBUG';  // Development
-            console.log('📝 Log level set to: DEBUG (development mode)');
+            this.minLevel = 'DEBUG';
         } else {
-            this.minLevel = 'INFO';  // Production
-            console.log('📝 Log level set to: INFO (production mode)');
+            this.minLevel = 'INFO';
         }
+        */
     }
 
     private initializeSession() {
