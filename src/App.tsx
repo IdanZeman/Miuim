@@ -94,6 +94,9 @@ const MainApp: React.FC = () => {
             // Only persist view changes, don't restore on mount
             localStorage.setItem('miuim_active_view', view);
             window.scrollTo(0, 0);
+
+            // Log navigation for internal audit
+            logger.logView(view);
         }
     }, [view]);
     const [personnelTab, setPersonnelTab] = useState<'people' | 'teams' | 'roles'>('people');

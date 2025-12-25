@@ -1,6 +1,11 @@
-import React from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX, Package, Activity, HelpCircle } from 'lucide-react';
-import { ViewMode } from '../../types';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+    Calendar, Users, ClipboardList, BarChart2, Menu, LogOut, Clock,
+    Settings, FileText, Shield, Dices, Mail, Anchor, Home, UserX,
+    Package, Activity, HelpCircle, ChevronDown, User as UserIcon,
+    LayoutDashboard, Briefcase, Database, UserCog
+} from 'lucide-react';
+import { ViewMode, Profile } from '../../types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { analytics } from '../../services/analytics';
 import { logger } from '../../services/loggingService';
@@ -13,40 +18,163 @@ interface NavbarProps {
     onMobileMenuToggle?: () => void;
 }
 
-const TopNavLink = ({
-    active,
-    onClick,
+// Dropdown Component
+const NavDropdown = ({
     label,
-    icon: Icon
+    icon: Icon,
+    isActive,
+    children
 }: {
-    active: boolean;
-    onClick: () => void;
     label: string;
-    icon?: React.ElementType;
+    icon: React.ElementType;
+    isActive: boolean;
+    children: React.ReactNode
 }) => {
-    const handleClick = () => {
-        analytics.trackButtonClick(label, 'top_nav');
-        logger.logClick(label, 'top_nav');
-        onClick();
+    const [isOpen, setIsOpen] = useState(false);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const handleMouseEnter = () => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        setIsOpen(true);
+    };
+
+    const handleMouseLeave = () => {
+        timeoutRef.current = setTimeout(() => setIsOpen(false), 150);
     };
 
     return (
-        <button
-            onClick={handleClick}
-            className={`px-3 md:px-4 py-2 text-sm font-medium transition-all relative flex items-center gap-2 group ${active
-                ? 'text-slate-900 font-bold'
-                : 'text-slate-500 hover:text-slate-800'
-                }`}
-            title={label}
+        <div
+            className="relative font-medium h-full flex items-center"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
         >
-            {Icon && <Icon size={20} className={active ? 'text-idf-yellow-hover' : 'text-slate-400'} />}
-            <span className={`whitespace-nowrap ${active ? 'font-bold block' : 'hidden group-hover:block min-[2000px]:block'}`}>
-                {label}
-            </span>
-            {active && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-idf-yellow mx-2 rounded-full"></span>
+            <button
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all relative ${isActive || isOpen
+                    ? 'text-blue-700 bg-blue-50/50'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                aria-expanded={isOpen}
+            >
+                <Icon size={18} className={isActive ? 'text-blue-600' : 'text-slate-500'} />
+                <span>{label}</span>
+                <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} text-slate-400`} />
+
+                {/* Active Indicator Line */}
+                {isActive && (
+                    <div className="absolute -bottom-4 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
+                )}
+            </button>
+
+            {/* Dropdown Menu */}
+            {isOpen && (
+                <div className="absolute top-full right-0 w-60 pt-2 z-[100] animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 overflow-hidden ring-1 ring-black/5">
+                        {children}
+                    </div>
+                </div>
             )}
-        </button>
+        </div>
+    );
+};
+
+const DropdownItem = ({
+    label,
+    icon: Icon,
+    onClick,
+    active,
+    danger = false
+}: {
+    label: string;
+    icon?: React.ElementType;
+    onClick: () => void;
+    active?: boolean;
+    danger?: boolean;
+}) => (
+    <button
+        onClick={() => {
+            onClick();
+        }}
+        className={`w-full text-right px-4 py-2.5 text-sm flex items-center gap-3 transition-colors ${active
+            ? 'bg-blue-50 text-blue-700 font-medium'
+            : danger
+                ? 'text-red-600 hover:bg-red-50'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+    >
+        {Icon && <Icon size={18} className={active ? 'text-blue-600' : danger ? 'text-red-500' : 'text-slate-500'} />}
+        {label}
+    </button>
+);
+
+
+const UserDropdown = ({
+    user,
+    profile,
+    onLogout,
+    children
+}: {
+    user: any;
+    profile: Profile | null;
+    onLogout: () => void;
+    children: React.ReactNode
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Click outside to close
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const displayName = profile?.full_name || user?.email?.split('@')[0] || 'משתמש';
+
+    return (
+        <div className="relative" ref={containerRef}>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`flex items-center gap-2 pl-2 pr-1 py-1 rounded-full border transition-all ${isOpen ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-100' : 'bg-white border-slate-200 hover:border-slate-300'
+                    }`}
+            >
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                    <UserIcon size={18} />
+                </div>
+                <div className="hidden md:flex flex-col items-start min-w-[3rem] max-w-[8rem]">
+                    <span className="text-xs font-bold text-slate-700 truncate w-full dir-ltr text-right">
+                        {displayName}
+                    </span>
+                    <span className="text-[10px] text-slate-400">אזור אישי</span>
+                </div>
+                <ChevronDown size={14} className="text-slate-400 mr-1" />
+            </button>
+
+            {isOpen && (
+                <div className="absolute top-full left-0 mt-2 w-64 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 py-2 overflow-hidden ring-1 ring-black/5">
+                        <div className="px-4 py-3 border-b border-slate-50 bg-slate-50/50">
+                            <p className="text-sm font-bold text-slate-800">{displayName}</p>
+                            <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                        </div>
+                        <div className="py-1">
+                            {children}
+                        </div>
+                        <div className="border-t border-slate-100 mt-1 pt-1">
+                            <DropdownItem
+                                label="התנתק"
+                                icon={LogOut}
+                                onClick={onLogout}
+                                danger
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };
 
@@ -55,113 +183,229 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
 
     const handleLogout = async () => {
         analytics.trackButtonClick('logout', 'header');
-        console.log('Logout clicked');
         try {
             await signOut();
-            console.log('Signed out successfully');
             window.location.reload();
         } catch (error) {
             console.error('Error signing out:', error);
         }
     };
 
+    const handleNav = (view: ViewMode) => {
+        if (setView) setView(view);
+    };
+
     return (
-        <header className="bg-white shadow-sm z-40 relative h-16 flex-none">
+        <header className="bg-white/80 backdrop-blur-md shadow-sm z-40 relative h-16 flex-none border-b border-slate-200/50">
             <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between gap-4">
-                {/* Right: Logo & Nav */}
-                <div className="flex items-center gap-4 md:gap-8 flex-1 min-w-0 max-w-[calc(100%-220px)]">
+
+                {/* Logo & Brand */}
+                <div className="flex items-center gap-6">
                     <button
-                        onClick={() => setView && setView('home')}
-                        className="flex items-center gap-1 hover:opacity-80 transition-opacity flex-shrink-0"
+                        onClick={() => handleNav('home')}
+                        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                     >
                         <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
                             <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
                         </div>
-                        <span className="text-lg font-bold text-slate-800 tracking-tight whitespace-nowrap">
-                            {isPublic ? 'מערכת לניהול פלוגה' : (organization?.name || 'מערכת לניהול פלוגה')}
+                        <span className="hidden lg:block text-lg font-bold text-slate-800 tracking-tight">
+                            {isPublic ? 'מערכת ניהול' : (organization?.name || 'מערכת ניהול')}
                         </span>
                     </button>
 
-                    {/* Desktop Nav - Hidden in Public Mode */}
+                    {/* Desktop Navigation */}
                     {!isPublic && setView && (
-                        <nav className="hidden md:flex items-center gap-1 overflow-visible">
-                            <TopNavLink active={currentView === 'home'} onClick={() => setView('home')} label="בית" icon={Home} />
+                        <nav className="hidden md:flex items-center gap-1">
 
-                            {checkAccess('dashboard') && (
-                                <TopNavLink active={currentView === 'dashboard'} onClick={() => setView('dashboard')} label="שיבוצים" icon={Calendar} />
-                            )}
-
+                            {/* 1. Personnel (Single Link) */}
                             {checkAccess('personnel') && (
-                                <TopNavLink active={currentView === 'personnel'} onClick={() => setView('personnel')} label="כוח אדם" icon={Users} />
+                                <button
+                                    onClick={() => handleNav('personnel')}
+                                    className={`px-3 py-2 text-sm font-medium transition-all flex items-center gap-2 rounded-lg ${currentView === 'personnel'
+                                        ? 'text-slate-900 bg-slate-50'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                        }`}
+                                >
+                                    <Users size={18} className={currentView === 'personnel' ? 'text-blue-600' : 'text-slate-500'} />
+                                    <span>ניהול כוח אדם</span>
+                                </button>
                             )}
 
-                            {checkAccess('tasks') && (
-                                <TopNavLink active={currentView === 'tasks'} onClick={() => setView('tasks')} label="משימות" icon={ClipboardList} />
+                            {/* 2. Tasks Group */}
+                            {(checkAccess('tasks') || checkAccess('dashboard') || checkAccess('constraints')) && (
+                                <NavDropdown
+                                    label="משימות"
+                                    icon={ClipboardList}
+                                    isActive={['tasks', 'dashboard', 'constraints'].includes(currentView || '')}
+                                >
+                                    {checkAccess('tasks') && (
+                                        <DropdownItem
+                                            label="ניהול משימות"
+                                            icon={ClipboardList}
+                                            active={currentView === 'tasks'}
+                                            onClick={() => handleNav('tasks')}
+                                        />
+                                    )}
+                                    {checkAccess('dashboard') && (
+                                        <DropdownItem
+                                            label="לוח שיבוצים"
+                                            icon={Calendar}
+                                            active={currentView === 'dashboard'}
+                                            onClick={() => handleNav('dashboard')}
+                                        />
+                                    )}
+                                    {checkAccess('constraints') && (
+                                        <DropdownItem
+                                            label="ניהול אילוצים"
+                                            icon={Anchor}
+                                            active={currentView === 'constraints'}
+                                            onClick={() => handleNav('constraints')}
+                                        />
+                                    )}
+                                </NavDropdown>
                             )}
 
-                            {checkAccess('constraints') && (
-                                <TopNavLink active={currentView === 'constraints'} onClick={() => setView('constraints')} label="אילוצים" icon={Anchor} />
+                            {/* 3. Attendance Group */}
+                            {(checkAccess('attendance') || checkAccess('absences')) && (
+                                <NavDropdown
+                                    label="נוכחות והיעדרויות"
+                                    icon={Clock}
+                                    isActive={['attendance', 'absences'].includes(currentView || '')}
+                                >
+                                    {checkAccess('attendance') && (
+                                        <DropdownItem
+                                            label="יומן נוכחות"
+                                            icon={Clock}
+                                            active={currentView === 'attendance'}
+                                            onClick={() => handleNav('attendance')}
+                                        />
+                                    )}
+                                    <DropdownItem
+                                        label="ניהול היעדרויות"
+                                        icon={UserX}
+                                        active={currentView === 'absences'}
+                                        onClick={() => handleNav('absences')}
+                                    />
+                                </NavDropdown>
                             )}
 
-                            {checkAccess('attendance') && (
-                                <TopNavLink active={currentView === 'absences'} onClick={() => setView('absences')} label="היעדרויות" icon={UserX} />
-                            )}
-
-                            {checkAccess('attendance') && (
-                                <TopNavLink active={currentView === 'attendance'} onClick={() => setView('attendance')} label="נוכחות" icon={Clock} />
-                            )}
-
-                            {(profile?.is_super_admin ||
-                                profile?.role === 'admin' ||
-                                profile?.permissions?.screens?.['logs'] === 'view' ||
-                                profile?.permissions?.screens?.['logs'] === 'edit') && (
-                                    <TopNavLink active={currentView === 'org-logs'} onClick={() => setView('org-logs')} label="יומן פעילות" icon={Activity} />
-                                )}
-
-                            {checkAccess('stats') && (
-                                <TopNavLink active={currentView === 'stats'} onClick={() => setView('stats')} label={(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'} icon={FileText} />
-                            )}
-
+                            {/* 4. Logistics Group */}
                             {checkAccess('equipment') && (
-                                <TopNavLink active={currentView === 'equipment'} onClick={() => setView('equipment')} label="ניהול אמצעים" icon={Package} />
+                                <NavDropdown
+                                    label="לוגיסטיקה"
+                                    icon={Package}
+                                    isActive={['equipment'].includes(currentView || '')}
+                                >
+                                    <DropdownItem
+                                        label="רשימת ציוד"
+                                        icon={Package}
+                                        active={currentView === 'equipment'}
+                                        onClick={() => handleNav('equipment')}
+                                    />
+                                </NavDropdown>
                             )}
 
-                            {checkAccess('lottery') && (
-                                <TopNavLink active={currentView === 'lottery'} onClick={() => setView('lottery')} label="הגרלה" icon={Dices} />
+                            {/* 5. Reports Group */}
+                            {(checkAccess('stats') || checkAccess('org-logs')) && (
+                                <NavDropdown
+                                    label="דוחות"
+                                    icon={BarChart2}
+                                    isActive={['stats', 'org-logs'].includes(currentView || '')}
+                                >
+                                    {checkAccess('stats') && (
+                                        <DropdownItem
+                                            label="דוחות"
+                                            icon={FileText}
+                                            active={currentView === 'stats'}
+                                            onClick={() => handleNav('stats')}
+                                        />
+                                    )}
+                                    {(checkAccess('org-logs') || profile?.is_super_admin || profile?.role === 'admin') && (
+                                        <DropdownItem
+                                            label="יומן פעילות"
+                                            icon={Activity}
+                                            active={currentView === 'org-logs'}
+                                            onClick={() => handleNav('org-logs')}
+                                        />
+                                    )}
+                                </NavDropdown>
                             )}
 
-                            <TopNavLink active={currentView === 'faq'} onClick={() => setView('faq')} label="עזרה" icon={HelpCircle} />
-                            <TopNavLink active={currentView === 'contact'} onClick={() => setView('contact')} label="צור קשר" icon={Mail} />
-
-                            {checkAccess('settings') && (
-                                <TopNavLink active={currentView === 'settings'} onClick={() => setView('settings')} label="הגדרות" icon={Settings} />
-                            )}
-
-                            {profile?.is_super_admin && (
-                                <TopNavLink
-                                    active={currentView === 'system' || currentView === 'logs' || currentView === 'tickets'}
-                                    onClick={() => setView('system')}
-                                    label="ניהול מערכת"
-                                    icon={Shield}
+                            {/* 6. More Group */}
+                            <NavDropdown
+                                label="עוד"
+                                icon={Menu}
+                                isActive={['lottery', 'contact', 'faq'].includes(currentView || '')}
+                            >
+                                {checkAccess('lottery') && (
+                                    <DropdownItem
+                                        label="הגרלות"
+                                        icon={Dices}
+                                        active={currentView === 'lottery'}
+                                        onClick={() => handleNav('lottery')}
+                                    />
+                                )}
+                                <DropdownItem
+                                    label="צור קשר"
+                                    icon={Mail}
+                                    active={currentView === 'contact'}
+                                    onClick={() => handleNav('contact')}
                                 />
-                            )}
+                                <DropdownItem
+                                    label="מרכז מידע"
+                                    icon={HelpCircle}
+                                    active={currentView === 'faq'}
+                                    onClick={() => handleNav('faq')}
+                                />
+                            </NavDropdown>
+
                         </nav>
                     )}
                 </div>
 
-                {/* Left: User Profile - Hidden in Public Mode */}
+                {/* Left Side: User & Personal Area */}
                 {!isPublic && (
-                    <div className="flex items-center justify-end gap-2 pl-2 flex-shrink-0">
-                        <span className="text-sm font-medium text-slate-600 hidden sm:block md:block truncate text-ellipsis dir-ltr text-right" title={user?.email || ''}>
-                            {user?.email?.split('@')[0] || 'משתמש'}
-                        </span>
+                    <div className="flex items-center gap-3">
+                        <UserDropdown user={user} profile={profile} onLogout={handleLogout}>
+                            {checkAccess('settings') && (
+                                <DropdownItem
+                                    label="הגדרות ארגון"
+                                    icon={Settings}
+                                    active={currentView === 'settings'}
+                                    onClick={() => handleNav('settings')}
+                                />
+                            )}
 
+                            {profile?.is_super_admin && (
+                                <DropdownItem
+                                    label="ניהול מערכת"
+                                    icon={Shield}
+                                    active={currentView === 'system'}
+                                    onClick={() => handleNav('system')}
+                                />
+                            )}
+                            <div className="bg-slate-50 my-1 py-1 border-t border-b border-slate-100">
+                                <DropdownItem
+                                    label="מרכז עזרה"
+                                    icon={HelpCircle}
+                                    active={currentView === 'faq'}
+                                    onClick={() => handleNav('faq')}
+                                />
+                                <DropdownItem
+                                    label="צור קשר"
+                                    icon={Mail}
+                                    active={currentView === 'contact'}
+                                    onClick={() => handleNav('contact')}
+                                />
+                            </div>
+                        </UserDropdown>
+
+                        {/* Mobile Menu Toggle */}
                         <button
-                            onClick={handleLogout}
-                            className="hidden md:flex items-center gap-2 p-2 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors flex-shrink-0"
-                            title="התנתק"
+                            onClick={onMobileMenuToggle}
+                            className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                         >
-                            <LogOut size={20} />
+                            <Menu size={24} />
                         </button>
                     </div>
                 )}

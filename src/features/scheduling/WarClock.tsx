@@ -55,8 +55,8 @@ const CustomTimePicker = ({ label, value, onChange }: { label: string, value: st
                             if ('showPicker' in inputRef.current) {
                                 (inputRef.current as any).showPicker();
                             } else {
-                                inputRef.current.focus();
-                                inputRef.current.click();
+                                (inputRef.current as HTMLInputElement).focus();
+                                (inputRef.current as HTMLInputElement).click();
                             }
                         } catch (e) {
                             inputRef.current.click();
@@ -557,43 +557,44 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                                                             key={item.id}
                                                                             id={item.isNow ? 'war-clock-active-item' : undefined}
                                                                             className={`
-                                                                                relative flex-1 flex flex-col rounded-lg border-2 transition-all cursor-pointer group hover:shadow-md
-                                                                                ${item.isNow ? 'ring-2 ring-blue-400 ring-offset-2 z-10 bg-white' : 'bg-slate-50/50 hover:bg-white'}
-                                                                                ${item.isPast ? 'opacity-60 saturate-50' : ''}
+                                                                                relative flex-1 flex flex-col rounded-xl border border-l-4 transition-all cursor-pointer group hover:shadow-lg
+                                                                                ${item.isNow ? 'bg-white shadow-md ring-1 ring-blue-500/20' : 'bg-white hover:bg-slate-50 shadow-sm'}
+                                                                                ${item.isPast ? 'bg-slate-50/50' : ''}
                                                                             `}
                                                                             style={{
-                                                                                borderColor: item.isNow ? '#3b82f6' : '#e2e8f0',
-                                                                                borderTopColor: itemColor,
-                                                                                borderTopWidth: '4px'
+                                                                                borderLeftColor: itemColor,
+                                                                                borderTopColor: '#e2e8f0', // slate-200
+                                                                                borderRightColor: '#e2e8f0',
+                                                                                borderBottomColor: '#e2e8f0'
                                                                             }}
                                                                             onClick={() => { if (canEdit) { setEditItem(item); setIsEditing(true); } }}
                                                                         >
-                                                                            <div className="p-2 md:p-3 flex flex-col h-full justify-between gap-1">
+                                                                            <div className="p-3 flex flex-col h-full justify-between gap-2">
                                                                                 <div>
-                                                                                    <div className="flex justify-between items-start mb-1">
-                                                                                        <div className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 w-fit max-w-full">
-                                                                                            <span style={{ color: itemColor }} className="shrink-0">
+                                                                                    <div className="flex justify-between items-start mb-1.5">
+                                                                                        <div className="flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 w-fit max-w-full">
+                                                                                            <span style={{ color: itemColor }} className="shrink-0 drop-shadow-sm">
                                                                                                 {getTargetIcon(item.targetType, item.targetId)}
                                                                                             </span>
                                                                                             <span className="truncate">{getTargetLabel(item)}</span>
                                                                                         </div>
                                                                                         {canEdit && (
-                                                                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600">
+                                                                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600">
                                                                                                 <Edit2 size={12} />
                                                                                             </div>
                                                                                         )}
                                                                                     </div>
 
-                                                                                    <h4 className={`font-bold text-slate-800 leading-tight break-words ${item.isNow ? 'text-sm md:text-base' : 'text-xs md:text-sm'}`}>{item.description}</h4>
+                                                                                    <h4 className={`font-black text-slate-900 leading-tight break-words ${item.isNow ? 'text-base' : 'text-sm'}`}>{item.description}</h4>
                                                                                 </div>
 
-                                                                                <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-100/50">
-                                                                                    <span className="text-[10px] md:text-xs font-mono text-slate-400 tracking-tight">
+                                                                                <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-100">
+                                                                                    <span className="text-xs font-black font-mono text-slate-700 tracking-tight bg-slate-100 px-1.5 py-0.5 rounded">
                                                                                         {item.startTime} - {item.endTime}
                                                                                     </span>
-                                                                                    {item.isNow && <span className="flex h-1.5 w-1.5 relative">
-                                                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                                                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
+                                                                                    {item.isNow && <span className="flex h-2 w-2 relative">
+                                                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                                                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-600"></span>
                                                                                     </span>}
                                                                                 </div>
                                                                             </div>

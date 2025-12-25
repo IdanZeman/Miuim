@@ -87,7 +87,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 pb-safe">
           <div className="flex justify-around items-center h-16">
             <button
-              onClick={() => setView('home')}
+              onClick={() => { setView('home'); setIsMobileMenuOpen(false); }}
               className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'home' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
               <Home size={20} className={currentView === 'home' ? 'fill-blue-100' : ''} />
@@ -96,7 +96,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {checkAccess('dashboard') && (
               <button
-                onClick={() => setView('dashboard')}
+                onClick={() => { setView('dashboard'); setIsMobileMenuOpen(false); }}
                 className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <Calendar size={20} className={currentView === 'dashboard' ? 'fill-blue-100' : ''} />
@@ -106,7 +106,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {checkAccess('personnel') && (
               <button
-                onClick={() => setView('personnel')}
+                onClick={() => { setView('personnel'); setIsMobileMenuOpen(false); }}
                 className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'personnel' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <Users size={20} className={currentView === 'personnel' ? 'fill-blue-100' : ''} />
@@ -116,7 +116,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {checkAccess('tasks') && (
               <button
-                onClick={() => setView('tasks')}
+                onClick={() => { setView('tasks'); setIsMobileMenuOpen(false); }}
                 className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'tasks' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <ClipboardList size={20} className={currentView === 'tasks' ? 'fill-blue-100' : ''} />
@@ -126,7 +126,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {checkAccess('attendance') && (
               <button
-                onClick={() => setView('attendance')}
+                onClick={() => { setView('attendance'); setIsMobileMenuOpen(false); }}
                 className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'attendance' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <Clock size={20} className={currentView === 'attendance' ? 'fill-blue-100' : ''} />
@@ -136,7 +136,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
             {checkAccess('stats') && (
               <button
-                onClick={() => setView('stats')}
+                onClick={() => { setView('stats'); setIsMobileMenuOpen(false); }}
                 className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'stats' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <BarChart2 size={20} className={currentView === 'stats' ? 'fill-blue-100' : ''} />
