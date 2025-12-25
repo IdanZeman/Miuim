@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
-// Lazy Load Pages
-const ScheduleBoard = React.lazy(() => import('./components/ScheduleBoard').then(module => ({ default: module.ScheduleBoard })));
-const PersonnelManager = React.lazy(() => import('./components/PersonnelManager').then(module => ({ default: module.PersonnelManager })));
-const AttendanceManager = React.lazy(() => import('./components/AttendanceManager').then(module => ({ default: module.AttendanceManager })));
-const TaskManager = React.lazy(() => import('./components/TaskManager').then(module => ({ default: module.TaskManager })));
-const StatsDashboard = React.lazy(() => import('./components/StatsDashboard').then(module => ({ default: module.StatsDashboard })));
-const OrganizationSettingsComponent = React.lazy(() => import('./components/OrganizationSettings').then(module => ({ default: module.OrganizationSettings })));
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
-const AdminLogsViewer = React.lazy(() => import('./components/AdminLogsViewer'));
-const OrganizationLogsViewer = React.lazy(() => import('./components/OrganizationLogsViewer').then(module => ({ default: module.OrganizationLogsViewer })));
-const Lottery = React.lazy(() => import('./components/Lottery').then(module => ({ default: module.Lottery })));
-const ConstraintsManager = React.lazy(() => import('./components/ConstraintsManager').then(module => ({ default: module.ConstraintsManager })));
-const AbsenceManager = React.lazy(() => import('./components/AbsenceManager').then(module => ({ default: module.AbsenceManager })));
-const FAQPage = React.lazy(() => import('./components/FAQPage').then(module => ({ default: module.FAQPage })));
-const EquipmentManager = React.lazy(() => import('./components/EquipmentManager').then(m => ({ default: m.EquipmentManager })));
-const ContactPage = React.lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
-const SystemManagementPage = React.lazy(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
+// Lazy Load Pages
+const ScheduleBoard = lazyWithRetry(() => import('./components/ScheduleBoard').then(module => ({ default: module.ScheduleBoard })));
+const PersonnelManager = lazyWithRetry(() => import('./components/PersonnelManager').then(module => ({ default: module.PersonnelManager })));
+const AttendanceManager = lazyWithRetry(() => import('./components/AttendanceManager').then(module => ({ default: module.AttendanceManager })));
+const TaskManager = lazyWithRetry(() => import('./components/TaskManager').then(module => ({ default: module.TaskManager })));
+const StatsDashboard = lazyWithRetry(() => import('./components/StatsDashboard').then(module => ({ default: module.StatsDashboard })));
+const OrganizationSettingsComponent = lazyWithRetry(() => import('./components/OrganizationSettings').then(module => ({ default: module.OrganizationSettings })));
+
+const AdminLogsViewer = lazyWithRetry(() => import('./components/AdminLogsViewer').then(module => ({ default: module.AdminLogsViewer })));
+const OrganizationLogsViewer = lazyWithRetry(() => import('./components/OrganizationLogsViewer').then(module => ({ default: module.OrganizationLogsViewer })));
+const Lottery = lazyWithRetry(() => import('./components/Lottery').then(module => ({ default: module.Lottery })));
+const ConstraintsManager = lazyWithRetry(() => import('./components/ConstraintsManager').then(module => ({ default: module.ConstraintsManager })));
+const AbsenceManager = lazyWithRetry(() => import('./components/AbsenceManager').then(module => ({ default: module.AbsenceManager })));
+const FAQPage = lazyWithRetry(() => import('./components/FAQPage').then(module => ({ default: module.FAQPage })));
+const EquipmentManager = lazyWithRetry(() => import('./components/EquipmentManager').then(m => ({ default: m.EquipmentManager })));
+const ContactPage = lazyWithRetry(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
+const SystemManagementPage = lazyWithRetry(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
 
 
 
@@ -48,6 +50,9 @@ import { generateShiftsForTask } from './utils/shiftUtils';
 import JoinPage from './components/JoinPage';
 import { initGA, trackPageView } from './services/analytics';
 import { usePageTracking } from './hooks/usePageTracking';
+import { useQueryClient } from '@tanstack/react-query';
+import { useOrganizationData } from './hooks/useOrganizationData';
+import { DashboardSkeleton } from './components/DashboardSkeleton'; // Import Skeleton
 import { ClaimProfile } from './components/ClaimProfile';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AutoScheduleModal } from './components/AutoScheduleModal';
@@ -92,7 +97,7 @@ const MainApp: React.FC = () => {
         }
     }, [view]);
     const [personnelTab, setPersonnelTab] = useState<'people' | 'teams' | 'roles'>('people');
-    const [isLoading, setIsLoading] = useState(true);
+    // const [isLoading, setIsLoading] = useState(true); // REMOVED: Using React Query isOrgLoading instead
     const [isScheduling, setIsScheduling] = useState(false);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [scheduleStartDate, setScheduleStartDate] = useState<Date>(new Date());
@@ -102,66 +107,69 @@ const MainApp: React.FC = () => {
     const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
     const [autoOpenRotaWizard, setAutoOpenRotaWizard] = useState(false);
 
-    const [state, setState] = useState<{
-        people: Person[];
-        shifts: Shift[];
-        taskTemplates: TaskTemplate[];
-        roles: Role[];
-        teams: Team[];
-        constraints: SchedulingConstraint[];
-        teamRotations: import('./types').TeamRotation[]; // NEW
-        absences: Absence[]; // NEW
-        equipment: Equipment[]; // NEW
-    }>({
-        people: [],
-        shifts: [],
-        taskTemplates: [],
-        roles: [],
-        teams: [],
-        constraints: [],
-        teamRotations: [], // NEW
-        absences: [], // NEW
-        equipment: [], // NEW
-        allPeople: []
-    });
+    const {
+        people,
+        allPeople,
+        shifts,
+        taskTemplates,
+        roles,
+        teams,
+        settings,
+        constraints,
+        teamRotations,
+        absences,
+        equipment,
+        isLoading: isOrgLoading,
+        error: orgError,
+        refetch: refetchOrgData
+    } = useOrganizationData();
+
+    // Map the new hook data to the old 'state' structure
+    const state = {
+        people: people || [],
+        allPeople: allPeople || [],
+        shifts: shifts || [],
+        taskTemplates: taskTemplates || [],
+        roles: roles || [],
+        teams: teams || [],
+        constraints: constraints || [],
+        teamRotations: teamRotations || [],
+        absences: absences || [],
+        equipment: equipment || [],
+        settings: settings || null
+    };
+
+    // Combined Loading Logic
+    // If we are auth-loading OR org-data-loading, show skeleton/loader
+    const isGlobalLoading = isOrgLoading;
+
+    // Error Handling
+    useEffect(() => {
+        if (orgError) {
+            console.error("Error fetching organization data:", orgError);
+            showToast("שגיאה בטעינת הנתונים - נסה לרענן", 'error');
+        }
+    }, [orgError]);
+
+    // Error Handling
+    useEffect(() => {
+        if (orgError) {
+            console.error("Error fetching organization data:", orgError);
+            showToast("שגיאה בטעינת הנתונים - נסה לרענן", 'error');
+        }
+    }, [orgError]);
+
+    // DB Mutation Handlers (Now just wrapper around Supabase + Refetch/Invalidate)
+    // For V1 Performance: We simply invalidate the query to refetch fresh data
+    const queryClient = useQueryClient();
+    const refreshData = () => {
+        queryClient.invalidateQueries({ queryKey: ['organizationData', organization?.id] });
+    };
 
     const isLinkedToPerson = React.useMemo(() => {
         if (!user || state.people.length === 0) return true;
         return state.people.some(p => p.userId === user.id);
     }, [user, state.people]);
-
-    useEffect(() => {
-        if (!organization) return;
-        fetchData();
-
-        // DEBOUNCE LOGIC FOR SUBSCRIPTIONS
-        let timeoutId: NodeJS.Timeout;
-        const debouncedFetch = () => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                fetchData();
-            }, 1000); // 1-second debounce to catch multiple bulk updates
-        };
-
-        const channel = supabase.channel('db-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_templates', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduling_constraints', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'team_rotations', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'absences', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'organization_settings', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_presence', filter: `organization_id=eq.${organization.id}` }, debouncedFetch)
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-            clearTimeout(timeoutId);
-        };
-    }, [organization, profile]);
 
     useEffect(() => {
         logger.setContext(
@@ -172,48 +180,7 @@ const MainApp: React.FC = () => {
         );
     }, [organization, user, profile]);
 
-    const applyDataScoping = (people: Person[], shifts: Shift[], equipment: Equipment[] = []) => {
-        const dataScope = profile?.permissions?.dataScope || 'organization';
-        const allowedTeamIds = profile?.permissions?.allowedTeamIds || [];
 
-        let scopedPeople: Person[] = [];
-        let scopedShifts: Shift[] = [];
-        let scopedEquipment: Equipment[] = [];
-
-        if (dataScope === 'organization') {
-            scopedPeople = people;
-            scopedShifts = shifts;
-            scopedEquipment = equipment;
-        } else if (dataScope === 'team') {
-            scopedPeople = people.filter(p =>
-                (p.teamId && allowedTeamIds.includes(p.teamId)) ||
-                p.userId === user?.id ||
-                (p as any).email === user?.email
-            );
-            const visiblePersonIds = scopedPeople.map(p => p.id);
-            scopedShifts = shifts.filter(s =>
-                s.assignedPersonIds.some(pid => visiblePersonIds.includes(pid)) ||
-                s.assignedPersonIds.length === 0
-            );
-            scopedEquipment = equipment.filter(e =>
-                !e.assigned_to_id || visiblePersonIds.includes(e.assigned_to_id)
-            );
-        } else if (dataScope === 'personal') {
-            const myPerson = people.find(p => p.userId === user?.id || (p as any).email === user?.email);
-            if (myPerson) {
-                scopedPeople = [myPerson];
-                scopedShifts = shifts.filter(s => s.assignedPersonIds.includes(myPerson.id));
-                scopedEquipment = equipment.filter(e => e.assigned_to_id === myPerson.id);
-            } else if (!isLinkedToPerson) {
-                // If user is supposed to be personal but not linked yet, show nothing
-                scopedPeople = [];
-                scopedShifts = [];
-                scopedEquipment = [];
-            }
-        }
-
-        return { scopedPeople, scopedShifts, scopedEquipment };
-    };
 
     const processPresence = (people: Person[], presenceData: any[]) => {
         if (!presenceData || presenceData.length === 0) return people;
@@ -288,113 +255,13 @@ const MainApp: React.FC = () => {
         });
     };
 
-    const fetchData = async () => {
-        if (!organization) return;
-        setIsLoading(true);
-        try {
-            // PHASE 1: Critical Data for Home Page & Basic UI
-            // Parallelize critical fetches
-            const [peopleRes, tasksRes, rolesRes, teamsRes, settingsRes] = await Promise.all([
-                supabase.from('people').select('*').eq('organization_id', organization.id),
-                supabase.from('task_templates').select('*').eq('organization_id', organization.id),
-                supabase.from('roles').select('*').eq('organization_id', organization.id),
-                supabase.from('teams').select('*').eq('organization_id', organization.id),
-                supabase.from('organization_settings').select('*').eq('organization_id', organization.id).maybeSingle()
-            ]);
-
-            // Fetch Recent Shifts (Last 7 days + Future) to populate Home Page quickly
-            const historyLookback = new Date();
-            historyLookback.setDate(historyLookback.getDate() - 7);
-            const { data: recentShiftsData } = await supabase.from('shifts')
-                .select('*')
-                .eq('organization_id', organization.id)
-                .gte('start_time', historyLookback.toISOString());
-
-            const rawPeople = (peopleRes.data || []).map(mapPersonFromDB);
-            const rawShifts = (recentShiftsData || []).map(mapShiftFromDB);
-
-            // Apply Scoping to Initial Data
-            const { scopedPeople, scopedShifts } = applyDataScoping(rawPeople, rawShifts);
-
-            // Update State & Unblock UI
-            setState(prev => ({
-                ...prev,
-                people: scopedPeople,
-                allPeople: rawPeople, // NEW: Full list for lottery
-                shifts: scopedShifts,
-                taskTemplates: (tasksRes.data || []).map(mapTaskFromDB),
-                roles: (rolesRes.data || []).map(mapRoleFromDB),
-                teams: (teamsRes.data || []).map(mapTeamFromDB),
-                settings: (settingsRes.data as any) || null
-            }));
-
-            setIsLoading(false); // <--- UI UNBLOCKED HERE
-
-            // PHASE 2: Background Data (Heavy/Secondary)
-            fetchBackgroundData(rawPeople);
-
-        } catch (error) {
-            console.error("Error fetching critical data:", error);
-            showToast("שגיאה בטעינת הנתונים", 'error');
-            setIsLoading(false);
-        }
-    };
-
-    const fetchBackgroundData = async (initialScopedPeople: Person[]) => {
-        if (!organization) return;
-        try {
-            // PERFORMANCE: Limit history for presence and shifts to last 3 months
-            const historyLimit = new Date();
-            historyLimit.setMonth(historyLimit.getMonth() - 3);
-            const historyLimitStr = historyLimit.toISOString();
-
-            const [constraintsRes, rotationsRes, absencesRes, equipmentRes, presenceRes, allShiftsRes] = await Promise.all([
-                supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id),
-                supabase.from('team_rotations').select('*').eq('organization_id', organization.id),
-                supabase.from('absences').select('*').eq('organization_id', organization.id),
-                supabase.from('equipment').select('*').eq('organization_id', organization.id),
-                supabase.from('daily_presence').select('*').eq('organization_id', organization.id).gte('date', historyLimitStr), // Limit Presence
-                supabase.from('shifts').select('*').eq('organization_id', organization.id).gte('start_time', historyLimitStr) // Limit Shifts History
-            ]);
-
-            const fullShifts = (allShiftsRes.data || []).map(mapShiftFromDB);
-            const rawEquipment = (equipmentRes.data || []).map(mapEquipmentFromDB);
-
-            // Re-Apply Scoping to Full Shifts and Equipment
-            // We pass the RAW people here, so applyDataScoping will return the SCOPED people.
-            const {
-                scopedPeople: scopedPeopleForState,
-                scopedShifts: allScopedShifts,
-                scopedEquipment: allScopedEquipment
-            } = applyDataScoping(initialScopedPeople, fullShifts, rawEquipment);
-
-            // Process Presence on People (only on the scoped people we want to show)
-            const peopleWithPresence = processPresence(scopedPeopleForState, presenceRes.data || []);
-
-            // Update State Silently
-            setState(prev => ({
-                ...prev,
-                people: peopleWithPresence, // Update people with presence data
-                shifts: allScopedShifts,    // Replace partial shifts with full history
-                constraints: (constraintsRes.data || []).map(mapConstraintFromDB),
-                teamRotations: (rotationsRes.data || []).map(mapRotationFromDB),
-                absences: (absencesRes.data || []).map(mapAbsenceFromDB),
-                equipment: allScopedEquipment
-            }));
-
-        } catch (e) {
-            console.error("Error fetching background data:", e);
-        }
-    };
-
     const handleAddPerson = async (p: Person) => {
         if (!organization) return;
         const personWithOrg = { ...p, organization_id: organization.id };
-
-        // Prepare payload, ensuring valid UUID
         const dbPayload = mapPersonToDB(personWithOrg);
+
+        // ... (Keep existing UUID generation logic if needed or rely on DB) ...
         if (dbPayload.id && (dbPayload.id.startsWith('person-') || dbPayload.id.startsWith('imported-'))) {
-            // Generate UUID on client side since DB column has no default
             dbPayload.id = self.crypto && self.crypto.randomUUID ? self.crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
                 var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
                 return v.toString(16);
@@ -402,18 +269,14 @@ const MainApp: React.FC = () => {
         }
 
         try {
-            // Insert and RETURN the new record with the real ID
-            const { data, error } = await supabase.from('people').insert(dbPayload).select().single();
+            const { error } = await supabase.from('people').insert(dbPayload);
             if (error) throw error;
-
-            const newPerson = mapPersonFromDB(data);
-            setState(prev => ({ ...prev, people: [...prev.people, newPerson] }));
-            await logger.logCreate('person', newPerson.id, newPerson.name, newPerson);
+            await logger.logCreate('person', dbPayload.id, p.name, p);
+            refreshData(); // Re-fetch
+            showToast('העובד נוסף בהצלחה', 'success');
         } catch (e: any) {
             console.warn("DB Insert Failed", e);
-            if (e.code === '23505') {
-                throw new Error('שגיאה: משתמש עם נתונים זהים (שם/טלפון/אימייל) כבר קיים במערכת.');
-            }
+            if (e.code === '23505') throw new Error('שגיאה: משתמש קיים.');
             throw e;
         }
     };
@@ -423,42 +286,29 @@ const MainApp: React.FC = () => {
             const { error } = await supabase.from('people').update(mapPersonToDB(p)).eq('id', p.id);
             if (error) throw error;
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
-            setState(prev => ({ ...prev, people: prev.people.map(person => person.id === p.id ? p : person) }));
+            refreshData(); // Re-fetch
         } catch (e: any) {
             console.warn("DB Update Failed:", e);
-            if (e.code === '23505') {
-                throw new Error('שגיאה בעדכון: משתמש עם נתונים זהים (שם/טלפון/אימייל) כבר קיים.');
-            }
             throw e;
         }
     };
 
     const handleUpdatePeople = async (peopleToUpdate: Person[]) => {
-        // Optimistic update
-        setState(prev => ({
-            ...prev,
-            people: prev.people.map(p => {
-                const updated = peopleToUpdate.find(u => u.id === p.id);
-                return updated || p;
-            })
-        }));
-
         try {
             const mapped = peopleToUpdate.map(mapPersonToDB);
             const { error } = await supabase.from('people').upsert(mapped);
             if (error) throw error;
-            // No strict need to log bulk updates individually to avoid spam, or log a generic bulk action
+
             await logger.log({
                 action: 'UPDATE',
                 entityId: 'bulk',
                 category: 'data',
                 metadata: { details: `Updated ${peopleToUpdate.length} people` }
             });
-
+            refreshData();
         } catch (e) {
             console.warn("Bulk DB Update Failed", e);
             showToast("שגיאה בעדכון קבוצתי", 'error');
-            // Revert on failure? Ideally yes, but keeping it simple for now as we trust optimistic
         }
     };
 
@@ -466,55 +316,59 @@ const MainApp: React.FC = () => {
         try {
             await supabase.from('people').delete().eq('id', id);
             await logger.logDelete('person', id, state.people.find(p => p.id === id)?.name || 'אדם', state.people.find(p => p.id === id));
+            refreshData();
         } catch (e) { console.warn("DB Delete Failed", e); }
-        setState(prev => ({
-            ...prev,
-            people: prev.people.filter(p => p.id !== id),
-            shifts: prev.shifts.map(s => ({ ...s, assignedPersonIds: s.assignedPersonIds.filter(pid => pid !== id) }))
-        }));
     };
 
     const handleAddTeam = async (t: Team) => {
         if (!organization) return;
         try {
             await supabase.from('teams').insert(mapTeamToDB({ ...t, organization_id: organization.id }));
-            setState(prev => ({ ...prev, teams: [...prev.teams, t] }));
-        } catch (e) { console.warn(e); setState(prev => ({ ...prev, teams: [...prev.teams, t] })); }
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleUpdateTeam = async (t: Team) => {
-        try { await supabase.from('teams').update(mapTeamToDB(t)).eq('id', t.id); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, teams: prev.teams.map(team => team.id === t.id ? t : team) }));
+        try {
+            await supabase.from('teams').update(mapTeamToDB(t)).eq('id', t.id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleDeleteTeam = async (id: string) => {
-        try { await supabase.from('teams').delete().eq('id', id); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, teams: prev.teams.filter(t => t.id !== id) }));
+        try {
+            await supabase.from('teams').delete().eq('id', id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleAddRole = async (r: Role) => {
         if (!organization) return;
         try {
             await supabase.from('roles').insert(mapRoleToDB({ ...r, organization_id: organization.id }));
-            setState(prev => ({ ...prev, roles: [...prev.roles, r] }));
-        } catch (e) { console.warn(e); setState(prev => ({ ...prev, roles: [...prev.roles, r] })); }
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleUpdateRole = async (r: Role) => {
-        try { await supabase.from('roles').update(mapRoleToDB(r)).eq('id', r.id); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, roles: prev.roles.map(role => role.id === r.id ? r : role) }));
+        try {
+            await supabase.from('roles').update(mapRoleToDB(r)).eq('id', r.id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleDeleteRole = async (id: string) => {
-        try { await supabase.from('roles').delete().eq('id', id); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, roles: prev.roles.filter(r => r.id !== id) }));
+        try {
+            await supabase.from('roles').delete().eq('id', id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleAddTask = async (t: TaskTemplate) => {
         if (!organization) return;
         try {
             const { error } = await supabase.from('task_templates').insert(mapTaskToDB({ ...t, organization_id: organization.id }));
-            if (error) throw error; // Re-throw to catch below
+            if (error) throw error;
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -524,21 +378,19 @@ const MainApp: React.FC = () => {
                 const { error: shiftsError } = await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
                 if (shiftsError) console.error('Error saving shifts:', shiftsError);
             }
-            setState(prev => ({ ...prev, taskTemplates: [...prev.taskTemplates, t], shifts: [...prev.shifts, ...newShifts] }));
+            refreshData();
             showToast('המשימה נוצרה בהצלחה', 'success');
         } catch (e: any) {
             console.error('Add Task Failed:', e);
             showToast(`שגיאה ביצירת משימה: ${e.message}`, 'error');
-            // Optimistic update rollback (if we had done one, but here we update state only on success mostly)
         }
     };
 
     const handleUpdateTask = async (t: TaskTemplate) => {
         if (!organization) return;
         const oldTask = state.taskTemplates.find(task => task.id === t.id);
-        let updatedShifts = state.shifts;
 
-        // Check if segments changed (naive check by length or deep comparison)
+        // Check if segments changed
         const oldSegmentsJSON = JSON.stringify(oldTask?.segments || []);
         const newSegmentsJSON = JSON.stringify(t.segments || []);
         const schedulingChanged = oldSegmentsJSON !== newSegmentsJSON ||
@@ -546,7 +398,6 @@ const MainApp: React.FC = () => {
             oldTask?.endDate !== t.endDate;
 
         if (schedulingChanged) {
-            updatedShifts = updatedShifts.filter(s => s.taskId !== t.id);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const startOfWeek = new Date(today);
@@ -554,13 +405,11 @@ const MainApp: React.FC = () => {
             const newShifts = generateShiftsForTask(t, startOfWeek);
             const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: organization.id }));
             try {
-                // Fix: Save the updated task template (with new segments) to DB FIRST!
                 const { error: taskError } = await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id);
                 if (taskError) {
                     throw new Error(`Task Update Failed: ${taskError.message}`);
                 }
 
-                // Delete future/unlocked shifts for this task?
                 await supabase.from('shifts').delete().eq('task_id', t.id).eq('organization_id', organization.id);
 
                 if (shiftsWithOrg.length > 0) {
@@ -568,7 +417,7 @@ const MainApp: React.FC = () => {
                     if (shiftsError) console.error('Shifts insert error:', shiftsError);
                 }
 
-                setState(prev => ({ ...prev, taskTemplates: prev.taskTemplates.map(task => task.id === t.id ? t : task), shifts: [...updatedShifts, ...newShifts] }));
+                refreshData();
                 showToast('המשימה והמשמרות עודכנו בהצלחה', 'success');
 
             } catch (e: any) {
@@ -586,7 +435,7 @@ const MainApp: React.FC = () => {
                 console.error('Task Update Exception:', e);
                 showToast(`שגיאה לא צפויה: ${e.message}`, 'error');
             }
-            setState(prev => ({ ...prev, taskTemplates: prev.taskTemplates.map(task => task.id === t.id ? t : task) }));
+            refreshData();
         }
     };
 
@@ -595,15 +444,15 @@ const MainApp: React.FC = () => {
         try {
             await supabase.from('task_templates').delete().eq('id', id).eq('organization_id', organization.id);
             await supabase.from('shifts').delete().eq('task_id', id).eq('organization_id', organization.id);
+            refreshData();
         } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, taskTemplates: prev.taskTemplates.filter(t => t.id !== id), shifts: prev.shifts.filter(s => s.taskId !== id) }));
     };
 
     const handleAddConstraint = async (c: Omit<SchedulingConstraint, 'id'>, silent = false) => {
         if (!organization) return;
         try {
-            const newConstraint = await import('./services/supabaseClient').then(m => m.addConstraint({ ...c, organization_id: organization.id }));
-            setState(prev => ({ ...prev, constraints: [...prev.constraints, newConstraint] }));
+            await import('./services/supabaseClient').then(m => m.addConstraint({ ...c, organization_id: organization.id }));
+            refreshData();
             if (!silent) showToast('אילוץ נשמר בהצלחה', 'success');
         } catch (e) {
             console.warn(e);
@@ -614,7 +463,7 @@ const MainApp: React.FC = () => {
     const handleDeleteConstraint = async (id: string, silent = false) => {
         try {
             await import('./services/supabaseClient').then(m => m.deleteConstraint(id));
-            setState(prev => ({ ...prev, constraints: prev.constraints.filter(c => c.id !== id) }));
+            refreshData();
             if (!silent) showToast('אילוץ נמחק בהצלחה', 'success');
         } catch (e) {
             console.warn(e);
@@ -623,8 +472,10 @@ const MainApp: React.FC = () => {
     };
 
     const handleUpdateConstraint = async (c: SchedulingConstraint) => {
-        try { await supabase.from('scheduling_constraints').update(mapConstraintToDB(c)).eq('id', c.id); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, constraints: prev.constraints.map(constraint => constraint.id === c.id ? c : constraint) }));
+        try {
+            await supabase.from('scheduling_constraints').update(mapConstraintToDB(c)).eq('id', c.id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     // NEW ROTATION HANDLERS
@@ -632,48 +483,74 @@ const MainApp: React.FC = () => {
         if (!organization) return;
         try {
             await supabase.from('team_rotations').insert(mapRotationToDB({ ...r, organization_id: organization.id }));
-            setState(prev => ({ ...prev, teamRotations: [...prev.teamRotations, r] }));
+            refreshData();
         } catch (e) { console.warn(e); }
     };
 
     const handleUpdateRotation = async (r: import('./types').TeamRotation) => {
-        try { await supabase.from('team_rotations').update(mapRotationToDB(r)).eq('id', r.id); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, teamRotations: prev.teamRotations.map(rot => rot.id === r.id ? r : rot) }));
+        try {
+            await supabase.from('team_rotations').update(mapRotationToDB(r)).eq('id', r.id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleDeleteRotation = async (id: string) => {
-        try { await supabase.from('team_rotations').delete().eq('id', id); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, teamRotations: prev.teamRotations.filter(r => r.id !== id) }));
+        try {
+            await supabase.from('team_rotations').delete().eq('id', id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
-    // ABSENCE HANDLERS
+    // ABSENCE HANDLERS (Missing DB Implementation in original? Assuming state only or need DB)
+    // For now, since state is read-only, we MUST save to DB or it won't work.
+    // I will assume absences table exists and was used (it was in fetched data).
+
     const handleAddAbsence = async (a: Absence) => {
-        setState(prev => ({ ...prev, absences: [...prev.absences, a] }));
+        // setState(prev => ({ ...prev, absences: [...prev.absences, a] }));
+        // Assuming DB implementation:
+        try {
+            await supabase.from('absences').insert(mapAbsenceToDB({ ...a, organization_id: organization?.id }));
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleUpdateAbsence = async (a: Absence) => {
-        setState(prev => ({ ...prev, absences: prev.absences.map(absence => absence.id === a.id ? a : absence) }));
+        // setState(prev => ({ ...prev, absences: prev.absences.map(absence => absence.id === a.id ? a : absence) }));
+        try {
+            await supabase.from('absences').update(mapAbsenceToDB(a)).eq('id', a.id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleDeleteAbsence = async (id: string) => {
-        setState(prev => ({ ...prev, absences: prev.absences.filter(a => a.id !== id) }));
+        // setState(prev => ({ ...prev, absences: prev.absences.filter(a => a.id !== id) }));
+        try {
+            await supabase.from('absences').delete().eq('id', id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleAddEquipment = async (e: Equipment) => {
         if (!organization) return;
         const itemWithOrg = { ...e, organization_id: organization.id };
-        setState(prev => ({ ...prev, equipment: [...prev.equipment, itemWithOrg] }));
-        try { await supabase.from('equipment').insert(itemWithOrg); } catch (e) { console.warn(e); }
+        try {
+            await supabase.from('equipment').insert(itemWithOrg);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleUpdateEquipment = async (e: Equipment) => {
-        setState(prev => ({ ...prev, equipment: prev.equipment.map(item => item.id === e.id ? e : item) }));
-        try { await supabase.from('equipment').update(e).eq('id', e.id); } catch (e) { console.warn(e); }
+        try {
+            await supabase.from('equipment').update(e).eq('id', e.id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleDeleteEquipment = async (id: string) => {
-        setState(prev => ({ ...prev, equipment: prev.equipment.filter(e => e.id !== id) }));
-        try { await supabase.from('equipment').delete().eq('id', id); } catch (e) { console.warn(e); }
+        try {
+            await supabase.from('equipment').delete().eq('id', id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleAssign = async (shiftId: string, personId: string) => {
@@ -737,18 +614,14 @@ const MainApp: React.FC = () => {
 
         const newAssignments = [...originalAssignments, personId];
 
-        // Optimistic Update
-        setState(prev => ({ ...prev, shifts: prev.shifts.map(s => s.id === shiftId ? { ...s, assignedPersonIds: newAssignments } : s) }));
-
         try {
             const { error } = await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
             if (error) throw error;
             await logger.logAssign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם');
+            refreshData();
         } catch (e) {
             console.warn("Assignment failed, reverting:", e);
             showToast('שגיאה בשיבוץ, אנא נסה שוב', 'error');
-            // Revert
-            setState(prev => ({ ...prev, shifts: prev.shifts.map(s => s.id === shiftId ? { ...s, assignedPersonIds: originalAssignments } : s) }));
         }
     };
 
@@ -756,27 +629,25 @@ const MainApp: React.FC = () => {
         const shift = state.shifts.find(s => s.id === shiftId);
         if (!shift) return;
         const newAssignments = shift.assignedPersonIds.filter(pid => pid !== personId);
-        try { await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, shifts: prev.shifts.map(s => s.id === shiftId ? { ...s, assignedPersonIds: newAssignments } : s) }));
+        try {
+            await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleUpdateShift = async (updatedShift: Shift) => {
-        try { await supabase.from('shifts').update(mapShiftToDB(updatedShift)).eq('id', updatedShift.id); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, shifts: prev.shifts.map(s => s.id === updatedShift.id ? updatedShift : s) }));
+        try {
+            await supabase.from('shifts').update(mapShiftToDB(updatedShift)).eq('id', updatedShift.id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleDeleteShift = async (shiftId: string) => {
-        // Optimistic update
-        setState(prev => ({
-            ...prev,
-            shifts: prev.shifts.filter(s => s.id !== shiftId)
-        }));
-
         try {
             await supabase.from('shifts').delete().eq('id', shiftId);
+            refreshData();
         } catch (e) {
             console.warn("Error deleting shift:", e);
-            fetchData(); // Revert
         }
     };
 
@@ -786,21 +657,11 @@ const MainApp: React.FC = () => {
 
         const newCancelledState = !shift.isCancelled;
 
-        // Optimistic update
-        setState(prev => ({
-            ...prev,
-            shifts: prev.shifts.map(s => s.id === shiftId ? { ...s, isCancelled: newCancelledState } : s)
-        }));
-
         try {
             await supabase.from('shifts').update({ is_cancelled: newCancelledState }).eq('id', shiftId);
+            refreshData();
         } catch (e) {
             console.warn("Error toggling cancel state:", e);
-            // Revert
-            setState(prev => ({
-                ...prev,
-                shifts: prev.shifts.map(s => s.id === shiftId ? { ...s, isCancelled: !newCancelledState } : s)
-            }));
         }
     };
 
@@ -822,8 +683,10 @@ const MainApp: React.FC = () => {
         const end = new Date(start);
         end.setHours(start.getHours() + duration);
         const newShift: Shift = { id: uuidv4(), taskId: task.id, startTime: start.toISOString(), endTime: end.toISOString(), assignedPersonIds: [], isLocked: false, organization_id: organization.id };
-        try { await supabase.from('shifts').insert(mapShiftToDB(newShift)); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, shifts: [...prev.shifts, newShift] }));
+        try {
+            await supabase.from('shifts').insert(mapShiftToDB(newShift));
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleAutoSchedule = async (params: { startDate: Date; endDate: Date; selectedTaskIds: string[] }) => {
@@ -913,15 +776,11 @@ const MainApp: React.FC = () => {
                         const { error } = await supabase.from('shifts').upsert(shiftsToSave.map(mapShiftToDB));
                         if (error) throw error;
 
-                        // Update local state
-                        const solvedIds = shiftsToSave.map(s => s.id);
-                        setState(prev => ({
-                            ...prev,
-                            shifts: [
-                                ...prev.shifts.filter(s => !solvedIds.includes(s.id)), // Remove old versions if any
-                                ...shiftsToSave
-                            ]
-                        }));
+                        // Wait for one batch to complete, but we will refresh data only once at the end ideally, 
+                        // or after each day if we want incremental feedback. 
+                        // For now we rely on final refresh or refresh after loop?
+                        // Actually, refreshData inside loop is bad for perf. 
+                        // We should count success and refresh ONCE at end.
                         successCount++;
                     }
                 } catch (err) {
@@ -935,6 +794,7 @@ const MainApp: React.FC = () => {
 
             if (successCount > 0) {
                 showToast(`✅ שיבוץ הושלם עבור ${successCount} ימים`, 'success');
+                refreshData();
             } else if (failCount > 0) {
                 showToast('שגיאה בשיבוץ', 'error');
             } else {
@@ -960,8 +820,10 @@ const MainApp: React.FC = () => {
         const targetShifts = state.shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === selectedDateKey);
         if (targetShifts.length === 0) return;
         const ids = targetShifts.map(s => s.id);
-        try { await supabase.from('shifts').update({ assigned_person_ids: [] }).in('id', ids).eq('organization_id', organization.id); } catch (e) { console.warn(e); }
-        setState(prev => ({ ...prev, shifts: prev.shifts.map(s => ids.includes(s.id) ? { ...s, assignedPersonIds: [] } : s) }));
+        try {
+            await supabase.from('shifts').update({ assigned_person_ids: [] }).in('id', ids).eq('organization_id', organization.id);
+            refreshData();
+        } catch (e) { console.warn(e); }
     };
 
     const handleNavigate = (newView: 'personnel' | 'tasks', tab?: 'people' | 'teams' | 'roles') => {
@@ -972,7 +834,7 @@ const MainApp: React.FC = () => {
     };
 
     const renderContent = () => {
-        if (isLoading) return <div className="flex justify-center items-center h-[60vh]"><Loader2 className="animate-spin" /></div>;
+        if (isGlobalLoading) return <DashboardSkeleton />;
 
         // Permission Gate
         if (view !== 'contact' && !checkAccess(view)) {
@@ -1069,7 +931,13 @@ const MainApp: React.FC = () => {
                 onAddRotation={handleAddRotation}
                 onUpdateRotation={handleUpdateRotation}
                 onDeleteRotation={handleDeleteRotation}
-                onAddShifts={(newShifts) => setState(prev => ({ ...prev, shifts: [...prev.shifts, ...newShifts] }))}
+                onAddShifts={async (newShifts) => {
+                    try {
+                        const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: organization?.id }));
+                        await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
+                        refreshData();
+                    } catch (e) { console.warn(e); }
+                }}
                 isViewer={!checkAccess('attendance', 'edit')}
                 initialOpenRotaWizard={autoOpenRotaWizard}
                 onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}
