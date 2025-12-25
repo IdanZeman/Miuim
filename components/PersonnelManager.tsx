@@ -12,6 +12,7 @@ import { Select } from './ui/Select';
 import { Button } from './ui/Button';
 import { ExcelImportWizard } from './ExcelImportWizard';
 import { SheetModal } from './ui/SheetModal';
+import { ConfirmationModal } from './ConfirmationModal';
 import { ROLE_ICONS } from '../constants';
 
 interface PersonnelManagerProps {
@@ -94,6 +95,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     // Import Results Modal State
     const [importResults, setImportResults] = useState<{ added: number; updated: number; failed: number; errors: { name: string; error: string }[] } | null>(null);
 
+    // NEW: Confirmation Modal State
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; type?: 'danger' | 'warning' | 'info' }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        type: 'danger'
+    });
+
     const [isSaving, setIsSaving] = useState(false); // NEW: Loading state
 
     // Form Fields
@@ -171,27 +181,44 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setSelectedItemIds(newSet);
     };
 
+    const requestConfirm = (title: string, message: string, action: () => void, type: 'danger' | 'warning' = 'danger') => {
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                action();
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+            },
+            type
+        });
+    };
+
     const handleBulkDelete = () => {
         if (selectedItemIds.size === 0) return;
 
-        if (window.confirm(`האם אתה בטוח שברצונך למחוק ${selectedItemIds.size} פריטים?`)) {
-            selectedItemIds.forEach(id => {
-                if (activeTab === 'people') {
-                    onDeletePerson(id);
-                    logger.logDelete('person', id, 'Unknown', { bulk: true });
-                }
-                else if (activeTab === 'teams') {
-                    onDeleteTeam(id);
-                    logger.logDelete('team', id, 'Unknown', { bulk: true });
-                }
-                else if (activeTab === 'roles') {
-                    onDeleteRole(id);
-                    logger.logDelete('role', id, 'Unknown', { bulk: true });
-                }
-            });
-            setSelectedItemIds(new Set());
-            showToast('הפריטים נמחקו בהצלחה', 'success');
-        }
+        requestConfirm(
+            'מחיקת פריטים',
+            `האם אתה בטוח שברצונך למחוק ${selectedItemIds.size} פריטים? פעולה זו היא בלתי הפיכה.`,
+            () => {
+                selectedItemIds.forEach(id => {
+                    if (activeTab === 'people') {
+                        onDeletePerson(id);
+                        logger.logDelete('person', id, 'Unknown', { bulk: true });
+                    }
+                    else if (activeTab === 'teams') {
+                        onDeleteTeam(id);
+                        logger.logDelete('team', id, 'Unknown', { bulk: true });
+                    }
+                    else if (activeTab === 'roles') {
+                        onDeleteRole(id);
+                        logger.logDelete('role', id, 'Unknown', { bulk: true });
+                    }
+                });
+                setSelectedItemIds(new Set());
+                showToast('הפריטים נמחקו בהצלחה', 'success');
+            }
+        );
     };
 
 
@@ -1072,7 +1099,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                             {/* Actions */}
                             {canEdit && (
-                                <button onClick={(e) => { e.stopPropagation(); onDeleteTeam(team.id); }} className="p-2 text-slate-300 hover:text-red-500 rounded-full">
+                                <button onClick={(e) => {
+                                    e.stopPropagation();
+                                    requestConfirm(
+                                        'מחיקת צוות',
+                                        `האם אתה בטוח שברצונך למחוק את הצוות "${team.name}"?`,
+                                        () => onDeleteTeam(team.id)
+                                    );
+                                }} className="p-2 text-slate-300 hover:text-red-500 rounded-full">
                                     <Trash2 size={18} />
                                 </button>
                             )}
@@ -1114,7 +1148,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                             {/* Actions */}
                             {canEdit && (
-                                <button onClick={(e) => { e.stopPropagation(); onDeleteRole(role.id); }} className="p-2 text-slate-300 hover:text-red-500 rounded-full">
+                                <button onClick={(e) => {
+                                    e.stopPropagation();
+                                    requestConfirm(
+                                        'מחיקת תפקיד',
+                                        `האם אתה בטוח שברצונך למחוק את התפקיד "${role.name}"?`,
+                                        () => onDeleteRole(role.id)
+                                    );
+                                }} className="p-2 text-slate-300 hover:text-red-500 rounded-full">
                                     <Trash2 size={18} />
                                 </button>
                             )}
@@ -1160,7 +1201,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             <button onClick={() => { handleEditPersonClick(contextMenu.person); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
                                 <Pencil size={16} /> ערוך פרטים
                             </button>
-                            <button onClick={() => { onDeletePerson(contextMenu.person.id); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-red-50 text-sm font-medium flex items-center gap-2 text-red-600">
+                            <button onClick={() => {
+                                setContextMenu(null);
+                                requestConfirm(
+                                    'מחיקת חייל',
+                                    `האם אתה בטוח שברצונך למחוק את "${contextMenu.person.name}"?`,
+                                    () => onDeletePerson(contextMenu.person.id)
+                                );
+                            }} className="w-full text-right px-4 py-3 hover:bg-red-50 text-sm font-medium flex items-center gap-2 text-red-600">
                                 <Trash2 size={16} /> מחק חייל
                             </button>
                             <button onClick={() => {
@@ -1286,6 +1334,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </div>
                 </div>
             </Modal>
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                type={confirmModal.type}
+            />
         </div >
     );
 };

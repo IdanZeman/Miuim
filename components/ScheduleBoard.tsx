@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
-import { createPortal } from 'react-dom';
+
 import { Modal as GenericModal } from './ui/Modal';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
