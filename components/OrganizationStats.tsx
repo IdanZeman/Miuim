@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../services/supabaseClient';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area, Cell } from 'recharts';
 import { Trophy, Activity, Eye, TrendingUp, Users } from 'lucide-react';
@@ -28,21 +29,8 @@ type Timeframe = 'today' | 'week' | 'month';
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizationId }) => {
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [timeframe, setTimeframe] = useState<Timeframe>('week');
-
-    // Data States
-    const [topUsers, setTopUsers] = useState<TopUser[]>([]);
-    const [topPages, setTopPages] = useState<PageView[]>([]);
-    const [activityTrend, setActivityTrend] = useState<any[]>([]);
-    const [categories, setCategories] = useState<CategoryStat[]>([]);
-    const [totalActions, setTotalActions] = useState(0);
-
-    useEffect(() => {
-        if (organizationId) {
-            fetchStats();
-        }
-    }, [organizationId, timeframe]);
 
     const getDateFilter = () => {
         const now = new Date();
@@ -56,12 +44,12 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
         return now.toISOString();
     };
 
-    const fetchStats = async () => {
-        setLoading(true);
-        const startDate = getDateFilter();
+    const { data: stats, isLoading } = useQuery({
+        queryKey: ['organizationStats', organizationId, timeframe],
+        queryFn: async () => {
+            const startDate = getDateFilter();
 
-        try {
-            // Run count and data fetch in parallel to avoid "waterfall" latency
+            // Run count and data fetch in parallel
             const [countResult, logsResult] = await Promise.all([
                 // 1. Fetch True Count
                 supabase
@@ -79,15 +67,8 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                     .limit(1000)
             ]);
 
-            // Handle Count
-            if (!countResult.error && countResult.count !== null) {
-                setTotalActions(countResult.count);
-            }
-
-            // Handle Logs
-            if (logsResult.error) throw logsResult.error;
-            const logs = logsResult.data;
-            if (!logs) return;
+            const totalActions = countResult.count || 0;
+            const logs = logsResult.data || [];
 
             // -- Aggregation Logic --
 
@@ -99,11 +80,10 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                 userCounts[name].count++;
             });
 
-            const sortedUsers = Object.entries(userCounts)
+            const topUsers = Object.entries(userCounts)
                 .map(([name, data]) => ({ name, email: data.email, count: data.count }))
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 5);
-            setTopUsers(sortedUsers);
 
             // B. Top Pages
             const pageCounts: Record<string, number> = {};
@@ -120,11 +100,10 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                 }
             });
 
-            const sortedPages = Object.entries(pageCounts)
+            const topPages = Object.entries(pageCounts)
                 .map(([page, count]) => ({ page, count }))
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 5);
-            setTopPages(sortedPages);
 
             // C. Categories Breakdown
             const catCounts: Record<string, number> = {};
@@ -132,8 +111,7 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                 const cat = log.event_category || 'Other';
                 catCounts[cat] = (catCounts[cat] || 0) + 1;
             });
-            const catData = Object.entries(catCounts).map(([name, value]) => ({ name, value }));
-            setCategories(catData);
+            const categories = Object.entries(catCounts).map(([name, value]) => ({ name, value }));
 
             // D. Activity Trend
             const trendMap = new Map<string, number>();
@@ -148,20 +126,31 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                 trendMap.set(key, (trendMap.get(key) || 0) + 1);
             });
 
-            // Fill gaps? Optional. For now just sort.
             const trendData = Array.from(trendMap.entries())
                 .map(([date, count]) => ({ date, count }))
-                .sort((a, b) => a.date.localeCompare(b.date)); // Lexicographical sort works for HH:00 and DD/MM usually
-            setActivityTrend(trendData);
+                .sort((a, b) => a.date.localeCompare(b.date));
 
-        } catch (err) {
-            console.error("Error calculating stats:", err);
-        } finally {
-            setLoading(false);
-        }
+            return {
+                totalActions,
+                topUsers,
+                topPages,
+                categories,
+                activityTrend: trendData
+            };
+        },
+        enabled: !!organizationId,
+        staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    });
+
+    const { totalActions, topUsers, topPages, categories, activityTrend } = stats || {
+        totalActions: 0,
+        topUsers: [],
+        topPages: [],
+        categories: [],
+        activityTrend: []
     };
 
-    if (loading) {
+    if (isLoading) {
         return <div className="p-8 text-center text-slate-400 animate-pulse">טוען נתונים...</div>;
     }
 
