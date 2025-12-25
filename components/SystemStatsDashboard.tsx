@@ -444,7 +444,7 @@ export const SystemStatsDashboard: React.FC = () => {
                     </div>
                     <div className="space-y-3">
                         {topUsers.map((user, idx) => (
-                            <div key={user.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                            <div key={`${user.id}-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${idx < 3 ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-600'}`}>
                                         {idx + 1}
