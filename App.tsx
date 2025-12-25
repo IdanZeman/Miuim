@@ -48,6 +48,7 @@ import { generateShiftsForTask } from './utils/shiftUtils';
 import JoinPage from './components/JoinPage';
 import { initGA, trackPageView } from './services/analytics';
 import { usePageTracking } from './hooks/usePageTracking';
+import { initLogRocket } from './services/logRocket';
 import { ClaimProfile } from './components/ClaimProfile';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AutoScheduleModal } from './components/AutoScheduleModal';
@@ -1293,6 +1294,10 @@ const MainRoute: React.FC<{ user: any, profile: any, organization: any }> = ({ u
 
 
 const App: React.FC = () => {
+    useEffect(() => {
+        initLogRocket();
+    }, []);
+
     return (
         <Router>
             <AuthProvider>
