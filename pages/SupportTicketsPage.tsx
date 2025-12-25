@@ -32,7 +32,7 @@ export const SupportTicketsPage: React.FC = () => {
 
     const [tickets, setTickets] = useState<ContactMessage[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filterStatus, setFilterStatus] = useState<TicketStatus | 'all'>('all');
+    const [filterStatus, setFilterStatus] = useState<TicketStatus | 'all'>('new');
     const [searchTerm, setSearchTerm] = useState('');
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
     const [noteContent, setNoteContent] = useState('');

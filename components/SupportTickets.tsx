@@ -26,7 +26,7 @@ export const SupportTickets: React.FC = () => {
     const [tickets, setTickets] = useState<ContactMessage[]>([]);
     const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const [filterStatus, setFilterStatus] = useState<'all' | 'new' | 'in_progress' | 'closed'>('all');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'new' | 'in_progress' | 'closed'>('new');
     const [searchTerm, setSearchTerm] = useState('');
 
     // Reply State
@@ -115,8 +115,8 @@ export const SupportTickets: React.FC = () => {
                                 key={status}
                                 onClick={() => setFilterStatus(status)}
                                 className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold transition-colors ${filterStatus === status
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                                     }`}
                             >
                                 {status === 'all' ? 'הכל' : status === 'new' ? 'חדש' : status === 'in_progress' ? 'בטיפול' : 'סגור'}
@@ -152,8 +152,8 @@ export const SupportTickets: React.FC = () => {
                                 </p>
                                 <div className="flex items-center gap-2">
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${ticket.status === 'new' ? 'bg-blue-100 text-blue-700' :
-                                            ticket.status === 'in_progress' ? 'bg-amber-100 text-amber-700' :
-                                                'bg-slate-100 text-slate-500'
+                                        ticket.status === 'in_progress' ? 'bg-amber-100 text-amber-700' :
+                                            'bg-slate-100 text-slate-500'
                                         }`}>
                                         {ticket.status === 'new' ? 'חדש' : ticket.status === 'in_progress' ? 'בטיפול' : 'סגור'}
                                     </span>
