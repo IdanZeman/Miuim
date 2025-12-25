@@ -1,0 +1,130 @@
+
+import React, { useState } from 'react';
+import { Person, Shift, TaskTemplate, Role, Team } from '../../types';
+import { FileBarChart, Users, ClipboardList } from 'lucide-react';
+import { LocationReport } from './LocationReport';
+import { TaskReports } from './TaskReports';
+import { ManpowerReports } from './ManpowerReports';
+import { MapPin, BarChart3 } from 'lucide-react';
+import { PageInfo } from '../../components/ui/PageInfo';
+
+interface StatsDashboardProps {
+   people: Person[];
+   shifts: Shift[];
+   tasks: TaskTemplate[];
+   roles: Role[];
+   teams: Team[];
+   teamRotations?: any[];
+   isViewer?: boolean;
+   currentUserEmail?: string;
+   currentUserName?: string;
+}
+
+type ReportType = 'manpower' | 'tasks' | 'location';
+
+export const StatsDashboard: React.FC<StatsDashboardProps> = ({
+   people, shifts, tasks, roles, teams, teamRotations = [],
+   isViewer = false, currentUserEmail, currentUserName
+}) => {
+   const [reportType, setReportType] = useState<ReportType>(isViewer ? 'tasks' : 'manpower');
+
+   return (
+      <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-4 md:p-8 min-h-[70vh]">
+
+         {/* Header */}
+         <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+               <BarChart3 className="text-blue-600" size={28} />
+               דוחות ונתונים
+               <PageInfo
+                  title="דוחות ונתונים"
+                  description={
+                     <>
+                        <p className="mb-2">מרכז הנתונים והסטטיסטיקות של הארגון.</p>
+                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                           <li><b>כוח אדם:</b> התפלגות אנשים לפי תפקידים, צוותים וזמינות.</li>
+                           <li><b>שיבוץ:</b> ניתוח עומסים, הוגנות בשיבוץ (Fairness Score), ומעקב אחר ביצוע משימות.</li>
+                           <li><b>מיקום:</b> מצבת לוחמים בזמן אמת.</li>
+                        </ul>
+                        <p className="text-sm bg-blue-50 p-2 rounded text-blue-800">
+                           דשבורד זה נועד לסייע בקבלת החלטות מבוססות נתונים.
+                        </p>
+                     </>
+                  }
+               />
+            </h2>
+         </div>
+
+         {/* Top Navigation - Segmented Control Style */}
+         {!isViewer && (
+            <div className="flex justify-center mb-6">
+               <div className="bg-slate-100/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200 shadow-sm flex w-full max-w-md">
+                  <button
+                     onClick={() => setReportType('manpower')}
+                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${reportType === 'manpower'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                  >
+                     <Users size={18} />
+                     <span>כוח אדם</span>
+                  </button>
+                  <button
+                     onClick={() => setReportType('tasks')}
+                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${reportType === 'tasks'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                  >
+                     <ClipboardList size={18} />
+                     <span>שיבוץ</span>
+                  </button>
+                  <button
+                     onClick={() => setReportType('location')}
+                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${reportType === 'location'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                  >
+                     <MapPin size={18} />
+                     <span>מיקום</span>
+                  </button>
+               </div>
+            </div>
+         )}
+
+         {/* Content Area */}
+         <div className="min-h-[500px]">
+            {reportType === 'manpower' && (
+               <ManpowerReports
+                  people={people}
+                  teams={teams}
+                  roles={roles}
+               />
+            )}
+
+            {reportType === 'tasks' && (
+               <TaskReports
+                  people={people}
+                  shifts={shifts}
+                  tasks={tasks}
+                  roles={roles}
+                  isViewer={isViewer}
+                  currentUserEmail={currentUserEmail}
+                  currentUserName={currentUserName}
+               />
+            )}
+
+            {reportType === 'location' && (
+               <LocationReport
+                  people={people}
+                  shifts={shifts}
+                  taskTemplates={tasks}
+                  teamRotations={teamRotations}
+                  teams={teams}
+               />
+            )}
+         </div>
+      </div>
+   );
+};

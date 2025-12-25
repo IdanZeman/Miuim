@@ -1,0 +1,237 @@
+import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation } from '@/types';
+
+// --- Mappers (App Types <-> DB Types) ---
+
+// People
+export const mapPersonFromDB = (p: any): Person => {
+    let dailyAvailability = p.daily_availability || {};
+    if (typeof dailyAvailability === 'string') {
+        try { dailyAvailability = JSON.parse(dailyAvailability); } catch (e) { dailyAvailability = {}; }
+    }
+
+    let personalRotation = p.personal_rotation || undefined;
+    if (typeof personalRotation === 'string') {
+        try { personalRotation = JSON.parse(personalRotation); } catch (e) { personalRotation = undefined; }
+    }
+
+    let customFields = p.custom_fields || {};
+    if (typeof customFields === 'string') {
+        try { customFields = JSON.parse(customFields); } catch (e) { customFields = {}; }
+    }
+
+    return {
+        id: p.id,
+        name: p.name,
+        phone: p.phone,
+        email: p.email,
+        isActive: p.is_active !== false,
+        roleId: p.role_id || (p.role_ids && p.role_ids[0]) || '',
+        roleIds: p.role_ids || [],
+        teamId: p.team_id,
+        userId: p.user_id,
+        color: p.color || 'bg-blue-500',
+        maxShiftsPerWeek: p.max_shifts_per_week || 5,
+        dailyAvailability,
+        personalRotation,
+        organization_id: p.organization_id,
+        customFields,
+        isCommander: !!p.is_commander
+    };
+};
+
+export const mapPersonToDB = (p: Person) => ({
+    id: p.id,
+    name: p.name,
+    phone: p.phone,
+    email: p.email,
+    is_active: p.isActive,
+    role_ids: (p.roleIds && p.roleIds.length > 0) ? p.roleIds : (p.roleId ? [p.roleId] : []),
+    team_id: p.teamId || null,
+    user_id: p.userId,
+    color: p.color,
+    max_shifts_per_week: p.maxShiftsPerWeek,
+    daily_availability: p.dailyAvailability,
+    personal_rotation: p.personalRotation === undefined ? null : p.personalRotation,
+    organization_id: p.organization_id,
+    custom_fields: p.customFields || {},
+    is_commander: p.isCommander || false
+});
+
+// Teams
+export const mapTeamFromDB = (t: any): Team => ({
+    id: t.id,
+    name: t.name,
+    color: t.color || 'border-slate-500'
+});
+
+export const mapTeamToDB = (t: Team) => ({
+    id: t.id,
+    name: t.name,
+    color: t.color,
+    organization_id: (t as any).organization_id
+});
+
+// Roles
+export const mapRoleFromDB = (r: any): Role => ({
+    id: r.id,
+    name: r.name,
+    color: r.color || 'bg-slate-200'
+});
+
+export const mapRoleToDB = (r: Role) => ({
+    id: r.id,
+    name: r.name,
+    color: r.color,
+    organization_id: (r as any).organization_id
+});
+
+// Tasks
+export const mapTaskFromDB = (dbTask: any): TaskTemplate => ({
+    id: dbTask.id,
+    name: dbTask.name,
+    difficulty: dbTask.difficulty,
+    color: dbTask.color,
+    startDate: dbTask.start_date,
+    endDate: dbTask.end_date,
+    organization_id: dbTask.organization_id,
+    is247: dbTask.is_24_7,
+    segments: typeof dbTask.segments === 'string' ? JSON.parse(dbTask.segments) : (dbTask.segments || []),
+    assignedTeamId: dbTask.assigned_team_id
+});
+
+export const mapTaskToDB = (task: TaskTemplate) => ({
+    id: task.id,
+    name: task.name,
+    difficulty: task.difficulty,
+    color: task.color,
+    start_date: task.startDate,
+    end_date: task.endDate,
+    organization_id: task.organization_id,
+    is_24_7: task.is247,
+    segments: task.segments || [],
+    assigned_team_id: task.assignedTeamId
+});
+
+// Shifts
+export const mapShiftFromDB = (dbShift: any): Shift => ({
+    id: dbShift.id,
+    taskId: dbShift.task_id,
+    segmentId: dbShift.segment_id,
+    startTime: dbShift.start_time,
+    endTime: dbShift.end_time,
+    assignedPersonIds: dbShift.assigned_person_ids || [],
+    isLocked: dbShift.is_locked,
+    organization_id: dbShift.organization_id,
+    isCancelled: dbShift.is_cancelled,
+    requirements: dbShift.requirements
+});
+
+export const mapShiftToDB = (shift: Shift) => ({
+    id: shift.id,
+    task_id: shift.taskId,
+    segment_id: shift.segmentId,
+    start_time: shift.startTime,
+    end_time: shift.endTime,
+    assigned_person_ids: shift.assignedPersonIds,
+    is_locked: shift.isLocked,
+    organization_id: shift.organization_id,
+    is_cancelled: shift.isCancelled,
+    requirements: shift.requirements
+});
+
+// Constraints
+export const mapConstraintFromDB = (dbConstraint: any): SchedulingConstraint => ({
+    id: dbConstraint.id,
+    personId: dbConstraint.person_id,
+    teamId: dbConstraint.team_id,
+    roleId: dbConstraint.role_id,
+    type: dbConstraint.type,
+    taskId: dbConstraint.task_id,
+    startTime: dbConstraint.start_time,
+    endTime: dbConstraint.end_time,
+    organization_id: dbConstraint.organization_id
+});
+
+export const mapConstraintToDB = (constraint: SchedulingConstraint) => ({
+    id: constraint.id,
+    person_id: constraint.personId,
+    team_id: constraint.teamId,
+    role_id: constraint.roleId,
+    type: constraint.type,
+    task_id: constraint.taskId,
+    start_time: constraint.startTime,
+    end_time: constraint.endTime,
+    organization_id: constraint.organization_id
+});
+
+// Team Rotations
+export const mapRotationFromDB = (dbRot: any): import('@/types').TeamRotation => ({
+    id: dbRot.id,
+    organization_id: dbRot.organization_id,
+    team_id: dbRot.team_id,
+    days_on_base: dbRot.days_on_base,
+    days_at_home: dbRot.days_at_home,
+    cycle_length: dbRot.cycle_length,
+    start_date: dbRot.start_date,
+    end_date: dbRot.end_date,
+    arrival_time: dbRot.arrival_time,
+    departure_time: dbRot.departure_time
+});
+
+export const mapRotationToDB = (rot: TeamRotation) => ({
+    id: rot.id,
+    organization_id: rot.organization_id,
+    team_id: rot.team_id,
+    days_on_base: rot.days_on_base,
+    days_at_home: rot.days_at_home,
+    cycle_length: rot.cycle_length,
+    start_date: rot.start_date,
+    end_date: rot.end_date,
+    arrival_time: rot.arrival_time,
+    departure_time: rot.departure_time
+});
+
+// Absences
+export const mapAbsenceFromDB = (dbAbsence: any): Absence => ({
+    id: dbAbsence.id,
+    person_id: dbAbsence.person_id,
+    organization_id: dbAbsence.organization_id,
+    start_date: dbAbsence.start_date,
+    end_date: dbAbsence.end_date,
+    reason: dbAbsence.reason,
+    created_at: dbAbsence.created_at
+});
+
+export const mapAbsenceToDB = (absence: Absence) => ({
+    id: absence.id,
+    person_id: absence.person_id,
+    organization_id: absence.organization_id,
+    start_date: absence.start_date,
+    end_date: absence.end_date,
+    reason: absence.reason
+});
+
+// Equipment Mappers
+export const mapEquipmentFromDB = (e: any): Equipment => ({
+    id: e.id,
+    organization_id: e.organization_id,
+    type: e.type,
+    serial_number: e.serial_number,
+    assigned_to_id: e.assigned_to_id,
+    signed_at: e.signed_at,
+    last_verified_at: e.last_verified_at,
+    status: e.status,
+    notes: e.notes
+});
+
+export const mapEquipmentToDB = (e: Equipment) => ({
+    id: e.id,
+    organization_id: e.organization_id,
+    type: e.type,
+    serial_number: e.serial_number,
+    assigned_to_id: e.assigned_to_id,
+    signed_at: e.signed_at,
+    last_verified_at: e.last_verified_at,
+    status: e.status,
+    notes: e.notes
+});
