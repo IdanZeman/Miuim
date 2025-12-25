@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../services/supabaseClient';
-import { useAuth } from '../features/auth/AuthContext';
+import { supabase } from '../../services/supabaseClient';
+import { useAuth } from '../auth/AuthContext';
 import {
     Activity, Users, Building2, TrendingUp,
     ArrowUpRight, Trophy
