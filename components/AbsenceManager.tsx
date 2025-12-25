@@ -7,8 +7,8 @@ import { Calendar as CalendarIcon, Search, Plus, Trash2, Edit2, Check, X, Chevro
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { ConfirmationModal } from './ConfirmationModal';
 import { PageInfo } from './ui/PageInfo';
-import { createPortal } from 'react-dom';
 import { Select } from './ui/Select';
 
 interface AbsenceManagerProps {
@@ -424,22 +424,17 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
             </Modal>
 
             {/* Delete Confirmation Modal */}
-            {deleteConfirmId && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-200 text-center" onClick={e => e.stopPropagation()}>
-                        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Trash2 size={32} />
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-800 mb-2">מחיקת היעדרות</h3>
-                        <p className="text-slate-500 mb-8">האם אתה בטוח שברצונך למחוק היעדרות זו?</p>
-                        <div className="flex gap-3">
-                            <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50">ביטול</button>
-                            <button onClick={handleDelete} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 shadow-lg shadow-red-200">מחק</button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+            {/* Delete Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={!!deleteConfirmId}
+                title="מחיקת היעדרות"
+                message="האם אתה בטוח שברצונך למחוק היעדרות זו?"
+                confirmText="מחק"
+                cancelText="ביטול"
+                type="danger"
+                onConfirm={handleDelete}
+                onCancel={() => setDeleteConfirmId(null)}
+            />
         </div>
     );
 };

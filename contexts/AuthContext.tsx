@@ -160,6 +160,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('📊 [AuthContext] Full Profile Data:', cleanProfile);
       console.log('👤 [AuthContext] Setting Profile:', cleanProfile);
 
+      // Identify user in LogRocket
+      if (cleanProfile?.email) {
+        import('../services/logRocket').then(({ identifyUser }) => {
+          identifyUser({
+            id: userId,
+            email: cleanProfile.email,
+            name: cleanProfile.full_name || cleanProfile.email,
+            role: cleanProfile.is_super_admin ? 'super_admin' : 'user'
+          });
+        });
+      }
+
       if (!cleanProfile.organization_id) {
         // Fetch fresh user data to get phone
         const { data: userData } = await supabase.auth.getUser();

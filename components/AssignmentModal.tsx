@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, SchedulingConstraint } from '../types';
 import { Modal as GenericModal } from './ui/Modal';
 import { SheetModal } from './ui/SheetModal';
 import { Button } from './ui/Button';
+import { ConfirmationModal } from './ConfirmationModal';
 import {
     X, Plus, Search, Wand2, RotateCcw, Sparkles, ChevronDown, ChevronRight,
     Calendar as CalendarIcon, Clock, MoreVertical, Pencil, Undo2, Ban, Save,
@@ -73,6 +73,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
         isOpen: boolean;
         title: string;
         message: string;
+        confirmText?: string;
+        type?: 'danger' | 'warning' | 'info';
         onConfirm: () => void;
     }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
@@ -434,18 +436,16 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
                 <div className="flex flex-col h-full overflow-hidden max-h-[80dvh]">
 
-                    {confirmationState.isOpen && (
-                        <div className="absolute inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 rounded-2xl backdrop-blur-sm animate-in fade-in">
-                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm animate-in zoom-in-95">
-                                <h3 className="text-lg font-bold mb-2">{confirmationState.title}</h3>
-                                <p className="text-sm text-slate-600 mb-4 leading-relaxed">{confirmationState.message}</p>
-                                <div className="flex justify-end gap-2">
-                                    <Button variant="outline" onClick={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}>ביטול</Button>
-                                    <Button onClick={confirmationState.onConfirm}>אשר</Button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {/* Confirmation Modal */}
+                    <ConfirmationModal
+                        isOpen={confirmationState.isOpen}
+                        title={confirmationState.title}
+                        message={confirmationState.message}
+                        confirmText={confirmationState.confirmText}
+                        type={confirmationState.type as any || 'warning'}
+                        onConfirm={confirmationState.onConfirm}
+                        onCancel={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}
+                    />
 
                     {(() => {
                         if (roleComposition.length === 0) return null;
