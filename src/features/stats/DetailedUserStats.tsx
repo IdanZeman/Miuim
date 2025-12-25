@@ -1,8 +1,8 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { Person, Shift, TaskTemplate, Role } from '../types';
-import { getPersonInitials } from '../utils/nameUtils';
-import { useAuth } from '../features/auth/AuthContext'; // NEW: Import useAuth
-import { supabase } from '../services/supabaseClient'; // NEW: Import supabase
+import { Person, Shift, TaskTemplate, Role } from '../../types';
+import { getPersonInitials } from '../../utils/nameUtils';
+import { useAuth } from '../auth/AuthContext'; // Updated path
+import { supabase } from '../../services/supabaseClient'; // Updated path
 import {
     Clock, Calendar, Award, TrendingUp, Moon, Sun,
     ArrowRight, CheckCircle, AlertCircle
