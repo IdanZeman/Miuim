@@ -1,3 +1,4 @@
+import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../features/auth/AuthContext';
@@ -87,39 +88,67 @@ export const useOrganizationData = () => {
                 // Fetch last 3 months of shifts for history
                 supabase.from('shifts').select('*')
                     .eq('organization_id', organization.id)
-                    .gte('start_time', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+                    .gte('start_time', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
             ]);
 
-            // 2. Map Raw Data
-            const rawPeople = (peopleRes.data || []).map(mapPersonFromDB);
-            const rawShifts = (shiftsRes.data || []).map(mapShiftFromDB);
-            const rawEquipment = (equipmentRes.data || []).map(mapEquipmentFromDB);
-
-            // 3. Apply Scoping
-            const { scopedPeople, scopedShifts, scopedEquipment } = applyDataScoping(
-                profile, user, rawPeople, rawShifts, rawEquipment
-            );
-
             return {
-                people: scopedPeople,
-                allPeople: rawPeople, // For admins/lottery
-                shifts: scopedShifts,
-                taskTemplates: (tasksRes.data || []).map(mapTaskFromDB),
-                roles: (rolesRes.data || []).map(mapRoleFromDB),
-                teams: (teamsRes.data || []).map(mapTeamFromDB),
-                settings: (settingsRes.data as any) || null,
-                constraints: (constraintsRes.data || []).map(mapConstraintFromDB),
-                teamRotations: (rotationsRes.data || []).map(mapRotationFromDB),
-                absences: (absencesRes.data || []).map(mapAbsenceFromDB),
-                equipment: scopedEquipment
+                people: peopleRes.data || [],
+                shifts: shiftsRes.data || [],
+                tasks: tasksRes.data || [],
+                roles: rolesRes.data || [],
+                teams: teamsRes.data || [],
+                settings: settingsRes.data || null,
+                constraints: constraintsRes.data || [],
+                rotations: rotationsRes.data || [],
+                absences: absencesRes.data || [],
+                equipment: equipmentRes.data || []
             };
         },
         enabled: isEnabled,
         staleTime: 1000 * 60 * 5, // 5 Minutes
     });
 
+    // 2. Map & Scope Data (Memoized)
+    const processedData = React.useMemo(() => {
+        if (!data) return null;
+
+        const rawPeople = (data.people || []).map(mapPersonFromDB);
+        const rawShifts = (data.shifts || []).map(mapShiftFromDB);
+        const rawEquipment = (data.equipment || []).map(mapEquipmentFromDB);
+
+        const { scopedPeople, scopedShifts, scopedEquipment } = applyDataScoping(
+            profile, user, rawPeople, rawShifts, rawEquipment
+        );
+
+        return {
+            people: scopedPeople,
+            allPeople: rawPeople,
+            shifts: scopedShifts,
+            taskTemplates: (data.tasks || []).map(mapTaskFromDB),
+            roles: (data.roles || []).map(mapRoleFromDB),
+            teams: (data.teams || []).map(mapTeamFromDB),
+            settings: (data.settings as any) || null,
+            constraints: (data.constraints || []).map(mapConstraintFromDB),
+            teamRotations: (data.rotations || []).map(mapRotationFromDB),
+            absences: (data.absences || []).map(mapAbsenceFromDB),
+            equipment: scopedEquipment
+        };
+    }, [data, profile, user]);
+
     return {
-        ...data,
+        ...processedData,
+        // Safe fallbacks if processing hasn't happened yet
+        people: processedData?.people || [],
+        allPeople: processedData?.allPeople || [],
+        shifts: processedData?.shifts || [],
+        taskTemplates: processedData?.taskTemplates || [],
+        roles: processedData?.roles || [],
+        teams: processedData?.teams || [],
+        settings: processedData?.settings || null,
+        constraints: processedData?.constraints || [],
+        teamRotations: processedData?.teamRotations || [],
+        absences: processedData?.absences || [],
+        equipment: processedData?.equipment || [],
         isLoading,
         error,
         refetch

@@ -208,7 +208,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                         <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
                             <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
                         </div>
-                        <span className="hidden lg:block text-lg font-bold text-slate-800 tracking-tight">
+                        <span className="block text-lg font-bold text-slate-800 tracking-tight">
                             {isPublic ? 'מערכת ניהול' : (organization?.name || 'מערכת ניהול')}
                         </span>
                     </button>
@@ -363,9 +363,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                     )}
                 </div>
 
-                {/* Left Side: User & Personal Area */}
+                {/* Left: User Profile - Hidden in Public Mode & Mobile */}
                 {!isPublic && (
-                    <div className="flex items-center gap-3">
+                    <div className="hidden md:flex items-center justify-end gap-2 pl-2 flex-shrink-0">
                         <UserDropdown user={user} profile={profile} onLogout={handleLogout}>
                             {checkAccess('settings') && (
                                 <DropdownItem
@@ -399,14 +399,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                 />
                             </div>
                         </UserDropdown>
-
-                        {/* Mobile Menu Toggle */}
-                        <button
-                            onClick={onMobileMenuToggle}
-                            className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                        >
-                            <Menu size={24} />
-                        </button>
                     </div>
                 )}
             </div>
