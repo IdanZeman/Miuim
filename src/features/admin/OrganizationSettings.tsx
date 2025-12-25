@@ -6,13 +6,13 @@ import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mai
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode } from '@/types';
-import { PermissionEditor } from '../../components/PermissionEditor';
+import { PermissionEditor } from './PermissionEditor';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { logger } from '../../services/loggingService';
 import { useConfirmation } from '../../hooks/useConfirmation';
 import { Select } from '../../components/ui/Select';
-import { PermissionEditorContent } from '../../components/PermissionEditorContent';
+import { PermissionEditorContent } from './PermissionEditorContent';
 import { PageInfo } from '../../components/ui/PageInfo';
 
 import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../../utils/permissions';
