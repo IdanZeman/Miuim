@@ -133,10 +133,9 @@ class LoggingService {
                 event_category: entry.category || 'system',
                 component_name: entry.component,
                 performance_ms: entry.performanceMs,
-                before_data: entry.oldData ? JSON.stringify(entry.oldData) : null,
-                after_data: entry.newData ? JSON.stringify(entry.newData) : null,
-                metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
-                client_timestamp: new Date().toISOString(),
+                before_data: entry.oldData || null,
+                after_data: entry.newData || null,
+                metadata: entry.metadata || null,
                 user_agent: navigator.userAgent
             });
 
