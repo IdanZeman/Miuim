@@ -61,18 +61,33 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
         const startDate = getDateFilter();
 
         try {
-            // 1. Fetch RAW logs for client-side aggregation 
-            // (Note: For massive scale, this should be a DB function, but for < 10k logs it's fine)
-            const { data: logs, error } = await supabase
-                .from('audit_logs')
-                .select('user_name, user_email, event_type, event_category, action_description, created_at')
-                .eq('organization_id', organizationId)
-                .gte('created_at', startDate);
+            // Run count and data fetch in parallel to avoid "waterfall" latency
+            const [countResult, logsResult] = await Promise.all([
+                // 1. Fetch True Count
+                supabase
+                    .from('audit_logs')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('organization_id', organizationId)
+                    .gte('created_at', startDate),
 
-            if (error) throw error;
+                // 2. Fetch Data (Limited)
+                supabase
+                    .from('audit_logs')
+                    .select('user_name, user_email, event_type, event_category, action_description, created_at')
+                    .eq('organization_id', organizationId)
+                    .gte('created_at', startDate)
+                    .limit(1000)
+            ]);
+
+            // Handle Count
+            if (!countResult.error && countResult.count !== null) {
+                setTotalActions(countResult.count);
+            }
+
+            // Handle Logs
+            if (logsResult.error) throw logsResult.error;
+            const logs = logsResult.data;
             if (!logs) return;
-
-            setTotalActions(logs.length);
 
             // -- Aggregation Logic --
 
