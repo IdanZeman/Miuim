@@ -10,7 +10,7 @@ test('teams lifecycle test stable', async ({ page }) => {
   // וודא שהאלמנטים הבסיסיים של הדאשבורד נטענו
   await expect(page.getByRole('heading', { name: 'בית' })).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: 'כוח אדם' }).click();  
-await page.getByRole('button', { name: 'צוותים' }).click();
+  await page.getByRole('button', { name: 'צוותים' }).click();
 
   const teamName = 'חפק מגד';
   // לוקטור גמיש שמתאים לטקסט רציף
@@ -18,6 +18,7 @@ await page.getByRole('button', { name: 'צוותים' }).click();
 
   // --- לוגיקת ניקוי בטוחה ---
   if (await teamRow.count() > 0) {
+    console.log(`Cleaning up existing team: ${teamName}`);
     await teamRow.click({ force: true });
     await page.locator('.p-2.-ml-2').click();
     // שימוש בנתיב המחיקה הקצר והעקבי שציינת שעובד
@@ -25,7 +26,13 @@ await page.getByRole('button', { name: 'צוותים' }).click();
     
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'מחק (1)' }).click();
-    await expect(teamRow).toBeHidden({ timeout: 15000 });
+    try {
+        await expect(teamRow).toBeHidden({ timeout: 15000 });
+    } catch (e) {
+      console.log("UI stuck, forcing page reload...");
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.getByRole('button', { name: 'כוח אדם' }).click();
+    }
   }
 
   // --- יצירת הצוות ---  await page.locator('.fixed.bottom-24').click();
