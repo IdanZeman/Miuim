@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation } from '@/types';
 import { ChevronRight, ChevronLeft, ChevronDown, Calendar, Users, Home, MapPin, XCircle, Clock, Info, CheckCircle2, Search } from 'lucide-react';
 import { getEffectiveAvailability, getRotationStatusForDate } from '@/utils/attendanceUtils';
-import { StatusEditPopover } from './StatusEditPopover';
+import { StatusEditModal } from './StatusEditModal';
 
 interface AttendanceTableProps {
     teams: Team[];
@@ -11,7 +11,7 @@ interface AttendanceTableProps {
     currentDate: Date;
     onDateChange: (date: Date) => void;
     onSelectPerson: (person: Person) => void;
-    onUpdateAvailability?: (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }) => void;
+    onUpdateAvailability?: (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => void;
     className?: string; // Allow parent styling for mobile sheet integration
 }
 
@@ -19,7 +19,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     teams, people, teamRotations, currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
-    const [editingCell, setEditingCell] = useState<{ personId: string; date: string; position: { top: number; left: number } } | null>(null);
+    const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const year = currentDate.getFullYear();
@@ -50,8 +50,6 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     const handleCellClick = (e: React.MouseEvent, person: Person, date: Date) => {
         if (!onUpdateAvailability) return;
 
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-
         // Prevent opening if clicking on the same open cell (toggle off)
         const dateStr = date.toLocaleDateString('en-CA');
         if (editingCell?.personId === person.id && editingCell?.date === dateStr) {
@@ -61,14 +59,15 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
         setEditingCell({
             personId: person.id,
-            date: dateStr,
-            position: { top: rect.bottom + window.scrollY, left: rect.left + window.scrollX }
+            date: dateStr
         });
     };
 
-    const handleApplyStatus = (status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }) => {
+    const handleApplyStatus = (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => {
         if (!editingCell || !onUpdateAvailability) return;
-        onUpdateAvailability(editingCell.personId, editingCell.date, status, customTimes);
+        // Map 'unavailable' status (legacy) to 'home' or maintain compatibility if needed, 
+        // but typically the modal now controls 'base' vs 'home'.
+        onUpdateAvailability(editingCell.personId, editingCell.date, status, customTimes, unavailableBlocks);
         setEditingCell(null);
     };
 
@@ -365,6 +364,18 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                 >
                                                                     {content}
 
+                                                                    {/* Unavailable Blocks Indicators */}
+                                                                    {avail.unavailableBlocks && avail.unavailableBlocks.length > 0 && (
+                                                                        <div className="absolute bottom-2 flex gap-0.5 justify-center w-full px-1">
+                                                                            {avail.unavailableBlocks.slice(0, 4).map((_, i) => (
+                                                                                <div key={i} className="w-1.5 h-1.5 rounded-full bg-red-500 ring-1 ring-white" />
+                                                                            ))}
+                                                                            {avail.unavailableBlocks.length > 4 && (
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300 ring-1 ring-white" />
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+
                                                                     {/* Status indicator bar at bottom */}
                                                                     <div className={`absolute bottom-0 left-0 right-0 h-1 ${themeColor} opacity-20 group-hover/cell:opacity-100 transition-opacity`} />
 
@@ -403,13 +414,21 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                 </div>
             </div>
 
-            <StatusEditPopover
-                isOpen={!!editingCell}
-                date={editingCell?.date}
-                position={editingCell ? editingCell.position : { top: 0, left: 0 }}
-                onClose={() => setEditingCell(null)}
-                onApply={handleApplyStatus}
-            />
+            {editingCell && (() => {
+                const person = people.find(p => p.id === editingCell.personId);
+                const availability = person ? getEffectiveAvailability(person, new Date(editingCell.date), teamRotations) : undefined;
+
+                return (
+                    <StatusEditModal
+                        isOpen={!!editingCell}
+                        date={editingCell.date}
+                        personName={person?.name}
+                        currentAvailability={availability}
+                        onClose={() => setEditingCell(null)}
+                        onApply={handleApplyStatus}
+                    />
+                );
+            })()}
         </div>
     );
 };

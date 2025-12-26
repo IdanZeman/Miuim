@@ -150,12 +150,12 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h2 className="text-xl font-bold text-slate-800">ניהול היעדרויות</h2>
+                            <h2 className="text-xl font-bold text-slate-800">בקשות יציאה</h2>
                             <PageInfo
                                 title="על בקשות היעדרות"
                                 description={
                                     <>
-                                        <h3 className="text-lg font-bold text-slate-800 mb-2">למה הכוונה ה"בקשות היעדרות"?</h3>
+                                        <h3 className="text-lg font-bold text-slate-800 mb-2">למה הכוונה "בקשות יציאה"?</h3>
                                         <p className="text-slate-600 mb-2">
                                             בעמוד זה מזינים בקשות ואילוצים (חתונה, הפנייה, אירוע מיוחד או סתם יום חופש).
                                         </p>
@@ -177,7 +177,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                                 )}
                             </PageInfo>
                         </div>
-                        <p className="text-sm text-slate-500 hidden md:block">הזנת ימי חופש, מחלה והיעדרויות קבועות</p>
                     </div>
                 </div>
                 {!isViewer && (

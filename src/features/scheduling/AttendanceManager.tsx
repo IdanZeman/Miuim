@@ -133,14 +133,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         members: filteredPeople
             .filter(p => p.teamId === team.id)
             .sort((a, b) => {
-                const availA = getEffectiveAvailability(a, selectedDate, teamRotations);
-                const availB = getEffectiveAvailability(b, selectedDate, teamRotations);
-
-                // Sort by Availability (Available first)
-                if (availA.isAvailable && !availB.isAvailable) return -1;
-                if (!availA.isAvailable && availB.isAvailable) return 1;
-
-                // Secondary sort by name
+                // Stable sort by name only
                 return a.name.localeCompare(b.name);
             })
     }));
@@ -239,7 +232,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הגדרות סבב אישי עודכנו', 'success');
     };
 
-    const handleUpdateAvailability = (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }) => {
+    const handleUpdateAvailability = (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => {
         if (isViewer) return;
 
         const person = people.find(p => p.id === personId);
@@ -249,12 +242,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             isAvailable: true, // default
             startHour: '00:00',
             endHour: '23:59',
-            source: 'manual'
+            source: 'manual',
+            unavailableBlocks: []
         };
 
         let newData: any = {
             ...currentData,
-            source: 'manual'
+            source: 'manual',
+            unavailableBlocks: unavailableBlocks || []
         };
 
         if (status === 'base') {
@@ -272,6 +267,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             newData.endHour = '00:00';
             // newData.reason = 'בבית'; // Optional
         } else if (status === 'unavailable') {
+            // Legacy support or specific full-day constraint
             newData.isAvailable = false;
             newData.startHour = '00:00';
             newData.endHour = '00:00';
@@ -483,7 +479,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 onDateChange={setViewDate}
                                 viewType={calendarViewType}
                                 onViewTypeChange={setCalendarViewType}
-                                organizationName={settings?.organization_name}
+                                organizationName={(settings as any)?.organization_name}
                             />
                         </div>
                     ) : (
@@ -625,7 +621,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 onDateChange={setViewDate}
                                 viewType={calendarViewType}
                                 onViewTypeChange={setCalendarViewType}
-                                organizationName={settings?.organization_name}
+                                organizationName={(settings as any)?.organization_name}
                             />
                         </div>
                     ) : (

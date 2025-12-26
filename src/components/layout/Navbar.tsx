@@ -281,7 +281,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                         />
                                     )}
                                     <DropdownItem
-                                        label="ניהול היעדרויות"
+                                        label="בקשות יציאה"
                                         icon={UserX}
                                         active={currentView === 'absences'}
                                         onClick={() => handleNav('absences')}

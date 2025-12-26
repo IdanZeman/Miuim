@@ -172,7 +172,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               {currentView === 'org-logs' && 'יומן פעילות'}
               {currentView === 'lottery' && 'הגרלות'}
               {currentView === 'constraints' && 'ניהול אילוצים'}
-              {currentView === 'absences' && 'ניהול היעדרויות'}
+              {currentView === 'absences' && 'בקשות יציאה'}
               {currentView === 'equipment' && 'דוח צלם / אמצעים'}
               {currentView === 'faq' && 'מרכז עזרה'}
               {currentView === 'contact' && 'צור קשר'}

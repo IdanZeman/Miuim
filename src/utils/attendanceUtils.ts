@@ -23,12 +23,12 @@ export const getRotationStatusForDate = (date: Date, rotation: TeamRotation) => 
 export const getEffectiveAvailability = (person: Person, date: Date, teamRotations: TeamRotation[]) => {
     const dateKey = date.toLocaleDateString('en-CA');
 
-    // 1. Manual Override
+    // 1. Manual Override & Absences
+    let unavailableBlocks: { id: string; start: string; end: string; reason?: string }[] = [];
+    
+    // Check person.dailyAvailability first (legacy/manual overrides)
     if (person.dailyAvailability && person.dailyAvailability[dateKey]) {
         const manual = person.dailyAvailability[dateKey];
-        
-        // Use existing status if available (e.g. calculated by App.tsx with timeline context)
-        // Otherwise try to infer based on hours/availability
         let status = manual.status || 'full';
         
         if (!manual.status && manual.isAvailable) {
@@ -38,17 +38,18 @@ export const getEffectiveAvailability = (person: Person, date: Date, teamRotatio
             status = 'home';
         }
         
-        return { ...manual, status, source: manual.source || 'manual' };
+        return { ...manual, status, source: manual.source || 'manual', unavailableBlocks: manual.unavailableBlocks || [] };
     }
+
+    // Default return structure
+    let result = { isAvailable: true, startHour: '00:00', endHour: '23:59', status: 'full', source: 'default', unavailableBlocks };
 
     // 2. Personal Rotation
     if (person.personalRotation?.isActive && person.personalRotation.startDate) {
         const [y, m, dStr] = person.personalRotation.startDate.split('-').map(Number);
-        const start = new Date(y, m - 1, dStr); // Local midnight
-        
+        const start = new Date(y, m - 1, dStr);
         const d = new Date(date); 
         d.setHours(0,0,0,0);
-        
         const diffTime = d.getTime() - start.getTime();
         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
@@ -58,33 +59,25 @@ export const getEffectiveAvailability = (person: Person, date: Date, teamRotatio
             const cycleLength = daysOn + daysOff;
             const dayInCycle = diffDays % cycleLength;
 
-            if (dayInCycle === 0) {
-                // Arrival: Default to full day 00:00-23:59
-                return { isAvailable: true, startHour: '00:00', endHour: '23:59', status: 'arrival', source: 'personal_rotation' };
-            } else if (dayInCycle < daysOn - 1) {
-                return { isAvailable: true, startHour: '00:00', endHour: '23:59', status: 'full', source: 'personal_rotation' };
-            } else if (dayInCycle === daysOn - 1) {
-                // Departure: Default to full day 00:00-23:59
-                return { isAvailable: true, startHour: '00:00', endHour: '23:59', status: 'departure', source: 'personal_rotation' };
-            } else {
-                return { isAvailable: false, startHour: '00:00', endHour: '00:00', status: 'home', source: 'personal_rotation' };
-            }
+            if (dayInCycle === 0) result = { ...result, startHour: '00:00', endHour: '23:59', status: 'arrival', source: 'personal_rotation' };
+            else if (dayInCycle < daysOn - 1) result = { ...result, startHour: '00:00', endHour: '23:59', status: 'full', source: 'personal_rotation' };
+            else if (dayInCycle === daysOn - 1) result = { ...result, startHour: '00:00', endHour: '23:59', status: 'departure', source: 'personal_rotation' };
+            else result = { ...result, isAvailable: false, startHour: '00:00', endHour: '00:00', status: 'home', source: 'personal_rotation' };
         }
     }
 
-    // 3. Team Rotation
+    // 3. Team Rotation (Overrides Personal if exists and implies base)
     if (person.teamId) {
         const rotation = teamRotations.find(r => r.team_id === person.teamId);
         if (rotation) {
             const status = getRotationStatusForDate(date, rotation);
-            if (status === 'home') return { isAvailable: false, startHour: '00:00', endHour: '00:00', status, source: 'rotation' };
-            // Default all available statuses to 00:00-23:59
-            if (status === 'arrival') return { isAvailable: true, startHour: '00:00', endHour: '23:59', status, source: 'rotation' };
-            if (status === 'departure') return { isAvailable: true, startHour: '00:00', endHour: '23:59', status, source: 'rotation' };
-            if (status === 'full') return { isAvailable: true, startHour: '00:00', endHour: '23:59', status, source: 'rotation' };
+            if (status) {
+                // If Team Rotation dictates HOME, it usually overrides unless specific override exists
+                 if (status === 'home') result = { ...result, isAvailable: false, startHour: '00:00', endHour: '00:00', status, source: 'rotation' };
+                 else result = { ...result, isAvailable: true, startHour: '00:00', endHour: '23:59', status, source: 'rotation' };
+            }
         }
     }
 
-    // Default
-    return { isAvailable: true, startHour: '00:00', endHour: '23:59', status: 'full', source: 'default' };
+    return result;
 };

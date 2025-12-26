@@ -79,6 +79,7 @@ export interface AvailabilitySlot {
   endHour?: string;   // "17:00"
   source?: string;
   status?: string; // 'arrival' | 'departure' | 'base' | 'home'
+  unavailableBlocks?: { id: string; start: string; end: string; reason?: string }[];
 }
 
 export interface DailyAvailability {
@@ -93,7 +94,7 @@ export interface Person {
   userId?: string;
   color: string;
   maxShiftsPerWeek: number;
-  dailyAvailability?: Record<string, { isAvailable: boolean; startHour?: string; endHour?: string; source?: string; status?: string }>;
+  dailyAvailability?: Record<string, AvailabilitySlot>;
   personalRotation?: {
     isActive: boolean;
     daysOn: number;
