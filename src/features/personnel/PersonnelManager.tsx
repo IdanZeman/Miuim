@@ -782,6 +782,24 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                     {/* Search & Actions */}
                     <div className="flex items-center gap-2 w-full md:w-auto flex-1 md:max-w-md order-1 md:order-2">
+                        {/* Desktop Add Button */}
+                        {canEdit && (
+                            <Button
+                                onClick={() => {
+                                    if (activeTab === 'people' && teams.length === 0) {
+                                        showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
+                                        setActiveTab('teams');
+                                        return;
+                                    }
+                                    setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
+                                }}
+                                className="hidden md:flex shrink-0"
+                                icon={Plus}
+                                variant="primary"
+                            >
+                                {activeTab === 'people' ? 'הוסף חייל' : activeTab === 'teams' ? 'הוסף צוות' : 'הוסף תפקיד'}
+                            </Button>
+                        )}
                         {/* Search Bar */}
                         <div className="flex-1 relative">
                             <Input
@@ -1176,7 +1194,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             }
                             setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
                         }}
-                        className="fixed bottom-24 md:bottom-8 left-6 w-14 h-14 bg-idf-yellow text-slate-900 rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 transition-all flex items-center justify-center z-50 hover:scale-105 active:scale-95"
+                        className="md:hidden fixed bottom-24 md:bottom-8 left-6 w-14 h-14 bg-idf-yellow text-slate-900 rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 transition-all flex items-center justify-center z-50 hover:scale-105 active:scale-95"
                     >
                         <Plus size={28} />
                     </button>

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
-import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, Wand2, Sparkles } from 'lucide-react';
+import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, Wand2, Sparkles, Users } from 'lucide-react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { GlobalTeamCalendar } from './GlobalTeamCalendar';
@@ -42,7 +42,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction
 }) => {
     const { showToast } = useToast();
-    const [viewMode, setViewMode] = useState<'calendar' | 'day_detail'>('calendar');
+    const [viewMode, setViewMode] = useState<'calendar' | 'table' | 'day_detail'>('calendar');
     const [calendarViewType, setCalendarViewType] = useState<'grid' | 'table'>('grid'); // NEW: sub-view for calendar
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [viewDate, setViewDate] = useState(new Date()); // Lifted state for calendar view
@@ -547,15 +547,21 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 <CalendarDays size={16} />
-                                תצוגה לוח שנה
+                                לוח שנה
+                            </button>
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <ListChecks size={16} />
+                                טבלה חודשית
                             </button>
                             <button
                                 onClick={() => setViewMode('day_detail')}
-                                data-testid="list-view-btn"
                                 className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'day_detail' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                <ListChecks size={16} />
-                                תצוגה רשימה
+                                <Users size={16} />
+                                רשימה יומית
                             </button>
                         </div>
                     </div>
@@ -564,24 +570,76 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
                             <button
                                 onClick={() => {
-                                    const d = viewMode === 'calendar' ? viewDate : selectedDate;
-                                    const setter = viewMode === 'calendar' ? setViewDate : setSelectedDate;
-                                    setter(new Date(d.getFullYear(), d.getMonth() - 1, 1));
+                                    if (viewMode === 'day_detail') {
+                                        const next = new Date(selectedDate);
+                                        next.setDate(selectedDate.getDate() - 1);
+                                        setSelectedDate(next);
+                                    } else {
+                                        const d = viewMode === 'calendar' ? viewDate : selectedDate;
+                                        const setter = viewMode === 'calendar' ? setViewDate : setSelectedDate;
+                                        setter(new Date(d.getFullYear(), d.getMonth() - 1, 1));
+                                    }
                                 }}
                                 className="p-1 hover:bg-white rounded shadow-sm"
                             >
                                 <ChevronRight size={18} />
                             </button>
 
-                            <span className="font-bold min-w-[120px] text-center">
-                                {(viewMode === 'calendar' ? viewDate : selectedDate).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}
-                            </span>
+                            <div className="relative group cursor-pointer flex items-center justify-center">
+                                <span
+                                    onClick={() => {
+                                        const input = document.getElementById('header-date-picker') as HTMLInputElement;
+                                        if (input) input.showPicker ? input.showPicker() : input.click();
+                                    }}
+                                    className="font-bold min-w-[140px] text-center px-4 py-1 rounded-md hover:bg-slate-100 transition-colors"
+                                >
+                                    {viewMode === 'day_detail'
+                                        ? selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'short' })
+                                        : (viewMode === 'calendar' ? viewDate : selectedDate).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })
+                                    }
+                                </span>
+                                <input
+                                    id="header-date-picker"
+                                    type={viewMode === 'day_detail' ? "date" : "month"}
+                                    className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
+                                    value={
+                                        viewMode === 'day_detail'
+                                            ? selectedDate.toLocaleDateString('en-CA')
+                                            : (viewMode === 'calendar' ? viewDate : selectedDate).toISOString().slice(0, 7)
+                                    }
+                                    onChange={(e) => {
+                                        if (!e.target.value) return;
+                                        // For 'month' type, value is 'YYYY-MM'. We need to parse it to a Date.
+                                        let newDate;
+                                        if (viewMode === 'day_detail') {
+                                            newDate = new Date(e.target.value);
+                                        } else {
+                                            const [y, m] = e.target.value.split('-').map(Number);
+                                            newDate = new Date(y, m - 1, 1);
+                                        }
+
+                                        if (isNaN(newDate.getTime())) return;
+                                        if (viewMode === 'day_detail') {
+                                            setSelectedDate(newDate);
+                                        } else {
+                                            if (viewMode === 'calendar') setViewDate(newDate);
+                                            else setSelectedDate(newDate);
+                                        }
+                                    }}
+                                />
+                            </div>
 
                             <button
                                 onClick={() => {
-                                    const d = viewMode === 'calendar' ? viewDate : selectedDate;
-                                    const setter = viewMode === 'calendar' ? setViewDate : setSelectedDate;
-                                    setter(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+                                    if (viewMode === 'day_detail') {
+                                        const next = new Date(selectedDate);
+                                        next.setDate(selectedDate.getDate() + 1);
+                                        setSelectedDate(next);
+                                    } else {
+                                        const d = viewMode === 'calendar' ? viewDate : selectedDate;
+                                        const setter = viewMode === 'calendar' ? setViewDate : setSelectedDate;
+                                        setter(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+                                    }
                                 }}
                                 className="p-1 hover:bg-white rounded shadow-sm"
                             >
@@ -597,7 +655,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             }}
                             className="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-sm font-bold transition-colors"
                         >
-                            חודש נוכחי
+                            {viewMode === 'day_detail' ? 'יום נוכחי' : 'חודש נוכחי'}
                         </button>
                         {!isViewer && (
                             <button
@@ -640,6 +698,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 absences={absences}
                                 currentDate={selectedDate}
                                 onDateChange={setSelectedDate}
+                                viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
                                 onSelectPerson={(p) => {
                                     if (isBulkMode) handleToggleSelectPerson(p.id);
                                     else setSelectedPersonForCalendar(p);
