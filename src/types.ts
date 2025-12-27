@@ -293,3 +293,16 @@ export interface EquipmentVerification {
   status: EquipmentStatus;
   notes?: string;
 }
+
+export interface SystemMessage {
+  id: string;
+  organization_id: string;
+  title?: string;
+  message: string;
+  is_active: boolean;
+  created_at: string;
+  created_by?: string;
+  target_team_ids?: string[];
+  target_role_ids?: string[];
+  message_type?: 'POPUP' | 'BULLETIN';
+}

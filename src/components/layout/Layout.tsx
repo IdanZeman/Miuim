@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX, Package, Activity, HelpCircle } from 'lucide-react';
 import { ViewMode } from '@/types';
+import { SystemMessagePopup } from '../common/SystemMessagePopup';
 import { useAuth } from '../../features/auth/AuthContext';
 import { Analytics } from "@vercel/analytics/next"
 import { analytics } from '../../services/analytics';
@@ -71,6 +72,8 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         isPublic={isPublic}
         checkAccess={checkAccess}
       />
+
+      <SystemMessagePopup />
 
       {/* Mobile Menu Sidebar */}
       <Sidebar

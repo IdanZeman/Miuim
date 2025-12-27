@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
-import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw, Settings, Plus, Gavel, Layout, UserCircle, Globe, Anchor, Activity, ChevronLeft, AlertTriangle } from 'lucide-react';
+import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw, Settings, Plus, Gavel, Layout, UserCircle, Globe, Anchor, Activity, ChevronLeft, AlertTriangle, Megaphone } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode } from '@/types';
+import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode, Role } from '@/types';
 import { PermissionEditor } from './PermissionEditor';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -14,6 +14,7 @@ import { useConfirmation } from '../../hooks/useConfirmation';
 import { Select } from '../../components/ui/Select';
 import { PermissionEditorContent } from './PermissionEditorContent';
 import { PageInfo } from '../../components/ui/PageInfo';
+import { OrganizationMessagesManager } from './OrganizationMessagesManager';
 
 import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../../utils/permissions';
 
@@ -370,7 +371,8 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const [sending, setSending] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
-    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles'>('general');
+    const [roles, setRoles] = useState<Role[]>([]); // New State
+    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles' | 'messages'>('general');
 
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
@@ -388,7 +390,8 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         await Promise.all([
             fetchMembers(),
             fetchInvites(),
-            fetchTemplates()
+            fetchTemplates(),
+            fetchRoles()
         ]);
         setLoading(false);
     };
@@ -403,6 +406,12 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         if (!error && data) {
             setTemplates(data);
         }
+    };
+
+    const fetchRoles = async () => {
+        if (!organization) return;
+        const { data } = await supabase.from('roles').select('*').eq('organization_id', organization.id);
+        if (data) setRoles(data);
     };
 
     const fetchMembers = async () => {
@@ -522,6 +531,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         { id: 'general', label: 'כללי', icon: Settings },
         { id: 'roles', label: 'תבניות הרשאות', icon: Shield },
         { id: 'members', label: 'חברים', icon: Users },
+        { id: 'messages', label: 'הודעות ועדכונים', icon: Megaphone },
     ];
 
     return (
@@ -746,6 +756,12 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'messages' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <OrganizationMessagesManager teams={teams} roles={roles} />
                             </div>
                         )}
                     </div>

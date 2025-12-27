@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Shield, MessageSquare, AlertCircle, LayoutDashboard } from 'lucide-react';
+import { Shield, MessageSquare, AlertCircle, LayoutDashboard, Megaphone } from 'lucide-react';
 
 import { AdminLogsViewer } from '../features/admin/AdminLogsViewer';
 import { SupportTicketsPage } from './SupportTicketsPage';
 import { useAuth } from '../features/auth/AuthContext';
 
 import { SystemStatsDashboard } from '../features/admin/SystemStatsDashboard';
+import { SystemMessagesManager } from '../features/admin/SystemMessagesManager';
 
-type Tab = 'dashboard' | 'logs' | 'tickets';
+type Tab = 'dashboard' | 'logs' | 'tickets' | 'messages';
 
 export const SystemManagementPage: React.FC = () => {
     const { user, profile } = useAuth();
@@ -67,6 +68,16 @@ export const SystemManagementPage: React.FC = () => {
                         <MessageSquare size={16} />
                         פניות ותמיכה
                     </button>
+                    <button
+                        onClick={() => setActiveTab('messages')}
+                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 ${activeTab === 'messages'
+                            ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
+                    >
+                        <Megaphone size={16} />
+                        הודעות מערכת
+                    </button>
                 </div>
             </div>
 
@@ -75,6 +86,7 @@ export const SystemManagementPage: React.FC = () => {
                 {activeTab === 'dashboard' && <SystemStatsDashboard />}
                 {activeTab === 'logs' && <AdminLogsViewer />}
                 {activeTab === 'tickets' && <SupportTicketsPage />}
+                {activeTab === 'messages' && <SystemMessagesManager />}
             </div>
         </div>
     );
