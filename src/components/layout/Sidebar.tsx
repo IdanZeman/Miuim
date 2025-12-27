@@ -135,7 +135,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                             onClick={() => { setView('absences'); onClose() }}
                         >
                             <UserX size={22} className={currentView === 'absences' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>היעדרויות</span>
+                            <span>בקשות יציאה</span>
                         </button>
                     )}
 

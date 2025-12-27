@@ -94,13 +94,11 @@ class FixedRatioStrategy implements ISchedulingStrategy {
              const hardConstraints = ctx.constraints.get(p.id) || new Set();
              const hist = ctx.history?.get(p.id);
 
-             // Exit Day Logic
+             // Exit Day Logic - REMOVED: Respect strict ratio
              let effectiveBase = config.daysBase;
              let effectiveHome = config.daysHome;
-             if (effectiveHome > 0) {
-                 effectiveBase += 1;
-                 effectiveHome -= 1;
-             }
+             
+             // History Offset
 
              // History Offset
              let historyOffset = -1;
@@ -163,6 +161,7 @@ class FixedRatioStrategy implements ISchedulingStrategy {
              schedule[p.id] = finalSched;
         });
         
+        console.log(`[FixedRatioStrategy] Generated schedule for ${Object.keys(schedule).length} people.`);
         return schedule;
     }
 }

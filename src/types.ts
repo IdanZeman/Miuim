@@ -262,7 +262,10 @@ export interface Absence {
   organization_id: string;
   start_date: string; // ISO Date "YYYY-MM-DD"
   end_date: string;   // ISO Date "YYYY-MM-DD"
+  start_time?: string; // "HH:MM", defaults to "00:00"
+  end_time?: string;   // "HH:MM", defaults to "23:59"
   reason?: string;
+  status?: 'pending' | 'approved' | 'rejected' | 'conflict';
   created_at?: string;
 }
 

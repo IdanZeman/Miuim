@@ -8,6 +8,11 @@ export const mapPersonFromDB = (p: any): Person => {
     if (typeof dailyAvailability === 'string') {
         try { dailyAvailability = JSON.parse(dailyAvailability); } catch (e) { dailyAvailability = {}; }
     }
+    
+    // Debug for first person/specific person
+    if (p.name === 'אליאור וקרולקר' || p.id === 'person-elior') {
+        console.log(`[Mapper] Parsed Availability for ${p.name}:`, dailyAvailability);
+    }
 
     let personalRotation = p.personal_rotation || undefined;
     if (typeof personalRotation === 'string') {
@@ -198,7 +203,10 @@ export const mapAbsenceFromDB = (dbAbsence: any): Absence => ({
     organization_id: dbAbsence.organization_id,
     start_date: dbAbsence.start_date,
     end_date: dbAbsence.end_date,
+    start_time: dbAbsence.start_time || '00:00',
+    end_time: dbAbsence.end_time || '23:59',
     reason: dbAbsence.reason,
+    status: dbAbsence.status || 'pending', // Default to pending
     created_at: dbAbsence.created_at
 });
 
@@ -208,7 +216,10 @@ export const mapAbsenceToDB = (absence: Absence) => ({
     organization_id: absence.organization_id,
     start_date: absence.start_date,
     end_date: absence.end_date,
-    reason: absence.reason
+    start_time: absence.start_time,
+    end_time: absence.end_time,
+    reason: absence.reason,
+    status: absence.status
 });
 
 // Equipment Mappers

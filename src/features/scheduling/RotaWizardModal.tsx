@@ -1,4 +1,6 @@
+import { handleAppError } from '../../utils/errorUtils';
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence } from '@/types';
 import { generateRoster, RosterGenerationResult, PersonHistory } from '@/utils/rotaGenerator';
@@ -41,8 +43,8 @@ const CustomDatePicker = ({ label, value, onChange }: { label: string, value: st
                             if ('showPicker' in inputRef.current) {
                                 (inputRef.current as any).showPicker();
                             } else {
-                                inputRef.current.focus();
-                                inputRef.current.click();
+                                (inputRef.current as HTMLInputElement).focus();
+                                (inputRef.current as HTMLInputElement).click();
                             }
                         } catch (e) {
                             inputRef.current.click();
@@ -87,8 +89,8 @@ const CustomTimePicker = ({ label, value, onChange }: { label: string, value: st
                             if ('showPicker' in inputRef.current) {
                                 (inputRef.current as any).showPicker();
                             } else {
-                                inputRef.current.focus();
-                                inputRef.current.click();
+                                (inputRef.current as HTMLInputElement).focus();
+                                (inputRef.current as HTMLInputElement).click();
                             }
                         } catch (e) {
                             inputRef.current.click();
@@ -122,6 +124,7 @@ const CustomTimePicker = ({ label, value, onChange }: { label: string, value: st
 export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     isOpen, onClose, people, teams, tasks, settings, teamRotations, constraints, absences, onSaveRoster
 }) => {
+    const queryClient = useQueryClient();
     const { showToast } = useToast();
     // Default to Today -> One Month Ahead
     const [startDate, setStartDate] = useState(() => {
@@ -654,23 +657,42 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         }
 
                         if (r.status === 'base') {
-                            // Full Base (No Arrival/Departure inference)
-                            startTime = '00:00';
-                            endTime = '23:59';
-                        } else if (r.status === 'home' || r.status === 'unavailable') {
-                            if (isPrevBase) {
-                                // Departure (The first day of "Home" is actually the Departure day)
-                                // CHANGE STATUS TO BASE for DB
-                                r.status = 'base';
+                            if (!isPrevBase) {
+                                // Arrival Day (First day of Base streak)
+                                startTime = userArrivalHour;
+                                endTime = '23:59';
+                            } else {
+                                // Full Base
                                 startTime = '00:00';
-                                endTime = userDepartureHour;
+                                endTime = '23:59';
                             }
-                            // Else remains Home/Unavailable details (00:00)
+                        } else if (r.status === 'home' || r.status === 'unavailable') {
+                            /* 
+                               REMOVED DEPARTURE INFERENCE: 
+                               The Generator now handles "Exit Day" logic or the UI shows it.
+                               Converting the first Home day to Base (Departure) causes the "Missing Home Day" bug.
+                               We will simply save it as Home (00:00-00:00).
+                            */
+                            // if (isPrevBase) {
+                            //     // Departure (The first day of "Home" is actually the Departure day)
+                            //     // CHANGE STATUS TO BASE for DB
+                            //     r.status = 'base';
+                            //     startTime = '00:00';
+                            //     endTime = userDepartureHour;
+                            // }
+
+                            // Keep as Home
+                            startTime = '00:00';
+                            endTime = '00:00';
                         }
                     }
 
                     // Log times for debugging
                     // console.log(`Processing ${r.person_id} for ${r.date}: status=${r.status}, times=${startTime}-${endTime}`);
+
+                    // Update the roster item reference so the JSON update loop uses the correct calculated times
+                    r.start_time = startTime;
+                    r.end_time = endTime;
 
                     payload.push({
                         date: r.date,
@@ -678,24 +700,89 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         organization_id: settings.organization_id,
                         status: r.status === 'base' ? 'base' : (r.status === 'unavailable' ? 'unavailable' : 'home'),
                         source: override ? 'override' : 'algorithm',
-                        start_time: startTime, // NOW using correct variable
-                        end_time: endTime     // NOW using correct variable
+                        start_time: startTime,
+                        end_time: endTime
                     } as DailyPresence);
                 });
             });
 
-            // We might want to upsert? For now insert. 
-            // Note: unique constraint might fail if re-running same day. upsert is safer.
+            // 1. Bulk Upsert into daily_presence (History)
             const { error } = await supabase.from('daily_presence').upsert(payload, { onConflict: 'date,person_id,organization_id' });
 
             if (error) throw error;
+
+            // Optimized: Use Batched Parallel Updates to improve speed while avoiding rate limits
+            const entries = Array.from(personMap.entries());
+            let successCount = 0;
+            const BATCH_SIZE = 10;
+
+            for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+                const batch = entries.slice(i, i + BATCH_SIZE);
+
+                await Promise.all(batch.map(async ([personId, rosterItems]) => {
+                    const person = people.find(p => p.id === personId);
+                    if (!person) return;
+
+                    const newAvailability = { ...(person.dailyAvailability || {}) };
+
+                    rosterItems.forEach(r => {
+                        const dateKey = r.date;
+                        let startTime = r.start_time || '00:00';
+                        let endTime = r.end_time || '23:59';
+
+                        // Check if this date was manually overridden in the wizard (Exit Request)
+                        const overrideKey = `${personId}-${dateKey}`;
+                        const override = manualOverrides[overrideKey];
+                        let unavailableBlocks = (person.dailyAvailability?.[dateKey]?.unavailableBlocks || []).slice();
+
+                        if (override && (override.status === 'home' || override.status === 'unavailable')) {
+                            // This date was 'locked' by the user in the wizard
+                            // Ensure we have a block for it so the UI shows the "Exit Request" Text
+                            const hasConstraintBlock = unavailableBlocks.some(b => b.reason === 'אילוץ מחולל');
+                            if (!hasConstraintBlock) {
+                                unavailableBlocks.push({
+                                    id: `gen-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                                    start: '00:00',
+                                    end: '23:59',
+                                    reason: 'אילוץ מחולל'
+                                });
+                            }
+                        }
+
+                        const val = {
+                            status: r.status as any,
+                            isAvailable: r.status === 'base',
+                            startHour: startTime,
+                            endHour: endTime,
+                            source: 'algorithm',
+                            unavailableBlocks: unavailableBlocks.length > 0 ? unavailableBlocks : undefined
+                        };
+                        newAvailability[dateKey] = val;
+                    });
+
+                    // Update DB - Batched Parallel
+                    const { error } = await supabase.from('people')
+                        .update({ daily_availability: newAvailability })
+                        .eq('id', personId);
+
+                    if (!error) {
+                        successCount++;
+                    }
+                }));
+            }
+
+            console.log(`[RotaSave] Completed. Success: ${successCount}/${entries.length}`);
+
+            // Invalidate Cache to force UI refresh
+            await queryClient.invalidateQueries({ queryKey: ['organizationData'] });
+            console.log('[RotaSave] Cache invalidated');
 
             if (onSaveRoster) onSaveRoster(result.roster);
             showToast('השיבוץ נשמר בהצלחה', 'success');
             onClose();
         } catch (e) {
-            console.error(e);
-            showToast('שגיאה בשמירת הלוח', 'error');
+            const msg = handleAppError(e, 'Save Roster Failed');
+            showToast(msg, 'error');
         } finally {
             setSaving(false);
         }
@@ -786,6 +873,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 onClick={handleGenerate}
                 isLoading={generating}
                 icon={Sparkles}
+                data-testid="rota-wizard-generate-btn"
                 className="bg-[#7cbd52] hover:bg-[#6aa845] text-white shadow-md hover:shadow-lg flex-[2] h-12 md:h-10 justify-center text-base md:text-sm font-black"
             >
                 צור הצעה
@@ -867,6 +955,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     onClick={handleSave}
                     isLoading={saving}
                     icon={Save}
+                    data-testid="rota-wizard-save-btn"
                     className="bg-green-600 text-white hover:bg-green-700 shadow-md flex-[2] justify-center font-black h-12 md:h-10"
                 >
                     שמור
@@ -1434,30 +1523,39 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                         );
                                                                     } else if (status === 'base') {
                                                                         // Base Day 
-                                                                        // User requested NO automatic Arrival inference.
-                                                                        // Always Full Base unless overridden with custom times.
+                                                                        // Check for Implicit Arrival (Base day following Home/Unavailable)
+                                                                        const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
+                                                                        const isPrevHome = prevStatus === 'home' || prevStatus === 'unavailable';
 
-                                                                        // Check for Custom Times override
-                                                                        const overrideKey = `${person.id}-${dateKey}`;
-                                                                        const override = manualOverrides[overrideKey];
+                                                                        if (!isOverridden && isPrevHome) {
+                                                                            // ARRIVAL (Base day following Home)
+                                                                            cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
+                                                                            content = (
+                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                    <span className="font-bold mb-0.5">הגעה</span>
+                                                                                    <span className="text-[9px]">{userArrivalHour}</span>
+                                                                                </div>
+                                                                            );
+                                                                        } else {
+                                                                            // Full Base
+                                                                            // Check for Custom Times override
+                                                                            let label = "בבסיס";
+                                                                            let subLabel = "";
 
-                                                                        let label = "בבסיס";
-                                                                        let subLabel = "";
-
-                                                                        if (override && override.status === 'base' && override.startTime && override.endTime) {
-                                                                            if (override.startTime !== '00:00' || override.endTime !== '23:59') {
-                                                                                // Maybe custom?
-                                                                                subLabel = `${override.startTime}-${override.endTime}`;
+                                                                            if (isOverridden && isOverridden.status === 'base' && isOverridden.startTime && isOverridden.endTime) {
+                                                                                if (isOverridden.startTime !== '00:00' || isOverridden.endTime !== '23:59') {
+                                                                                    subLabel = `${isOverridden.startTime}-${isOverridden.endTime}`;
+                                                                                }
                                                                             }
-                                                                        }
 
-                                                                        cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
-                                                                        content = (
-                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center">
-                                                                                <span className="font-bold">{label}</span>
-                                                                                {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
-                                                                            </div>
-                                                                        );
+                                                                            cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
+                                                                            content = (
+                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center">
+                                                                                    <span className="font-bold">{label}</span>
+                                                                                    {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
+                                                                                </div>
+                                                                            );
+                                                                        }
                                                                     }
 
                                                                     cells.push(
@@ -1631,6 +1729,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 onClose={() => setWarningModal(prev => ({ ...prev, isOpen: false }))}
                 title="שים לב: חריגות בשיבוץ"
                 size="md"
+                footer={
+                    <div className="flex justify-end gap-3 w-full">
+                        <Button variant="ghost" onClick={() => setWarningModal(prev => ({ ...prev, isOpen: false }))}>תקן שיבוץ</Button>
+                        <Button onClick={performSave} className="bg-amber-600 hover:bg-amber-700 text-white">שמור למרות החריגות</Button>
+                    </div>
+                }
             >
                 <div className="p-4 space-y-4">
                     <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 text-amber-900 text-sm">
@@ -1646,10 +1750,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     <p className="text-sm text-slate-500">
                         האם ברצונך לשמור את הלוח כפי שהוא, או לחזור ולתקן את החריגות?
                     </p>
-                    <div className="flex justify-end gap-3 pt-2">
-                        <Button variant="ghost" onClick={() => setWarningModal(prev => ({ ...prev, isOpen: false }))}>תקן שיבוץ</Button>
-                        <Button onClick={performSave} className="bg-amber-600 hover:bg-amber-700 text-white">שמור למרות החריגות</Button>
-                    </div>
                 </div>
             </Modal>
         </>

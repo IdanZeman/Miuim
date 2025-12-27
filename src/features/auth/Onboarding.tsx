@@ -627,6 +627,7 @@ export const Onboarding: React.FC = () => {
                                         onImport={handleFinalImport}
                                         teams={localTeams}
                                         roles={localRoles}
+                                        people={[]} // No existing people in new org
                                         onAddTeam={handleAddTeam}
                                         onAddRole={handleAddRole}
                                         isSaving={loading}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Person, Team, TeamRotation } from '@/types';
+import { Person, Team, TeamRotation, Absence } from '@/types';
 import { ChevronRight, ChevronLeft, Calendar as CalendarIcon, ArrowRight, ArrowLeft, Home, X, Settings, User, Users, ChevronDown, ListChecks, Info, Filter } from 'lucide-react';
 import { getEffectiveAvailability, getRotationStatusForDate } from '@/utils/attendanceUtils';
 
@@ -7,6 +7,7 @@ interface GlobalTeamCalendarProps {
     teams: Team[];
     people: Person[];
     teamRotations: TeamRotation[];
+    absences?: Absence[]; // NEW
     onManageTeam?: (teamId: string) => void;
     onToggleTeamAvailability?: (teamId: string, date: Date, isAvailable: boolean) => void;
     onDateClick: (date: Date) => void;
@@ -18,7 +19,7 @@ interface GlobalTeamCalendarProps {
 }
 
 export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
-    teams, people, teamRotations,
+    teams, people, teamRotations, absences = [],
     onManageTeam, onToggleTeamAvailability, onDateClick,
     currentDate, onDateChange,
     viewType = 'grid', onViewTypeChange, organizationName
@@ -56,7 +57,7 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
             let presentPeople = 0;
             relevantPeople.forEach(person => {
                 totalPeople++;
-                const avail = getEffectiveAvailability(person, date, teamRotations);
+                const avail = getEffectiveAvailability(person, date, teamRotations, absences);
                 if (avail.isAvailable) presentPeople++;
             });
 

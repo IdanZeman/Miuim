@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
 import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, Wand2, Sparkles } from 'lucide-react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
@@ -59,14 +59,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [showRotaWizard, setShowRotaWizard] = useState(initialOpenRotaWizard); // Initialize from prop
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (initialOpenRotaWizard && onDidConsumeInitialAction) {
             onDidConsumeInitialAction();
         }
     }, [initialOpenRotaWizard, onDidConsumeInitialAction]);
 
     const getPersonAvailability = (person: Person) => {
-        return getEffectiveAvailability(person, selectedDate, teamRotations);
+        return getEffectiveAvailability(person, selectedDate, teamRotations, absences);
     };
 
     const toggleTeamCollapse = (teamId: string) => {
@@ -193,6 +193,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         ...updatedPerson.dailyAvailability,
                         [key]: {
                             isAvailable: data.isAvailable,
+                            status: data.isAvailable ? 'base' : 'home', // Infer status for bulk operations
                             startHour: data.startHour,
                             endHour: data.endHour,
                             source: 'manual'
@@ -249,6 +250,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         let newData: any = {
             ...currentData,
             source: 'manual',
+            status: status, // Persist the status ('base', 'home', 'unavailable')
             unavailableBlocks: unavailableBlocks || []
         };
 
@@ -301,7 +303,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 const dateStr = date.toLocaleDateString('he-IL');
 
                 people.forEach(person => {
-                    const avail = getEffectiveAvailability(person, date, teamRotations);
+                    const avail = getEffectiveAvailability(person, date, teamRotations, absences);
                     const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
                     const status = avail.isAvailable ? 'נמצא' : 'בבית';
                     const hours = avail.isAvailable ? `${avail.startHour} - ${avail.endHour} ` : '-';
@@ -473,6 +475,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 teams={teams}
                                 people={people}
                                 teamRotations={teamRotations}
+                                absences={absences}
                                 onManageTeam={(teamId) => setShowRotationSettings(teamId)}
                                 onDateClick={handleDateClick}
                                 currentDate={viewDate}
@@ -498,6 +501,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 teams={teams}
                                 people={filteredPeople}
                                 teamRotations={teamRotations}
+                                absences={absences}
                                 currentDate={selectedDate}
                                 onDateChange={setSelectedDate}
                                 onSelectPerson={(p) => {
@@ -547,6 +551,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             </button>
                             <button
                                 onClick={() => setViewMode('day_detail')}
+                                data-testid="list-view-btn"
                                 className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'day_detail' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 <ListChecks size={16} />
@@ -597,6 +602,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         {!isViewer && (
                             <button
                                 onClick={() => setShowRotaWizard(true)}
+                                data-testid="open-rota-wizard-btn"
                                 className="px-3 py-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 border border-amber-100"
                             >
                                 <Sparkles size={16} />
@@ -615,6 +621,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 teams={teams}
                                 people={people}
                                 teamRotations={teamRotations}
+                                absences={absences}
                                 onManageTeam={(teamId) => setShowRotationSettings(teamId)}
                                 onDateClick={handleDateClick}
                                 currentDate={viewDate}
@@ -630,6 +637,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 teams={teams}
                                 people={filteredPeople}
                                 teamRotations={teamRotations}
+                                absences={absences}
                                 currentDate={selectedDate}
                                 onDateChange={setSelectedDate}
                                 onSelectPerson={(p) => {
@@ -666,6 +674,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 <PersonalAttendanceCalendar
                     person={selectedPersonForCalendar}
                     teamRotations={teamRotations}
+                    absences={absences}
                     onClose={() => setSelectedPersonForCalendar(null)}
                     onUpdatePerson={onUpdatePerson}
                     isViewer={isViewer}
@@ -701,30 +710,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     teamRotations={teamRotations}
                     onSaveRoster={(roster: DailyPresence[]) => {
                         // Convert Roster to Person updates for immediate UI reflection
-                        if (onUpdatePeople) {
-                            const updates = new Map<string, Person>();
-
-                            roster.forEach(entry => {
-                                const person = people.find(p => p.id === entry.person_id) || updates.get(entry.person_id);
-                                if (!person) return;
-
-                                const p = updates.get(entry.person_id) || { ...person, dailyAvailability: { ...person.dailyAvailability } };
-
-                                p.dailyAvailability = {
-                                    ...p.dailyAvailability,
-                                    [entry.date]: {
-                                        isAvailable: entry.status === 'base',
-                                        startHour: entry.status === 'base' ? '00:00' : '00:00', // Default full day
-                                        endHour: entry.status === 'base' ? '23:59' : '00:00',
-                                        source: 'algorithm'
-                                    }
-                                };
-                                updates.set(entry.person_id, p);
-                            });
-
-                            onUpdatePeople(Array.from(updates.values()));
-                            showToast('השיבוץ נטען לתצוגה', 'success');
-                        }
+                        // onUpdatePeople(Array.from(updates.values())); // REMOVED: Prevent double-write. RotaWizardModal already handles the DB save and Invalidation.
+                        // showToast('השיבוץ נטען לתצוגה', 'success');
                     }}
                 />
             )}

@@ -33,54 +33,54 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     const [newBlockStart, setNewBlockStart] = useState('10:00');
     const [newBlockEnd, setNewBlockEnd] = useState('11:00');
     const [newBlockReason, setNewBlockReason] = useState('');
+    const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
 
+    // Sync from props
     useEffect(() => {
-        if (isOpen && currentAvailability) {
-            // Reset UI
-            setCustomType(null);
-            setIsAddingBlock(false);
-
-            // Set Main Status
-            if (currentAvailability.status === 'home') {
+        if (currentAvailability) {
+            // Status
+            if (currentAvailability.status === 'home' || !currentAvailability.isAvailable) {
                 setMainStatus('home');
             } else {
                 setMainStatus('base');
             }
 
-            // Set Times
-            setCustomStart(currentAvailability.startHour !== '00:00' ? currentAvailability.startHour || defaultArrivalHour : defaultArrivalHour);
-            setCustomEnd(currentAvailability.endHour !== '23:59' ? currentAvailability.endHour || defaultDepartureHour : defaultDepartureHour);
+            // Times & Type
+            const s = currentAvailability.startHour || '00:00';
+            const e = currentAvailability.endHour || '23:59';
+            if (s !== '00:00' && (e === '23:59' || e === '00:00')) {
+                setCustomType('arrival');
+                setCustomStart(s);
+            } else if ((s === '00:00') && e !== '23:59' && e !== '00:00') {
+                setCustomType('departure');
+                setCustomEnd(e);
+            } else {
+                setCustomType(null); // Simple logic, can expand if needed
+                setCustomStart(s === '00:00' ? defaultArrivalHour : s);
+                setCustomEnd(e === '23:59' ? defaultDepartureHour : e);
+            }
 
-            // Set Blocks
-            setUnavailableBlocks(currentAvailability.unavailableBlocks || []);
-        } else if (isOpen) {
-            // Default if new
+            // Blocks
+            if (currentAvailability.unavailableBlocks) {
+                setUnavailableBlocks(currentAvailability.unavailableBlocks);
+            } else {
+                setUnavailableBlocks([]);
+            }
+        } else {
+            // Default new
             setMainStatus('base');
             setUnavailableBlocks([]);
-            setCustomStart(defaultArrivalHour);
-            setCustomEnd(defaultDepartureHour);
+            setCustomType(null);
         }
-    }, [isOpen, currentAvailability, defaultArrivalHour, defaultDepartureHour]);
+    }, [currentAvailability, isOpen, defaultArrivalHour, defaultDepartureHour]);
+
+    // ... (rest of code) ...
 
     const handleApply = () => {
         let finalStart = '00:00';
         let finalEnd = '23:59';
 
         if (mainStatus === 'base') {
-            // Logic to merge custom times if set via the "customType" flow, 
-            // BUT currently the UI separates them. 
-            // If the user selected 'arrival', we use customStart.
-            // If the user just switched "Base" and didn't touch times, we assume full day unless they went into "Custom".
-            // To simplify: if they are in "Base" mode, we check if they set explicit arrival/departure times previously?
-            // Actually, let's keep it simple:
-            // If they clicked "Base (Full)", we send 00:00-23:59.
-            // If they clicked "Arrival", etc, we use those.
-
-            // Wait, the new UI hides the specific buttons if not in "customType".
-            // So if they just click "Save" from the main screen, it means "Keep as is" or "Full Base"?
-            // We should track "isFullDay" vs "Custom".
-
-            // Let's use the current state values.
             if (customType === 'arrival') {
                 finalStart = customStart;
             } else if (customType === 'departure') {
@@ -94,21 +94,45 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
         onApply(mainStatus, { start: finalStart, end: finalEnd }, unavailableBlocks);
     };
 
-    const addBlock = () => {
+    const addOrUpdateBlock = () => {
         if (newBlockStart >= newBlockEnd) return; // Simple validation
-        const newBlock = {
-            id: crypto.randomUUID(),
-            start: newBlockStart,
-            end: newBlockEnd,
-            reason: newBlockReason
-        };
-        setUnavailableBlocks([...unavailableBlocks, newBlock]);
+
+        if (editingBlockId) {
+            setUnavailableBlocks(prev => prev.map(b => b.id === editingBlockId ? {
+                ...b,
+                start: newBlockStart,
+                end: newBlockEnd,
+                reason: newBlockReason
+            } : b));
+            setEditingBlockId(null);
+        } else {
+            const newBlock = {
+                id: crypto.randomUUID(),
+                start: newBlockStart,
+                end: newBlockEnd,
+                reason: newBlockReason
+            };
+            setUnavailableBlocks([...unavailableBlocks, newBlock]);
+        }
+
         setIsAddingBlock(false);
         setNewBlockReason('');
     };
 
+    const handleEditBlock = (block: { id: string, start: string, end: string, reason?: string }) => {
+        setNewBlockStart(block.start);
+        setNewBlockEnd(block.end);
+        setNewBlockReason(block.reason || '');
+        setEditingBlockId(block.id);
+        setIsAddingBlock(true);
+    };
+
     const removeBlock = (id: string) => {
         setUnavailableBlocks(unavailableBlocks.filter(b => b.id !== id));
+        if (editingBlockId === id) {
+            setEditingBlockId(null);
+            setIsAddingBlock(false);
+        }
     };
 
     const renderTimeline = () => {
@@ -120,12 +144,20 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             <div className="flex flex-col gap-2 mt-4">
                 <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-widest">יומן יומי</span>
-                    <button
-                        onClick={() => setIsAddingBlock(true)}
-                        className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1"
-                    >
-                        <Plus size={12} /> הוסף חסימה
-                    </button>
+                    {!isAddingBlock && (
+                        <button
+                            onClick={() => {
+                                setIsAddingBlock(true);
+                                setEditingBlockId(null);
+                                setNewBlockStart('10:00');
+                                setNewBlockEnd('11:00');
+                                setNewBlockReason('');
+                            }}
+                            className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1"
+                        >
+                            <Plus size={12} /> הוסף חסימה
+                        </button>
+                    )}
                 </div>
 
                 {isAddingBlock && (
@@ -148,8 +180,10 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                             className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs font-bold outline-none focus:border-blue-500 mb-2"
                         />
                         <div className="flex gap-2">
-                            <button onClick={() => setIsAddingBlock(false)} className="flex-1 py-1 text-xs font-bold text-slate-400 hover:text-slate-600">ביטול</button>
-                            <button onClick={addBlock} className="flex-1 py-1 bg-slate-800 text-white text-xs font-bold rounded hover:bg-slate-700">הוסף</button>
+                            <button onClick={() => { setIsAddingBlock(false); setEditingBlockId(null); }} className="flex-1 py-1 text-xs font-bold text-slate-400 hover:text-slate-600">ביטול</button>
+                            <button onClick={addOrUpdateBlock} className="flex-1 py-1 bg-slate-800 text-white text-xs font-bold rounded hover:bg-slate-700">
+                                {editingBlockId ? 'עדכן' : 'הוסף'}
+                            </button>
                         </div>
                     </div>
                 )}
@@ -161,15 +195,22 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                         </div>
                     )}
                     {unavailableBlocks.sort((a, b) => a.start.localeCompare(b.start)).map(block => (
-                        <div key={block.id} className="flex items-center justify-between p-2 bg-red-50 border border-red-100 rounded-lg group">
+                        <div
+                            key={block.id}
+                            onClick={() => handleEditBlock(block)}
+                            className={`flex items-center justify-between p-2 rounded-lg group border cursor-pointer hover:shadow-sm transition-all ${editingBlockId === block.id ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-300' : 'bg-red-50 border-red-100 hover:bg-red-100'}`}
+                        >
                             <div className="flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                <div className={`w-1.5 h-1.5 rounded-full ${editingBlockId === block.id ? 'bg-blue-400' : 'bg-red-400'}`} />
                                 <div className="flex flex-col">
                                     <span className="text-xs font-black text-slate-700">{block.start} - {block.end}</span>
                                     {block.reason && <span className="text-[10px] text-slate-400">{block.reason}</span>}
                                 </div>
                             </div>
-                            <button onClick={() => removeBlock(block.id)} className="text-red-300 hover:text-red-500 p-1 rounded-full hover:bg-red-100 transition-colors">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); removeBlock(block.id); }}
+                                className="text-red-300 hover:text-red-500 p-1 rounded-full hover:bg-white/50 transition-colors"
+                            >
                                 <Trash2 size={12} />
                             </button>
                         </div>
