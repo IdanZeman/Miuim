@@ -187,9 +187,10 @@ export const LandingPage: React.FC = () => {
                 {/* Background Image */}
                 <div className="absolute inset-0 z-0">
                     <img
-                        src="/images/landing-hero-new.png"
+                        src="/images/landing-hero-new.webp"
                         alt="Background"
                         className="w-full h-full object-cover"
+                        loading="lazy"
                     />
                     {/* Gradient Overlays - Strengthened for accessibility legibility */}
                     <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-transparent"></div>
