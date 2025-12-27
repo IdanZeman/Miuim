@@ -946,18 +946,15 @@ const MainApp: React.FC = () => {
             />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onDeleteTask={handleDeleteTask} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} isViewer={!checkAccess('tasks', 'edit')} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
-            case 'settings': return <OrganizationSettingsComponent teams={state.teams} />;
-
-
-
-            case 'logs': return <AdminLogsViewer />;
-            case 'org-logs': return <OrganizationLogsViewer limit={100} />;
+            case 'settings': return checkAccess('settings', 'edit') ? <OrganizationSettingsComponent teams={state.teams} /> : <Navigate to="/" />;
+            case 'logs': return profile?.is_super_admin ? <AdminLogsViewer /> : <Navigate to="/" />;
+            case 'org-logs': return checkAccess('org-logs', 'view') ? <OrganizationLogsViewer limit={100} /> : <Navigate to="/" />;
             case 'lottery': return <Lottery people={state.allPeople || state.people} teams={state.teams} roles={state.roles} />;
             case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} isViewer={!checkAccess('constraints', 'edit')} organizationId={organization?.id || ''} />;
             case 'faq': return <FAQPage onNavigate={setView} />;
             case 'contact': return <ContactPage />;
-            case 'tickets': return <SystemManagementPage />; // Redirect legacy tickets route
-            case 'system': return <SystemManagementPage />; // NEW
+            case 'tickets': return profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" />; // Redirect legacy tickets route
+            case 'system': return profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" />; // NEW
             case 'equipment':
                 return <EquipmentManager
                     people={state.people}

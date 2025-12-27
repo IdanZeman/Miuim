@@ -15,10 +15,11 @@ interface AttendanceTableProps {
     onUpdateAvailability?: (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => void;
     viewMode?: 'daily' | 'monthly'; // New control prop
     className?: string; // Allow parent styling for mobile sheet integration
+    isViewer?: boolean; // NEW: Security prop
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
-    teams, people, teamRotations, absences, currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode
+    teams, people, teamRotations, absences, currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
     const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
@@ -363,7 +364,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         data-testid="exit-request-label"
                                                                         className="text-[9px] font-bold text-red-600/80 -mt-0.5 whitespace-nowrap scale-90"
                                                                     >
-                                                                        {relevantAbsence?.reason || 'בקשת יציאה'}
+                                                                        {isViewer ? 'היעדרות' : (relevantAbsence?.reason || 'בקשת יציאה')}
                                                                     </span>
                                                                 ) : null;
 

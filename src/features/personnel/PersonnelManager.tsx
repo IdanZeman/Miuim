@@ -277,6 +277,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     };
 
     const handleExport = () => {
+        if (!canEdit) {
+            showToast('אין לך הרשאה לייצא נתונים', 'error');
+            return;
+        }
         logger.log({ action: 'EXPORT', entityName: activeTab, category: 'data' });
         let csvContent = '';
         let fileName = '';
@@ -866,9 +870,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                 <FileSpreadsheet size={16} /> ייבוא מאקסל
                                             </button>
                                         )}
-                                        <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
-                                            <Download size={16} /> ייצוא
-                                        </button>
+                                        {canEdit && (
+                                            <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
+                                                <Download size={16} /> ייצוא
+                                            </button>
+                                        )}
                                         <div className="px-4 py-2.5 border-t border-slate-50 flex items-center justify-between">
                                             <span className="text-sm font-medium text-slate-700">הצג לא פעילים</span>
                                             <input

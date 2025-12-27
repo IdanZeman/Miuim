@@ -289,6 +289,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     };
 
     const handleExport = () => {
+        if (isViewer) {
+            showToast('אין לך הרשאה לייצא נתונים', 'error');
+            return;
+        }
         if (viewMode === 'calendar') {
             // Export Month
             const year = viewDate.getFullYear();
@@ -510,6 +514,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 }}
                                 onUpdateAvailability={handleUpdateAvailability}
                                 className="h-full"
+                                isViewer={isViewer}
                             />
                         </div>
                     )}
@@ -709,6 +714,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 }}
                                 onUpdateAvailability={isViewer ? undefined : handleUpdateAvailability}
                                 className="h-full"
+                                isViewer={isViewer}
                             />
                         </div>
                     )}
