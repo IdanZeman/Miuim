@@ -23,12 +23,14 @@ const NavDropdown = ({
     label,
     icon: Icon,
     isActive,
-    children
+    children,
+    testId
 }: {
     label: string;
     icon: React.ElementType;
     isActive: boolean;
-    children: React.ReactNode
+    children: React.ReactNode;
+    testId?: string;
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -47,6 +49,7 @@ const NavDropdown = ({
             className="relative font-medium h-full flex items-center"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
+            data-testid={testId}
         >
             <button
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all relative ${isActive || isOpen
@@ -82,18 +85,21 @@ const DropdownItem = ({
     icon: Icon,
     onClick,
     active,
-    danger = false
+    danger = false,
+    testId
 }: {
     label: string;
     icon?: React.ElementType;
     onClick: () => void;
     active?: boolean;
     danger?: boolean;
+    testId?: string;
 }) => (
     <button
         onClick={() => {
             onClick();
         }}
+        data-testid={testId}
         className={`w-full text-right px-4 py-2.5 text-sm flex items-center gap-3 transition-colors ${active
             ? 'bg-blue-50 text-blue-700 font-medium'
             : danger
@@ -271,6 +277,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                     label="נוכחות והיעדרויות"
                                     icon={Clock}
                                     isActive={['attendance', 'absences'].includes(currentView || '')}
+                                    testId="nav-attendance-group"
                                 >
                                     {checkAccess('attendance') && (
                                         <DropdownItem
@@ -278,6 +285,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                             icon={Clock}
                                             active={currentView === 'attendance'}
                                             onClick={() => handleNav('attendance')}
+                                            testId="nav-attendance-journal"
                                         />
                                     )}
                                     <DropdownItem
@@ -285,6 +293,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                         icon={UserX}
                                         active={currentView === 'absences'}
                                         onClick={() => handleNav('absences')}
+                                        testId="nav-absence-requests"
                                     />
                                 </NavDropdown>
                             )}

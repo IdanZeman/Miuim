@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Person, Team, TeamRotation } from '@/types';
+import { Person, Team, TeamRotation, Absence } from '@/types';
 import { ChevronRight, ChevronLeft, ChevronDown, Calendar, Users, Home, MapPin, XCircle, Clock, Info, CheckCircle2, Search } from 'lucide-react';
 import { getEffectiveAvailability, getRotationStatusForDate } from '@/utils/attendanceUtils';
 import { StatusEditModal } from './StatusEditModal';
@@ -8,6 +8,7 @@ interface AttendanceTableProps {
     teams: Team[];
     people: Person[];
     teamRotations: TeamRotation[];
+    absences: Absence[]; // New prop
     currentDate: Date;
     onDateChange: (date: Date) => void;
     onSelectPerson: (person: Person) => void;
@@ -16,11 +17,16 @@ interface AttendanceTableProps {
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
-    teams, people, teamRotations, currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className
+    teams, people, teamRotations, absences, currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
     const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Enforce strict name sorting to prevent reordering on updates
+    const sortedPeople = React.useMemo(() => {
+        return [...people].sort((a, b) => a.name.localeCompare(b.name, 'he'));
+    }, [people]);
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -89,7 +95,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             <div className="md:hidden flex-1 overflow-y-auto custom-scrollbar bg-white pb-20">
                 <div className="flex flex-col">
                     {teams.map(team => {
-                        const members = people.filter(p => p.teamId === team.id);
+                        const members = sortedPeople.filter(p => p.teamId === team.id);
                         if (members.length === 0) return null;
 
                         return (
@@ -106,8 +112,15 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 {/* Personnel List */}
                                 <div className="divide-y divide-slate-50">
                                     {members.map(person => {
-                                        const avail = getEffectiveAvailability(person, currentDate, teamRotations);
+                                        const avail = getEffectiveAvailability(person, currentDate, teamRotations, absences);
                                         const dateStr = currentDate.toLocaleDateString('en-CA');
+
+                                        if (person.name.includes('דביר') || person.id.includes('dvir')) {
+                                            // Only log 30/12 to avoid spam
+                                            if (dateStr.includes('2025-12-30')) {
+                                                console.log(`[UI List-Dvir] Rendering for ${dateStr}:`, avail);
+                                            }
+                                        }
 
                                         // Status Pill UI Logic
                                         let statusConfig = {
@@ -190,7 +203,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             {/* --- DESKTOP MONTHLY TABLE VIEW --- */}
             <div className="hidden md:flex flex-1 flex-col h-full overflow-hidden animate-fadeIn">
                 {/* Table Area (Desktop Only) */}
-                <div className="flex-1 overflow-auto bg-slate-50/10 relative custom-scrollbar" ref={scrollContainerRef}>
+                <div className="flex-1 overflow-auto bg-slate-50/10 relative custom-scrollbar h-full" ref={scrollContainerRef}>
                     <div className="min-w-max">
                         {/* Floating Header (Dates) */}
                         <div className="flex sticky top-0 z-40">
@@ -221,7 +234,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                         {/* Team Sections */}
                         {teams.map(team => {
-                            const teamPeople = people.filter(p => p.teamId === team.id);
+                            const teamPeople = sortedPeople.filter(p => p.teamId === team.id);
                             if (teamPeople.length === 0) return null;
                             const isCollapsed = collapsedTeams.has(team.id);
 
@@ -278,7 +291,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     {/* Attendance Grid Cells */}
                                                     <div className="flex min-w-max">
                                                         {dates.map((date, dateIdx) => {
-                                                            const avail = getEffectiveAvailability(person, date, teamRotations);
+                                                            const avail = getEffectiveAvailability(person, date, teamRotations, absences);
+                                                            const dateStr = date.toLocaleDateString('en-CA');
+
                                                             const isToday = new Date().toDateString() === date.toDateString();
                                                             const isSelected = editingCell?.personId === person.id && editingCell?.date === date.toLocaleDateString('en-CA');
 
@@ -288,22 +303,67 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             const nextDate = new Date(date);
                                                             nextDate.setDate(date.getDate() + 1);
 
-                                                            const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations);
-                                                            const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations);
+                                                            const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences);
+                                                            const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences);
 
                                                             let content = null;
                                                             let cellBg = "bg-white";
                                                             let themeColor = "bg-slate-200";
 
-                                                            if (avail.status === 'home' || avail.status === 'unavailable' || !avail.isAvailable) {
+                                                            const dateKey = date.toLocaleDateString('en-CA');
+
+                                                            // Check Absences Table (Official Requests)
+                                                            const relevantAbsence = absences.find(a =>
+                                                                a.person_id === person.id &&
+                                                                a.start_date <= dateKey &&
+                                                                a.end_date >= dateKey
+                                                            );
+                                                            const isExitRequest = !!relevantAbsence;
+
+                                                            // Show Text if there is a matching Absence Record
+                                                            const constraintText = isExitRequest ? (
+                                                                <span
+                                                                    data-testid="exit-request-label"
+                                                                    className="text-[9px] font-bold text-red-600/80 -mt-0.5 whitespace-nowrap scale-90"
+                                                                >
+                                                                    {relevantAbsence?.reason || 'בקשת יציאה'}
+                                                                </span>
+                                                            ) : null;
+
+                                                            // Red Dots: Show only if there are blocks AND it isn't an Exit Request day
+                                                            const showRedDots = !isExitRequest && (avail.unavailableBlocks?.length || 0) > 0;
+                                                            const displayBlocks = avail.unavailableBlocks || [];
+
+                                                            // ----------------------------------------------------
+                                                            // VIEW LOGIC: VISUAL DEPARTURE INFERENCE
+                                                            // If Current is Home, but Previous was Base/Full -> Render as Departure
+                                                            // ----------------------------------------------------
+                                                            const isFirstDayHome = (prevAvail.status === 'base' || prevAvail.status === 'full' || prevAvail.status === 'arrival') && avail.status === 'home';
+
+                                                            if (isFirstDayHome) {
+                                                                // OVERRIDE: Render as Departure (Exit Day)
+                                                                cellBg = "bg-amber-50/60 text-amber-900";
+                                                                themeColor = "bg-amber-500";
+                                                                content = (
+                                                                    <div className="flex flex-col items-center justify-center">
+                                                                        <MapPin size={12} className="text-amber-500 mb-0.5" />
+                                                                        <span className="text-[10px] font-black">יציאה</span>
+                                                                        <span className="text-[9px] font-bold opacity-70">
+                                                                            {avail.startHour !== '00:00' ? avail.startHour : ''}
+                                                                        </span>
+                                                                        {constraintText}
+                                                                    </div>
+                                                                );
+                                                            } else if (avail.status === 'home' || avail.status === 'unavailable' || !avail.isAvailable) {
                                                                 cellBg = "bg-red-50/70 text-red-800";
                                                                 themeColor = "bg-red-400";
                                                                 const isConstraint = avail.status === 'unavailable';
 
                                                                 content = (
-                                                                    <div className="flex flex-col items-center justify-center gap-1">
+                                                                    <div className="flex flex-col items-center justify-center gap-0.5">
                                                                         <Home size={14} className="text-red-300" />
                                                                         <span className="text-[10px] font-black">{isConstraint ? 'אילוץ' : 'בית'}</span>
+                                                                        {constraintText}
                                                                     </div>
                                                                 );
                                                             } else {
@@ -318,6 +378,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         <div className="flex flex-col items-center justify-center">
                                                                             <span className="text-[10px] font-black">יום בודד</span>
                                                                             <span className="text-[9px] font-bold opacity-70">{avail.startHour}-{avail.endHour}</span>
+                                                                            {constraintText}
                                                                         </div>
                                                                     );
                                                                 } else if (isArrival) {
@@ -327,17 +388,20 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         <div className="flex flex-col items-center justify-center">
                                                                             <MapPin size={12} className="text-emerald-500 mb-0.5" />
                                                                             <span className="text-[10px] font-black">הגעה</span>
-                                                                            <span className="text-[9px] font-bold opacity-70">{avail.startHour}</span>
+                                                                            <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.startHour}</span>
+                                                                            {constraintText}
                                                                         </div>
                                                                     );
-                                                                } else if (isDeparture) {
+                                                                } else if (isDeparture && avail.endHour !== '23:59') {
+                                                                    // Only show Departure context if specific time is set
                                                                     cellBg = "bg-amber-50/60 text-amber-900";
                                                                     themeColor = "bg-amber-500";
                                                                     content = (
                                                                         <div className="flex flex-col items-center justify-center">
                                                                             <MapPin size={12} className="text-amber-500 mb-0.5" />
                                                                             <span className="text-[10px] font-black">יציאה</span>
-                                                                            <span className="text-[9px] font-bold opacity-70">{avail.endHour}</span>
+                                                                            <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour}</span>
+                                                                            {constraintText}
                                                                         </div>
                                                                     );
                                                                 } else {
@@ -347,6 +411,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         <div className="flex flex-col items-center justify-center gap-0.5">
                                                                             <MapPin size={14} className="text-emerald-500/50" />
                                                                             <span className="text-[10px] font-black">בסיס</span>
+                                                                            {constraintText}
                                                                         </div>
                                                                     );
                                                                 }
@@ -355,23 +420,29 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             return (
                                                                 <div
                                                                     key={date.toISOString()}
+                                                                    data-testid={`attendance-cell-${person.id}-${dateKey}`}
                                                                     className={`w-24 h-20 shrink-0 border-l border-slate-100 flex flex-col items-center justify-center cursor-pointer transition-all relative group/cell 
                                                                         ${cellBg} 
                                                                         ${isSelected ? 'z-30 ring-4 ring-blue-500 shadow-2xl scale-110 rounded-lg bg-white' : 'hover:z-10 hover:shadow-lg hover:bg-white'} 
                                                                         ${isToday ? 'ring-inset shadow-[inset_0_0_0_2px_rgba(59,130,246,0.5)]' : ''}
                                                                     `}
+                                                                    title={avail.unavailableBlocks?.map(b => `${b.start}-${b.end} ${b.reason || ''}`).join('\n')}
                                                                     onClick={(e) => handleCellClick(e, person, date)}
+
                                                                 >
                                                                     {content}
 
-                                                                    {/* Unavailable Blocks Indicators */}
-                                                                    {avail.unavailableBlocks && avail.unavailableBlocks.length > 0 && (
-                                                                        <div className="absolute bottom-2 flex gap-0.5 justify-center w-full px-1">
-                                                                            {avail.unavailableBlocks.slice(0, 4).map((_, i) => (
-                                                                                <div key={i} className="w-1.5 h-1.5 rounded-full bg-red-500 ring-1 ring-white" />
+                                                                    {/* Unavailable Blocks Indicators - Red Dots (Hidden if Exit Request) */}
+                                                                    {showRedDots && (
+                                                                        <div
+                                                                            data-testid="red-dots-indicator"
+                                                                            className="absolute top-1 right-1 z-20 flex gap-0.5"
+                                                                        >
+                                                                            {displayBlocks.slice(0, 3).map((_, i) => (
+                                                                                <div key={i} className="w-1.5 h-1.5 rounded-full bg-red-500 ring-1 ring-white shadow-sm" />
                                                                             ))}
-                                                                            {avail.unavailableBlocks.length > 4 && (
-                                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300 ring-1 ring-white" />
+                                                                            {displayBlocks.length > 3 && (
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-red-300 ring-1 ring-white shadow-sm" />
                                                                             )}
                                                                         </div>
                                                                     )}
@@ -397,8 +468,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                     </div>
                 </div>
 
-                {/* Footer Summary */}
-                <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-center gap-4 shrink-0">
+                {/* Footer Summary - STICKY FIXED */}
+                <div className="sticky bottom-0 z-50 p-3 bg-white border-t border-slate-200 flex items-center justify-center gap-4 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                     <div className="flex items-center gap-1.5">
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
                         <span className="text-[10px] font-bold text-slate-500">נמצא בבסיס</span>
@@ -416,7 +487,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
             {editingCell && (() => {
                 const person = people.find(p => p.id === editingCell.personId);
-                const availability = person ? getEffectiveAvailability(person, new Date(editingCell.date), teamRotations) : undefined;
+                const availability = person ? getEffectiveAvailability(person, new Date(editingCell.date), teamRotations, absences) : undefined;
 
                 return (
                     <StatusEditModal

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Person, Shift, TaskTemplate } from '../types';
+import { Person, Shift, TaskTemplate } from '../../types';
 import { Moon, Sun, Clock, Award } from 'lucide-react';
 
 interface PersonalStatsProps {

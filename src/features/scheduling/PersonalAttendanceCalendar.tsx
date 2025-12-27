@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Person, TeamRotation } from '@/types';
+import { Person, TeamRotation, Absence } from '@/types';
 import { ChevronRight, ChevronLeft, X, ArrowRight, ArrowLeft, Home, Calendar as CalendarIcon, Trash2, Clock, RotateCcw, Download } from 'lucide-react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { Modal } from '@/components/ui/Modal';
@@ -10,6 +10,7 @@ import { PersonalRotationEditor } from './PersonalRotationEditor';
 interface PersonalAttendanceCalendarProps {
     person: Person;
     teamRotations: TeamRotation[];
+    absences?: Absence[]; // NEW
     onClose: () => void;
     onUpdatePerson: (p: Person) => void;
     isViewer?: boolean;
@@ -17,7 +18,7 @@ interface PersonalAttendanceCalendarProps {
 
 const formatTime = (time?: string) => time?.slice(0, 5) || '';
 
-export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({ person: initialPerson, teamRotations, onClose, onUpdatePerson, isViewer = false }) => {
+export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({ person: initialPerson, teamRotations, absences = [], onClose, onUpdatePerson, isViewer = false }) => {
     const [person, setPerson] = useState(initialPerson);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [editingDate, setEditingDate] = useState<Date | null>(null);
@@ -55,7 +56,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
     // Helper to calculate availability including personal rotation
     const getDisplayAvailability = (date: Date) => {
-        return getEffectiveAvailability(person, date, teamRotations);
+        return getEffectiveAvailability(person, date, teamRotations, absences);
     };
 
     // Initialize edit state when opening modal
