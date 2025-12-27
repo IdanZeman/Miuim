@@ -210,9 +210,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                     <button
                         onClick={() => handleNav('home')}
                         className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                        aria-label="חזרה לדף הבית"
                     >
                         <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
-                            <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
+                            <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" aria-hidden="true" />
                         </div>
                         <span className="block text-lg font-bold text-slate-800 tracking-tight">
                             {isPublic ? 'מערכת ניהול' : (organization?.name || 'מערכת ניהול')}
@@ -231,8 +232,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                         ? 'text-slate-900 bg-slate-50'
                                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                         }`}
+                                    aria-label="ניהול כוח אדם"
                                 >
-                                    <Users size={18} className={currentView === 'personnel' ? 'text-blue-600' : 'text-slate-500'} />
+                                    <Users size={18} className={currentView === 'personnel' ? 'text-blue-600' : 'text-slate-500'} aria-hidden="true" />
                                     <span>ניהול כוח אדם</span>
                                 </button>
                             )}

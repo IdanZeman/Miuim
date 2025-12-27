@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
-import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw, Settings, Plus, Gavel, Layout, UserCircle, Globe, Anchor, Activity, ChevronLeft, AlertTriangle } from 'lucide-react';
+import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw, Settings, Plus, Gavel, Layout, UserCircle, Globe, Anchor, Activity, ChevronLeft, AlertTriangle, Accessibility } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode } from '@/types';
@@ -299,7 +299,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
         <div className="space-y-6 max-w-3xl">
             <div className="flex flex-col md:flex-row md:items-end gap-4">
                 <div className="flex-1 w-full md:w-auto">
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5 line-clamp-1">התחלת לילה</label>
+                    <label id="night-start-label" className="block text-sm font-bold text-slate-700 mb-1.5 line-clamp-1">התחלת לילה</label>
                     <div className="relative flex items-center bg-gray-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:border-blue-500 transition-colors focus-within:ring-2 focus-within:ring-blue-100">
                         <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${start ? 'text-slate-900' : 'text-slate-400'}`}>
                             {start || 'בחר שעה'}
@@ -309,8 +309,9 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                             value={start}
                             onChange={e => setStart(e.target.value)}
                             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            aria-labelledby="night-start-label"
                         />
-                        <Clock size={16} className="text-slate-400 ml-2 pointer-events-none" />
+                        <Clock size={16} className="text-slate-400 ml-2 pointer-events-none" aria-hidden="true" />
                     </div>
                 </div>
                 <div className="flex-1 w-full md:w-auto">
@@ -324,8 +325,9 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                             value={end}
                             onChange={e => setEnd(e.target.value)}
                             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                            aria-label="סיום לילה"
                         />
-                        <Clock size={16} className="text-slate-400 ml-2 pointer-events-none" />
+                        <Clock size={16} className="text-slate-400 ml-2 pointer-events-none" aria-hidden="true" />
                     </div>
                 </div>
             </div>
@@ -545,7 +547,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                             </div>
                         </div>
                     </div>
-                    <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+                    <nav className="flex-1 p-2 space-y-1 overflow-y-auto" role="tablist" aria-orientation="vertical">
                         {navigationTabs.map(tab => (
                             <button
                                 key={tab.id}
@@ -554,12 +556,24 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                     ? 'bg-indigo-50 text-indigo-700 font-bold border-r-4 border-indigo-600 rounded-r-none'
                                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                     }`}
+                                role="tab"
+                                aria-selected={activeTab === tab.id}
+                                aria-controls={`panel-${tab.id}`}
                             >
-                                <tab.icon size={18} className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} />
+                                <tab.icon size={18} className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} aria-hidden="true" />
                                 {tab.label}
                             </button>
                         ))}
                     </nav>
+                    <div className="p-4 mt-auto border-t border-slate-100">
+                        <a
+                            href="/accessibility"
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all group"
+                        >
+                            <Accessibility size={18} className="text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
+                            הצהרת נגישות
+                        </a>
+                    </div>
 
                 </div>
 

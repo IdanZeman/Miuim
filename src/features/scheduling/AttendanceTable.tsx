@@ -183,7 +183,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     <div
                                                         key={person.id}
                                                         onClick={(e) => handleCellClick(e, person, currentDate)}
-                                                        className="flex items-center justify-between p-4 bg-white active:bg-slate-50 transition-colors h-[68px]"
+                                                        className="flex items-center justify-between p-4 bg-white active:bg-slate-50 transition-colors h-[68px] cursor-pointer"
+                                                        role="button"
+                                                        aria-label={`${person.name}, מצב נוכחות: ${statusConfig.label}`}
                                                     >
                                                         {/* Left: Person Info */}
                                                         <div className="flex items-center gap-3">
@@ -200,19 +202,25 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         </div>
 
                                                         {/* Right: Status Pill */}
-                                                        <div className={`
-                                                            flex items-center gap-1.5 px-3 py-1.5 rounded-full border 
-                                                            ${statusConfig.bg} transition-all shadow-sm
-                                                        `}>
-                                                            <statusConfig.icon size={12} />
+                                                        <div
+                                                            className={`
+                                                                flex items-center gap-1.5 px-3 py-1.5 rounded-full border 
+                                                                ${statusConfig.bg} transition-all shadow-sm
+                                                            `}
+                                                            aria-label={`סטטוס: ${statusConfig.label}`}
+                                                        >
+                                                            <statusConfig.icon size={12} aria-hidden="true" />
                                                             <span className="text-xs font-black whitespace-nowrap">{statusConfig.label}</span>
                                                         </div>
 
                                                         {/* Red Dots for Partial Absences */}
                                                         {avail.unavailableBlocks && avail.unavailableBlocks.length > 0 && (
-                                                            <div className="flex gap-0.5 mr-2">
+                                                            <div
+                                                                className="flex gap-0.5 mr-2"
+                                                                aria-label={`קיימים ${avail.unavailableBlocks.length} אילוצים חלקיים היום`}
+                                                            >
                                                                 {avail.unavailableBlocks.slice(0, 3).map((_, i) => (
-                                                                    <div key={i} className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm" />
+                                                                    <div key={i} className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm" aria-hidden="true" />
                                                                 ))}
                                                             </div>
                                                         )}

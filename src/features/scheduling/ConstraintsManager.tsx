@@ -341,6 +341,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                         <button
                             onClick={() => openRuleModal()}
                             className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-colors text-sm"
+                            aria-label="הוסף חוק חדש"
                         >
                             <Plus size={18} />
                             <span className="hidden md:inline">הוסף חוק חדש</span>
@@ -375,8 +376,8 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                         {/* Mobile Actions */}
                                         {!isViewer && (
                                             <div className="flex md:hidden gap-2">
-                                                <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg"><Edit2 size={18} /></button>
-                                                <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={18} /></button>
+                                                <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg" aria-label={`ערוך חוק עבור ${name}`}><Edit2 size={18} /></button>
+                                                <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg" aria-label={`מחק חוק עבור ${name}`}><Trash2 size={18} /></button>
                                             </div>
                                         )}
                                     </div>
@@ -406,8 +407,8 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                     {/* Desktop Actions */}
                                     {!isViewer && (
                                         <div className="hidden md:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={20} /></button>
-                                            <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={20} /></button>
+                                            <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" aria-label={`ערוך חוק עבור ${name}`}><Edit2 size={20} /></button>
+                                            <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" aria-label={`מחק חוק עבור ${name}`}><Trash2 size={20} /></button>
                                         </div>
                                     )}
                                 </div>
@@ -435,7 +436,11 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                     <div className="space-y-6 py-2">
                         <div>
                             <label className="text-sm font-bold text-slate-700 mb-2 block">סוג היעד (על מי חל החוק?)</label>
-                            <div className="flex bg-slate-100 p-1 rounded-lg gap-2">
+                            <div
+                                className="flex bg-slate-100 p-1 rounded-lg gap-2"
+                                role="tablist"
+                                aria-label="סוגי יעד"
+                            >
                                 {([['person', 'חייל', User], ['team', 'צוות', Users], ['role', 'תפקיד', Shield]] as const).map(([type, label, Icon]) => (
                                     <button
                                         key={type}
@@ -447,8 +452,10 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                             }
                                         }}
                                         className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${ruleTargetType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        role="tab"
+                                        aria-selected={ruleTargetType === type}
                                     >
-                                        <Icon size={16} />{label}
+                                        <Icon size={16} aria-hidden="true" />{label}
                                     </button>
                                 ))}
                             </div>

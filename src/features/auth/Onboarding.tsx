@@ -517,10 +517,11 @@ export const Onboarding: React.FC = () => {
                     <button
                         onClick={handleLogout}
                         className="text-slate-500 hover:text-red-600 font-bold text-sm transition-colors flex items-center gap-2 group"
+                        aria-label="התנתק מהמערכת"
                     >
                         <span className="opacity-0 group-hover:opacity-100 transition-opacity">התנתק</span>
                         <div className="p-2 hover:bg-red-50 rounded-lg transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
                         </div>
                     </button>
                 </div>
@@ -532,13 +533,13 @@ export const Onboarding: React.FC = () => {
                     {/* Dark Side Branding (Mobile Top, Desktop Left/Sidebar) */}
                     <div className="w-full md:w-[400px] h-[30vh] md:h-auto bg-emerald-900 p-6 md:p-12 text-white flex flex-col justify-between relative overflow-hidden shrink-0">
                         {/* Decorative background elements */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400 opacity-[0.1] rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-teal-400 opacity-[0.1] rounded-full translate-y-1/2 -translate-x-1/2"></div>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400 opacity-[0.1] rounded-full -translate-y-1/2 translate-x-1/2" aria-hidden="true"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-teal-400 opacity-[0.1] rounded-full translate-y-1/2 -translate-x-1/2" aria-hidden="true"></div>
 
                         <div className="relative z-10 flex flex-col h-full justify-center md:justify-start">
                             <div className="flex items-center gap-4 mb-2 md:mb-8">
                                 <div className="w-10 h-10 md:w-16 md:h-16 bg-white/10 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center border border-white/10 shrink-0">
-                                    <Shield size={20} className="md:w-8 md:h-8 text-emerald-400" />
+                                    <Shield size={20} className="md:w-8 md:h-8 text-emerald-400" aria-hidden="true" />
                                 </div>
                                 <h1 className="text-2xl md:text-4xl font-black leading-tight md:hidden">
                                     {step === 'org_name' ? 'הקמת ארגון' : 'הגדרות'}
@@ -612,9 +613,10 @@ export const Onboarding: React.FC = () => {
                                         type="submit"
                                         disabled={loading || !orgName.trim()}
                                         className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 md:py-5 px-8 rounded-2xl transition-all shadow-xl shadow-emerald-600/20 hover:shadow-emerald-600/40 hover:-translate-y-1 flex items-center justify-center gap-4 text-lg md:text-xl disabled:opacity-50 disabled:translate-y-0 active:scale-95"
+                                        aria-label="יצירת ארגון והמשך לשלב הבא"
                                     >
                                         יצירת ארגון והמשך
-                                        {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ArrowLeft size={24} />}
+                                        {loading ? <Loader2 className="w-6 h-6 animate-spin" aria-hidden="true" /> : <ArrowLeft size={24} aria-hidden="true" />}
                                     </button>
                                 </form>
                             </div>
@@ -645,8 +647,9 @@ export const Onboarding: React.FC = () => {
                                         onClick={() => handleSelectPath(false)}
                                         disabled={loading}
                                         className="flex flex-col text-right bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 hover:border-slate-900 hover:shadow-2xl transition-all group relative"
+                                        aria-label="בחירה במסלול הקמה ידנית"
                                     >
-                                        <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm">
+                                        <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm" aria-hidden="true">
                                             <Users size={28} />
                                         </div>
                                         <h3 className="text-2xl font-black text-slate-900 mb-3">הקמה ידנית</h3>
@@ -655,7 +658,7 @@ export const Onboarding: React.FC = () => {
                                         </p>
                                         <div className="flex items-center gap-2 text-slate-900 font-black group-hover:translate-x-[-10px] transition-transform">
                                             <span>התחל הקמה</span>
-                                            <ArrowLeft size={20} />
+                                            <ArrowLeft size={20} aria-hidden="true" />
                                         </div>
                                     </button>
 
@@ -664,8 +667,9 @@ export const Onboarding: React.FC = () => {
                                         onClick={() => handleSelectPath(true)}
                                         disabled={loading}
                                         className="flex flex-col text-right bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 hover:border-amber-500 hover:shadow-2xl transition-all group relative"
+                                        aria-label="בחירה במסלול ייבוא מאקסל"
                                     >
-                                        <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-amber-400 group-hover:text-slate-900 transition-all shadow-sm">
+                                        <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-amber-400 group-hover:text-slate-900 transition-all shadow-sm" aria-hidden="true">
                                             <Upload size={28} />
                                         </div>
                                         <h3 className="text-2xl font-black text-slate-900 mb-3">ייבוא מאקסל</h3>
@@ -674,7 +678,7 @@ export const Onboarding: React.FC = () => {
                                         </p>
                                         <div className="flex items-center gap-2 text-amber-600 font-black group-hover:translate-x-[-10px] transition-transform">
                                             <span>להעלאת קובץ</span>
-                                            <ArrowLeft size={20} />
+                                            <ArrowLeft size={20} aria-hidden="true" />
                                         </div>
                                     </button>
                                 </div>

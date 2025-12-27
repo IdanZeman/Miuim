@@ -581,8 +581,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     }
                                 }}
                                 className="p-1 hover:bg-white rounded shadow-sm"
+                                aria-label={viewMode === 'day_detail' ? "יום קודם" : "חודש קודם"}
                             >
-                                <ChevronRight size={18} />
+                                <ChevronRight size={18} aria-hidden="true" />
                             </button>
 
                             <div className="relative group cursor-pointer flex items-center justify-center">
@@ -592,6 +593,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         if (input) input.showPicker ? input.showPicker() : input.click();
                                     }}
                                     className="font-bold min-w-[140px] text-center px-4 py-1 rounded-md hover:bg-slate-100 transition-colors"
+                                    role="button"
+                                    aria-label={`בחר תאריך, תאריך נוכחי: ${viewMode === 'day_detail' ? selectedDate.toLocaleDateString('he-IL') : (viewMode === 'calendar' ? viewDate : selectedDate).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}`}
                                 >
                                     {viewMode === 'day_detail'
                                         ? selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'short' })
@@ -642,8 +645,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     }
                                 }}
                                 className="p-1 hover:bg-white rounded shadow-sm"
+                                aria-label={viewMode === 'day_detail' ? "יום הבא" : "חודש הבא"}
                             >
-                                <ChevronLeft size={18} />
+                                <ChevronLeft size={18} aria-hidden="true" />
                             </button>
                         </div>
 

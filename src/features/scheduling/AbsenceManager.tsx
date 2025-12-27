@@ -284,6 +284,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                         <button
                             onClick={() => setSelectedPersonId(null)}
                             className={`w-full text-right p-3 rounded-lg font-bold text-sm transition-all ${selectedPersonId === null ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:bg-slate-50'}`}
+                            aria-selected={selectedPersonId === null}
+                            role="button"
                         >
                             כל הבקשות יציאה (רשימה מרוכזת)
                         </button>
@@ -296,6 +298,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                                     <button
                                         onClick={() => setSelectedPersonId(person.id)}
                                         className={`w-full flex items-center gap-3 p-3 transition-all text-right ${isSelected ? 'bg-red-50 border-r-4 border-red-500 shadow-sm' : 'hover:bg-slate-50 border-r-4 border-transparent'}`}
+                                        aria-selected={isSelected}
+                                        aria-label={`הצג בקשות עבור ${person.name}`}
+                                        role="button"
                                     >
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm ${person.color.replace('border-', 'bg-')}`}>
                                             {person.name.slice(0, 2)}
@@ -391,7 +396,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                                                                 {absence.reason && (
                                                                     <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md truncate max-w-[150px]">
                                                                         <Tag size={14} className="text-slate-400" />
-                                                                        <span className="truncate">{absence.reason}</span>
+                                                                        <span className="truncate">{isViewer ? 'היעדרות רשומה' : absence.reason}</span>
                                                                     </div>
                                                                 )}
                                                                 <div
@@ -406,8 +411,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                                                         </div>
                                                         {!isViewer && (
                                                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity absolute left-4 z-20 bg-white/80 backdrop-blur-sm p-1 rounded-lg shadow-sm">
-                                                                <Button size="sm" variant="ghost" onClick={() => openEditModal(absence)} icon={Edit2} />
-                                                                <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteConfirmId(absence.id)} icon={Trash2} />
+                                                                <Button size="sm" variant="ghost" onClick={() => openEditModal(absence)} icon={Edit2} aria-label="ערוך בקשה" />
+                                                                <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteConfirmId(absence.id)} icon={Trash2} aria-label="מחק בקשה" />
                                                             </div>
                                                         )}
                                                     </div>
@@ -436,9 +441,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
 
                                 {/* Center: Date Navigation */}
                                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-4 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-200 shadow-sm z-0">
-                                    <button onClick={handlePrevMonth} className="p-1 hover:bg-white hover:shadow-sm rounded-full transition-all text-slate-600"><ChevronRight size={20} /></button>
-                                    <span className="text-lg font-bold min-w-[120px] text-center text-slate-800">{viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}</span>
-                                    <button onClick={handleNextMonth} className="p-1 hover:bg-white hover:shadow-sm rounded-full transition-all text-slate-600"><ChevronLeft size={20} /></button>
+                                    <button onClick={handlePrevMonth} className="p-1 hover:bg-white hover:shadow-sm rounded-full transition-all text-slate-600" aria-label="חודש קודם"><ChevronRight size={20} /></button>
+                                    <span className="text-lg font-bold min-w-[120px] text-center text-slate-800" aria-live="polite">{viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}</span>
+                                    <button onClick={handleNextMonth} className="p-1 hover:bg-white hover:shadow-sm rounded-full transition-all text-slate-600" aria-label="חודש הבא"><ChevronLeft size={20} /></button>
                                 </div>
 
                                 {/* Left Side: Name */}
@@ -502,7 +507,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                                                                 : computedStatus?.status === 'rejected' ? 'bg-red-100 text-red-700'
                                                                     : 'bg-amber-100 text-amber-700'}
                                                         `}>
-                                                            {absence.reason || 'היעדרות'}
+                                                            {isViewer ? 'היעדרות' : (absence.reason || 'היעדרות')}
                                                         </span>
                                                         {formatTimeRange(absence.start_time, absence.end_time) && (
                                                             <span className="text-[9px] font-bold text-slate-500 mb-0.5 dir-ltr bg-white/50 px-1 rounded">

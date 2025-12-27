@@ -569,7 +569,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             </div>
 
                             {/* Active Status */}
-                            <div className="flex items-center justify-between px-4 py-3" onClick={() => setNewItemActive(!newItemActive)}>
+                            <div
+                                className="flex items-center justify-between px-4 py-3 cursor-pointer"
+                                onClick={() => setNewItemActive(!newItemActive)}
+                                role="switch"
+                                aria-checked={newItemActive}
+                                aria-label="סטטוס פעיל"
+                                tabIndex={0}
+                                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setNewItemActive(!newItemActive); } }}
+                            >
                                 <div className="font-bold text-slate-700 text-sm">סטטוס פעיל</div>
                                 <div className={`w-12 h-7 rounded-full transition-colors relative ${newItemActive ? 'bg-green-500' : 'bg-slate-200'}`}>
                                     <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${newItemActive ? 'left-1' : 'left-6'}`} />
@@ -577,7 +585,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             </div>
 
                             {/* Commander Status */}
-                            <div className="flex items-center justify-between px-4 py-3" onClick={() => setNewIsCommander(!newIsCommander)}>
+                            <div
+                                className="flex items-center justify-between px-4 py-3 cursor-pointer"
+                                onClick={() => setNewIsCommander(!newIsCommander)}
+                                role="switch"
+                                aria-checked={newIsCommander}
+                                aria-label="מפקד צוות"
+                                tabIndex={0}
+                                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setNewIsCommander(!newIsCommander); } }}
+                            >
                                 <div className="flex flex-col">
                                     <span className="font-bold text-slate-700 text-sm">מפקד צוות</span>
                                     <span className="text-[10px] text-slate-400">הגדר סמכות פיקודית</span>
@@ -1097,7 +1113,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         >
                             {/* Checkbox */}
                             {canEdit && (
-                                <div onClick={(e) => { e.stopPropagation(); toggleSelection(team.id); }} className="shrink-0 p-2 -mr-2 cursor-pointer">
+                                <div
+                                    onClick={(e) => { e.stopPropagation(); toggleSelection(team.id); }}
+                                    className="shrink-0 p-2 -mr-2 cursor-pointer"
+                                    role="checkbox"
+                                    aria-checked={isSelected}
+                                    aria-label={`בחר את הצוות ${team.name}`}
+                                    tabIndex={0}
+                                    onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleSelection(team.id); } }}
+                                >
                                     <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
                                         {isSelected && <Check size={12} className="text-white" />}
                                     </div>
@@ -1124,7 +1148,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         `האם אתה בטוח שברצונך למחוק את הצוות "${team.name}"?`,
                                         () => onDeleteTeam(team.id)
                                     );
-                                }} className="p-2 text-slate-300 hover:text-red-500 rounded-full">
+                                }}
+                                    className="p-2 text-slate-300 hover:text-red-500 rounded-full"
+                                    aria-label={`מחק את הצוות ${team.name}`}
+                                >
                                     <Trash2 size={18} />
                                 </button>
                             )}
@@ -1146,7 +1173,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         >
                             {/* Checkbox */}
                             {canEdit && (
-                                <div onClick={(e) => { e.stopPropagation(); toggleSelection(role.id); }} className="shrink-0 p-2 -mr-2 cursor-pointer">
+                                <div
+                                    onClick={(e) => { e.stopPropagation(); toggleSelection(role.id); }}
+                                    className="shrink-0 p-2 -mr-2 cursor-pointer"
+                                    role="checkbox"
+                                    aria-checked={isSelected}
+                                    aria-label={`בחר את התפקיד ${role.name}`}
+                                    tabIndex={0}
+                                    onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleSelection(role.id); } }}
+                                >
                                     <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
                                         {isSelected && <Check size={12} className="text-white" />}
                                     </div>
@@ -1173,7 +1208,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         `האם אתה בטוח שברצונך למחוק את התפקיד "${role.name}"?`,
                                         () => onDeleteRole(role.id)
                                     );
-                                }} className="p-2 text-slate-300 hover:text-red-500 rounded-full">
+                                }}
+                                    className="p-2 text-slate-300 hover:text-red-500 rounded-full"
+                                    aria-label={`מחק את התפקיד ${role.name}`}
+                                >
                                     <Trash2 size={18} />
                                 </button>
                             )}
@@ -1192,9 +1230,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 setActiveTab('teams');
                                 return;
                             }
-                            setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
+                            setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewName(''); setNewEmail('');
                         }}
                         className="md:hidden fixed bottom-24 md:bottom-8 left-6 w-14 h-14 bg-idf-yellow text-slate-900 rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 transition-all flex items-center justify-center z-50 hover:scale-105 active:scale-95"
+                        aria-label={`הוסף ${activeTab === 'people' ? 'חייל' : activeTab === 'teams' ? 'צוות' : 'תפקיד'}`}
                     >
                         <Plus size={28} />
                     </button>
@@ -1208,16 +1247,20 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         <div
                             className="fixed inset-0 z-50 bg-black/10 backdrop-blur-[1px]"
                             onClick={() => setContextMenu(null)}
+                            aria-label="סגור תפריט"
+                            role="button"
                         />
                         <div
                             className="fixed z-50 bg-white rounded-lg shadow-xl border border-slate-100 w-48 overflow-hidden animate-in zoom-in-95 duration-100"
                             style={{ top: contextMenu.y, left: contextMenu.x - 192 < 10 ? 10 : contextMenu.x - 192 }}
+                            role="menu"
+                            aria-label={`אפשרויות עבור ${contextMenu.person.name}`}
                         >
                             <div className="bg-slate-50 px-3 py-2 border-b border-slate-100">
                                 <span className="font-bold text-slate-800 text-sm">{contextMenu.person.name}</span>
                             </div>
-                            <button onClick={() => { handleEditPersonClick(contextMenu.person); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
-                                <Pencil size={16} /> ערוך פרטים
+                            <button onClick={() => { handleEditPersonClick(contextMenu.person); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700" role="menuitem">
+                                <Pencil size={16} aria-hidden="true" /> ערוך פרטים
                             </button>
                             <button onClick={() => {
                                 setContextMenu(null);
@@ -1226,15 +1269,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                     `האם אתה בטוח שברצונך למחוק את "${contextMenu.person.name}"?`,
                                     () => onDeletePerson(contextMenu.person.id)
                                 );
-                            }} className="w-full text-right px-4 py-3 hover:bg-red-50 text-sm font-medium flex items-center gap-2 text-red-600">
-                                <Trash2 size={16} /> מחק חייל
+                            }} className="w-full text-right px-4 py-3 hover:bg-red-50 text-sm font-medium flex items-center gap-2 text-red-600" role="menuitem">
+                                <Trash2 size={16} aria-hidden="true" /> מחק חייל
                             </button>
                             <button onClick={() => {
                                 // Toggle status
                                 onUpdatePerson({ ...contextMenu.person, isActive: !contextMenu.person.isActive });
                                 setContextMenu(null);
-                            }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-500">
-                                {contextMenu.person.isActive ? <X size={16} /> : <Check size={16} />}
+                            }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-500" role="menuitem">
+                                {contextMenu.person.isActive ? <X size={16} aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
                                 {contextMenu.person.isActive ? 'סמן כלא פעיל' : 'סמן כפעיל'}
                             </button>
                         </div>

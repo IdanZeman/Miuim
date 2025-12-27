@@ -81,6 +81,7 @@ const CustomTimePicker = ({ label, value, onChange }: { label: string, value: st
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                    aria-label={`בחר שעה עבור ${label}`}
                 />
             </div>
         </div>
@@ -438,6 +439,8 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                 key={day.id}
                                 onClick={() => setSelectedDay(day.id)}
                                 className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${selectedDay === day.id ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                aria-label={`הצג יום ${day.full}`}
+                                aria-pressed={selectedDay === day.id}
                             >
                                 {day.label}
                             </button>
@@ -568,6 +571,16 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                                                                 borderBottomColor: '#e2e8f0'
                                                                             }}
                                                                             onClick={() => { if (canEdit) { setEditItem(item); setIsEditing(true); } }}
+                                                                            tabIndex={0}
+                                                                            role="button"
+                                                                            aria-label={`${item.description} מ-${item.startTime} עד ${item.endTime}${item.isNow ? ', פעיל עכשיו' : ''}`}
+                                                                            onKeyDown={(e) => {
+                                                                                if (canEdit && (e.key === 'Enter' || e.key === ' ')) {
+                                                                                    e.preventDefault();
+                                                                                    setEditItem(item);
+                                                                                    setIsEditing(true);
+                                                                                }
+                                                                            }}
                                                                         >
                                                                             <div className="p-3 flex flex-col h-full justify-between gap-2">
                                                                                 <div>
@@ -765,6 +778,8 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                             setEditItem({ ...editItem, daysOfWeek: newDays });
                                         }}
                                         className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${isSelected ? 'bg-blue-500 text-white shadow-md shadow-blue-200 scale-105' : 'text-slate-400 hover:bg-white hover:text-slate-600'}`}
+                                        aria-label={day.full}
+                                        aria-pressed={isSelected}
                                     >
                                         {day.label}
                                     </button>

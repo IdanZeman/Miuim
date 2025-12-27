@@ -68,6 +68,10 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
                     {/* Terms */}
                     <p className="text-xs text-slate-400 mt-8 text-center">
                         בכניסה למערכת אתה מסכים לתנאי השימוש ומדיניות הפרטיות
+                        <br />
+                        <a href="/accessibility" className="underline hover:text-slate-600 transition-colors mt-2 inline-block">
+                            הצהרת נגישות
+                        </a>
                     </p>
                 </div>
             </div>

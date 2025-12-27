@@ -58,15 +58,23 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
          {/* Top Navigation - Segmented Control Style */}
          {!isViewer && (
             <div className="flex justify-center mb-6">
-               <div className="bg-slate-100/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200 shadow-sm flex w-full max-w-md">
+               <div
+                  className="bg-slate-100/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200 shadow-sm flex w-full max-w-md"
+                  role="tablist"
+                  aria-label="סוגי דוחות"
+               >
                   <button
                      onClick={() => setReportType('manpower')}
                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${reportType === 'manpower'
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
+                     role="tab"
+                     aria-selected={reportType === 'manpower'}
+                     aria-controls="report-content"
+                     id="tab-manpower"
                   >
-                     <Users size={18} />
+                     <Users size={18} aria-hidden="true" />
                      <span>כוח אדם</span>
                   </button>
                   <button
@@ -75,8 +83,12 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
+                     role="tab"
+                     aria-selected={reportType === 'tasks'}
+                     aria-controls="report-content"
+                     id="tab-tasks"
                   >
-                     <ClipboardList size={18} />
+                     <ClipboardList size={18} aria-hidden="true" />
                      <span>שיבוץ</span>
                   </button>
                   <button
@@ -85,8 +97,12 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
+                     role="tab"
+                     aria-selected={reportType === 'location'}
+                     aria-controls="report-content"
+                     id="tab-location"
                   >
-                     <MapPin size={18} />
+                     <MapPin size={18} aria-hidden="true" />
                      <span>מיקום</span>
                   </button>
                </div>
@@ -94,7 +110,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
          )}
 
          {/* Content Area */}
-         <div className="min-h-[500px]">
+         <div className="min-h-[500px]" id="report-content" role="tabpanel" aria-labelledby={`tab-${reportType}`}>
             {reportType === 'manpower' && (
                <ManpowerReports
                   people={people}

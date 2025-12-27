@@ -20,7 +20,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 <div className="relative">
                     {Icon && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                            <Icon size={18} />
+                            <Icon size={18} aria-hidden="true" />
                         </div>
                     )}
                     <input
@@ -44,11 +44,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                             ${className}
                         `}
                         {...props}
+                        aria-invalid={!!error}
+                        aria-describedby={error ? `${props.id}-error` : undefined}
                         dir={props.type === 'date' || props.type === 'time' || props.type === 'datetime-local' ? 'ltr' : props.dir}
                     />
                 </div>
                 {error && (
-                    <p className="mt-1 text-sm text-red-500 font-medium animate-in slide-in-from-top-1">
+                    <p
+                        id={`${props.id}-error`}
+                        className="mt-1 text-sm text-red-500 font-medium animate-in slide-in-from-top-1"
+                        role="alert"
+                    >
                         {error}
                     </p>
                 )}

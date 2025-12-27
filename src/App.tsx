@@ -20,6 +20,7 @@ const FAQPage = lazyWithRetry(() => import('./features/core/FAQPage').then(modul
 const EquipmentManager = lazyWithRetry(() => import('./features/equipment/EquipmentManager').then(m => ({ default: m.EquipmentManager })));
 const ContactPage = lazyWithRetry(() => import('./features/core/ContactPage').then(module => ({ default: module.ContactPage })));
 const SystemManagementPage = lazyWithRetry(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
+const AccessibilityStatement = lazyWithRetry(() => import('./features/core/AccessibilityStatement').then(module => ({ default: module.AccessibilityStatement })));
 
 
 
@@ -943,7 +944,7 @@ const MainApp: React.FC = () => {
                 initialOpenRotaWizard={autoOpenRotaWizard}
                 onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}
             />;
-            case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onDeleteTask={handleDeleteTask} isViewer={!checkAccess('tasks', 'edit')} />;
+            case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onDeleteTask={handleDeleteTask} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} isViewer={!checkAccess('tasks', 'edit')} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
             case 'settings': return <OrganizationSettingsComponent teams={state.teams} />;
 
@@ -1107,6 +1108,7 @@ const AppContent: React.FC = () => {
         <ErrorBoundary>
             <Routes>
                 <Route path="/join/:token" element={<JoinPage />} />
+                <Route path="/accessibility" element={<AccessibilityStatement />} />
                 <Route path="*" element={<MainRoute user={user} profile={profile} organization={organization} />} />
             </Routes>
         </ErrorBoundary>
@@ -1161,17 +1163,17 @@ const MainRoute: React.FC<{ user: any, profile: any, organization: any }> = ({ u
 
 
 
-const App: React.FC = () => {
+
+export default function App() {
     return (
-        <Router>
-            <AuthProvider>
-                <ToastProvider>
-                    <AppContent />
-                </ToastProvider>
-            </AuthProvider>
-        </Router>
+        <ErrorBoundary>
+            <Router>
+                <AuthProvider>
+                    <ToastProvider>
+                        <AppContent />
+                    </ToastProvider>
+                </AuthProvider>
+            </Router>
+        </ErrorBoundary>
     );
-};
-
-export default App;
-
+}

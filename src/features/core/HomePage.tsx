@@ -91,9 +91,10 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                         <button
                             onClick={() => setShowClaimModal(true)}
                             className="w-full sm:w-auto px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black text-lg hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20 hover:-translate-y-1 flex items-center justify-center gap-3"
+                            aria-label="מצא את הפרופיל שלי ברשימה"
                         >
                             מצא את הפרופיל שלי
-                            <AllIcons.Search size={24} />
+                            <AllIcons.Search size={24} aria-hidden="true" />
                         </button>
                     </div>
                 </div>
@@ -146,19 +147,23 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                             {getGreeting()}, <span className="text-blue-600">{myPerson.name.split(' ')[0]}</span>
                         </h1>
                         <p className="text-slate-600 flex items-center gap-2 text-sm font-bold opacity-70">
-                            <Calendar size={14} />
+                            <Calendar size={14} aria-hidden="true" />
                             <span>{now.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                         </p>
                     </div>
 
                     <div
                         onClick={() => onNavigate('dashboard', activeShift.start)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate('dashboard', activeShift.start); } }}
                         className="relative rounded-2xl p-6 md:p-8 cursor-pointer overflow-hidden shadow-sm hover:shadow-md border border-slate-100 group transition-all bg-white"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`משימה פעילה: ${activeShift.task?.name}. לחץ למעבר ללוח השיבוצים.`}
                     >
                         {/* Soft background glow */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl opacity-60 -translate-y-1/2 translate-x-1/2"></div>
-                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-50 rounded-full blur-2xl opacity-50 translate-y-1/2 -translate-x-1/2"></div>
-                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500"></div>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl opacity-60 -translate-y-1/2 translate-x-1/2" aria-hidden="true"></div>
+                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-50 rounded-full blur-2xl opacity-50 translate-y-1/2 -translate-x-1/2" aria-hidden="true"></div>
+                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500" aria-hidden="true"></div>
 
                         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
                             <div className="flex items-center gap-5 w-full">
@@ -176,7 +181,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                                     </div>
                                     <div className="flex items-center gap-3 text-slate-500 text-sm md:text-base font-medium">
                                         <span className="bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 flex items-center gap-1.5">
-                                            <Clock size={14} className="text-slate-400" />
+                                            <Clock size={14} className="text-slate-400" aria-hidden="true" />
                                             {activeShift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {activeShift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     </div>
@@ -277,9 +282,13 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                                     <div
                                         key={shift.id}
                                         onClick={() => onNavigate('dashboard', shift.start)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate('dashboard', shift.start); } }}
                                         className="group flex items-center gap-4 bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-slate-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label={`משימה ב${dateLabel}: ${shift.task?.name}. לחץ לפרטים.`}
                                     >
-                                        <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center flex-shrink-0 shadow-sm border ${isToday ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
+                                        <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center flex-shrink-0 shadow-sm border ${isToday ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-600 border-slate-100'}`} aria-hidden="true">
                                             <span className="text-[10px] font-bold opacity-80">{dateLabel}</span>
                                             <span className="text-xl font-bold leading-none">{shift.start.getDate()}</span>
                                         </div>
@@ -288,7 +297,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                                             <h4 className="font-bold text-slate-900 truncate text-lg group-hover:text-blue-700 transition-colors">{shift.task?.name}</h4>
                                             <div className="flex items-center gap-3 text-sm text-slate-600 mt-1 font-medium">
                                                 <span className="flex items-center gap-1.5 bg-slate-100/80 px-2 py-0.5 rounded-md border border-slate-200 text-xs font-bold text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-700 transition-colors">
-                                                    <Clock size={12} className="text-slate-500 group-hover:text-blue-500" />
+                                                    <Clock size={12} className="text-slate-500 group-hover:text-blue-500" aria-hidden="true" />
                                                     {shift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                     {' - '}
                                                     {shift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
@@ -299,7 +308,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                                             </div>
                                         </div>
 
-                                        <div className="h-10 w-1.5 rounded-full" style={{ backgroundColor: shift.task?.color || '#cbd5e1' }}></div>
+                                        <div className="h-10 w-1.5 rounded-full" style={{ backgroundColor: shift.task?.color || '#cbd5e1' }} aria-hidden="true"></div>
                                     </div>
                                 );
                             })}

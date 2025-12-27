@@ -403,8 +403,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                             <button
                                                 onClick={() => setIsEditingTime(true)}
                                                 className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                                                aria-label="ערוך זמני משמרת"
                                             >
-                                                <MoreVertical size={16} />
+                                                <MoreVertical size={16} aria-hidden="true" />
                                             </button>
                                         )}
                                         <button
@@ -520,8 +521,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                             <button
                                                 onClick={() => onUnassign(selectedShift.id, p.id)}
                                                 className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                                                aria-label={`הסר את ${p.name} מהמשמרת`}
                                             >
-                                                <X size={18} />
+                                                <X size={18} aria-hidden="true" />
                                             </button>
                                         )}
                                     </div>
@@ -634,7 +636,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                     title="הצע לי שיבוץ חכם"
                                                     className="w-7 h-7 flex items-center justify-center bg-white text-blue-600 rounded-lg shadow-sm border border-slate-100 hover:border-blue-300 hover:shadow-md transition-all active:scale-95"
                                                 >
-                                                    <Wand2 size={14} />
+                                                    <Wand2 size={14} aria-hidden="true" />
                                                 </button>
                                             </div>
                                         </div>
@@ -725,6 +727,16 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                     <div
                                                         onClick={() => toggleTeam(group.team.id)}
                                                         className="flex items-center justify-between gap-2 mb-2 sticky top-0 bg-slate-50 p-2 z-10 mx-[-16px] px-4 border-b border-slate-100 shadow-sm cursor-pointer hover:bg-slate-100"
+                                                        role="button"
+                                                        aria-expanded={!isCollapsed}
+                                                        aria-controls={`team-panel-${group.team.id}`}
+                                                        tabIndex={0}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                                e.preventDefault();
+                                                                toggleTeam(group.team.id);
+                                                            }
+                                                        }}
                                                     >
                                                         <div className="flex items-center gap-2">
                                                             <div className={`w-1 h-4 rounded-full ${group.team.color?.replace('border-', 'bg-') || 'bg-slate-400'}`}></div>
@@ -734,6 +746,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                         <ChevronDown
                                                             size={16}
                                                             className={`text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90 rtl:rotate-90' : ''}`}
+                                                            aria-hidden="true"
                                                         />
                                                     </div>
 
@@ -752,6 +765,16 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                                             handleAttemptAssign(p.id);
                                                                         }}
                                                                         className={`flex items-center justify-between p-3 transition-colors ${canAssign ? 'cursor-pointer hover:bg-blue-50/50' : 'opacity-50 cursor-not-allowed grayscale'}`}
+                                                                        role={canAssign ? 'button' : undefined}
+                                                                        tabIndex={canAssign ? 0 : -1}
+                                                                        aria-label={`שבץ את ${p.name}`}
+                                                                        aria-disabled={!canAssign}
+                                                                        onKeyDown={(e) => {
+                                                                            if (canAssign && (e.key === 'Enter' || e.key === ' ')) {
+                                                                                e.preventDefault();
+                                                                                handleAttemptAssign(p.id);
+                                                                            }
+                                                                        }}
                                                                     >
                                                                         <div className="flex items-center gap-3 min-w-0">
                                                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm ${p.color}`}>
@@ -774,7 +797,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                                             disabled={!canAssign}
                                                                             className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${canAssign ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-110 active:scale-95' : 'bg-slate-100 text-slate-300 shadow-none'}`}
                                                                         >
-                                                                            <Plus size={20} strokeWidth={3} />
+                                                                            <Plus size={20} strokeWidth={3} aria-hidden="true" />
                                                                         </button>
                                                                     </div>
                                                                 );

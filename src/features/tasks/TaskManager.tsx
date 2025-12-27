@@ -15,6 +15,8 @@ interface TaskManagerProps {
     tasks: TaskTemplate[];
     roles: Role[];
     teams: Team[];
+    onAddTask: (task: TaskTemplate) => void;
+    onUpdateTask: (task: TaskTemplate) => void;
     onDeleteTask: (id: string) => void;
     isViewer?: boolean;
 }
@@ -244,6 +246,8 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                                 setOpenMenuId(openMenuId === task.id ? null : task.id);
                                             }}
                                             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                                            aria-label={`אפשרויות נוספות עבור ${task.name}`}
+                                            aria-expanded={openMenuId === task.id}
                                         >
                                             <MoreVertical size={20} />
                                         </button>
@@ -284,6 +288,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                         setIsAdding(true);
                     }}
                     className="md:hidden fixed bottom-24 left-6 w-14 h-14 bg-idf-yellow text-slate-900 rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 transition-all flex items-center justify-center z-30 active:scale-95"
+                    aria-label="הוסף משימה חדשה"
                 >
                     <Plus size={28} />
                 </button>
@@ -327,8 +332,10 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                                 key={c}
                                                 onClick={() => setSelectedColor(c)}
                                                 className={`w-8 h-8 rounded-full shrink-0 ${bgColor} flex items-center justify-center transition-transform ${isSelected ? 'scale-110 ring-2 ring-offset-2 ring-slate-900' : 'opacity-70 hover:opacity-100'}`}
+                                                aria-label={`בחר צבע ${bgColor.replace('bg-', '')}`}
+                                                aria-pressed={isSelected}
                                             >
-                                                {isSelected && <CheckSquare size={14} className="text-white bg-black/20 rounded" />}
+                                                {isSelected && <CheckSquare size={14} className="text-white bg-black/20 rounded" aria-hidden="true" />}
                                             </button>
                                         );
                                     })}
@@ -348,6 +355,10 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                     className="w-full h-2 bg-slate-100 rounded-lg accent-idf-yellow cursor-pointer"
                                     min="1"
                                     max="5"
+                                    aria-label="רמת קושי המשימה"
+                                    aria-valuemin={1}
+                                    aria-valuemax={5}
+                                    aria-valuenow={difficulty}
                                 />
                                 <div className="flex justify-between mt-1 text-[10px] text-slate-400 font-medium">
                                     <span>קל</span>
