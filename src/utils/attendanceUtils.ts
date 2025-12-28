@@ -25,15 +25,19 @@ const isSameDate = (dateStr: string, target: Date) => {
     return dateStr === target.toLocaleDateString('en-CA');
 };
 
-export const getEffectiveAvailability = (person: Person, date: Date, teamRotations: TeamRotation[], absences: import('../types').Absence[] = []) => {
+export const getEffectiveAvailability = (
+    person: Person, 
+    date: Date, 
+    teamRotations: TeamRotation[], 
+    absences: import('../types').Absence[] = [],
+    hourlyBlockages: import('../types').HourlyBlockage[] = []
+) => {
     const dateKey = date.toLocaleDateString('en-CA');
 
     // 1. Manual Override & Absences
-    let unavailableBlocks: { id: string; start: string; end: string; reason?: string; type?: string }[] = [];
+    let unavailableBlocks: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[] = [];
     
     // A. Collect blocks from Absences (Approved/Pending)
-    // We only care about Approved usually, but let's show all for visibility, or filter by approved?
-    // Generally 'effective availability' implies approved absences. But let's take valid ones.
     const relevantAbsences = absences.filter(a => 
         a.person_id === person.id && 
         a.status !== 'rejected' && // Show pending/approved
@@ -42,8 +46,6 @@ export const getEffectiveAvailability = (person: Person, date: Date, teamRotatio
     );
 
     relevantAbsences.forEach(a => {
-        // If it's a multi-day absence, and we are in the middle, it's 00:00-23:59 for this day
-        // Unless it's start or end day with specific times.
         let start = '00:00';
         let end = '23:59';
 
@@ -55,7 +57,25 @@ export const getEffectiveAvailability = (person: Person, date: Date, teamRotatio
             start,
             end,
             reason: a.reason || 'Absence',
-            type: 'absence' as any
+            type: 'absence',
+            status: a.status // Pass status for filtering
+        });
+    });
+
+    // B. Collect blocks from HourlyBlockages (NEW)
+    const relevantHourlyBlockages = hourlyBlockages.filter(b => 
+        b.person_id === person.id && 
+        (b.date === dateKey || b.date.startsWith(dateKey))
+    );
+
+    relevantHourlyBlockages.forEach(b => {
+        unavailableBlocks.push({
+            id: b.id,
+            start: b.start_time,
+            end: b.end_time,
+            reason: b.reason || 'חסימה',
+            type: 'hourly_blockage',
+            status: 'approved' // Manual blocks are always approved/active
         });
     });
 
@@ -88,10 +108,12 @@ export const getEffectiveAvailability = (person: Person, date: Date, teamRotatio
     let derivedStatus = 'full' as any;
     let isAvailable = true;
     
-    // Check for full day coverage in blocks for simple status derivation
-    // For now, keep it simple. If blocks exist, we attach them.
-    // If a block covers 00:00 to 23:59, we might want to say isAvailable=false.
-    const fullDayAbsence = unavailableBlocks.find(b => b.start === '00:00' && b.end === '23:59');
+    // Check for APPROVED full day coverage
+    const fullDayAbsence = unavailableBlocks.find(b => 
+        b.start === '00:00' && 
+        b.end === '23:59' &&
+        (b.status === 'approved') // Only approved blocks count as hard unavailability
+    );
     if (fullDayAbsence) {
         derivedStatus = 'home'; // Or 'unavailable'
         isAvailable = false;

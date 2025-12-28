@@ -9,7 +9,7 @@ import {
 import { 
     mapPersonFromDB, mapShiftFromDB, mapTaskFromDB, 
     mapRoleFromDB, mapTeamFromDB, mapConstraintFromDB, 
-    mapRotationFromDB, mapAbsenceFromDB, mapEquipmentFromDB 
+    mapRotationFromDB, mapAbsenceFromDB, mapEquipmentFromDB, mapHourlyBlockageFromDB
 } from '../services/supabaseClient';
 
 // Helper to calculate data scoping (Duplicated from App.tsx for safety)
@@ -74,7 +74,7 @@ export const useOrganizationData = () => {
             const [
                 peopleRes, tasksRes, rolesRes, teamsRes, settingsRes,
                 constraintsRes, rotationsRes, absencesRes, equipmentRes,
-                shiftsRes
+                hourlyBlockagesRes, shiftsRes
             ] = await Promise.all([
                 supabase.from('people').select('*').eq('organization_id', organization.id),
                 supabase.from('task_templates').select('*').eq('organization_id', organization.id),
@@ -85,6 +85,7 @@ export const useOrganizationData = () => {
                 supabase.from('team_rotations').select('*').eq('organization_id', organization.id),
                 supabase.from('absences').select('*').eq('organization_id', organization.id),
                 supabase.from('equipment').select('*').eq('organization_id', organization.id),
+                supabase.from('hourly_blockages').select('*').eq('organization_id', organization.id),
                 // Fetch last 3 months of shifts for history
                 supabase.from('shifts').select('*')
                     .eq('organization_id', organization.id)
@@ -101,7 +102,8 @@ export const useOrganizationData = () => {
                 constraints: constraintsRes.data || [],
                 rotations: rotationsRes.data || [],
                 absences: absencesRes.data || [],
-                equipment: equipmentRes.data || []
+                equipment: equipmentRes.data || [],
+                hourlyBlockages: hourlyBlockagesRes.data || []
             };
         },
         enabled: isEnabled,
@@ -131,6 +133,7 @@ export const useOrganizationData = () => {
             constraints: (data.constraints || []).map(mapConstraintFromDB),
             teamRotations: (data.rotations || []).map(mapRotationFromDB),
             absences: (data.absences || []).map(mapAbsenceFromDB),
+            hourlyBlockages: (data.hourlyBlockages || []).map(mapHourlyBlockageFromDB),
             equipment: scopedEquipment
         };
     }, [data, profile, user]);

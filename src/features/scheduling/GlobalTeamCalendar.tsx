@@ -8,6 +8,7 @@ interface GlobalTeamCalendarProps {
     people: Person[];
     teamRotations: TeamRotation[];
     absences?: Absence[]; // NEW
+    hourlyBlockages?: import('@/types').HourlyBlockage[]; // NEW
     onManageTeam?: (teamId: string) => void;
     onToggleTeamAvailability?: (teamId: string, date: Date, isAvailable: boolean) => void;
     onDateClick: (date: Date) => void;
@@ -19,7 +20,7 @@ interface GlobalTeamCalendarProps {
 }
 
 export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
-    teams, people, teamRotations, absences = [],
+    teams, people, teamRotations, absences = [], hourlyBlockages = [],
     onManageTeam, onToggleTeamAvailability, onDateClick,
     currentDate, onDateChange,
     viewType = 'grid', onViewTypeChange, organizationName
@@ -57,7 +58,7 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
             let presentPeople = 0;
             relevantPeople.forEach(person => {
                 totalPeople++;
-                const avail = getEffectiveAvailability(person, date, teamRotations, absences);
+                const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
                 if (avail.isAvailable) presentPeople++;
             });
 

@@ -125,6 +125,7 @@ const MainApp: React.FC = () => {
         teamRotations,
         absences,
         equipment,
+        hourlyBlockages,
         isLoading: isOrgLoading,
         error: orgError,
         refetch: refetchOrgData
@@ -142,7 +143,8 @@ const MainApp: React.FC = () => {
         teamRotations: teamRotations || [],
         absences: absences || [],
         equipment: equipment || [],
-        settings: settings || null
+        settings: settings || null,
+        hourlyBlockages: hourlyBlockages || []
     };
 
     // Combined Loading Logic
@@ -521,11 +523,17 @@ const MainApp: React.FC = () => {
     };
 
     const handleUpdateAbsence = async (a: Absence) => {
-        // setState(prev => ({ ...prev, absences: prev.absences.map(absence => absence.id === a.id ? a : absence) }));
-        try {
-            await supabase.from('absences').update(mapAbsenceToDB(a)).eq('id', a.id);
-            refreshData();
-        } catch (e) { console.warn(e); }
+        // Optimistic update not possible with current hook structure without refactor.
+        // DB update is already handled in AbsenceManager for Reject, but for Consistency:
+        // If AbsenceManager calls this, we should assume it MIGHT NOT have updated DB? 
+        // NO, handleReject in AbsenceManager calls updateAbsence (API) THEN onUpdateAbsence.
+        // So this handler should just refresh.
+
+        refreshData();
+
+        // Redundant checks to ensure safety if called from other places:
+        // if (a.status !== 'rejected') { ... } 
+        // But for now simply refreshing is safer to avoid double writes.
     };
 
     const handleDeleteAbsence = async (id: string) => {
@@ -940,6 +948,7 @@ const MainApp: React.FC = () => {
                 tasks={state.taskTemplates}
                 constraints={state.constraints}
                 absences={state.absences}
+                hourlyBlockages={state.hourlyBlockages} // NEW
                 settings={state.settings}
                 onUpdatePerson={handleUpdatePerson}
                 onUpdatePeople={handleUpdatePeople}
@@ -953,6 +962,7 @@ const MainApp: React.FC = () => {
                         refreshData();
                     } catch (e) { console.warn(e); }
                 }}
+                onRefresh={refetchOrgData} // NEW
                 isViewer={!checkAccess('attendance', 'edit')}
                 initialOpenRotaWizard={autoOpenRotaWizard}
                 onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}

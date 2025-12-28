@@ -79,7 +79,7 @@ export interface AvailabilitySlot {
   endHour?: string;   // "17:00"
   source?: string;
   status?: string; // 'arrival' | 'departure' | 'base' | 'home'
-  unavailableBlocks?: { id: string; start: string; end: string; reason?: string; type?: string }[];
+  unavailableBlocks?: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[];
 }
 
 export interface DailyAvailability {
@@ -222,6 +222,7 @@ export interface AppState {
   teamRotations: TeamRotation[]; // NEW
   settings: OrganizationSettings | null; // NEW
   absences: Absence[]; // NEW
+  hourlyBlockages: HourlyBlockage[]; // NEW
   equipment: Equipment[]; // NEW
 }
 
@@ -268,6 +269,17 @@ export interface Absence {
   status?: 'pending' | 'approved' | 'rejected' | 'conflict';
   approved_by?: string; // Profile ID
   approved_at?: string; // ISO Date
+  created_at?: string;
+}
+
+export interface HourlyBlockage {
+  id: string;
+  person_id: string;
+  organization_id: string;
+  date: string; // ISO Date "YYYY-MM-DD"
+  start_time: string; // "HH:MM"
+  end_time: string; // "HH:MM"
+  reason?: string;
   created_at?: string;
 }
 

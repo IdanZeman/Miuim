@@ -16,6 +16,7 @@ export interface RosterGenerationParams {
     teamRotations: TeamRotation[];
     constraints: SchedulingConstraint[];
     absences: Absence[];
+    hourlyBlockages: import('../types').HourlyBlockage[]; // NEW
     customMinStaff?: number;
     customRotation?: { daysBase: number; daysHome: number; };
     history?: Map<string, PersonHistory>;
@@ -350,7 +351,7 @@ class TaskDerivedStrategy implements ISchedulingStrategy {
 // --- MAIN SERVICE ---
 
 const generateRoster = (params: RosterGenerationParams): RosterGenerationResult => {
-    const { startDate, endDate, settings, constraints, absences, history, tasks, customMinStaff } = params;
+    const { startDate, endDate, settings, constraints, absences, history, tasks, customMinStaff, hourlyBlockages } = params;
     const people = params.people.filter(p => p.isActive !== false);
 
     // 1. Build Context
@@ -375,14 +376,25 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
                 for(let i=s; i<=e; i++) set.add(i);
             }
         });
-        // Add Absences
+        // Add Absences (Only Approved)
         absences.forEach(a => {
-            if (a.person_id === p.id) {
+            if (a.person_id === p.id && a.status === 'approved') { // NEW: Only Approved
                 const s = Math.max(0, getDayIndex(new Date(a.start_date), startDate));
                 const e = Math.min(totalDays - 1, getDayIndex(new Date(a.end_date), startDate));
                 for(let i=s; i<=e; i++) set.add(i);
             }
         });
+        
+        // Add Full-Day Hourly Blockages (NEW)
+        hourlyBlockages.forEach(hb => {
+             if (hb.person_id === p.id && hb.start_time === '00:00' && hb.end_time === '23:59') {
+                 const dayIndex = getDayIndex(new Date(hb.date), startDate);
+                 if (dayIndex >= 0 && dayIndex < totalDays) {
+                     set.add(dayIndex);
+                 }
+             }
+        });
+        
         constraintMap.set(p.id, set);
     });
 

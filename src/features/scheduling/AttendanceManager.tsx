@@ -15,6 +15,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { RotaWizardModal } from './RotaWizardModal';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { useAuth } from '@/features/auth/AuthContext';
+import { addHourlyBlockage, updateHourlyBlockage, deleteHourlyBlockage, updateAbsence } from '@/services/api'; // NEW Imports
 
 interface AttendanceManagerProps {
     people: Person[];
@@ -23,6 +24,7 @@ interface AttendanceManagerProps {
     tasks?: TaskTemplate[]; // NEW
     constraints?: SchedulingConstraint[]; // NEW
     absences?: Absence[]; // NEW
+    hourlyBlockages?: import('@/types').HourlyBlockage[]; // NEW
     settings?: OrganizationSettings | null; // NEW
     onUpdatePerson: (p: Person) => void;
     onUpdatePeople?: (people: Person[]) => void;
@@ -33,14 +35,15 @@ interface AttendanceManagerProps {
     isViewer?: boolean;
     initialOpenRotaWizard?: boolean;
     onDidConsumeInitialAction?: () => void;
+    onRefresh?: () => void; // NEW
 }
 
 export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     people, teams, teamRotations = [],
-    tasks = [], constraints = [], absences = [], settings = null,
+    tasks = [], constraints = [], absences = [], hourlyBlockages = [], settings = null,
     onUpdatePerson, onUpdatePeople,
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
-    isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction
+    isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction, onRefresh
 }) => {
     const activePeople = people.filter(p => p.isActive !== false);
     const { profile } = useAuth();
@@ -72,7 +75,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     }, [initialOpenRotaWizard, onDidConsumeInitialAction]);
 
     const getPersonAvailability = (person: Person) => {
-        return getEffectiveAvailability(person, selectedDate, teamRotations, absences);
+        return getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);
     };
 
     const toggleTeamCollapse = (teamId: string) => {
@@ -83,6 +86,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             return next;
         });
     };
+
+    // ... (rest of code) ...
+
 
     const dateKey = selectedDate.toLocaleDateString('en-CA');
 
@@ -239,25 +245,108 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הגדרות סבב אישי עודכנו', 'success');
     };
 
-    const handleUpdateAvailability = (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => {
+    const handleUpdateAvailability = async (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[]) => {
         if (isViewer) return;
 
         const person = people.find(p => p.id === personId);
         if (!person) return;
-
         const currentData = person.dailyAvailability?.[date] || {
-            isAvailable: true, // default
+            isAvailable: true,
             startHour: '00:00',
             endHour: '23:59',
             source: 'manual',
             unavailableBlocks: []
         };
 
+        // 1. Sync Hourly Blockages (NEW TABLE)
+        if (newUnavailableBlocks) {
+            // Fetch existing blocks for this person/date to diff
+            // Note: We already have 'hourlyBlockages' from props (all org blocks).
+            // We can filter from there instead of strict DB fetch if we trust props are fresh enough.
+            // But for safety on write, let's trust the props or just do upsert.
+
+            const dateKey = new Date(date).toISOString().split('T')[0]; // Ensure 'YYYY-MM-DD'
+            const existingBlocks = hourlyBlockages.filter(b => b.person_id === personId && b.date === dateKey);
+            const incomingBlocks = newUnavailableBlocks.filter(b => b.type !== 'absence'); // Only manual blocks
+
+            const promises: Promise<any>[] = [];
+
+            // A. DELETE blocks that are no longer present
+            const incomingIds = incomingBlocks.map(b => b.id);
+            const toDelete = existingBlocks.filter(b => !incomingIds.includes(b.id));
+            toDelete.forEach(b => promises.push(deleteHourlyBlockage(b.id)));
+
+            // B. UPSERT (Add or Update) incoming
+            for (const mb of incomingBlocks) {
+                const existing = existingBlocks.find(b => b.id === mb.id);
+                // Check if changed
+                if (!existing || existing.start_time !== mb.start || existing.end_time !== mb.end || existing.reason !== mb.reason) {
+                    if (existing) {
+                        promises.push(updateHourlyBlockage({
+                            id: mb.id, // Use existing ID if matched (though UUID from modal might match DB)
+                            person_id: personId,
+                            organization_id: profile.organization_id,
+                            date: dateKey,
+                            start_time: mb.start,
+                            end_time: mb.end,
+                            reason: mb.reason || ''
+                        }));
+                    } else {
+                        // New
+                        promises.push(addHourlyBlockage({
+                            person_id: personId,
+                            organization_id: profile.organization_id, // Fix
+                            date: dateKey,
+                            start_time: mb.start,
+                            end_time: mb.end,
+                            reason: mb.reason || ''
+                        }));
+                    }
+                }
+            }
+
+            if (promises.length > 0) {
+                try {
+                    await Promise.all(promises);
+                    if (onRefresh) onRefresh();
+                } catch (err) {
+                    console.error('Failed to sync blocks', err);
+                    showToast('שגיאה בשמירת חסימות', 'error');
+                }
+            }
+        }
+
+        // 2. NEW: Conflict Resolution - Auto-Reject Approved Absences if Manual Override is 'base'
+        if (status === 'base') {
+            const dateKey = new Date(date).toISOString().split('T')[0];
+            const conflictingAbsence = absences.find(a =>
+                a.person_id === personId &&
+                a.status === 'approved' &&
+                dateKey >= a.start_date &&
+                dateKey <= a.end_date
+            );
+
+            if (conflictingAbsence) {
+                // Auto-Reject the absence
+                try {
+                    await updateAbsence({ ...conflictingAbsence, status: 'rejected' });
+                    showToast('היעדרות מאושרת לחפיפה זו בוטלה (נדחתה) עקב שינוי ידני לבסיס', 'info');
+                    // Note: We don't need to manually update state here because onRefresh() or onUpdateAbsence (if we had it) would handle it.
+                    // But AttendanceManager receives absences as props, so we rely on the parent to refresh or the onRefresh callback.
+                } catch (e) {
+                    console.error("Failed to auto-reject absence", e);
+                }
+            }
+        }
+
+        // 2. Update Daily Presence (Status & Hours)
+        // We set unavailableBlocks to [] because we migrated them to the new table!
+        // This effectively 'cleans' the json field for this record.
         let newData: any = {
             ...currentData,
             source: 'manual',
-            status: status, // Persist the status ('base', 'home', 'unavailable')
-            unavailableBlocks: unavailableBlocks || []
+            status: status,
+            unavailableBlocks: []
         };
 
         if (status === 'base') {
@@ -273,9 +362,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             newData.isAvailable = false;
             newData.startHour = '00:00';
             newData.endHour = '00:00';
-            // newData.reason = 'בבית'; // Optional
         } else if (status === 'unavailable') {
-            // Legacy support or specific full-day constraint
             newData.isAvailable = false;
             newData.startHour = '00:00';
             newData.endHour = '00:00';
@@ -486,6 +573,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 people={people}
                                 teamRotations={teamRotations}
                                 absences={absences}
+                                hourlyBlockages={hourlyBlockages}
                                 onManageTeam={(teamId) => setShowRotationSettings(teamId)}
                                 onDateClick={handleDateClick}
                                 currentDate={viewDate}
@@ -512,6 +600,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 people={filteredPeople}
                                 teamRotations={teamRotations}
                                 absences={absences}
+                                hourlyBlockages={hourlyBlockages}
                                 currentDate={selectedDate}
                                 onDateChange={setSelectedDate}
                                 onSelectPerson={(p) => {
@@ -756,6 +845,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 people={people}
                                 teamRotations={teamRotations}
                                 absences={absences}
+                                hourlyBlockages={hourlyBlockages}
                                 onManageTeam={(teamId) => setShowRotationSettings(teamId)}
                                 onDateClick={handleDateClick}
                                 currentDate={viewDate}
@@ -772,6 +862,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 people={filteredPeople}
                                 teamRotations={teamRotations}
                                 absences={absences}
+                                hourlyBlockages={hourlyBlockages}
                                 currentDate={selectedDate}
                                 onDateChange={setSelectedDate}
                                 viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
@@ -846,6 +937,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     absences={absences}
                     settings={settings}
                     teamRotations={teamRotations}
+                    hourlyBlockages={hourlyBlockages} // NEW
                     onSaveRoster={(roster: DailyPresence[]) => {
                         // Convert Roster to Person updates for immediate UI reflection
                         // onUpdatePeople(Array.from(updates.values())); // REMOVED: Prevent double-write. RotaWizardModal already handles the DB save and Invalidation.

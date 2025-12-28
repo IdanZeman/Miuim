@@ -1,4 +1,4 @@
-import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation } from '@/types';
+import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage } from '@/types';
 
 // --- Mappers (App Types <-> DB Types) ---
 
@@ -246,4 +246,27 @@ export const mapEquipmentToDB = (e: Equipment) => ({
     last_verified_at: e.last_verified_at,
     status: e.status,
     notes: e.notes
+});
+
+// Hourly Blockages
+export const mapHourlyBlockageFromDB = (dbBlock: any): HourlyBlockage => ({
+    id: dbBlock.id,
+    person_id: dbBlock.person_id,
+    organization_id: dbBlock.organization_id,
+    date: dbBlock.date,
+    start_time: dbBlock.start_time,
+    end_time: dbBlock.end_time,
+    reason: dbBlock.reason,
+    created_at: dbBlock.created_at
+});
+
+export const mapHourlyBlockageToDB = (block: HourlyBlockage) => ({
+    id: block.id,
+    person_id: block.person_id,
+    organization_id: block.organization_id,
+    date: block.date,
+    start_time: block.start_time,
+    end_time: block.end_time,
+    reason: block.reason,
+    // created_at is automatic
 });

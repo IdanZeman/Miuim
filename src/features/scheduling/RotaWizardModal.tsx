@@ -27,12 +27,13 @@ interface RotaWizardModalProps {
     teamRotations: TeamRotation[];
     constraints: SchedulingConstraint[];
     absences: Absence[];
+    hourlyBlockages: import('@/types').HourlyBlockage[]; // NEW
     onSaveRoster?: (data: DailyPresence[]) => void;
 }
 
 
 export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
-    isOpen, onClose, people, teams, tasks, settings, teamRotations, constraints, absences, onSaveRoster
+    isOpen, onClose, people, teams, tasks, settings, teamRotations, constraints, absences, hourlyBlockages, onSaveRoster
 }) => {
     const queryClient = useQueryClient();
     const activePeople = people.filter(p => p.isActive !== false);
@@ -494,7 +495,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 customMinStaff: optimizationMode === 'min_staff' ? customMinStaff : 0, // Only enforce floor in 'min_staff' mode
                 customRotation: { daysBase, daysHome },
                 history,
-                tasks // NEW: Pass tasks for 'tasks' mode calculation
+                tasks, // NEW: Pass tasks for 'tasks' mode calculation
+                hourlyBlockages // NEW
             });
             console.log('Generation Result:', res);
             setResult(res);

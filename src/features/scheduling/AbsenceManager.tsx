@@ -53,6 +53,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     // Approval Modal State
     const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
     const [approvingAbsence, setApprovingAbsence] = useState<Absence | null>(null);
+    // Optimistic UI State
+    const [pendingUpdates, setPendingUpdates] = useState<Record<string, Partial<Absence>>>({});
     const [approvalStartDate, setApprovalStartDate] = useState<string>('');
     const [approvalEndDate, setApprovalEndDate] = useState<string>('');
     const [approvalDepartureTime, setApprovalDepartureTime] = useState('10:00');
@@ -261,6 +263,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 onUpdatePerson({ ...person, dailyAvailability: newAvailability });
             }
 
+            setPendingUpdates(prev => ({ ...prev, [updated.id]: updated }));
             onUpdateAbsence(updated);
             showToast('הבקשה אושרה והנוכחות עודכנה', 'success');
             setIsApprovalModalOpen(false);
@@ -321,6 +324,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 onUpdatePerson({ ...person, dailyAvailability: newAvailability });
             }
 
+            setPendingUpdates(prev => ({ ...prev, [updated.id]: updated }));
             onUpdateAbsence(updated);
             showToast('הבקשה נדחתה והנוכחות עודכנה לבסיס', 'info');
         } catch (e) {
@@ -384,7 +388,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
         if (homeDays === totalDays && totalDays > 0) return { status: 'approved' };
         if (homeDays > 0 && homeDays < totalDays) return { status: 'partially_approved' };
-        if (baseDays > 0) return { status: 'rejected' };
+        // REMOVED: if (baseDays > 0) return { status: 'rejected' };
+        // Pending request should remain pending even if currently scheduled as base.
 
         return { status: 'pending' };
     };
@@ -517,9 +522,12 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                             const person = people.find(p => p.id === absence.person_id);
                                             if (!person) return null;
 
+                                            // Merge with pending updates if any
+                                            const effectiveAbsence = { ...absence, ...(pendingUpdates[absence.id] || {}) };
+
                                             // Calculate status based on presence data
-                                            const computed = getComputedAbsenceStatus(person, absence);
-                                            const status = computed.status;
+                                            const computed = getComputedAbsenceStatus(person, effectiveAbsence);
+                                            const status = effectiveAbsence.status !== 'pending' ? effectiveAbsence.status : computed.status;
 
                                             // Status Helpers
                                             const isApproved = status === 'approved';
