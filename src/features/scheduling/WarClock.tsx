@@ -317,18 +317,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     }, [filteredItems]);
 
 
-    // Auto-scroll to active item on mount/open
-    useEffect(() => {
-        if (isOpen && scrollContainerRef.current) {
-            // We need a small timeout to allow rendering to complete
-            setTimeout(() => {
-                const activeItem = document.getElementById('war-clock-active-item');
-                if (activeItem) {
-                    activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 100);
-        }
-    }, [isOpen, timelineData]);
+
 
     const getItemColor = (item: ScheduleItem) => {
         let rawColor = '';

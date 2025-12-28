@@ -344,12 +344,19 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         const dailyStaffCounts: Record<string, number> = {};
 
         // Helper: Get Effective Status
+        // Helper: Get Effective Status
         const getEffectiveStatus = (pid: string, dateKey: string) => {
             const override = manualOverrides[`${pid}-${dateKey}`];
             if (override) return override.status;
             // Fallback to result or Availability
             const resStatus = result?.personStatuses?.[dateKey]?.[pid];
             if (resStatus) return resStatus;
+
+            // Fallback to DB Availability (Sync with Table Logic)
+            const person = people.find(p => p.id === pid);
+            const dbAvail = person?.dailyAvailability?.[dateKey];
+            if (dbAvail) return dbAvail.isAvailable ? 'base' : 'home';
+
             return 'base'; // Default
         };
 
@@ -392,6 +399,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
         // 2. Ratio Check
         // Only if we are optimizing for Ratio
+        // 2. Ratio Check
+        // Only if we are optimizing for Ratio
         if (optimizationMode === 'ratio') {
             const targetRatioStr = getArmyRatio(daysBase, daysHome);
 
@@ -401,26 +410,19 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                 dateRange.forEach((dateKey, idx) => {
                     const status = getEffectiveStatus(p.id, dateKey);
-                    if (status === 'home' || status === 'unavailable') {
+                    if (status === 'home' || status === 'unavailable' || status === 'departure') {
                         homeCount++;
                     } else {
-                        // Check Departure Logic for Counting
-                        const nextKey = idx < dateRange.length - 1 ? dateRange[idx + 1] : null;
-                        const nextStatus = nextKey ? getEffectiveStatus(p.id, nextKey) : 'base';
-
-                        // Is Departure?
-                        if (nextStatus !== 'base' && nextStatus !== 'arrival') {
-                            homeCount++;
-                        } else {
-                            baseCount++;
-                        }
+                        baseCount++;
                     }
                 });
+
+                // console.log(`[Validation] ${p.name}: Range=${dateRange.length}, Base=${baseCount}, Home=${homeCount}`);
 
                 const currentRatio = getArmyRatio(baseCount, homeCount);
 
                 if (currentRatio !== targetRatioStr) {
-                    issues.push(`${p.name}: יחס היציאות השתנה ל-${currentRatio} (יעד: ${targetRatioStr})`);
+                    issues.push(`${p.name}: יחס היציאות (v2) השתנה ל-${currentRatio} (יעד: ${targetRatioStr})`);
                 }
             });
         }
@@ -803,9 +805,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
         relevantPeople.forEach(person => {
             // Re-creating day loop to aggregate stats
+            const dateRange: string[] = [];
             for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-                const k = d.toLocaleDateString('en-CA');
+                dateRange.push(d.toLocaleDateString('en-CA'));
+            }
 
+            dateRange.forEach(k => {
                 let status = 'base';
                 const override = manualOverrides[`${person.id}-${k}`];
 
@@ -822,41 +827,14 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     }
                 }
 
-                if (status === 'home' || status === 'unavailable') {
+                if (status === 'home' || status === 'unavailable' || status === 'departure') {
+                    // console.log(`[Stats] ${person.name} ${k}: ${status} -> HOME`);
                     sumHome++;
                 } else {
-                    // Check Next Day for Departure logic
-                    const nextDay = new Date(d);
-                    nextDay.setDate(d.getDate() + 1);
-                    const nextK = nextDay.toLocaleDateString('en-CA');
-
-                    let nextStatus = 'base';
-                    const nextOverride = manualOverrides[`${person.id}-${nextK}`];
-
-                    if (nextOverride) {
-                        nextStatus = nextOverride.status;
-                    } else {
-                        const nextResStatus = result.personStatuses?.[nextK]?.[person.id];
-                        if (nextResStatus) {
-                            nextStatus = nextResStatus;
-                        } else {
-                            const nextDbAvail = person.dailyAvailability?.[nextK];
-                            if (nextDbAvail) nextStatus = nextDbAvail.isAvailable ? 'base' : 'home';
-                            else nextStatus = 'base';
-                        }
-                    }
-
-                    if (nextStatus !== 'base') {
-                        // Departure counts as home for the ratio metric usually? 
-                        // The user said "Avg ratio". 
-                        // In the table logic (lines 864-867): `if (isDeparture) homeCount++; else baseCount++;`
-                        // So I will mirror that logic.
-                        sumHome++;
-                    } else {
-                        sumBase++;
-                    }
+                    // console.log(`[Stats] ${person.name} ${k}: ${status} -> BASE`);
+                    sumBase++;
                 }
-            }
+            });
         });
 
         const count = relevantPeople.length || 1;
@@ -1575,39 +1553,32 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                 const startD = new Date(startDate);
                                                                 const endD = new Date(endDate);
 
-                                                                // Helper to resolve status for any date
-                                                                const getStatusForDate = (dateObj: Date) => {
-                                                                    const k = dateObj.toLocaleDateString('en-CA');
-                                                                    // Check overrides first
-                                                                    if (manualOverrides[`${person.id}-${k}`]) return manualOverrides[`${person.id}-${k}`].status;
+                                                                // Create Range array
+                                                                const dateRange: string[] = [];
+                                                                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                                                                    dateRange.push(d.toLocaleDateString('en-CA'));
+                                                                }
 
-                                                                    const resStatus = result?.personStatuses?.[k]?.[person.id];
+                                                                // Helper to resolve status for any date
+                                                                const getStatusForDate = (dateKey: string) => {
+                                                                    // Check overrides first
+                                                                    if (manualOverrides[`${person.id}-${dateKey}`]) return manualOverrides[`${person.id}-${dateKey}`].status;
+                                                                    const resStatus = result?.personStatuses?.[dateKey]?.[person.id];
                                                                     if (resStatus) return resStatus;
-                                                                    const dbAvail = person.dailyAvailability?.[k];
+                                                                    const dbAvail = person.dailyAvailability?.[dateKey];
                                                                     if (dbAvail) return dbAvail.isAvailable ? 'base' : 'home';
                                                                     return 'base'; // Default
                                                                 };
 
-                                                                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-                                                                    const currentStatus = getStatusForDate(d);
-
-                                                                    if (currentStatus === 'home' || currentStatus === 'unavailable') {
+                                                                // Use full dateRange (No Trimming)
+                                                                dateRange.forEach(k => {
+                                                                    const currentStatus = getStatusForDate(k);
+                                                                    if (currentStatus === 'home' || currentStatus === 'unavailable' || currentStatus === 'departure') {
                                                                         homeCount++;
                                                                     } else {
-                                                                        // It IS base. Check if it's a departure (Tomorrow is home)
-                                                                        const nextDay = new Date(d);
-                                                                        nextDay.setDate(d.getDate() + 1);
-                                                                        const nextStatus = getStatusForDate(nextDay);
-
-                                                                        const isDeparture = nextStatus !== 'base';
-
-                                                                        if (isDeparture) {
-                                                                            homeCount++; // User wants Departure to count as Home
-                                                                        } else {
-                                                                            baseCount++;
-                                                                        }
+                                                                        baseCount++;
                                                                     }
-                                                                }
+                                                                });
 
                                                                 const ratioStr = getArmyRatio(baseCount, homeCount);
                                                                 cells.push(
