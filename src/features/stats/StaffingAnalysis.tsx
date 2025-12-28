@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { TaskTemplate, SchedulingSegment } from '../types';
+import { TaskTemplate, SchedulingSegment } from '@/types';
 import { Users, Clock, AlertCircle } from 'lucide-react';
 
 interface StaffingAnalysisProps {
@@ -88,7 +88,13 @@ export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, total
                 manHours: dailyManHours,
                 avgRest: avgRest.toFixed(1),
                 details: `${dailyManHours} שעות אדם ביום / יחס תעסוקה ${(workRatio * 100).toFixed(0)}%`,
-                error: false
+                error: false,
+                data: {
+                    duration: avgDuration.toFixed(1),
+                    rest: avgRest.toFixed(1),
+                    cycle: (avgDuration + avgRest).toFixed(1),
+                    shiftsPerDay: (24 / (avgDuration + avgRest)).toFixed(1)
+                }
             };
         });
 
@@ -147,13 +153,23 @@ export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, total
                                         </span>
                                     </div>
                                 </td>
-                                <td className="px-4 py-3 text-center text-xs text-slate-500">
+                                <td className="px-4 py-3">
                                     {item.error ? (
-                                        <span className="text-red-500 flex items-center justify-center gap-1">
+                                        <span className="text-red-500 flex items-center justify-start gap-1">
                                             <AlertCircle size={12} /> {item.details}
                                         </span>
                                     ) : (
-                                        item.details
+                                        <div className="flex flex-col gap-0.5 text-right">
+                                            <span className="font-bold text-slate-600 block">
+                                                משמרת {item.data?.duration} שעות + {item.data?.rest} שעות מנוחה
+                                            </span>
+                                            <span className="text-slate-400">
+                                                מחזוריות: {item.data?.cycle} שעות
+                                            </span>
+                                            <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-100 rounded px-1.5 py-0.5 inline-block w-fit mt-1">
+                                                {item.data?.shiftsPerDay} משמרות ביום (לאדם) = נדרשים {item.exact} אנשים למילוי רציף
+                                            </span>
+                                        </div>
                                     )}
                                 </td>
                             </tr>

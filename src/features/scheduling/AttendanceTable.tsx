@@ -17,19 +17,27 @@ interface AttendanceTableProps {
     viewMode?: 'daily' | 'monthly'; // New control prop
     className?: string; // Allow parent styling for mobile sheet integration
     isViewer?: boolean; // NEW: Security prop
+    searchTerm?: string; // NEW: Controlled search term
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
-    teams, people, teamRotations, absences, currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false
+    teams, people, teamRotations, absences, currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = ''
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
     const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
+
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Filter people by search term
+    const filteredPeople = React.useMemo(() => {
+        if (!searchTerm?.trim()) return people;
+        return people.filter(p => p.name.includes(searchTerm) || (p.phone && p.phone.includes(searchTerm)));
+    }, [people, searchTerm]);
 
     // Enforce strict name sorting to prevent reordering on updates
     const sortedPeople = React.useMemo(() => {
-        return [...people].sort((a, b) => a.name.localeCompare(b.name, 'he'));
-    }, [people]);
+        return [...filteredPeople].sort((a, b) => a.name.localeCompare(b.name, 'he'));
+    }, [filteredPeople]);
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -91,6 +99,19 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             }
         }
     }, [month, year]);
+
+    // Global Stats Calculation
+    const globalStats = React.useMemo(() => {
+        const totalPeople = sortedPeople.length;
+        let presentCount = 0;
+        sortedPeople.forEach(p => {
+            const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences);
+            if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+                presentCount++;
+            }
+        });
+        return { present: presentCount, total: totalPeople };
+    }, [sortedPeople, currentDate, teamRotations, absences]);
 
     return (
         <div className="h-full flex flex-col relative" dir="rtl">
@@ -260,12 +281,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             {
                 (viewMode === 'monthly' || !viewMode) && (
                     <div className={`flex-1 flex-col h-full overflow-hidden animate-fadeIn ${viewMode === 'monthly' ? 'flex' : 'hidden md:flex'}`}>
+
+
                         {/* Table Area (Desktop Only) */}
                         <div className="flex-1 overflow-auto bg-slate-50/10 relative custom-scrollbar h-full" ref={scrollContainerRef}>
                             <div className="min-w-max">
                                 {/* Floating Header (Dates) */}
-                                <div className="flex sticky top-0 z-40">
-                                    <div className="w-60 shrink-0 bg-white border-b border-l border-slate-200 sticky right-0 z-[60] flex items-center px-6 py-4 font-black text-slate-400 text-xs uppercase tracking-widest">
+                                <div className="flex sticky top-0 z-[90] bg-white">
+                                    <div className="w-60 shrink-0 bg-white border-b border-l border-slate-200 sticky right-0 z-[100] flex items-center px-6 py-4 font-black text-slate-400 text-xs uppercase tracking-widest">
                                         שם הלוחם
                                     </div>
                                     <div className="flex bg-white border-b border-slate-200">
@@ -301,17 +324,38 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             {/* Team Header Row */}
                                             <div
                                                 onClick={() => toggleTeam(team.id)}
-                                                className="flex sticky z-30 top-16 group cursor-pointer"
+                                                className="flex sticky z-[70] top-[64px] group cursor-pointer bg-white"
                                             >
                                                 {/* Sticky Name Part */}
-                                                <div className="w-60 shrink-0 bg-slate-100 border-b border-l border-slate-200 py-3 px-6 flex items-center gap-3 shadow-md sticky right-0 z-[60]">
+                                                <div className="w-60 shrink-0 bg-slate-100 border-b border-l border-slate-200 py-3 px-4 flex items-center gap-2 shadow-md sticky right-0 z-[80]">
                                                     <div className={`transition-transform duration-300 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
                                                         <ChevronDown size={18} className="text-slate-600" />
                                                     </div>
-                                                    <span className="text-base font-black text-slate-900 tracking-tight">{team.name}</span>
-                                                    <span className="text-[11px] bg-white text-slate-600 px-2.5 py-1 rounded-lg font-black border border-slate-200 shadow-sm">
-                                                        {teamPeople.length} לוחמים
-                                                    </span>
+                                                    <span className="text-base font-black text-slate-900 tracking-tight truncate">{team.name}</span>
+                                                </div>
+                                                {/* Per-Day Team Stats View */}
+                                                <div className="flex bg-white">
+                                                    {dates.map(date => {
+                                                        const dateKey = date.toISOString().split('T')[0];
+                                                        const present = teamPeople.filter(p => {
+                                                            const avail = getEffectiveAvailability(p, date, teamRotations, absences);
+                                                            return avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
+                                                        }).length;
+                                                        const total = teamPeople.length;
+                                                        const isFull = present === total;
+                                                        const isEmpty = present === 0;
+
+                                                        return (
+                                                            <div
+                                                                key={dateKey}
+                                                                className={`w-24 shrink-0 flex items-center justify-center border-l border-slate-200 text-[11px] font-black border-b
+                                                                    ${isFull ? 'text-emerald-700 bg-emerald-50/30' : isEmpty ? 'text-slate-400' : 'text-amber-700 bg-amber-50/30'}
+                                                                `}
+                                                            >
+                                                                {total} / {present}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                                 {/* Background extension for the rest of the row */}
                                                 <div className="flex-1 bg-slate-50 border-b border-slate-200" />
@@ -325,7 +369,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             {/* Person Info Sticky Cell */}
                                                             <div
                                                                 onClick={() => onSelectPerson(person)}
-                                                                className={`w-60 shrink-0 px-6 py-4 border-l border-slate-100 sticky right-0 z-[55] flex items-center gap-4 cursor-pointer transition-all ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} group-hover/row:bg-blue-50/50 group-hover/row:shadow-[4px_0_12px_rgba(0,0,0,0.05)] shadow-[2px_0_5px_rgba(0,0,0,0.02)]`}
+                                                                className={`w-60 shrink-0 px-6 py-4 border-l border-slate-100 sticky right-0 z-[60] flex items-center gap-4 cursor-pointer transition-all ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} group-hover/row:bg-blue-50/50 group-hover/row:shadow-[4px_0_12px_rgba(0,0,0,0.05)] shadow-[2px_0_5px_rgba(0,0,0,0.02)]`}
                                                             >
                                                                 <div
                                                                     className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-black shrink-0 text-white shadow-md ring-4 ring-white transition-transform group-hover/row:scale-110"

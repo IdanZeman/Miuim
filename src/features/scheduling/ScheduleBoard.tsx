@@ -599,7 +599,14 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                         {/* Date Navigation */}
                         <div className="bg-slate-50 flex items-center p-1 rounded-lg border border-slate-200 w-full md:w-auto justify-between">
-                            <Button variant="ghost" size="sm" onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); handleDateChange(d); } }} disabled={!canGoNext} className="h-8 w-8 p-0 rounded-md">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); handleDateChange(d); } }}
+                                disabled={!canGoPrev}
+                                className="h-8 w-8 p-0 rounded-md"
+                                aria-label="יום קודם"
+                            >
                                 <ChevronRight size={18} />
                             </Button>
 
@@ -630,7 +637,14 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 />
                             </div>
 
-                            <Button variant="ghost" size="sm" onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); handleDateChange(d); } }} disabled={!canGoPrev} className="h-8 w-8 p-0 rounded-md">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); handleDateChange(d); } }}
+                                disabled={!canGoNext}
+                                className="h-8 w-8 p-0 rounded-md"
+                                aria-label="יום הבא"
+                            >
                                 <ChevronLeft size={18} />
                             </Button>
                         </div>

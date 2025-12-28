@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
-import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, Wand2, Sparkles, Users } from 'lucide-react';
+import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, Wand2, Sparkles, Users, MoreVertical, Download } from 'lucide-react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { GlobalTeamCalendar } from './GlobalTeamCalendar';
@@ -59,6 +59,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [showRotaWizard, setShowRotaWizard] = useState(initialOpenRotaWizard); // Initialize from prop
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+    const [showMoreActions, setShowMoreActions] = useState(false);
 
     useEffect(() => {
         if (initialOpenRotaWizard && onDidConsumeInitialAction) {
@@ -127,7 +129,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         onUpdatePerson(updatedPerson);
     };
 
-    const filteredPeople = activePeople.filter(p => p.name.includes(searchTerm));
+    const filteredPeople = activePeople.filter(p => p.name.includes(searchTerm) || (p.phone && p.phone.includes(searchTerm)));
 
     let peopleByTeam = teams.map(team => ({
         team,
@@ -572,8 +574,41 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        {/* Desktop Date Controls */}
-                        <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                        {/* Expandable Search */}
+                        {viewMode !== 'calendar' && (
+                            <div className={`relative transition-all duration-300 ease-in-out ${isSearchExpanded || searchTerm ? 'w-32' : 'w-9'}`}>
+                                {isSearchExpanded || searchTerm ? (
+                                    <div className="relative w-full">
+                                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            placeholder="חיפוש..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            onBlur={() => { if (!searchTerm) setIsSearchExpanded(false); }}
+                                            className="w-full pr-9 pl-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm"
+                                        />
+                                        <button
+                                            onClick={() => { setSearchTerm(''); setIsSearchExpanded(false); }}
+                                            className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setIsSearchExpanded(true)}
+                                        className="w-9 h-9 flex items-center justify-center bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-500 transition-colors"
+                                    >
+                                        <Search size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Grouped Date Controls with "Today" button */}
+                        <div className="flex items-center bg-slate-50 p-1 rounded-lg border border-slate-200 gap-1">
                             <button
                                 onClick={() => {
                                     if (viewMode === 'day_detail') {
@@ -586,24 +621,21 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         setter(new Date(d.getFullYear(), d.getMonth() - 1, 1));
                                     }
                                 }}
-                                className="p-1 hover:bg-white rounded shadow-sm"
-                                aria-label={viewMode === 'day_detail' ? "יום קודם" : "חודש קודם"}
+                                className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
                             >
-                                <ChevronRight size={18} aria-hidden="true" />
+                                <ChevronRight size={16} />
                             </button>
 
-                            <div className="relative group cursor-pointer flex items-center justify-center">
+                            <div className="relative group cursor-pointer flex items-center justify-center px-2">
                                 <span
                                     onClick={() => {
                                         const input = document.getElementById('header-date-picker') as HTMLInputElement;
                                         if (input) input.showPicker ? input.showPicker() : input.click();
                                     }}
-                                    className="font-bold min-w-[140px] text-center px-4 py-1 rounded-md hover:bg-slate-100 transition-colors"
-                                    role="button"
-                                    aria-label={`בחר תאריך, תאריך נוכחי: ${viewMode === 'day_detail' ? selectedDate.toLocaleDateString('he-IL') : (viewMode === 'calendar' ? viewDate : selectedDate).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}`}
+                                    className="text-sm font-black text-slate-700 min-w-[100px] text-center py-1 hover:text-blue-600 transition-colors"
                                 >
                                     {viewMode === 'day_detail'
-                                        ? selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'short' })
+                                        ? selectedDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })
                                         : (viewMode === 'calendar' ? viewDate : selectedDate).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })
                                     }
                                 </span>
@@ -618,7 +650,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     }
                                     onChange={(e) => {
                                         if (!e.target.value) return;
-                                        // For 'month' type, value is 'YYYY-MM'. We need to parse it to a Date.
                                         let newDate;
                                         if (viewMode === 'day_detail') {
                                             newDate = new Date(e.target.value);
@@ -650,34 +681,59 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         setter(new Date(d.getFullYear(), d.getMonth() + 1, 1));
                                     }
                                 }}
-                                className="p-1 hover:bg-white rounded shadow-sm"
-                                aria-label={viewMode === 'day_detail' ? "יום הבא" : "חודש הבא"}
+                                className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
                             >
-                                <ChevronLeft size={18} aria-hidden="true" />
+                                <ChevronLeft size={16} />
+                            </button>
+
+                            <div className="w-px h-5 bg-slate-200 mx-1" />
+
+                            <button
+                                onClick={() => {
+                                    const now = new Date();
+                                    setViewDate(now);
+                                    setSelectedDate(now);
+                                }}
+                                className="px-2 py-0.5 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded transition-colors whitespace-nowrap"
+                            >
+                                {viewMode === 'day_detail' ? 'היום' : 'החודש'}
                             </button>
                         </div>
 
-                        <button
-                            onClick={() => {
-                                const now = new Date();
-                                setViewDate(now);
-                                setSelectedDate(now);
-                            }}
-                            className="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-sm font-bold transition-colors"
-                        >
-                            {viewMode === 'day_detail' ? 'יום נוכחי' : 'חודש נוכחי'}
-                        </button>
                         {!isViewer && (
                             <button
                                 onClick={() => setShowRotaWizard(true)}
                                 data-testid="open-rota-wizard-btn"
-                                className="px-3 py-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 border border-amber-100"
+                                className="px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 border border-amber-100"
                             >
                                 <Sparkles size={16} />
                                 מחולל סבבים
                             </button>
                         )}
-                        <button onClick={handleExport} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 text-sm font-bold transition-colors">ייצוא</button>
+                        {/* More Actions Menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowMoreActions(!showMoreActions)}
+                                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors border ${showMoreActions ? 'bg-slate-100 border-slate-300 text-slate-800' : 'bg-white border-transparent hover:bg-slate-50 text-slate-500'}`}
+                            >
+                                <MoreVertical size={18} />
+                            </button>
+
+                            {showMoreActions && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowMoreActions(false)} />
+                                    <div className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                                        <button
+                                            onClick={() => { handleExport(); setShowMoreActions(false); }}
+                                            className="w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                                        >
+                                            <Download size={16} className="text-slate-400" />
+                                            ייצוא לאקסל
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
 

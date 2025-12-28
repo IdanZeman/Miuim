@@ -6,7 +6,7 @@ import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, Schedul
 import { generateRoster, RosterGenerationResult, PersonHistory } from '@/utils/rotaGenerator';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Sparkles, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock, Calculator } from 'lucide-react';
+import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Sparkles, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock, Calculator, Info } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect';
 import { useToast } from '@/contexts/ToastContext';
@@ -60,6 +60,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     const [result, setResult] = useState<RosterGenerationResult | null>(null);
     const [saving, setSaving] = useState(false);
     const [showAnalysis, setShowAnalysis] = useState(false);
+    const [showTaskAnalysis, setShowTaskAnalysis] = useState(false);
     const [selectedPreviewDate, setSelectedPreviewDate] = useState<string | null>(null);
     const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
     // Config State
@@ -986,7 +987,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Automated Roster Generator</span>
                     </div>
                 }
-                size="full" // Full screen on mobile for better space usage
+                size={step === 'preview' ? 'full' : 'xl'} // tight for config, full for preview
                 scrollableContent={step === 'config'}
                 footer={step === 'preview' ? previewFooter : configFooter}
             >
@@ -995,19 +996,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         <>
                             <div className="flex justify-between items-center mb-4 px-1">
                                 <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Configuration</span>
-                                <button
-                                    onClick={() => setShowAnalysis(!showAnalysis)}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${showAnalysis ? 'bg-slate-200 text-slate-700' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
-                                >
-                                    <Calculator size={14} />
-                                    {showAnalysis ? 'חזרה להגדרות' : 'ניתוח נגזרות משימה'}
-                                </button>
                             </div>
 
                             {showAnalysis ? (
                                 <StaffingAnalysis tasks={tasks} totalPeople={people.length} />
                             ) : (
-                                <div className="space-y-4 animate-in fade-in duration-300">
+                                <div className="space-y-4 animate-in fade-in duration-300 max-w-2xl mx-auto w-full">
                                     {/* ... config content ... */}
 
 
@@ -1034,29 +1028,61 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                         <DatePicker label="תאריך סיום" value={endDate} onChange={setEndDate} />
                                     </div>
 
-                                    <div className="mt-4">
-                                        <label className="text-sm font-bold text-slate-700 block mb-2">מטרת השיבוץ (אופטימיזציה)</label>
-                                        <div className="flex flex-col sm:flex-row bg-slate-100 p-1 rounded-lg gap-1">
+                                    <div className="mt-6">
+                                        <label className="text-sm font-bold text-slate-700 block mb-3">מטרת השיבוץ (בחר אחת)</label>
+                                        <div className="grid grid-cols-3 gap-3">
                                             <button
                                                 onClick={() => setOptimizationMode('ratio')}
-                                                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'ratio' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 ${optimizationMode === 'ratio'
+                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                                                    }`}
                                             >
-                                                <span> שמירה על יחס</span>
-                                                <span className="text-[10px] font-normal opacity-70 scale-90">חלוקה הוגנת (11-3)</span>
+                                                {optimizationMode === 'ratio' && (
+                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600" />
+                                                )}
+                                                <span className="text-sm font-bold">שמירה על יחס יציאות</span>
+                                                <span className="text-[10px] opacity-80 leading-tight">חלוקה הוגנת (11-3)</span>
                                             </button>
+
                                             <button
                                                 onClick={() => setOptimizationMode('min_staff')}
-                                                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'min_staff' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 ${optimizationMode === 'min_staff'
+                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                                                    }`}
                                             >
-                                                <span>סד״כ מינימלי</span>
-                                                <span className="text-[10px] font-normal opacity-70 scale-90">מקסימום בבית</span>
+                                                {optimizationMode === 'min_staff' && (
+                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600" />
+                                                )}
+                                                <span className="text-sm font-bold">סד״כ מינימלי</span>
+                                                <span className="text-[10px] opacity-80 leading-tight">מקסימום בבית</span>
                                             </button>
+
                                             <button
                                                 onClick={() => setOptimizationMode('tasks')}
-                                                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'tasks' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 ${optimizationMode === 'tasks'
+                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                                                    }`}
                                             >
-                                                <span>נגזרת משימות</span>
-                                                <span className="text-[10px] font-normal opacity-70 scale-90">איוש כל המשימות</span>
+                                                {optimizationMode === 'tasks' && (
+                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600" />
+                                                )}
+                                                <div className="flex items-center gap-1.5 z-10">
+                                                    <span className="text-sm font-bold">נגזרת משימות</span>
+                                                    <div
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setShowTaskAnalysis(true);
+                                                        }}
+                                                        className="flex items-center justify-center bg-slate-800 text-white rounded-full w-4 h-4 hover:bg-black transition-colors shadow-sm cursor-help"
+                                                        title="לחץ לצפייה בפירוט המשימות"
+                                                    >
+                                                        <span className="font-serif italic font-bold text-[9px] leading-none">i</span>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[10px] opacity-80 leading-tight">איוש כל המשימות</span>
                                             </button>
                                         </div>
                                     </div>
@@ -1591,6 +1617,26 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     }}
                 />
             )}
+
+            {/* Staffing Analysis Modal */}
+            <Modal
+                isOpen={showTaskAnalysis}
+                onClose={() => setShowTaskAnalysis(false)}
+                title={
+                    <div className="flex items-center gap-2">
+                        <Calculator size={20} className="text-blue-600" />
+                        <span>ניתוח נגזרות משימה</span>
+                    </div>
+                }
+                size="xl"
+            >
+                <div className="py-4">
+                    <StaffingAnalysis tasks={tasks} totalPeople={people.length} />
+                    <div className="mt-6 flex justify-end">
+                        <Button onClick={() => setShowTaskAnalysis(false)} variant="ghost">סגור</Button>
+                    </div>
+                </div>
+            </Modal>
 
             {/* Warning Modal */}
             <Modal
