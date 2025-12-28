@@ -14,6 +14,7 @@ import { supabase } from '@/services/supabaseClient';
 import { mapShiftToDB } from '@/services/supabaseClient';
 import { Select } from '@/components/ui/Select';
 import { StaffingAnalysis } from '@/features/stats/StaffingAnalysis';
+import { StatusEditModal } from './StatusEditModal';
 
 interface RotaWizardModalProps {
     isOpen: boolean;
@@ -269,41 +270,38 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
     // Helper to normalize ratio for display (Hoisted)
     const getArmyRatio = (base: number, home: number): string => {
-        if (home < 0.1) return "מלא";
-        if (base < 0.1) return "יומיות";
+        // Safe division handle
+        if (home === 0) return "מלא"; // Or closest high ratio? User said "Abandon edges". But 11-3 is max.
+        if (base === 0) return "יומיות";
 
-        // Check for common ratios (Sum ~ 14)
-        const total = base + home;
+        const ratio = base / home;
 
-        // Try to normalize to 14 days cycle
-        const factor14 = 14 / total;
-        const b14 = Math.round(base * factor14);
-        const h14 = Math.round(home * factor14);
+        // Standard Cycle Candidates (Sum = 14)
+        const candidates = [
+            { b: 7, h: 7 },  // 7-7 (1.0)
+            { b: 8, h: 6 },  // 8-6 (1.33)
+            { b: 9, h: 5 },  // 9-5 (1.8)
+            { b: 10, h: 4 }, // 10-4 (2.5)
+            { b: 11, h: 3 }, // 11-3 (3.66)
+            { b: 12, h: 2 }  // 12-2 (6.0)
+        ];
 
-        // If error is small, return normalized 14-day ratio
-        const err14 = Math.abs((b14 / h14) - (base / home));
-        if (err14 < 0.5) { // Threshold for "close enough"
-            return `${b14} - ${h14}`;
+        let best = candidates[0];
+        let minDiff = Math.abs(ratio - (best.b / best.h));
+
+        for (const c of candidates) {
+            const cRatio = c.b / c.h;
+            const diff = Math.abs(ratio - cRatio);
+            if (diff < minDiff) {
+                minDiff = diff;
+                best = c;
+            }
         }
 
-        // Try normalize to 7 days? ("5-9", "Week-Week")
-        const factor7 = 7 / total;
-        const b7 = Math.round(base * factor7);
-        const h7 = Math.round(home * factor7);
-        if (Math.abs((b7 / h7) - (base / home)) < 0.5) {
-            return `${b7} - ${h7}`;
-        }
+        // Debug Log
+        // console.log(`[RatioDebug] In(${base}/${home} = ${ratio.toFixed(2)}) -> Matched ${best.b}-${best.h} (Ratio ${best.b/best.h}) with diff ${minDiff}`);
 
-        // Try normalize to 21 days? ("17-4")
-        const factor21 = 21 / total;
-        const b21 = Math.round(base * factor21);
-        const h21 = Math.round(home * factor21);
-        if (Math.abs((b21 / h21) - (base / home)) < 0.5) {
-            return `${b21} - ${h21}`;
-        }
-
-        // Fallback: Just Round(Base) - Round(Home) 
-        return `${Math.round(base)} - ${Math.round(home)}`;
+        return `${best.b} - ${best.h}`;
     };
 
     const validateRosterBeforeSave = () => {
@@ -422,7 +420,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 const currentRatio = getArmyRatio(baseCount, homeCount);
 
                 if (currentRatio !== targetRatioStr) {
-                    issues.push(`${p.name}: יחס היציאות (v2) השתנה ל-${currentRatio} (יעד: ${targetRatioStr})`);
+                    issues.push(`${p.name}: חריגה בימי בית - יחס קרוב ל-${currentRatio} (יעד: ${targetRatioStr})`);
                 }
             });
         }
@@ -791,7 +789,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     };
 
     const rosterStats = React.useMemo(() => {
-        if (!result) return { avgBase: "0.0", avgHome: "0.0" };
+        if (!result) return { avgBase: "0.0", avgHome: "0.0", ratioStr: "0 - 0" };
 
         const relevantPeople = people
             .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId))
@@ -802,14 +800,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
         const startD = new Date(startDate);
         const endD = new Date(endDate);
+        const dateRange: string[] = [];
+        for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+            dateRange.push(d.toLocaleDateString('en-CA'));
+        }
 
         relevantPeople.forEach(person => {
-            // Re-creating day loop to aggregate stats
-            const dateRange: string[] = [];
-            for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-                dateRange.push(d.toLocaleDateString('en-CA'));
-            }
-
             dateRange.forEach(k => {
                 let status = 'base';
                 const override = manualOverrides[`${person.id}-${k}`];
@@ -827,32 +823,38 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     }
                 }
 
+                // Normalise for Stats
                 if (status === 'home' || status === 'unavailable' || status === 'departure') {
-                    // console.log(`[Stats] ${person.name} ${k}: ${status} -> HOME`);
                     sumHome++;
                 } else {
-                    // console.log(`[Stats] ${person.name} ${k}: ${status} -> BASE`);
                     sumBase++;
                 }
             });
         });
 
         const count = relevantPeople.length || 1;
+        const avgB = sumBase / count;
+        const avgH = sumHome / count;
+
+        // Ratio based on Averages
+        const ratioStr = getArmyRatio(avgB, avgH);
+
         return {
-            avgBase: (sumBase / count).toFixed(1),
-            avgHome: (sumHome / count).toFixed(1)
+            avgBase: avgB.toFixed(1),
+            avgHome: avgH.toFixed(1),
+            ratioStr
         };
     }, [result, people, targetTeamIds, selectedTeamId, startDate, endDate, manualOverrides]);
 
     const configFooter = (
-        <div className="flex flex-row gap-3 w-full">
-            <Button variant="ghost" onClick={onClose} className="flex-1 justify-center">ביטול</Button>
+        <div className="flex gap-3 w-full justify-between">
+            <Button variant="ghost" onClick={onClose} className="w-32 justify-center">ביטול</Button>
             <Button
                 onClick={handleGenerate}
                 isLoading={generating}
                 icon={Sparkles}
                 data-testid="rota-wizard-generate-btn"
-                className="bg-[#7cbd52] hover:bg-[#6aa845] text-white shadow-md hover:shadow-lg flex-[2] h-12 md:h-10 justify-center text-base md:text-sm font-black"
+                className="bg-[#7cbd52] hover:bg-[#6aa845] text-white shadow-md hover:shadow-lg w-[240px] h-12 md:h-10 justify-center text-base md:text-sm font-black"
             >
                 צור הצעה
             </Button>
@@ -918,23 +920,25 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     </span>
                     <div className="w-px h-3 bg-slate-200" />
                     <span className="text-slate-600">
-                        יחס: <span dir="ltr" className="font-black text-blue-600">{getArmyRatio(Number(rosterStats.avgBase), Number(rosterStats.avgHome))}</span>
+                        יחס: <span dir="ltr" className="font-black text-blue-600">{rosterStats.ratioStr}</span>
                     </span>
                 </div>
             </div>
 
-            <div className="flex flex-row gap-2 w-full">
-                <Button variant="ghost" onClick={() => setStep('config')} className="flex-1 justify-center px-1">
-                    <ArrowRight size={18} className="md:ml-2 ml-0" />
-                    <span className="hidden md:inline">חזרה</span>
-                </Button>
-                <Button variant="ghost" onClick={onClose} className="flex-1 justify-center px-1">ביטול</Button>
+            <div className="flex gap-2 w-full justify-between">
+                <div className="flex gap-2">
+                    <Button variant="ghost" onClick={() => setStep('config')} className="w-auto px-4 justify-center">
+                        <ArrowRight size={18} className="md:ml-2 ml-0" />
+                        <span className="hidden md:inline">חזרה</span>
+                    </Button>
+                    <Button variant="ghost" onClick={onClose} className="w-24 justify-center px-1">ביטול</Button>
+                </div>
                 <Button
                     onClick={handleSave}
                     isLoading={saving}
                     icon={Save}
                     data-testid="rota-wizard-save-btn"
-                    className="bg-green-600 text-white hover:bg-green-700 shadow-md flex-[2] justify-center font-black h-12 md:h-10"
+                    className="bg-green-600 text-white hover:bg-green-700 shadow-md w-[240px] justify-center font-black h-12 md:h-10"
                 >
                     שמור
                 </Button>
@@ -1319,7 +1323,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                         }
                                                         // Summary Column Header
                                                         headers.push(
-                                                            <div key="summary-header" className="shrink-0 w-24 p-2 text-center border-l border-slate-100 bg-slate-50 flex items-center justify-center">
+                                                            <div key="summary-header" className="shrink-0 w-24 p-2 text-center border-l border-slate-100 bg-slate-50 flex items-center justify-center sticky left-0 z-50 shadow-sm">
                                                                 <div className="text-xs font-bold text-slate-700">סיכום</div>
                                                             </div>
                                                         );
@@ -1370,7 +1374,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                 </div>
                                                             );
                                                         }
-                                                        cells.push(<div key="total-summary-pad" className="shrink-0 w-24 bg-indigo-50 border-l border-indigo-100"></div>);
+                                                        cells.push(<div key="total-summary-pad" className="shrink-0 w-24 bg-indigo-50 border-l border-indigo-100 flex items-center justify-center text-indigo-300 text-[10px] sticky left-0 z-40">-</div>);
                                                         return cells;
                                                     })()}
                                                 </div>
@@ -1571,6 +1575,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                 };
 
                                                                 // Use full dateRange (No Trimming)
+                                                                // Use full dateRange (No Trimming)
                                                                 dateRange.forEach(k => {
                                                                     const currentStatus = getStatusForDate(k);
                                                                     if (currentStatus === 'home' || currentStatus === 'unavailable' || currentStatus === 'departure') {
@@ -1582,15 +1587,15 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                                                                 const ratioStr = getArmyRatio(baseCount, homeCount);
                                                                 cells.push(
-                                                                    <div key="summary-cell" className="shrink-0 w-24 border-l border-slate-100 p-2 flex flex-col items-center justify-center bg-slate-50/50">
-                                                                        <div className="text-[10px] font-bold text-slate-600">
-                                                                            בסיס: <span className="text-green-600 text-xs">{baseCount}</span>
+                                                                    <div key="summary-cell" className={`shrink-0 w-24 border-l border-slate-100 flex flex-col items-center justify-center sticky left-0 z-30 border-r border-slate-200/50 shadow-[1px_0_3px_rgba(0,0,0,0.05)] h-14 overflow-hidden border-b border-slate-300 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                                                        <div className="text-[10px] font-bold text-slate-600 leading-tight">
+                                                                            בסיס: <span className="text-green-600">{baseCount}</span>
                                                                         </div>
-                                                                        <div className="text-[10px] font-bold text-slate-600">
-                                                                            בית: <span className="text-orange-600 text-xs">{homeCount}</span>
+                                                                        <div className="text-[10px] font-bold text-slate-600 leading-tight">
+                                                                            בית: <span className="text-orange-600">{homeCount}</span>
                                                                         </div>
-                                                                        <div className="text-[10px] font-bold text-slate-600 mt-1 pt-1 border-t border-slate-200 w-full text-center">
-                                                                            יחס: <span dir="ltr" className="text-blue-600 text-xs">{ratioStr}</span>
+                                                                        <div className="text-[10px] font-bold text-slate-600 border-t border-slate-200/50 w-full text-center mt-0.5 pt-0.5 leading-tight">
+                                                                            יחס: <span dir="ltr" className="text-blue-600">{ratioStr}</span>
                                                                         </div>
                                                                     </div>
                                                                 );
@@ -1610,88 +1615,87 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             </Modal>
 
             {/* Manual Edit Popover */}
-            {editingCell && createPortal(
-                <div
-                    className="fixed inset-0 z-[9999] flex cursor-default bg-black/5" // Dim background slightly? No, keeping transparent as before or maybe just handling click.
-                    onClick={() => setEditingCell(null)}
-                >
-                    <div
-                        className={`bg-white shadow-2xl flex flex-col gap-1 transition-all duration-300 ${editingCell.isMobile
-                            ? 'fixed bottom-0 left-0 right-0 rounded-t-[2rem] p-6 animate-in slide-in-from-bottom duration-300 ease-out z-[10000]' // Bottom Sheet Mobile 
-                            : 'absolute rounded-lg shadow-xl border border-slate-200 p-2 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 z-[10000]' // Desktop
-                            }`}
-                        style={editingCell.isMobile ? {} : {
-                            top: editingCell.position.top,
-                            left: editingCell.position.left
-                        }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="text-xs font-black text-slate-400 px-1 pb-3 border-b border-slate-100 mb-2 flex justify-between items-center uppercase tracking-widest">
-                            <span>ערוך סטטוס • {editingCell.date}</span>
-                            <button onClick={() => setEditingCell(null)} className="hover:bg-slate-100 rounded-full p-1 transition-colors"><X size={16} /></button>
-                        </div>
+            {/* Status Edit Modal (Replaces old Popover) */}
+            {editingCell && (
+                <StatusEditModal
+                    isOpen={!!editingCell}
+                    onClose={() => setEditingCell(null)}
+                    date={editingCell.date}
+                    personName={people.find(p => p.id === editingCell.personId)?.name}
+                    defaultArrivalHour={userArrivalHour}
+                    defaultDepartureHour={userDepartureHour}
+                    currentAvailability={(() => {
+                        const pid = editingCell.personId;
+                        const date = editingCell.date;
+                        // 1. Check Manual Overrides
+                        const ov = manualOverrides[`${pid}-${date}`];
+                        if (ov) {
+                            // Fix: Ensure we only pass 'base' | 'home' to the modal prop
+                            const rawStatus = ov.status;
+                            const isBaseOrArrival = rawStatus === 'base' || rawStatus === 'arrival' || rawStatus === 'departure';
+                            return {
+                                date,
+                                status: isBaseOrArrival ? 'base' : 'home',
+                                isAvailable: isBaseOrArrival,
+                                startHour: ov.startTime,
+                                endHour: ov.endTime
+                            };
+                        }
 
-                        {!customType ? (
-                            <>
-                                <button onClick={() => applyOverride('base')} className="flex items-center gap-2 px-2 py-2 hover:bg-green-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm" /> בבסיס (מלא)
-                                </button>
-                                <button onClick={() => applyOverride('home')} className="flex items-center gap-2 px-2 py-2 hover:bg-red-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-sm" /> בבית (מלא)
-                                </button>
+                        // 2. Check Result (Generated Status)
+                        // If generated status exists, we might want to respect it as initial state
+                        const resStatus = result?.personStatuses?.[date]?.[pid];
+                        if (resStatus) {
+                            const isBase = resStatus === 'base' || resStatus === 'arrival';
+                            return {
+                                date,
+                                status: isBase ? 'base' : 'home',
+                                isAvailable: isBase,
+                                startHour: '00:00', // We don't track exact times in simple result string unless we dive deeper
+                                endHour: '23:59'
+                            };
+                        }
 
-                                <div className="flex gap-1 mt-1">
-                                    <button onClick={() => setCustomType('departure')} className="flex-1 flex items-center justify-center gap-1 px-1 py-2 hover:bg-amber-50 rounded text-xs text-slate-700 border border-slate-100 transition-colors">
-                                        <div className="w-2 h-2 rounded-full bg-amber-400" /> יציאה...
-                                    </button>
-                                    <button onClick={() => setCustomType('arrival')} className="flex-1 flex items-center justify-center gap-1 px-1 py-2 hover:bg-teal-50 rounded text-xs text-slate-700 border border-slate-100 transition-colors">
-                                        <div className="w-2 h-2 rounded-full bg-teal-400" /> הגעה...
-                                    </button>
-                                </div>
+                        // 3. Check DB Availability
+                        const p = people.find(x => x.id === pid);
+                        const dbAvail = p?.dailyAvailability?.[date];
+                        if (dbAvail) return dbAvail;
 
-                                <button onClick={() => setCustomType('custom')} className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded text-xs text-slate-700 w-full text-right transition-colors mt-1">
-                                    <Clock size={12} className="text-blue-500" /> שעות מותאמות...
-                                </button>
-                            </>
-                        ) : (
-                            <div className="flex flex-col gap-2 p-1">
-                                {customType === 'departure' && (
-                                    <div className="flex flex-col">
-                                        <label className="text-[9px] text-slate-400 mb-1">שעת יציאה:</label>
-                                        <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-1 text-sm w-full text-center" />
-                                    </div>
-                                )}
+                        // Default Base
+                        return { date, isAvailable: true, status: 'base' };
+                    })()}
+                    onApply={(status, times, blocks) => {
+                        if (!editingCell) return;
+                        let finalStatus = status as string;
 
-                                {customType === 'arrival' && (
-                                    <div className="flex flex-col">
-                                        <label className="text-[9px] text-slate-400 mb-1">שעת הגעה:</label>
-                                        <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-1 text-sm w-full text-center" />
-                                    </div>
-                                )}
+                        // Logic to infer 'arrival'/'departure' from time overrides
+                        if (status === 'base') {
+                            if (times && times.start !== '00:00' && times.start !== '10:00') {
+                                finalStatus = 'arrival';
+                            }
+                            if (times && times.end !== '23:59') {
+                                finalStatus = 'departure';
+                            }
+                        }
 
-                                {customType === 'custom' && (
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex flex-col">
-                                            <label className="text-[9px] text-slate-400">התחלה</label>
-                                            <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <label className="text-[9px] text-slate-400">סיום</label>
-                                            <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
-                                        </div>
-                                    </div>
-                                )}
+                        // Strict time checks
+                        if (times && times.start > '00:00' && times.end === '23:59') finalStatus = 'arrival';
+                        if (times && times.end < '23:59' && times.start === '00:00') finalStatus = 'departure';
 
-                                <div className="flex gap-2 mt-1">
-                                    <button onClick={() => setCustomType(null)} className="flex-1 bg-slate-100 text-slate-600 text-[10px] py-1 rounded hover:bg-slate-200">ביטול</button>
-                                    <button onClick={() => applyOverride(customType, { start: customStart, end: customEnd })} className="flex-1 bg-blue-600 text-white text-[10px] py-1 rounded hover:bg-blue-700 font-medium">שמור</button>
-                                </div>
-                            </div>
-                        )}
-                        {editingCell.isMobile && <div className="h-6" />} {/* Extra space for mobile thumb */}
-                    </div>
-                </div>,
-                document.body
+                        const override = {
+                            status: finalStatus,
+                            startTime: times?.start || '00:00',
+                            endTime: times?.end || '23:59'
+                        };
+
+                        const key = `${editingCell.personId}-${editingCell.date}`;
+                        setManualOverrides(prev => ({
+                            ...prev,
+                            [key]: override
+                        }));
+                        setEditingCell(null);
+                    }}
+                />
             )}
 
             {/* Warning Modal */}
