@@ -972,7 +972,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 title={
                     <div className="flex flex-col">
                         <span className="text-lg md:text-2xl font-black text-slate-800">מחולל סבבים</span>
-                        <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Automated Roster Generator</span>
                     </div>
                 }
                 size={step === 'preview' ? 'full' : 'xl'} // tight for config, full for preview
@@ -983,7 +982,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     {step === 'config' ? (
                         <>
                             <div className="flex justify-between items-center mb-4 px-1">
-                                <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Configuration</span>
+                                <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">הגדרה</span>
                             </div>
 
                             {showAnalysis ? (

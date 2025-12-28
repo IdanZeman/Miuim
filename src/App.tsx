@@ -986,6 +986,7 @@ const MainApp: React.FC = () => {
                         onAddAbsence={handleAddAbsence}
                         onUpdateAbsence={handleUpdateAbsence}
                         onDeleteAbsence={handleDeleteAbsence}
+                        onUpdatePerson={handleUpdatePerson}
                         isViewer={!checkAccess('attendance', 'edit')}
                         onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); setView('attendance'); }}
                     />

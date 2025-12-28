@@ -23,15 +23,16 @@ interface AttendanceTableProps {
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     teams, people, teamRotations, absences, currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = ''
 }) => {
-    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // Filter people by search term
     const filteredPeople = React.useMemo(() => {
-        if (!searchTerm?.trim()) return people;
-        return people.filter(p => p.name.includes(searchTerm) || (p.phone && p.phone.includes(searchTerm)));
+        const activeOnly = people.filter(p => p.isActive !== false);
+        if (!searchTerm?.trim()) return activeOnly;
+        return activeOnly.filter(p => p.name.includes(searchTerm) || (p.phone && p.phone.includes(searchTerm)));
     }, [people, searchTerm]);
 
     // Enforce strict name sorting to prevent reordering on updates
@@ -128,14 +129,15 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                     {/* Sticky Team Header */}
                                     <div
                                         onClick={() => toggleTeam(team.id)}
-                                        className="sticky top-0 z-10 bg-slate-50 border-y border-slate-100 px-4 py-2 flex items-center justify-between cursor-pointer group"
+                                        className="sticky top-0 z-10 bg-slate-100 border-b border-l border-slate-200 px-4 py-3 flex items-center gap-2 cursor-pointer group shadow-sm transition-all hover:bg-slate-200/50"
                                     >
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-4 rounded-full" style={{ backgroundColor: team.color || '#cbd5e1' }} />
-                                            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-hover:text-blue-500 transition-colors">{team.name}</h3>
-                                            <ChevronDown size={14} className={`text-slate-300 transition-transform duration-300 ${collapsedTeams.has(team.id) ? 'rotate-[-90deg]' : 'rotate-0'}`} />
+                                        <div className={`transition-transform duration-300 ${collapsedTeams.has(team.id) ? 'rotate-0' : 'rotate-180'}`}>
+                                            <ChevronDown size={18} className="text-slate-600" />
                                         </div>
-                                        <span className="text-[10px] font-bold text-slate-300">{members.length} לוחמים</span>
+                                        <div className="flex flex-col flex-1">
+                                            <h3 className="text-base font-black text-slate-900 tracking-tight">{team.name}</h3>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{members.length} לוחמים</span>
+                                        </div>
                                     </div>
 
                                     {/* Personnel List */}
@@ -314,6 +316,40 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 </div>
 
                                 {/* Team Sections */}
+                                {/* Summary Row (Global Stats) */}
+                                <div className="flex sticky z-[85] top-[64px] bg-white backdrop-blur-md h-12">
+                                    <div className="w-60 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[90] px-6">
+                                        <Users size={16} className="text-blue-600" />
+                                        <span className="text-sm font-black text-slate-900 tracking-tight">סך הכל פלוגה</span>
+                                    </div>
+                                    <div className="flex h-full">
+                                        {dates.map(date => {
+                                            const dateKey = date.toISOString().split('T')[0];
+                                            let present = 0;
+                                            sortedPeople.forEach(p => {
+                                                const avail = getEffectiveAvailability(p, date, teamRotations, absences);
+                                                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+                                                    present++;
+                                                }
+                                            });
+                                            const total = sortedPeople.length;
+                                            const ratio = total > 0 ? present / total : 0;
+
+                                            return (
+                                                <div
+                                                    key={dateKey}
+                                                    className={`w-24 shrink-0 flex items-center justify-center border-l border-slate-300 text-[13px] font-black border-b h-full
+                                                        ${ratio >= 0.8 ? 'text-emerald-700 bg-emerald-100/50' : ratio >= 0.5 ? 'text-amber-700 bg-amber-100/50' : 'text-red-700 bg-red-100/50'}
+                                                    `}
+                                                >
+                                                    {total} / {present}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="flex-1 bg-slate-100/50 border-b border-slate-300 h-full" />
+                                </div>
+
                                 {teams.map(team => {
                                     const teamPeople = sortedPeople.filter(p => p.teamId === team.id);
                                     if (teamPeople.length === 0) return null;
@@ -324,23 +360,24 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             {/* Team Header Row */}
                                             <div
                                                 onClick={() => toggleTeam(team.id)}
-                                                className="flex sticky z-[70] top-[64px] group cursor-pointer bg-white"
+                                                className="flex sticky z-[75] top-[112px] group cursor-pointer bg-white h-12"
                                             >
                                                 {/* Sticky Name Part */}
-                                                <div className="w-60 shrink-0 bg-slate-100 border-b border-l border-slate-200 py-3 px-4 flex items-center gap-2 shadow-md sticky right-0 z-[80]">
+                                                <div className="w-60 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex items-center gap-2 shadow-md sticky right-0 z-[80] px-4">
                                                     <div className={`transition-transform duration-300 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
                                                         <ChevronDown size={18} className="text-slate-600" />
                                                     </div>
                                                     <span className="text-base font-black text-slate-900 tracking-tight truncate">{team.name}</span>
                                                 </div>
                                                 {/* Per-Day Team Stats View */}
-                                                <div className="flex bg-white">
+                                                <div className="flex bg-white h-full">
                                                     {dates.map(date => {
                                                         const dateKey = date.toISOString().split('T')[0];
-                                                        const present = teamPeople.filter(p => {
+                                                        const teamDocs = teamPeople.filter(p => {
                                                             const avail = getEffectiveAvailability(p, date, teamRotations, absences);
                                                             return avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
-                                                        }).length;
+                                                        });
+                                                        const present = teamDocs.length;
                                                         const total = teamPeople.length;
                                                         const isFull = present === total;
                                                         const isEmpty = present === 0;
@@ -348,7 +385,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         return (
                                                             <div
                                                                 key={dateKey}
-                                                                className={`w-24 shrink-0 flex items-center justify-center border-l border-slate-200 text-[11px] font-black border-b
+                                                                className={`w-24 shrink-0 flex items-center justify-center border-l border-slate-200 text-[11px] font-black border-b h-full
                                                                     ${isFull ? 'text-emerald-700 bg-emerald-50/30' : isEmpty ? 'text-slate-400' : 'text-amber-700 bg-amber-50/30'}
                                                                 `}
                                                             >
@@ -358,7 +395,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     })}
                                                 </div>
                                                 {/* Background extension for the rest of the row */}
-                                                <div className="flex-1 bg-slate-50 border-b border-slate-200" />
+                                                <div className="flex-1 bg-slate-50 border-b border-slate-200 h-full" />
                                             </div>
 
                                             {/* Team Members */}

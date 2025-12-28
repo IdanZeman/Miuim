@@ -47,7 +47,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [calendarViewType, setCalendarViewType] = useState<'grid' | 'table'>('grid'); // NEW: sub-view for calendar
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [viewDate, setViewDate] = useState(new Date()); // Lifted state for calendar view
-    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [searchTerm, setSearchTerm] = useState('');
     const [showRotationSettings, setShowRotationSettings] = useState<string | null>(null);
     const [selectedPersonForCalendar, setSelectedPersonForCalendar] = useState<Person | null>(null);
