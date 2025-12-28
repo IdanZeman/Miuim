@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Team, Role } from '../../types';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Label } from 'recharts';
-import { Users, Calendar, TrendingUp, AlertCircle, CheckCircle2, XCircle, LayoutGrid, List, Search, Download, ChevronDown } from 'lucide-react';
+import { Users, Calendar, TrendingUp, AlertCircle, CheckCircle2, XCircle, LayoutGrid, List, Search, Download, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Select } from '../../components/ui/Select';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
@@ -169,23 +169,60 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
 
                         {/* Date Picker - Compact */}
                         {/* Date Picker - Compact & Functional */}
-                        <div className="relative group">
+                        {/* Date Navigator - Integrated */}
+                        <div className="flex items-center bg-slate-50 p-1 rounded-lg border border-slate-200 gap-1">
                             <button
-                                onClick={() => (document.getElementById('mobile-date-picker') as HTMLInputElement)?.showPicker()}
-                                className="flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-1.5 hover:border-blue-500 transition-colors w-24 sm:w-32"
+                                onClick={() => {
+                                    const next = new Date(selectedDate);
+                                    next.setDate(selectedDate.getDate() - 1);
+                                    setSelectedDate(next);
+                                }}
+                                className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
                             >
-                                <span className="text-[10px] sm:text-xs font-bold truncate text-slate-900 leading-tight">
-                                    {selectedDate ? selectedDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'תאריך'}
-                                </span>
+                                <ChevronRight size={16} />
                             </button>
-                            <input
-                                id="mobile-date-picker"
-                                type="date"
-                                value={dateKey}
-                                onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                                className="absolute inset-0 opacity-0 w-full h-full pointer-events-none"
-                                tabIndex={-1}
-                            />
+
+                            <div className="relative group cursor-pointer flex items-center justify-center px-2">
+                                <span
+                                    onClick={() => {
+                                        const input = document.getElementById('report-date-picker') as HTMLInputElement;
+                                        if (input) input.showPicker ? input.showPicker() : input.click();
+                                    }}
+                                    className="text-sm font-black text-slate-700 min-w-[100px] text-center py-1 hover:text-blue-600 transition-colors"
+                                >
+                                    {selectedDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                </span>
+                                <input
+                                    id="report-date-picker"
+                                    type="date"
+                                    className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
+                                    value={dateKey}
+                                    onChange={(e) => {
+                                        if (!e.target.value) return;
+                                        setSelectedDate(new Date(e.target.value));
+                                    }}
+                                />
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    const next = new Date(selectedDate);
+                                    next.setDate(selectedDate.getDate() + 1);
+                                    setSelectedDate(next);
+                                }}
+                                className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+
+                            <div className="w-px h-5 bg-slate-200 mx-1" />
+
+                            <button
+                                onClick={() => setSelectedDate(new Date())}
+                                className="px-2 py-0.5 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded transition-colors whitespace-nowrap"
+                            >
+                                היום
+                            </button>
                         </div>
                     </div>
 
@@ -419,8 +456,8 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                             <div className="bg-white p-6 rounded-2xl border border-slate-100 flex flex-col">
                                 <h3 className="text-lg font-bold text-slate-800 mb-2">התפלגות נוכחים לפי צוותים</h3>
                                 <div className="w-full h-[300px] relative">
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                                    <ResponsiveContainer width="100%" height={340}>
+                                        <PieChart margin={{ top: 0, right: 0, bottom: 20, left: 0 }}>
                                             <Pie
                                                 data={stats.teamBreakdown}
                                                 dataKey="present"
@@ -460,9 +497,8 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                                                 formatter={(value: number) => [value, 'נוכחים']}
                                             />
                                             <Legend
-                                                layout="vertical"
-                                                verticalAlign="middle"
-                                                align="right"
+                                                verticalAlign="bottom"
+                                                align="center"
                                                 iconType="circle"
                                                 formatter={(value, entry: any) => (
                                                     <span className="text-slate-700 font-medium mr-2">{value} ({entry.payload.present})</span>

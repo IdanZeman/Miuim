@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Person, Shift, TaskTemplate, Team } from '../../types';
-import { MapPin, Home, Briefcase, Download, Filter, Copy, ChevronDown, Users, LayoutGrid, ArrowUpDown, User } from 'lucide-react';
+import { MapPin, Home, Briefcase, Download, Filter, Copy, ChevronDown, Users, LayoutGrid, ArrowUpDown, User, ChevronRight, ChevronLeft, Clock } from 'lucide-react';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { useToast } from '../../contexts/ToastContext';
 import { Select } from '../../components/ui/Select';
@@ -250,71 +250,90 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
 
     return (
         <div className="bg-transparent min-h-full flex flex-col">
-            <div className="bg-white pb-6 pt-2 border-b border-slate-100">
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                        <MapPin className="text-emerald-500" size={20} />
-                        דוח מיקום כוחות
-                    </h2>
-                    <div className="flex items-center gap-1">
+            <div className="bg-white p-3 border-b border-slate-100 sticky top-0 z-30 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
+                <h2 className="text-lg font-black text-slate-800 flex items-center gap-2 shrink-0">
+                    <MapPin className="text-emerald-500" size={20} />
+                    דוח מיקום כוחות
+                </h2>
+
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0">
+                    {/* Date & Time Navigator */}
+                    <div className="flex items-center bg-slate-50 p-1 rounded-lg border border-slate-200 gap-1 shrink-0">
                         <button
                             onClick={() => {
-                                let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
-                                reportData.forEach(r => {
-                                    const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
-                                    const team = r.person.teamId || '';
-                                    csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
-                                });
-                                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-                                const link = document.createElement('a');
-                                const url = URL.createObjectURL(blob);
-                                link.setAttribute('href', url);
-                                link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
+                                const next = new Date(selectedDate);
+                                next.setDate(selectedDate.getDate() - 1);
+                                setSelectedDate(next);
                             }}
-                            className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                            className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
                         >
-                            <Download size={18} />
+                            <ChevronRight size={16} />
                         </button>
+
+                        <div className="relative group cursor-pointer flex items-center justify-center px-2">
+                            <span
+                                onClick={() => {
+                                    const input = document.getElementById('location-report-date') as HTMLInputElement;
+                                    if (input) input.showPicker ? input.showPicker() : input.click();
+                                }}
+                                className="text-sm font-black text-slate-700 min-w-[90px] text-center hover:text-blue-600 transition-colors"
+                            >
+                                {selectedDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })}
+                            </span>
+                            <input
+                                id="location-report-date"
+                                type="date"
+                                className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
+                                value={selectedDate.toISOString().split('T')[0]}
+                                onChange={e => setSelectedDate(new Date(e.target.value))}
+                            />
+                        </div>
+
                         <button
-                            onClick={async () => {
-                                let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
-                                const grouped = {
-                                    mission: reportData.filter(r => r.status === 'mission'),
-                                    base: reportData.filter(r => r.status === 'base'),
-                                    home: reportData.filter(r => r.status === 'home')
-                                };
-                                if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
-                                if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
-                                if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
-
-                                try { await navigator.clipboard.writeText(text); showToast('הועתק', 'success'); } catch (e) { showToast('שגיאה', 'error'); }
+                            onClick={() => {
+                                const next = new Date(selectedDate);
+                                next.setDate(selectedDate.getDate() + 1);
+                                setSelectedDate(next);
                             }}
-                            className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                            className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
                         >
-                            <Copy size={18} />
+                            <ChevronLeft size={16} />
+                        </button>
+
+                        <div className="w-px h-4 bg-slate-200 mx-1" />
+
+                        {/* Time Picker */}
+                        <div
+                            className="relative flex items-center gap-1.5 px-1 group cursor-pointer hover:bg-white rounded transition-colors"
+                            onClick={() => {
+                                const input = document.getElementById('location-report-time') as HTMLInputElement;
+                                if (input) input.showPicker ? input.showPicker() : input.click();
+                            }}
+                        >
+                            <Clock size={14} className="text-slate-400 group-hover:text-blue-500" />
+                            <span className="text-xs font-bold text-slate-700 hover:text-blue-600 transition-colors">
+                                {selectedTime}
+                            </span>
+                            <input
+                                id="location-report-time"
+                                type="time"
+                                className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
+                                value={selectedTime}
+                                onChange={e => setSelectedTime(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Today Button (Icon on mobile, text on desktop?) -> "Today" text is small enough */}
+                        <div className="w-px h-4 bg-slate-200 mx-1" />
+                        <button
+                            onClick={() => setSelectedDate(new Date())}
+                            className="px-2 py-0.5 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        >
+                            היום
                         </button>
                     </div>
-                </div>
 
-                <div className="flex items-center justify-between gap-2 mb-3 px-1 max-w-full overflow-hidden">
-                    <div className="flex items-center bg-slate-100 p-1 rounded-lg shrink-0">
-                        <input
-                            type="date"
-                            value={selectedDate.toISOString().split('T')[0]}
-                            onChange={e => setSelectedDate(new Date(e.target.value))}
-                            className="bg-transparent border-0 text-xs font-bold text-slate-700 w-[110px] outline-none p-0.5"
-                        />
-                        <div className="w-px h-3 bg-slate-300 mx-0.5 shrink-0" />
-                        <input
-                            type="time"
-                            value={selectedTime}
-                            onChange={e => setSelectedTime(e.target.value)}
-                            className="bg-transparent border-0 text-xs font-bold text-slate-700 w-[65px] outline-none p-0.5 text-center"
-                        />
-                    </div>
+                    <div className="w-px h-6 bg-slate-100 mx-1 hidden md:block" />
 
                     <div className="flex items-center gap-1.5 shrink-0">
                         <Select
@@ -345,6 +364,48 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                             icon={ArrowUpDown}
                             className="bg-slate-50 border-slate-200 h-9 w-9 p-0"
                         />
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                        <button
+                            onClick={() => {
+                                let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
+                                reportData.forEach(r => {
+                                    const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
+                                    const team = r.person.teamId || '';
+                                    csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
+                                });
+                                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                                const link = document.createElement('a');
+                                const url = URL.createObjectURL(blob);
+                                link.setAttribute('href', url);
+                                link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }}
+                            className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                        >
+                            <Download size={18} />
+                        </button>
+                        <button
+                            onClick={async () => {
+                                let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
+                                const grouped = {
+                                    mission: reportData.filter(r => r.status === 'mission'),
+                                    base: reportData.filter(r => r.status === 'base'),
+                                    home: reportData.filter(r => r.status === 'home')
+                                };
+                                if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
+                                if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
+                                if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
+
+                                try { await navigator.clipboard.writeText(text); showToast('הועתק', 'success'); } catch (e) { showToast('שגיאה', 'error'); }
+                            }}
+                            className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        >
+                            <Copy size={18} />
+                        </button>
                     </div>
                 </div>
             </div>
