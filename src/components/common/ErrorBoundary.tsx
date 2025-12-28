@@ -18,10 +18,37 @@ export class ErrorBoundary extends React.Component<Props, State> {
     };
 
     public static getDerivedStateFromError(error: Error): State {
+        // Check for chunk loading errors (deployment updates)
+        const isChunkError = error.message && (
+            error.message.includes('Loading chunk') ||
+            error.message.includes('dynamically imported module') ||
+            error.message.includes('not a valid JavaScript MIME type') ||
+            error.message.includes("Unexpected token '<'") ||
+            error.name === 'SyntaxError'
+        );
+
+        // If it's a chunk error, we still set error state but we'll handle it in render/componentDidCatch
         return { hasError: true, error };
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+        const isChunkError = error.message && (
+            error.message.includes('Loading chunk') ||
+            error.message.includes('dynamically imported module') ||
+            error.message.includes('not a valid JavaScript MIME type') ||
+            error.message.includes("Unexpected token '<'") ||
+            error.name === 'SyntaxError'
+        );
+
+        if (isChunkError) {
+            console.log('🔄 Application update detected (Chunk Load Error). Reloading...');
+            // Short delay to prevent infinite reload loops if it's a persistent error, 
+            // but fast enough to be seamless.
+            // Usually chunk errors are permanent until reload.
+            window.location.reload();
+            return;
+        }
+
         console.error('Uncaught error:', error, errorInfo);
         logger.error('ERROR', 'Uncaught UI Exception', error, errorInfo.componentStack);
     }
@@ -36,7 +63,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
     private handleGoBack = () => {
         window.history.back();
-        // Reset error state after a short delay to allow navigation
         setTimeout(() => {
             this.setState({ hasError: false, error: null });
         }, 100);
@@ -44,6 +70,26 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
     public render() {
         if (this.state.hasError) {
+            const isChunkError = this.state.error && (
+                this.state.error.message.includes('Loading chunk') ||
+                this.state.error.message.includes('dynamically imported module') ||
+                this.state.error.message.includes('not a valid JavaScript MIME type') ||
+                this.state.error.message.includes("Unexpected token '<'") ||
+                this.state.error.name === 'SyntaxError'
+            );
+
+            // Silent reload for updates
+            if (isChunkError) {
+                return (
+                    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-4 opacity-80">
+                            <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+                            <p className="text-slate-600 font-medium font-sans">מתעדכן לגרסה חדשה...</p>
+                        </div>
+                    </div>
+                );
+            }
+
             return (
                 <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
                     <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-8 text-center border-t-4 border-red-500">
