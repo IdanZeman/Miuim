@@ -15,6 +15,7 @@ import { mapShiftToDB } from '@/services/supabaseClient';
 import { Select } from '@/components/ui/Select';
 import { StaffingAnalysis } from '@/features/stats/StaffingAnalysis';
 import { StatusEditModal } from './StatusEditModal';
+import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
 
 interface RotaWizardModalProps {
     isOpen: boolean;
@@ -29,98 +30,6 @@ interface RotaWizardModalProps {
     onSaveRoster?: (data: DailyPresence[]) => void;
 }
 
-const CustomDatePicker = ({ label, value, onChange }: { label: string, value: string, onChange: (val: string) => void }) => {
-    const inputRef = React.useRef<HTMLInputElement>(null);
-    const dateObj = new Date(value);
-
-    return (
-        <div className="flex flex-col gap-1.5 w-full">
-            <span className="text-xs font-bold text-slate-500 mr-1">{label}</span>
-            <div
-                className="relative flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl p-3 cursor-pointer transition-all duration-200 shadow-sm hover:shadow group w-full"
-                onClick={() => {
-                    if (inputRef.current) {
-                        try {
-                            if ('showPicker' in inputRef.current) {
-                                (inputRef.current as any).showPicker();
-                            } else {
-                                (inputRef.current as HTMLInputElement).focus();
-                                (inputRef.current as HTMLInputElement).click();
-                            }
-                        } catch (e) {
-                            inputRef.current.click();
-                        }
-                    }
-                }}
-            >
-                <div className="bg-blue-50 text-blue-600 p-2 rounded-lg group-hover:bg-blue-100 transition-colors">
-                    <Calendar size={18} />
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-sm font-black text-slate-700 group-hover:text-blue-700 transition-colors">
-                        {dateObj.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </span>
-                    <span className="text-[10px] font-medium text-slate-400">
-                        {dateObj.toLocaleDateString('he-IL', { weekday: 'long' })}
-                    </span>
-                </div>
-                <input
-                    ref={inputRef}
-                    type="date"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                />
-            </div>
-        </div>
-    );
-};
-
-const CustomTimePicker = ({ label, value, onChange }: { label: string, value: string, onChange: (val: string) => void }) => {
-    const inputRef = React.useRef<HTMLInputElement>(null);
-
-    return (
-        <div className="flex flex-col gap-1.5 w-full">
-            <span className="text-xs font-bold text-slate-500 mr-1">{label}</span>
-            <div
-                className="relative flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl p-3 cursor-pointer transition-all duration-200 shadow-sm hover:shadow group w-full"
-                onClick={() => {
-                    if (inputRef.current) {
-                        try {
-                            if ('showPicker' in inputRef.current) {
-                                (inputRef.current as any).showPicker();
-                            } else {
-                                (inputRef.current as HTMLInputElement).focus();
-                                (inputRef.current as HTMLInputElement).click();
-                            }
-                        } catch (e) {
-                            inputRef.current.click();
-                        }
-                    }
-                }}
-            >
-                <div className="bg-blue-50 text-blue-600 p-2 rounded-lg group-hover:bg-blue-100 transition-colors">
-                    <Clock size={18} />
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-sm font-black text-slate-700 group-hover:text-blue-700 transition-colors">
-                        {value}
-                    </span>
-                    <span className="text-[10px] font-medium text-slate-400">
-                        שעה
-                    </span>
-                </div>
-                <input
-                    ref={inputRef}
-                    type="time"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                />
-            </div>
-        </div>
-    );
-};
 
 export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     isOpen, onClose, people, teams, tasks, settings, teamRotations, constraints, absences, onSaveRoster
@@ -1121,16 +1030,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
-                                        <CustomDatePicker
-                                            label="מתאריך"
-                                            value={startDate}
-                                            onChange={setStartDate}
-                                        />
-                                        <CustomDatePicker
-                                            label="עד תאריך"
-                                            value={endDate}
-                                            onChange={setEndDate}
-                                        />
+                                        <DatePicker label="תאריך התחלה" value={startDate} onChange={setStartDate} />
+                                        <DatePicker label="תאריך סיום" value={endDate} onChange={setEndDate} />
                                     </div>
 
                                     <div className="mt-4">
@@ -1194,16 +1095,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     )}
 
                                     <div className="grid grid-cols-2 gap-3 mt-4">
-                                        <CustomTimePicker
-                                            label="שעת הגעה"
-                                            value={userArrivalHour}
-                                            onChange={setUserArrivalHour}
-                                        />
-                                        <CustomTimePicker
-                                            label="שעת יציאה"
-                                            value={userDepartureHour}
-                                            onChange={setUserDepartureHour}
-                                        />
+                                        <TimePicker label="שעת הגעה" value={userArrivalHour} onChange={setUserArrivalHour} />
+                                        <TimePicker label="שעת יציאה" value={userDepartureHour} onChange={setUserDepartureHour} />
                                     </div>
 
                                     {optimizationMode === 'tasks' && (

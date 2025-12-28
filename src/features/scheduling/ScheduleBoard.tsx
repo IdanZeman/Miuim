@@ -221,6 +221,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     acknowledgedWarnings: propAcknowledgedWarnings, onClearDay, onNavigate, onAssign,
     onUnassign, onAddShift, onUpdateShift, onToggleCancelShift, teamRotations
 }) => {
+    const activePeople = useMemo(() => people.filter(p => p.isActive !== false), [people]);
     // Scroll Synchronization Refs
     const headerScrollRef = useRef<HTMLDivElement>(null);
     const bodyScrollRef = useRef<HTMLDivElement>(null);
@@ -494,7 +495,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 });
             }).map(personId => ({ shiftId: shift.id, personId }));
         });
-    }, [shifts, people, selectedDate, teamRotations]);
+    }, [shifts, activePeople, selectedDate, teamRotations]);
 
     const getShiftConflicts = (shiftId: string) => {
         const shift = shifts.find(s => s.id === shiftId);
@@ -517,7 +518,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     <AssignmentModal
                         selectedShift={selectedShift}
                         task={task}
-                        people={people}
+                        people={activePeople}
                         roles={roles}
                         teams={teams}
                         shifts={shifts}
@@ -539,12 +540,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             {/* Time Grid Board Container */}
             <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-2 flex flex-col flex-1 min-h-0 overflow-hidden">
 
-                {/* Export Modal */}
                 <ExportScheduleModal
                     isOpen={isExportModalOpen}
                     onClose={() => setIsExportModalOpen(false)}
                     shifts={shifts}
-                    people={people}
+                    people={activePeople}
                     tasks={visibleTasks}
                 />
 
@@ -576,18 +576,18 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         {/* Availability Badge (Hidden on very small screens if crowded, but useful) */}
                         {!isViewer && (() => {
                             const dateKey = selectedDate.toLocaleDateString('en-CA');
-                            const unavailableCount = people.filter(p => {
+                            const unavailableCount = activePeople.filter(p => {
                                 // if (p.unavailableDates?.includes(dateKey)) return true; // Removed invalid property
                                 if (p.dailyAvailability?.[dateKey]?.isAvailable === false) return true;
                                 return false;
                             }).length;
-                            const availableCount = people.length - unavailableCount;
+                            const availableCount = activePeople.length - unavailableCount;
 
                             return (
                                 <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-1.5 rounded-full border border-emerald-200">
                                     <User size={14} className="text-emerald-600" />
                                     <span className="text-xs font-bold text-emerald-700">
-                                        זמינים: {availableCount}/{people.length}
+                                        זמינים: {availableCount}/{activePeople.length}
                                     </span>
                                 </div>
                             );
@@ -668,7 +668,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     <div className="block md:hidden p-4">
                         <MobileScheduleList
                             shifts={shifts}
-                            people={people}
+                            people={activePeople}
                             taskTemplates={visibleTasks} // RESPECT FILTERS
                             roles={roles}
                             teams={teams}
@@ -804,7 +804,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                         key={shift.id}
                                                         shift={shift}
                                                         taskTemplates={taskTemplates}
-                                                        people={people}
+                                                        people={activePeople}
                                                         roles={roles}
                                                         teams={teams}
                                                         onSelect={handleShiftSelect}
@@ -871,12 +871,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                 </div>
             </div>
-            {/* Assignment Modal */}
             {selectedShift && (
                 <AssignmentModal
                     selectedShift={selectedShift}
                     task={taskTemplates.find(t => t.id === selectedShift.taskId)!}
-                    people={people}
+                    people={activePeople}
                     roles={roles}
                     teams={teams}
                     shifts={shifts}

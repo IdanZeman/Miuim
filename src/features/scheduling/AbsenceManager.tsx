@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Select } from '@/components/ui/Select';
+import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
 
 interface AbsenceManagerProps {
     people: Person[];
@@ -21,6 +22,7 @@ interface AbsenceManagerProps {
 }
 
 export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences, onAddAbsence, onUpdateAbsence, onDeleteAbsence, isViewer = false, onNavigateToAttendance }) => {
+    const activePeople = people.filter(p => p.isActive !== false);
     const { organization } = useAuth();
     const { showToast } = useToast();
     const [viewDate, setViewDate] = useState(new Date());
@@ -45,8 +47,12 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
 
     // --- Helpers ---
     const filteredPeople = useMemo(() => {
-        return people.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
-    }, [people, searchTerm]);
+        return activePeople.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name));
+    }, [activePeople, searchTerm]);
+
+    const activeAbsences = useMemo(() => {
+        return absences.filter(a => activePeople.some(p => p.id === a.person_id));
+    }, [absences, activePeople]);
 
     const getMonthDays = (date: Date) => {
         const year = date.getFullYear();
@@ -155,8 +161,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
 
     const selectedPersonAbsences = useMemo(() => {
         if (!selectedPersonId) return [];
-        return absences.filter(a => a.person_id === selectedPersonId);
-    }, [absences, selectedPersonId]);
+        return activeAbsences.filter(a => a.person_id === selectedPersonId);
+    }, [activeAbsences, selectedPersonId]);
 
     // Check if a date has absence
     const getAbsenceForDate = (date: Date) => {
@@ -292,7 +298,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                         <div className="h-px bg-slate-100 my-1 mx-2"></div>
                         {filteredPeople.map((person, index) => {
                             const isSelected = selectedPersonId === person.id;
-                            const personAbsenceCount = absences.filter(a => a.person_id === person.id).length;
+                            const personAbsenceCount = activeAbsences.filter(a => a.person_id === person.id).length;
                             return (
                                 <React.Fragment key={person.id}>
                                     <button
@@ -329,7 +335,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                             <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                                 <h3 className="font-bold text-slate-700 flex items-center gap-2">
                                     רשימת בקשות יציאה
-                                    <span className="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full">{absences.length}</span>
+                                    <span className="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full">{activeAbsences.length}</span>
                                 </h3>
                                 <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
                                     <button
@@ -347,14 +353,14 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                                 </div>
                             </div>
                             <div className="flex-1 overflow-y-auto p-4">
-                                {absences.length === 0 ? (
+                                {activeAbsences.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center h-full text-slate-400">
                                         <CalendarIcon size={48} className="mb-4 opacity-20" />
                                         <p>אין בקשות יציאה רשומות במערכת</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        {absences
+                                        {activeAbsences
                                             .sort((a, b) => {
                                                 if (sortBy === 'date') return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
                                                 const personA = people.find(p => p.id === a.person_id)?.name || '';
@@ -546,15 +552,15 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                             <Select
                                 value={formPersonId}
                                 onChange={(val) => setFormPersonId(val)}
-                                options={people.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))}
+                                options={activePeople.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))}
                                 placeholder="בחר חייל..."
                             />
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input type="date" label="תאריך התחלה" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} />
-                        <Input type="date" label="תאריך סיום" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <DatePicker label="תאריך התחלה" value={formStartDate} onChange={setFormStartDate} />
+                        <DatePicker label="תאריך סיום" value={formEndDate} onChange={setFormEndDate} />
                     </div>
 
                     <div className="flex items-center gap-2 py-1">
@@ -569,9 +575,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({ people, absences
                     </div>
 
                     {!isFullDay && (
-                        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                            <Input type="time" label="שעת התחלה" value={formStartTime} onChange={e => setFormStartTime(e.target.value)} />
-                            <Input type="time" label="שעת סיום" value={formEndTime} onChange={e => setFormEndTime(e.target.value)} />
+                        <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2">
+                            <TimePicker label="שעת התחלה" value={formStartTime} onChange={setFormStartTime} />
+                            <TimePicker label="שעת סיום" value={formEndTime} onChange={setFormEndTime} />
                         </div>
                     )}
 

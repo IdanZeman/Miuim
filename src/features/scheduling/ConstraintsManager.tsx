@@ -32,6 +32,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
     isViewer = false,
     organizationId
 }) => {
+    const activePeople = people.filter(p => p.isActive !== false);
     const { showToast } = useToast();
 
     // --- State for Task Rules ---
@@ -58,50 +59,52 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
             ids: string[]; // Keep track of all real DB IDs in this group
         }> = {};
 
-        constraints.forEach(c => {
-            // Apply Filters first
-            if (rulesSearch) {
-                let taskMatch = false;
-                if (c.taskId) {
-                    const task = tasks.find(t => t.id === c.taskId);
-                    taskMatch = task?.name.toLowerCase().includes(rulesSearch.toLowerCase()) || false;
-                } else {
-                    taskMatch = "כללי".includes(rulesSearch) || "general".includes(rulesSearch.toLowerCase());
+        constraints
+            .filter(c => !c.personId || activePeople.some(p => p.id === c.personId))
+            .forEach(c => {
+                // Apply Filters first
+                if (rulesSearch) {
+                    let taskMatch = false;
+                    if (c.taskId) {
+                        const task = tasks.find(t => t.id === c.taskId);
+                        taskMatch = task?.name.toLowerCase().includes(rulesSearch.toLowerCase()) || false;
+                    } else {
+                        taskMatch = "כללי".includes(rulesSearch) || "general".includes(rulesSearch.toLowerCase());
+                    }
+
+                    let targetName = '';
+                    if (c.personId) targetName = people.find(p => p.id === c.personId)?.name || '';
+                    else if (c.teamId) targetName = teams.find(t => t.id === c.teamId)?.name || '';
+                    else if (c.roleId) targetName = roles.find(r => r.id === c.roleId)?.name || '';
+
+                    const targetMatch = targetName.toLowerCase().includes(rulesSearch.toLowerCase());
+
+                    if (!taskMatch && !targetMatch) return;
                 }
 
-                let targetName = '';
-                if (c.personId) targetName = people.find(p => p.id === c.personId)?.name || '';
-                else if (c.teamId) targetName = teams.find(t => t.id === c.teamId)?.name || '';
-                else if (c.roleId) targetName = roles.find(r => r.id === c.roleId)?.name || '';
+                // Create Group Key
+                let targetType: 'person' | 'team' | 'role' = 'person';
+                let targetId = '';
+                if (c.personId) { targetType = 'person'; targetId = c.personId; }
+                else if (c.teamId) { targetType = 'team'; targetId = c.teamId; }
+                else if (c.roleId) { targetType = 'role'; targetId = c.roleId; }
 
-                const targetMatch = targetName.toLowerCase().includes(rulesSearch.toLowerCase());
+                const key = `${targetType}-${targetId}-${c.type}`;
 
-                if (!taskMatch && !targetMatch) return;
-            }
+                if (!groups[key]) {
+                    groups[key] = {
+                        id: c.id,
+                        targetId,
+                        targetType,
+                        type: c.type,
+                        taskIds: [],
+                        ids: []
+                    };
+                }
 
-            // Create Group Key
-            let targetType: 'person' | 'team' | 'role' = 'person';
-            let targetId = '';
-            if (c.personId) { targetType = 'person'; targetId = c.personId; }
-            else if (c.teamId) { targetType = 'team'; targetId = c.teamId; }
-            else if (c.roleId) { targetType = 'role'; targetId = c.roleId; }
-
-            const key = `${targetType}-${targetId}-${c.type}`;
-
-            if (!groups[key]) {
-                groups[key] = {
-                    id: c.id,
-                    targetId,
-                    targetType,
-                    type: c.type,
-                    taskIds: [],
-                    ids: []
-                };
-            }
-
-            if (c.taskId) groups[key].taskIds.push(c.taskId);
-            groups[key].ids.push(c.id);
-        });
+                if (c.taskId) groups[key].taskIds.push(c.taskId);
+                groups[key].ids.push(c.id);
+            });
 
         return Object.values(groups);
     }, [constraints, tasks, people, teams, roles, rulesSearch]);
@@ -469,7 +472,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                 <MultiSelect
                                     value={ruleTargetIds}
                                     onChange={setRuleTargetIds}
-                                    options={people.map(p => ({ value: p.id, label: p.name }))}
+                                    options={activePeople.map(p => ({ value: p.id, label: p.name }))}
                                     placeholder="בחר חיילים..."
                                 />
                             ) : (

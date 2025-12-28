@@ -14,6 +14,7 @@ import { SheetModal } from '../../components/ui/SheetModal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { TimePicker } from '@/components/ui/DatePicker';
 
 interface ScheduleItem {
     id: string;
@@ -41,52 +42,6 @@ interface WarClockProps {
     roles: Role[];
 }
 
-const CustomTimePicker = ({ label, value, onChange }: { label: string, value: string, onChange: (val: string) => void }) => {
-    const inputRef = React.useRef<HTMLInputElement>(null);
-
-    return (
-        <div className="flex flex-col gap-1.5 w-full">
-            <span className="text-xs font-bold text-slate-500 mr-1">{label}</span>
-            <div
-                className="relative flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl p-3 cursor-pointer transition-all duration-200 shadow-sm hover:shadow group w-full"
-                onClick={() => {
-                    if (inputRef.current) {
-                        try {
-                            if ('showPicker' in inputRef.current) {
-                                (inputRef.current as any).showPicker();
-                            } else {
-                                (inputRef.current as HTMLInputElement).focus();
-                                (inputRef.current as HTMLInputElement).click();
-                            }
-                        } catch (e) {
-                            inputRef.current.click();
-                        }
-                    }
-                }}
-            >
-                <div className="bg-blue-50 text-blue-600 p-2 rounded-lg group-hover:bg-blue-100 transition-colors">
-                    <Clock size={18} />
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-sm font-black text-slate-700 group-hover:text-blue-700 transition-colors">
-                        {value}
-                    </span>
-                    <span className="text-[10px] font-medium text-slate-400">
-                        שעה
-                    </span>
-                </div>
-                <input
-                    ref={inputRef}
-                    type="time"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                    aria-label={`בחר שעה עבור ${label}`}
-                />
-            </div>
-        </div>
-    );
-};
 
 export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) => {
     const { profile, organization } = useAuth();
@@ -731,20 +686,16 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
             >
                 <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-2 md:gap-4">
-                        <div>
-                            <CustomTimePicker
-                                label="התחלה"
-                                value={editItem.startTime || ''}
-                                onChange={val => setEditItem({ ...editItem, startTime: val })}
-                            />
-                        </div>
-                        <div>
-                            <CustomTimePicker
-                                label="סיום"
-                                value={editItem.endTime || ''}
-                                onChange={val => setEditItem({ ...editItem, endTime: val })}
-                            />
-                        </div>
+                        <TimePicker
+                            label="התחלה"
+                            value={editItem.startTime || ''}
+                            onChange={val => setEditItem({ ...editItem, startTime: val })}
+                        />
+                        <TimePicker
+                            label="סיום"
+                            value={editItem.endTime || ''}
+                            onChange={val => setEditItem({ ...editItem, endTime: val })}
+                        />
                     </div>
 
                     <div className="space-y-2">
