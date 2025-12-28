@@ -181,8 +181,6 @@ const TemplateEditorModal: React.FC<{
     const [permissions, setPermissions] = useState<UserPermissions>(template?.permissions || {
         dataScope: 'organization',
         screens: {},
-        canManageUsers: false,
-        canManageSettings: false
     });
 
     const handleSave = () => {
@@ -377,7 +375,8 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
 
-    const isAdmin = profile?.is_super_admin || profile?.permissions?.canManageSettings;
+    const { checkAccess } = useAuth();
+    const isAdmin = profile?.is_super_admin || checkAccess('settings', 'edit');
 
     useEffect(() => {
         if (organization?.id) {
@@ -506,7 +505,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         setEditingPermissionsFor(null);
     };
 
-    if (!profile?.permissions?.canManageSettings && !profile?.is_super_admin) {
+    if (!checkAccess('settings', 'edit') && !profile?.is_super_admin) {
         return (
             <div className="bg-white rounded-xl p-8 shadow-sm border border-red-200 text-center">
                 <Shield className="mx-auto text-red-500 mb-4" size={40} />
@@ -740,7 +739,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
 
                                                         // 3. Fallback: If no template or missing row, infer from properties
                                                         if (member.is_super_admin) return 'מנהל על';
-                                                        if (member.permissions?.canManageSettings) return 'מנהל מלא';
+                                                        if (member.permissions?.screens?.['settings'] === 'edit') return 'מנהל מלא';
                                                         if (member.permissions?.dataScope === 'organization') return 'עורך / צופה';
 
                                                         return member.permission_template_id ? 'תבנית לא נמצאה' : 'תבנית אישית';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, Check, Shield, Users, Lock, Layout, UserCircle, Info, Anchor, Gavel, Activity, Settings, CheckCircle } from 'lucide-react';
+import { Globe, Check, Shield, Users, Lock, Layout, UserCircle, Info, Anchor, Gavel, Activity, Settings, CheckCircle, Zap } from 'lucide-react';
 import { UserPermissions, Team, ViewMode } from '../../types';
 
 const SCREENS: { id: ViewMode; label: string; icon: any }[] = [
@@ -91,28 +91,6 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
                     יכולות מתקדמות (Capabilities)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${permissions.canManageUsers ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-300'}`}>
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${permissions.canManageUsers ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <Users size={20} />
-                        </div>
-                        <div className="flex-1">
-                            <div className="font-bold text-slate-800 text-sm">ניהול משתמשים והרשאות</div>
-                            <div className="text-[10px] text-slate-500">יכולת לערוך פרופילים, צוותים והרשאות גישה</div>
-                        </div>
-                        <input type="checkbox" className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500" checked={permissions.canManageUsers} onChange={(e) => setPermissions(p => ({ ...p, canManageUsers: e.target.checked }))} />
-                    </label>
-
-                    <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${permissions.canManageSettings ? 'bg-purple-50 border-purple-200 shadow-sm' : 'bg-white border-slate-200 hover:border-purple-300'}`}>
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${permissions.canManageSettings ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <Settings size={20} />
-                        </div>
-                        <div className="flex-1">
-                            <div className="font-bold text-slate-800 text-sm">ניהול הגדרות מערכת</div>
-                            <div className="text-[10px] text-slate-500">גישה להגדרות כלליות, טיימרים ותבניות</div>
-                        </div>
-                        <input type="checkbox" className="w-5 h-5 rounded text-purple-600 focus:ring-purple-500" checked={permissions.canManageSettings} onChange={(e) => setPermissions(p => ({ ...p, canManageSettings: e.target.checked }))} />
-                    </label>
-
                     <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${permissions.canApproveRequests ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-white border-slate-200 hover:border-emerald-300'}`}>
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${permissions.canApproveRequests ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
                             <CheckCircle size={20} />
@@ -122,6 +100,17 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
                             <div className="text-[10px] text-slate-500">יכולת לאשר או לדחות בקשות יציאה של חיילים</div>
                         </div>
                         <input type="checkbox" className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500" checked={!!permissions.canApproveRequests} onChange={(e) => setPermissions(p => ({ ...p, canApproveRequests: e.target.checked }))} />
+                    </label>
+
+                    <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${permissions.canManageRotaWizard ? 'bg-orange-50 border-orange-200 shadow-sm' : 'bg-white border-slate-200 hover:border-orange-300'}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${permissions.canManageRotaWizard ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'}`}>
+                            <Zap size={20} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="font-bold text-slate-800 text-sm">ניהול מחולל סבבים</div>
+                            <div className="text-[10px] text-slate-500">יכולת להגדיר ולהפעיל את מחולל הסבבים האוטומטי</div>
+                        </div>
+                        <input type="checkbox" className="w-5 h-5 rounded text-orange-600 focus:ring-orange-500" checked={!!permissions.canManageRotaWizard} onChange={(e) => setPermissions(p => ({ ...p, canManageRotaWizard: e.target.checked }))} />
                     </label>
                 </div>
             </section>

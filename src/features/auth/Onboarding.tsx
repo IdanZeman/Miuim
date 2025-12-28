@@ -180,7 +180,7 @@ export const Onboarding: React.FC = () => {
                         organization_id: createdOrgId,
                         // role: 'admin', // DEPRECATED
                         // Grant Full Access (Personal Template) to the creator
-                        permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization", "canManageUsers": true, "canManageSettings": true }
+                        permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization" }
                     })
                     .eq('id', user.id);
                 if (profileError) throw profileError;
@@ -222,7 +222,7 @@ export const Onboarding: React.FC = () => {
                     .update({
                         organization_id: createdOrgId,
                         // role: 'admin', // DEPRECATED
-                        permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization", "canManageUsers": true, "canManageSettings": true }
+                        permissions: { "screens": { "logs": "edit", "stats": "edit", "tasks": "edit", "lottery": "edit", "dashboard": "edit", "equipment": "edit", "personnel": "edit", "attendance": "edit", "constraints": "edit", "settings": "edit", "reports": "edit" }, "dataScope": "organization" }
                     })
                     .eq('id', user.id);
 

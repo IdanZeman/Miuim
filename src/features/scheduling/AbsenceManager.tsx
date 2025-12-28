@@ -408,16 +408,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    {onNavigateToAttendance && (
-                        <Button
-                            variant="outline"
-                            onClick={onNavigateToAttendance}
-                            icon={Wand2}
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50 hidden md:flex"
-                        >
-                            הפעל מחולל סבבים
-                        </Button>
-                    )}
                     {canManage && (
                         <Button onClick={() => openAddModal()} icon={Plus} className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200" data-testid="add-absence-btn">
                             <span className="hidden md:inline">בקשה חדשה</span>

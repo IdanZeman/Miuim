@@ -31,8 +31,6 @@ const DEFAULT_PERMISSIONS: UserPermissions = {
     dataScope: 'organization',
     allowedTeamIds: [],
     screens: {},
-    canManageUsers: false,
-    canManageSettings: false,
 };
 
 import { Modal } from '@/components/ui/Modal';

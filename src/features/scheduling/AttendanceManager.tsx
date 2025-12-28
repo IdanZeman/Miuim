@@ -14,6 +14,7 @@ import { BulkAttendanceModal } from './BulkAttendanceModal';
 import { useToast } from '@/contexts/ToastContext';
 import { RotaWizardModal } from './RotaWizardModal';
 import { PageInfo } from '@/components/ui/PageInfo';
+import { useAuth } from '@/features/auth/AuthContext';
 
 interface AttendanceManagerProps {
     people: Person[];
@@ -42,6 +43,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction
 }) => {
     const activePeople = people.filter(p => p.isActive !== false);
+    const { profile } = useAuth();
     const { showToast } = useToast();
     const [viewMode, setViewMode] = useState<'calendar' | 'table' | 'day_detail'>('calendar');
     const [calendarViewType, setCalendarViewType] = useState<'grid' | 'table'>('grid'); // NEW: sub-view for calendar
@@ -700,7 +702,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             </button>
                         </div>
 
-                        {!isViewer && (
+                        {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
                             <button
                                 onClick={() => setShowRotaWizard(true)}
                                 data-testid="open-rota-wizard-btn"

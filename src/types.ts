@@ -180,9 +180,8 @@ export interface UserPermissions {
   dataScope: DataScope;
   allowedTeamIds?: string[]; // IDs of teams the user can access if scope is 'team'
   screens: Partial<Record<ViewMode, AccessLevel>>; // Per-screen access overrides
-  canManageUsers: boolean;
-  canManageSettings: boolean;
   canApproveRequests?: boolean;
+  canManageRotaWizard?: boolean;
 }
 
 export interface Profile {

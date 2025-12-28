@@ -44,9 +44,9 @@ interface WarClockProps {
 
 
 export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) => {
-    const { profile, organization } = useAuth();
+    const { profile, organization, checkAccess } = useAuth();
     const { showToast } = useToast();
-    const canEdit = profile?.role === 'admin' || profile?.role === 'editor' || profile?.permissions?.canManageSettings;
+    const canEdit = profile?.role === 'admin' || profile?.role === 'editor' || checkAccess('dashboard', 'edit');
 
     const [items, setItems] = useState<ScheduleItem[]>([]);
     const [isEditing, setIsEditing] = useState(false);
