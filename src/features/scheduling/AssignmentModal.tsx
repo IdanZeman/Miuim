@@ -527,19 +527,6 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                 <h4 className="font-black text-slate-800 text-[11px] uppercase tracking-wider">
                                     חיילים משובצים ({assignedPeople.length})
                                 </h4>
-                                {!isViewer && (
-                                    <button
-                                        onClick={() => {
-                                            const found = handleSuggestBest();
-                                            if (found) showToast('נמצא שיבוץ מומלץ!', 'success');
-                                        }}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg border border-blue-100 hover:bg-blue-600 hover:text-white hover:shadow-md transition-all active:scale-95 group/btn"
-                                        title="הצע לי שיבוץ חכם"
-                                    >
-                                        <Wand2 size={14} className="group-hover/btn:rotate-12 transition-transform" />
-                                        <span className="text-xs font-bold hidden md:inline">שיבוץ חכם</span>
-                                    </button>
-                                )}
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-0 pb-4 md:pb-0">
@@ -669,27 +656,23 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                             <ChevronRight size={20} />
                                         </button>
                                         <div className="relative flex items-center flex-1">
-                                            <Search className="absolute right-3 text-slate-400" size={16} />
-                                            <input
-                                                type="text"
-                                                placeholder="חפש חייל או תפקיד..."
-                                                value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                                className="w-full pl-10 pr-9 py-2.5 bg-slate-100 border-transparent focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-50 rounded-xl text-sm font-medium transition-all outline-none"
-                                            />
-                                            <div className="absolute left-1.5 flex items-center gap-1">
-                                                <button
-                                                    onClick={() => {
-                                                        const found = handleSuggestBest();
-                                                        if (found) showToast('נמצא שיבוץ מומלץ!', 'success');
-                                                    }}
-                                                    title="הצע לי שיבוץ חכם"
-                                                    className="w-10 h-10 flex items-center justify-center bg-white text-blue-600 rounded-xl shadow-md border border-blue-100 hover:border-blue-300 hover:shadow-lg transition-all active:scale-95 group"
-                                                >
-                                                    <Wand2 size={20} aria-hidden="true" className="group-hover:rotate-12 transition-transform" />
-                                                </button>
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                {/* Optional: Add spinner or other indicator here */}
                                             </div>
                                         </div>
+                                        {!isViewer && (
+                                            <button
+                                                onClick={() => {
+                                                    const found = handleSuggestBest();
+                                                    if (found) showToast('נמצא שיבוץ מומלץ!', 'success');
+                                                }}
+                                                className="h-10 px-3 md:px-4 flex items-center gap-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 hover:bg-blue-600 hover:text-white hover:shadow-md transition-all active:scale-95 group shrink-0"
+                                                title="הצע לי שיבוץ חכם"
+                                            >
+                                                <Wand2 size={18} aria-hidden="true" className="group-hover:rotate-12 transition-transform" />
+                                                <span className="text-sm font-bold hidden sm:inline">שיבוץ חכם</span>
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar pb-1">

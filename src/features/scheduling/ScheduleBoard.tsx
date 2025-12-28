@@ -178,15 +178,17 @@ const ShiftCard: React.FC<{
 
             {/* Middle Row - Names (Adaptive - Desktop Only) */}
             {(style?.height && parseInt(String(style.height)) >= 50 && assigned.length > 0) && (
-                <div className="hidden md:flex flex-1 flex-col justify-center items-center gap-1 overflow-hidden py-1 w-full px-1">
+                <div className={`hidden md:flex flex-1 ${assigned.length > 5 ? 'flex-row flex-wrap content-center justify-center' : 'flex-col justify-center items-center'} gap-1 overflow-hidden py-1 w-full px-1`}>
                     {assigned.map(p => (
                         <div
                             key={p.id}
-                            className={`shadow-sm border border-slate-200/60 bg-white/95 px-3 py-1 rounded-full text-xs font-bold text-slate-800 truncate w-full max-w-[95%] text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
+                            className={`shadow-sm border border-slate-200/60 bg-white/95 
+                                ${assigned.length > 5 ? 'px-1.5 py-0.5 text-[10px] min-w-[24px]' : 'w-full max-w-[95%] px-3 py-1 text-xs'} 
+                                rounded-full font-bold text-slate-800 truncate text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
                             title={p.name}
                             onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
                         >
-                            {p.name}
+                            {assigned.length > 5 ? getPersonInitials(p.name) : p.name}
                         </div>
                     ))}
                 </div>

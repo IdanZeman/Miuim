@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmationModalProps {
+    isOpen: boolean;
     title: string;
     message?: string;
     confirmText?: string;
