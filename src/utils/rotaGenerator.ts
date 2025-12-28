@@ -54,10 +54,17 @@ interface SchedulingContext {
     constraints: Map<string, Set<number>>; // PersonID -> Set of Day Indices (Unavailable)
     config: Map<string, { daysBase: number, daysHome: number }>; // For Ratio mode
     minStaff: number;
+    dailyMinStaff?: number[]; // NEW: Per-day requirements
     history?: Map<string, PersonHistory>;
     warnings: string[];
 }
 
+// ...
+
+/**
+ * STRATEGY 2: MIN HEADCOUNT ("The Iterative Repair Strategy")
+ * פתרון מבוסס חיפוש מקומי למניעת חריגות מהמינימום.
+ */
 interface ISchedulingStrategy {
     generate(context: SchedulingContext): Record<string, boolean[]>; // PersonID -> Array of booleans (true=Base, false=Home)
 }
@@ -98,8 +105,6 @@ class FixedRatioStrategy implements ISchedulingStrategy {
              let effectiveBase = config.daysBase;
              let effectiveHome = config.daysHome;
              
-             // History Offset
-
              // History Offset
              let historyOffset = -1;
              if (hist) {
@@ -165,14 +170,9 @@ class FixedRatioStrategy implements ISchedulingStrategy {
         return schedule;
     }
 }
-
-/**
- * STRATEGY 2: MIN HEADCOUNT ("The Iterative Repair Strategy")
- * פתרון מבוסס חיפוש מקומי למניעת חריגות מהמינימום.
- */
 class MinHeadcountStrategy implements ISchedulingStrategy {
     generate(ctx: SchedulingContext): Record<string, boolean[]> {
-        const { totalDays, people, minStaff, constraints, warnings } = ctx;
+        const { totalDays, people, minStaff, constraints, warnings, dailyMinStaff } = ctx;
         const schedule: Record<string, boolean[]> = {};
         
         if (people.length === 0) return {};
@@ -202,7 +202,10 @@ class MinHeadcountStrategy implements ISchedulingStrategy {
             for (let d = 0; d < totalDays; d++) {
                 const currentCount = people.filter(p => schedule[p.id][d]).length;
                 
-                if (currentCount < minStaff) {
+                // DETERMINE TARGET FOR THIS DAY
+                const dailyTarget = dailyMinStaff ? (dailyMinStaff[d] || minStaff) : minStaff;
+
+                if (currentCount < dailyTarget) {
                     // חסרים אנשים! נחפש את הלוחם שהכי כדאי להזיז את הסבב שלו
                     const candidates = people.filter(p => !schedule[p.id][d]);
                     
@@ -220,7 +223,7 @@ class MinHeadcountStrategy implements ISchedulingStrategy {
                     }
                 }
 
-                if (currentCount > minStaff + 2) {
+                if (currentCount > dailyTarget + 2) {
                     // יש יותר מדי אנשים! ננסה לשחרר מישהו שיש לו אילוץ
                     const canRelease = people.filter(p => schedule[p.id][d] && constraints.get(p.id)?.has(d));
                     if (canRelease.length > 0) {
@@ -232,10 +235,12 @@ class MinHeadcountStrategy implements ISchedulingStrategy {
             if (changesInIter === 0) break; // הפתרון יציב
         }
 
-        // 4. בדיקת ביטחון סופית (The Iron Floor) - מוודא 100% שאין יום מתחת ל-13
+        // 4. בדיקת ביטחון סופית
         for (let d = 0; d < totalDays; d++) {
+            const dailyTarget = dailyMinStaff ? (dailyMinStaff[d] || minStaff) : minStaff;
             let count = people.filter(p => schedule[p.id][d]).length;
-            while (count < minStaff) {
+            
+            while (count < dailyTarget) {
                 const stayers = people.filter(p => !schedule[p.id][d]);
                 if (stayers.length === 0) break;
 
@@ -250,7 +255,7 @@ class MinHeadcountStrategy implements ISchedulingStrategy {
                 count++;
                 
                 if (constraints.get(stayers[0].id)?.has(d)) {
-                    warnings.push(`אילוץ נשבר ביום ${d+1} עבור ${stayers[0].name} כדי להבטיח מינימום 13.`);
+                    warnings.push(`אילוץ נשבר ביום ${d+1} עבור ${stayers[0].name} כדי להבטיח מינימום ${dailyTarget}.`);
                 }
             }
         }
@@ -266,54 +271,79 @@ class TaskDerivedStrategy implements ISchedulingStrategy {
     constructor(private tasks: TaskTemplate[]) {}
 
     generate(ctx: SchedulingContext): Record<string, boolean[]> {
-        // 1. Calculate Required Headcount
-        const required = this.calculateRequired(this.tasks);
-        console.log(`[TaskDerived] Calculated Min Staff: ${required}`);
+        // 1. Calculate Required Headcount PER DAY
+        const dailyRequired = this.calculateDailyRequired(this.tasks, ctx.startDate, ctx.totalDays);
+        const maxReq = Math.max(...dailyRequired);
+
+        console.log(`[TaskDerived] Calculated Daily Min Staff Range: ${Math.min(...dailyRequired)} - ${maxReq}`);
         
         // 2. Delegate
         const strategy = new MinHeadcountStrategy();
-        // Update context with new min
-        const newCtx = { ...ctx, minStaff: Math.max(ctx.minStaff, required) };
+        // Update context with new minute arrays
+        const newCtx = { 
+            ...ctx, 
+            minStaff: Math.max(ctx.minStaff, maxReq), // Fallback/Floor
+            dailyMinStaff: dailyRequired // NEW: Specific daily requirement
+        };
         return strategy.generate(newCtx);
     }
 
-    private calculateRequired(tasks: TaskTemplate[]): number {
-        const dailyHours = new Array(7).fill(0); // Sun..Sat
-        let totalWeight = 0;
-        let weightedFactorSum = 0;
+    private calculateDailyRequired(tasks: TaskTemplate[], startDate: Date, totalDays: number): number[] {
+        const dailyReqs = new Array(totalDays).fill(0);
 
-        tasks.forEach(t => {
-            t.segments.forEach(seg => {
-                const hoursPerInstance = seg.requiredPeople * seg.durationHours;
-                // For "Repeat" (24/7), we need to cover 24h.
-                // If it's a single segment marked repeat, it might mean the segment REPEATS back-to-back.
-                const totalDailyHours = seg.isRepeat ? (24 * seg.requiredPeople) : hoursPerInstance;
-                
-                const factor = seg.durationHours / (seg.durationHours + (seg.minRestHoursAfter || 0));
-                
-                // Add to relevant days
-                if (seg.frequency === 'daily' || seg.isRepeat) {
-                    for (let i = 0; i < 7; i++) dailyHours[i] += totalDailyHours;
-                } else if (seg.frequency === 'weekly' && seg.daysOfWeek) {
-                    const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-                    seg.daysOfWeek.forEach(d => {
-                        const idx = days.indexOf(d.toLowerCase());
-                        if (idx !== -1) dailyHours[idx] += totalDailyHours;
-                    });
-                }
-                
-                weightedFactorSum += factor * totalDailyHours;
-                totalWeight += totalDailyHours;
+        // Iterate per day of the schedule
+        for (let i = 0; i < totalDays; i++) {
+            const currentDate = new Date(startDate.getTime() + i * 86400000);
+            const dateStr = currentDate.toLocaleDateString('en-CA');
+            const dayOfWeek = currentDate.getDay(); // 0=Sun, 6=Sat
+
+            let totalDailyHours = 0;
+            let weightedFactorSum = 0; // For work ratio
+            let totalWeight = 0;
+
+            tasks.forEach(t => {
+                // Check Date Constraints
+                if (t.startDate && new Date(t.startDate) > currentDate) return;
+                if (t.endDate && new Date(t.endDate) < currentDate) return;
+
+                t.segments.forEach(seg => {
+                    // Check segment validity for this specific day
+                    let isActiveDay = false;
+
+                    if (seg.isRepeat) {
+                         isActiveDay = true;
+                    } else if (seg.frequency === 'daily') {
+                        isActiveDay = true;
+                    } else if (seg.frequency === 'weekly' && seg.daysOfWeek) {
+                         const dayName = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][dayOfWeek];
+                         if (seg.daysOfWeek.includes(dayName)) isActiveDay = true;
+                    } else if (seg.frequency === 'specific_date' && seg.specificDate) {
+                        if (seg.specificDate === dateStr) isActiveDay = true;
+                    }
+
+                    if (isActiveDay) {
+                        const hoursPerInstance = seg.requiredPeople * seg.durationHours;
+                        const dailyHoursForSeg = seg.isRepeat ? (24 * seg.requiredPeople) : hoursPerInstance;
+                        
+                        totalDailyHours += dailyHoursForSeg;
+
+                        // Weighting for capacity
+                        const factor = seg.durationHours / (seg.durationHours + (seg.minRestHoursAfter || 0));
+                        weightedFactorSum += factor * dailyHoursForSeg;
+                        totalWeight += dailyHoursForSeg;
+                    }
+                });
             });
-        });
 
-        if (totalWeight === 0) return 0;
+            if (totalWeight > 0) {
+                 const avgWorkHoursPerDay = (weightedFactorSum / totalWeight) * 24;
+                 dailyReqs[i] = Math.ceil(totalDailyHours / Math.max(1, avgWorkHoursPerDay));
+            } else {
+                dailyReqs[i] = 0;
+            }
+        }
         
-        // Avg Capacity of one person per 24h day (in hours of work)
-        const avgWorkHoursPerDay = (weightedFactorSum / totalWeight) * 24;
-        
-        const dailyReqs = dailyHours.map(h => Math.ceil(h / Math.max(1, avgWorkHoursPerDay)));
-        return Math.max(...dailyReqs);
+        return dailyReqs;
     }
 }
 

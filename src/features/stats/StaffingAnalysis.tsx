@@ -80,6 +80,14 @@ export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, total
             const staffNeeded = Math.ceil(exactStaffNeeded);
             totalRequired += staffNeeded;
 
+            // Calculate Date Range Label
+            let dateRange = undefined;
+            if (task.startDate || task.endDate) {
+                const s = task.startDate ? new Date(task.startDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : '∞';
+                const e = task.endDate ? new Date(task.endDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : '∞';
+                dateRange = `${s} - ${e}`;
+            }
+
             return {
                 id: task.id,
                 name: task.name,
@@ -89,6 +97,7 @@ export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, total
                 avgRest: avgRest.toFixed(1),
                 details: `${dailyManHours} שעות אדם ביום / יחס תעסוקה ${(workRatio * 100).toFixed(0)}%`,
                 error: false,
+                dateRange,
                 data: {
                     duration: avgDuration.toFixed(1),
                     rest: avgRest.toFixed(1),
@@ -160,6 +169,12 @@ export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, total
                                         </span>
                                     ) : (
                                         <div className="flex flex-col gap-0.5 text-right">
+                                            {item.dateRange && (
+                                                <div className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded w-fit mb-1">
+                                                    <Clock size={10} />
+                                                    <span>{item.dateRange}</span>
+                                                </div>
+                                            )}
                                             <span className="font-bold text-slate-600 block">
                                                 משמרת {item.data?.duration} שעות + {item.data?.rest} שעות מנוחה
                                             </span>

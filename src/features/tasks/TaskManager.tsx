@@ -252,6 +252,18 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                             <MoreVertical size={20} />
                                         </button>
 
+                                        {/* Quick Actions (Desktop) - Duplicate */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDuplicateTask(task);
+                                            }}
+                                            className="hidden md:flex p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors absolute left-10 top-0 bottom-0 my-auto h-9 w-9 items-center justify-center opacity-0 group-hover:opacity-100"
+                                            title="שכפל משימה"
+                                        >
+                                            <Copy size={18} />
+                                        </button>
+
                                         {openMenuId === task.id && (
                                             <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1 w-32 z-20 flex flex-col">
                                                 <button
@@ -299,8 +311,32 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 isOpen={isModalOpen}
                 onClose={resetForm}
                 title={editId ? 'עריכת משימה' : 'הוספת משימה חדשה'}
-                onSave={handleSubmit}
-                saveLabel={editId ? 'עדכן משימה' : 'צור משימה'}
+                footer={
+                    <div className="flex gap-3 w-full">
+                        {editId && (
+                            <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    const taskToDup = tasks.find(t => t.id === editId);
+                                    if (taskToDup) {
+                                        handleDuplicateTask(taskToDup);
+                                        resetForm();
+                                    }
+                                }}
+                                className="flex-1 border-slate-200 hover:bg-slate-50 text-slate-600"
+                            >
+                                <Copy size={18} className="ml-2" />
+                                שכפל
+                            </Button>
+                        )}
+                        <Button
+                            onClick={handleSubmit}
+                            className={`${editId ? 'flex-[2]' : 'w-full'} bg-idf-yellow text-slate-900 hover:bg-yellow-400 font-bold shadow-md`}
+                        >
+                            {editId ? 'עדכן משימה' : 'צור משימה'}
+                        </Button>
+                    </div>
+                }
             >
                 <div className="space-y-6">
                     {/* Group 1: Basic Info */}

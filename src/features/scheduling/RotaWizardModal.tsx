@@ -6,7 +6,7 @@ import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, Schedul
 import { generateRoster, RosterGenerationResult, PersonHistory } from '@/utils/rotaGenerator';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Sparkles, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock, Calculator, Info } from 'lucide-react';
+import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Search, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock, Calculator, Info, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect';
 import { useToast } from '@/contexts/ToastContext';
@@ -83,7 +83,21 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     // Temp state for custom hours in popup
     const [customStart, setCustomStart] = useState('08:00');
     const [customEnd, setCustomEnd] = useState('17:00');
-    const [customType, setCustomType] = useState<null | 'arrival' | 'departure' | 'custom'>(null); // NEW
+    const [customType, setCustomType] = useState<null | 'arrival' | 'departure' | 'custom'>(null);
+    const [searchQuery, setSearchQuery] = useState(''); // NEW: Search for matrix view
+    const [showConstraintDetails, setShowConstraintDetails] = useState(false);
+    const [showStatsDetails, setShowStatsDetails] = useState(false);
+
+    // Feature: Collapsible Teams
+    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+    const toggleTeam = (teamId: string) => {
+        setCollapsedTeams(prev => {
+            const next = new Set(prev);
+            if (next.has(teamId)) next.delete(teamId);
+            else next.add(teamId);
+            return next;
+        });
+    };
 
     const handleCellClick = (e: React.MouseEvent, personId: string, date: string) => {
         e.stopPropagation(); // Prevent modal close or other clicks
@@ -773,85 +787,59 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     );
 
     const previewFooter = (
-        <div className="flex flex-col w-full gap-4">
-            {/* Constraint Stats */}
-            {result && result.stats.constraintStats && (
-                <div className={`flex flex-col gap-2 rounded-lg border p-3 ${result.stats.constraintStats.percentage === 100 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+        <div className="flex gap-2 w-full justify-between items-center select-none">
+            {/* Left Side: Buttons */}
+            <div className="flex gap-2 items-center flex-1">
+                <Button variant="ghost" onClick={() => setStep('config')} className="h-10 px-0 md:px-4 text-slate-400">
+                    <ArrowRight size={20} />
+                </Button>
+
+                {/* Info Buttons (Mobile Optimized) */}
+                <div className="flex items-center gap-2">
+                    {/* Stats Info Button - Updated Label */}
+                    <button
+                        onClick={() => setShowStatsDetails(true)}
+                        className="h-9 px-3 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-600 active:bg-slate-100 text-xs font-bold gap-2 whitespace-nowrap"
+                    >
+                        <span>ממוצע ללוחם - לחץ לפירוט</span>
+                    </button>
+
+                    {/* Constraints Status Button */}
+                    {result && result.stats.constraintStats && (
+                        <button
+                            onClick={() => setShowConstraintDetails(true)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all ${result.stats.constraintStats.percentage === 100
+                                ? 'bg-green-50 border-green-200 text-green-700'
+                                : 'bg-amber-50 border-amber-200 text-amber-700'
+                                }`}
+                        >
                             {result.stats.constraintStats.percentage === 100 ? (
-                                <CheckCircle size={18} className="text-green-600" />
+                                <CheckCircle size={14} className="shrink-0" />
                             ) : (
-                                <AlertTriangle size={18} className="text-amber-600" />
+                                <AlertTriangle size={14} className="shrink-0" />
                             )}
-                            <span className="font-bold text-slate-800 text-sm">
-                                {result.stats.constraintStats.percentage === 100
-                                    ? 'כל האילוצים נענו בהצלחה!'
-                                    : `נענו ${result.stats.constraintStats.met} מתוך ${result.stats.constraintStats.total} אילוצים (${result.stats.constraintStats.percentage}%)`}
+                            <span className="truncate max-w-[80px] hidden md:inline">
+                                {result.stats.constraintStats.percentage === 100 ? 'הכל תקין' : 'יש חריגות'}
                             </span>
-                        </div>
-                        {result.unfulfilledConstraints && result.unfulfilledConstraints.length > 0 && (
-                            <button
-                                onClick={() => setShowConstraints(!showConstraints)}
-                                className="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1"
-                            >
-                                {showConstraints ? 'הסתר פירוט' : 'הצג פירוט'}
-                                {showConstraints ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            </button>
-                        )}
-                    </div>
-
-                    {showConstraints && result.unfulfilledConstraints && (
-                        <div className="mt-2 pt-2 border-t border-amber-200/50 flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar">
-                            {result.unfulfilledConstraints.map((c, idx) => {
-                                const p = people.find(p => p.id === c.personId);
-                                return (
-                                    <div key={idx} className="text-xs text-amber-800 flex items-start gap-1.5 bg-white/50 p-1.5 rounded">
-                                        <XCircle size={12} className="mt-0.5 shrink-0 text-amber-600" />
-                                        <span>
-                                            <span className="font-bold">{p?.name || 'משתמש'}:</span> {c.reason} ({new Date(c.date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })})
-                                        </span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                            <span className="md:hidden">
+                                {result.stats.constraintStats.met}/{result.stats.constraintStats.total}
+                            </span>
+                        </button>
                     )}
-                </div>
-            )}
-
-            {/* Stats Summary */}
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[11px] md:text-sm shadow-sm">
-                <div className="font-black text-slate-700">ממוצע ללוחם:</div>
-                <div className="flex items-center gap-3">
-                    <span className="text-slate-600 bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
-                        בסיס: <span className="font-black text-emerald-600">{rosterStats.avgBase}</span>
-                    </span>
-                    <span className="text-slate-600 bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
-                        בית: <span className="font-black text-rose-600">{rosterStats.avgHome}</span>
-                    </span>
-                    <div className="w-px h-3 bg-slate-200" />
-                    <span className="text-slate-600">
-                        יחס: <span dir="ltr" className="font-black text-blue-600">{rosterStats.ratioStr}</span>
-                    </span>
                 </div>
             </div>
 
-            <div className="flex gap-2 w-full justify-between">
-                <div className="flex gap-2">
-                    <Button variant="ghost" onClick={() => setStep('config')} className="w-auto px-4 justify-center">
-                        <ArrowRight size={18} className="md:ml-2 ml-0" />
-                        <span className="hidden md:inline">חזרה</span>
-                    </Button>
-                    <Button variant="ghost" onClick={onClose} className="w-24 justify-center px-1">ביטול</Button>
-                </div>
+            {/* Right Side: Actions */}
+            <div className="flex gap-2 items-center">
+                <Button variant="ghost" onClick={onClose} className="h-10 text-xs md:text-sm px-2 text-slate-500">ביטול</Button>
                 <Button
                     onClick={handleSave}
                     isLoading={saving}
                     icon={Save}
                     data-testid="rota-wizard-save-btn"
-                    className="bg-green-600 text-white hover:bg-green-700 shadow-md w-[240px] justify-center font-black h-12 md:h-10"
+                    className="bg-green-600 text-white hover:bg-green-700 shadow-md h-10 px-4 text-xs md:text-sm font-black whitespace-nowrap"
                 >
-                    שמור
+                    שמור שיבוץ
                 </Button>
             </div>
         </div>
@@ -1170,10 +1158,22 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                         onChange={(val) => setSelectedTeamId(val)}
                                         options={[{ value: 'all', label: 'כל הצוותים' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
                                         placeholder="סינון לפי צוות"
-                                        className="py-1.5 pl-3 pr-9 text-sm w-[150px]"
+                                        className="py-1.5 pl-3 pr-9 text-sm w-[180px]" // Increased width
                                         icon={Filter}
                                         triggerMode="default"
                                     />
+                                    {/* Search Input */}
+                                    <div className="relative">
+                                        <input
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="חיפוש..."
+                                            className="h-9 pr-9 pl-3 text-sm border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 w-[140px] transition-all focus:w-[180px]"
+                                        />
+                                        <div className="absolute top-0 bottom-0 right-3 flex items-center pointer-events-none text-slate-400">
+                                            <Search size={14} />
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-slate-500">
                                     <div className="flex items-center gap-1">
@@ -1306,6 +1306,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                             {activePeople
                                                 .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId))
                                                 .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId))
+                                                .filter(p => !searchQuery || p.name.includes(searchQuery)) // Added Search Filter
                                                 .map((person, idx) => (
                                                     <div key={person.id} className={`flex border-b border-slate-50 hover:bg-slate-50 transition-colors h-14 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                                                         {/* Sticky Name Column */}
@@ -1632,9 +1633,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             >
                 <div className="py-4">
                     <StaffingAnalysis tasks={tasks} totalPeople={people.length} />
-                    <div className="mt-6 flex justify-end">
-                        <Button onClick={() => setShowTaskAnalysis(false)} variant="ghost">סגור</Button>
-                    </div>
                 </div>
             </Modal>
 
@@ -1665,6 +1663,92 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     <p className="text-sm text-slate-500">
                         האם ברצונך לשמור את הלוח כפי שהוא, או לחזור ולתקן את החריגות?
                     </p>
+                </div>
+            </Modal>
+
+            {/* Constraints Details Modal */}
+            <Modal
+                isOpen={showConstraintDetails}
+                onClose={() => setShowConstraintDetails(false)}
+                title="פירוט אילוצים וחריגות"
+                size="md"
+                footer={<Button variant="ghost" className="w-full" onClick={() => setShowConstraintDetails(false)}>סגור</Button>}
+            >
+                <div className="p-4 space-y-4">
+                    {result && result.stats.constraintStats && (
+                        <div className={`p-4 rounded-xl border flex flex-col items-center text-center gap-2 ${result.stats.constraintStats.percentage === 100 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                            {result.stats.constraintStats.percentage === 100 ? (
+                                <CheckCircle size={48} className="text-green-500 mb-2" />
+                            ) : (
+                                <AlertTriangle size={48} className="text-amber-500 mb-2" />
+                            )}
+                            <div className="text-2xl font-black">
+                                {result.stats.constraintStats.percentage}%
+                            </div>
+                            <div className="text-slate-600 font-bold">
+                                יעד עמידה באילוצים
+                            </div>
+                            <div className="text-sm text-slate-500">
+                                המערכת הצליחה למלא {result.stats.constraintStats.met} מתוך {result.stats.constraintStats.total} אילוצים אישיים שדווחו.
+                            </div>
+                        </div>
+                    )}
+
+                    {result?.unfulfilledConstraints && result.unfulfilledConstraints.length > 0 ? (
+                        <div className="space-y-2">
+                            <h4 className="font-bold text-slate-800 text-sm">חריגות שנמצאו:</h4>
+                            <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
+                                {result.unfulfilledConstraints.map((c, idx) => {
+                                    const p = people.find(p => p.id === c.personId);
+                                    return (
+                                        <div key={idx} className="p-3 flex gap-3 bg-white">
+                                            <div className="mt-1"><XCircle size={16} className="text-red-500" /></div>
+                                            <div>
+                                                <div className="font-bold text-slate-800 text-sm">{p?.name || 'לוחם לא ידוע'}</div>
+                                                <div className="text-xs text-slate-500">{new Date(c.date).toLocaleDateString('he-IL')} • {c.reason}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-slate-400">
+                            לא נמצאו חריגות. כל הלוחמים שובצו בהתאם לאילוצים שלהם.
+                        </div>
+                    )}
+                </div>
+            </Modal>
+
+            {/* Stats Details Modal */}
+            <Modal
+                isOpen={showStatsDetails}
+                onClose={() => setShowStatsDetails(false)}
+                title="סטטיסטיקות שיבוץ (ממוצע ללוחם)"
+                size="sm"
+                footer={<Button variant="ghost" className="w-full" onClick={() => setShowStatsDetails(false)}>סגור</Button>}
+            >
+                <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center text-center gap-1">
+                            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">ימים בבסיס</div>
+                            <div className="text-3xl font-black text-emerald-600">{rosterStats.avgBase}</div>
+                            <div className="text-[10px] text-emerald-800/60">ממוצע לתקופה</div>
+                        </div>
+                        <div className="bg-rose-50 p-4 rounded-xl border border-rose-100 flex flex-col items-center text-center gap-1">
+                            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">ימים בבית</div>
+                            <div className="text-3xl font-black text-rose-600">{rosterStats.avgHome}</div>
+                            <div className="text-[10px] text-rose-800/60">ממוצע לתקופה</div>
+                        </div>
+                    </div>
+
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col items-center text-center gap-2">
+                        <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">יחס כולל (תקן)</div>
+                        <div className="text-4xl font-black text-blue-600" dir="ltr">{rosterStats.ratioStr}</div>
+                        <div className="text-xs text-blue-800/60 max-w-[200px]">
+                            יחס זה מייצג את הממוצע הכולל של כלל הלוחמים בצוותים שנבחרו
+                        </div>
+                    </div>
                 </div>
             </Modal>
         </>
