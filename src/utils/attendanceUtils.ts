@@ -29,7 +29,7 @@ export const getEffectiveAvailability = (person: Person, date: Date, teamRotatio
     const dateKey = date.toLocaleDateString('en-CA');
 
     // 1. Manual Override & Absences
-    let unavailableBlocks: { id: string; start: string; end: string; reason?: string }[] = [];
+    let unavailableBlocks: { id: string; start: string; end: string; reason?: string; type?: string }[] = [];
     
     // A. Collect blocks from Absences (Approved/Pending)
     // We only care about Approved usually, but let's show all for visibility, or filter by approved?
@@ -54,7 +54,8 @@ export const getEffectiveAvailability = (person: Person, date: Date, teamRotatio
             id: a.id,
             start,
             end,
-            reason: a.reason || 'Absence'
+            reason: a.reason || 'Absence',
+            type: 'absence' as any
         });
     });
 

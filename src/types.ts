@@ -79,7 +79,7 @@ export interface AvailabilitySlot {
   endHour?: string;   // "17:00"
   source?: string;
   status?: string; // 'arrival' | 'departure' | 'base' | 'home'
-  unavailableBlocks?: { id: string; start: string; end: string; reason?: string }[];
+  unavailableBlocks?: { id: string; start: string; end: string; reason?: string; type?: string }[];
 }
 
 export interface DailyAvailability {
@@ -180,8 +180,8 @@ export interface UserPermissions {
   dataScope: DataScope;
   allowedTeamIds?: string[]; // IDs of teams the user can access if scope is 'team'
   screens: Partial<Record<ViewMode, AccessLevel>>; // Per-screen access overrides
-  canManageUsers: boolean;
-  canManageSettings: boolean;
+  canApproveRequests?: boolean;
+  canManageRotaWizard?: boolean;
 }
 
 export interface Profile {
@@ -266,6 +266,8 @@ export interface Absence {
   end_time?: string;   // "HH:MM", defaults to "23:59"
   reason?: string;
   status?: 'pending' | 'approved' | 'rejected' | 'conflict';
+  approved_by?: string; // Profile ID
+  approved_at?: string; // ISO Date
   created_at?: string;
 }
 

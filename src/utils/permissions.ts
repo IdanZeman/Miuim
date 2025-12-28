@@ -77,7 +77,13 @@ export const SYSTEM_ROLE_PRESETS: {
         description: 'גישה מלאה לניהול הארגון והמשתמשים',
         colorClass: 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-100',
         permissions: (def) => {
-            const p = { ...def, dataScope: 'organization' as const, screens: {} as Record<ViewMode, any>, canManageUsers: true, canManageSettings: true };
+            const p = { 
+                ...def, 
+                dataScope: 'organization' as const, 
+                screens: {} as Record<ViewMode, any>, 
+                canApproveRequests: true,
+                canManageRotaWizard: true
+            };
             ['dashboard', 'personnel', 'tasks', 'attendance', 'stats', 'constraints', 'lottery', 'equipment', 'logs', 'settings'].forEach(s => p.screens[s as ViewMode] = 'edit');
             return p;
         }
@@ -88,7 +94,13 @@ export const SYSTEM_ROLE_PRESETS: {
         description: 'עריכת שיבוצים ומשימות, ללא גישה להגדרות',
         colorClass: 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-100',
         permissions: (def) => {
-            const p = { ...def, dataScope: 'organization' as const, screens: {} as Record<ViewMode, any>, canManageUsers: false, canManageSettings: false };
+            const p = { 
+                ...def, 
+                dataScope: 'organization' as const, 
+                screens: {} as Record<ViewMode, any>, 
+                canApproveRequests: true,
+                canManageRotaWizard: true
+            };
             ['dashboard', 'personnel', 'tasks', 'attendance', 'stats', 'constraints', 'lottery', 'equipment'].forEach(s => p.screens[s as ViewMode] = 'edit');
             p.screens['settings'] = 'none';
             p.screens['logs'] = 'none';
@@ -101,7 +113,13 @@ export const SYSTEM_ROLE_PRESETS: {
         description: 'צפייה בלוח השיבוצים והנתונים',
         colorClass: 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200',
         permissions: (def) => {
-            const p = { ...def, dataScope: 'organization' as const, screens: {} as Record<ViewMode, any>, canManageUsers: false, canManageSettings: false };
+            const p = { 
+                ...def, 
+                dataScope: 'organization' as const, 
+                screens: {} as Record<ViewMode, any>, 
+                canApproveRequests: false,
+                canManageRotaWizard: false
+            };
             ['dashboard', 'stats', 'attendance', 'lottery', 'equipment'].forEach(s => p.screens[s as ViewMode] = 'view');
             ['personnel', 'tasks', 'constraints', 'logs', 'settings'].forEach(s => p.screens[s as ViewMode] = 'none');
             return p;
@@ -113,7 +131,13 @@ export const SYSTEM_ROLE_PRESETS: {
         description: 'ניהול נוכחות בלבד',
         colorClass: 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-100',
         permissions: (def) => {
-            const p = { ...def, dataScope: 'organization' as const, screens: {} as Record<ViewMode, any>, canManageUsers: false, canManageSettings: false };
+            const p = { 
+                ...def, 
+                dataScope: 'organization' as const, 
+                screens: {} as Record<ViewMode, any>, 
+                canApproveRequests: true,
+                canManageRotaWizard: false
+            };
             Object.keys(def.screens).forEach(k => p.screens[k as ViewMode] = 'none');
             p.screens['attendance'] = 'edit';
             p.screens['dashboard'] = 'view';

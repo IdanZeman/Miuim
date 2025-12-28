@@ -14,6 +14,7 @@ import { SheetModal } from '../../components/ui/SheetModal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { TimePicker } from '@/components/ui/DatePicker';
 
 interface ScheduleItem {
     id: string;
@@ -41,56 +42,11 @@ interface WarClockProps {
     roles: Role[];
 }
 
-const CustomTimePicker = ({ label, value, onChange }: { label: string, value: string, onChange: (val: string) => void }) => {
-    const inputRef = React.useRef<HTMLInputElement>(null);
-
-    return (
-        <div className="flex flex-col gap-1.5 w-full">
-            <span className="text-xs font-bold text-slate-500 mr-1">{label}</span>
-            <div
-                className="relative flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl p-3 cursor-pointer transition-all duration-200 shadow-sm hover:shadow group w-full"
-                onClick={() => {
-                    if (inputRef.current) {
-                        try {
-                            if ('showPicker' in inputRef.current) {
-                                (inputRef.current as any).showPicker();
-                            } else {
-                                (inputRef.current as HTMLInputElement).focus();
-                                (inputRef.current as HTMLInputElement).click();
-                            }
-                        } catch (e) {
-                            inputRef.current.click();
-                        }
-                    }
-                }}
-            >
-                <div className="bg-blue-50 text-blue-600 p-2 rounded-lg group-hover:bg-blue-100 transition-colors">
-                    <Clock size={18} />
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-sm font-black text-slate-700 group-hover:text-blue-700 transition-colors">
-                        {value}
-                    </span>
-                    <span className="text-[10px] font-medium text-slate-400">
-                        שעה
-                    </span>
-                </div>
-                <input
-                    ref={inputRef}
-                    type="time"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                />
-            </div>
-        </div>
-    );
-};
 
 export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) => {
-    const { profile, organization } = useAuth();
+    const { profile, organization, checkAccess } = useAuth();
     const { showToast } = useToast();
-    const canEdit = profile?.role === 'admin' || profile?.role === 'editor' || profile?.permissions?.canManageSettings;
+    const canEdit = profile?.role === 'admin' || profile?.role === 'editor' || checkAccess('dashboard', 'edit');
 
     const [items, setItems] = useState<ScheduleItem[]>([]);
     const [isEditing, setIsEditing] = useState(false);
@@ -316,18 +272,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     }, [filteredItems]);
 
 
-    // Auto-scroll to active item on mount/open
-    useEffect(() => {
-        if (isOpen && scrollContainerRef.current) {
-            // We need a small timeout to allow rendering to complete
-            setTimeout(() => {
-                const activeItem = document.getElementById('war-clock-active-item');
-                if (activeItem) {
-                    activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 100);
-        }
-    }, [isOpen, timelineData]);
+
 
     const getItemColor = (item: ScheduleItem) => {
         let rawColor = '';
@@ -438,6 +383,8 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                 key={day.id}
                                 onClick={() => setSelectedDay(day.id)}
                                 className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${selectedDay === day.id ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                aria-label={`הצג יום ${day.full}`}
+                                aria-pressed={selectedDay === day.id}
                             >
                                 {day.label}
                             </button>
@@ -568,6 +515,16 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                                                                 borderBottomColor: '#e2e8f0'
                                                                             }}
                                                                             onClick={() => { if (canEdit) { setEditItem(item); setIsEditing(true); } }}
+                                                                            tabIndex={0}
+                                                                            role="button"
+                                                                            aria-label={`${item.description} מ-${item.startTime} עד ${item.endTime}${item.isNow ? ', פעיל עכשיו' : ''}`}
+                                                                            onKeyDown={(e) => {
+                                                                                if (canEdit && (e.key === 'Enter' || e.key === ' ')) {
+                                                                                    e.preventDefault();
+                                                                                    setEditItem(item);
+                                                                                    setIsEditing(true);
+                                                                                }
+                                                                            }}
                                                                         >
                                                                             <div className="p-3 flex flex-col h-full justify-between gap-2">
                                                                                 <div>
@@ -729,20 +686,16 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
             >
                 <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-2 md:gap-4">
-                        <div>
-                            <CustomTimePicker
-                                label="התחלה"
-                                value={editItem.startTime || ''}
-                                onChange={val => setEditItem({ ...editItem, startTime: val })}
-                            />
-                        </div>
-                        <div>
-                            <CustomTimePicker
-                                label="סיום"
-                                value={editItem.endTime || ''}
-                                onChange={val => setEditItem({ ...editItem, endTime: val })}
-                            />
-                        </div>
+                        <TimePicker
+                            label="התחלה"
+                            value={editItem.startTime || ''}
+                            onChange={val => setEditItem({ ...editItem, startTime: val })}
+                        />
+                        <TimePicker
+                            label="סיום"
+                            value={editItem.endTime || ''}
+                            onChange={val => setEditItem({ ...editItem, endTime: val })}
+                        />
                     </div>
 
                     <div className="space-y-2">
@@ -765,6 +718,8 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                             setEditItem({ ...editItem, daysOfWeek: newDays });
                                         }}
                                         className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${isSelected ? 'bg-blue-500 text-white shadow-md shadow-blue-200 scale-105' : 'text-slate-400 hover:bg-white hover:text-slate-600'}`}
+                                        aria-label={day.full}
+                                        aria-pressed={isSelected}
                                     >
                                         {day.label}
                                     </button>

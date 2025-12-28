@@ -122,8 +122,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             permissions: {
               dataScope: 'personal',
               screens: {},
-              canManageUsers: false,
-              canManageSettings: false
+              canApproveRequests: false,
+              canManageRotaWizard: false
             },
             organization_id: existingPerson?.organization_id || null,
             created_at: new Date().toISOString()

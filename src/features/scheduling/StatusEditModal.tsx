@@ -25,7 +25,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     const [customEnd, setCustomEnd] = useState(defaultDepartureHour);
 
     // Blocks State
-    const [unavailableBlocks, setUnavailableBlocks] = useState<{ id: string, start: string, end: string, reason?: string }[]>([]);
+    const [unavailableBlocks, setUnavailableBlocks] = useState<{ id: string, start: string, end: string, reason?: string, type?: string }[]>([]);
 
     // UI State
     const [customType, setCustomType] = useState<null | 'arrival' | 'departure' | 'custom'>(null);
@@ -189,12 +189,12 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                 )}
 
                 <div className="space-y-1.5 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
-                    {unavailableBlocks.length === 0 && !isAddingBlock && (
+                    {unavailableBlocks.filter(b => b.type !== 'absence').length === 0 && !isAddingBlock && (
                         <div className="text-center py-4 text-xs text-slate-300 font-bold border border-dashed border-slate-100 rounded-lg">
                             אין חסימות להיום
                         </div>
                     )}
-                    {unavailableBlocks.sort((a, b) => a.start.localeCompare(b.start)).map(block => (
+                    {unavailableBlocks.filter(b => b.type !== 'absence').sort((a, b) => a.start.localeCompare(b.start)).map(block => (
                         <div
                             key={block.id}
                             onClick={() => handleEditBlock(block)}

@@ -19,7 +19,7 @@ type PoolType = 'all' | 'team' | 'role' | 'manual';
 const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }: { sizeClass: string, rotation: number, isSpinning: boolean, candidates: Person[], wheelColors: string[] }) => (
     <div className="relative">
         {/* Pointer */}
-        <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 text-slate-800 filter drop-shadow-lg">
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 text-slate-800 filter drop-shadow-lg" aria-hidden="true">
             <div className="w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-t-[30px] border-t-red-500"></div>
         </div>
 
@@ -76,7 +76,7 @@ const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }:
                 <Dices size={20} />
             </div>
         </div>
-    </div>
+    </div >
 );
 
 export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
@@ -415,7 +415,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                         onClick={() => setShowHistory(!showHistory)}
                         className={`p-3 rounded-xl border transition-all ${showHistory ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
                     >
-                        <Trophy size={20} />
+                        <Trophy size={20} aria-hidden="true" />
                     </button>
                 </div>
 
@@ -453,7 +453,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                                 ) : mode === 'multiple' ? (
                                     <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold text-center p-4">
                                         {isSpinning ? (
-                                            <div className="animate-pulse text-indigo-500 font-bold text-xl">
+                                            <div className="animate-pulse text-indigo-500 font-bold text-xl" role="status" aria-live="polite">
                                                 ...מגריל...
                                             </div>
                                         ) : (
@@ -470,14 +470,14 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                             {/* Winner / Status Display */}
                             <div className="text-center mb-6 min-h-[4rem]">
                                 {winners.length > 0 && !isSpinning ? (
-                                    <div className="animate-bounce-in">
+                                    <div className="animate-bounce-in" role="alert" aria-live="assertive">
                                         <p className="text-sm font-bold text-slate-400 mb-1">הזוכה הוא:</p>
                                         <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
                                             {winners[0].name}
                                         </h2>
                                     </div>
                                 ) : isSpinning ? (
-                                    <div className="animate-pulse text-indigo-500 font-bold text-xl">
+                                    <div className="animate-pulse text-indigo-500 font-bold text-xl" role="status">
                                         ...מגריל...
                                     </div>
                                 ) : (
@@ -538,7 +538,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                         ) : mode === 'multiple' ? (
                             <div className="w-[280px] h-[280px] lg:w-[350px] lg:h-[350px] xl:w-[450px] xl:h-[450px] rounded-full border-4 border-dashed border-white/30 flex items-center justify-center text-white/50 font-bold text-xl text-center p-8">
                                 {isSpinning ? (
-                                    <div className="animate-pulse text-white font-bold text-3xl">
+                                    <div className="animate-pulse text-white font-bold text-3xl" role="status" aria-live="polite">
                                         ...מגריל...
                                     </div>
                                 ) : (
@@ -554,7 +554,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
 
                     {/* Winner Display Desktop */}
                     {winners.length > 0 && !isSpinning && (
-                        <div className="absolute bottom-6 lg:bottom-12 z-50 bg-white/10 backdrop-blur-lg border border-white/20 px-8 lg:px-12 py-4 lg:py-6 rounded-2xl text-center animate-bounce-in shadow-xl max-w-[90%]">
+                        <div className="absolute bottom-6 lg:bottom-12 z-50 bg-white/10 backdrop-blur-lg border border-white/20 px-8 lg:px-12 py-4 lg:py-6 rounded-2xl text-center animate-bounce-in shadow-xl max-w-[90%]" role="alert" aria-live="assertive">
                             <p className="text-indigo-200 font-bold mb-2 uppercase tracking-widest text-xs lg:text-sm">המנצח הוא</p>
                             <h2 className="text-3xl lg:text-5xl font-black text-white drop-shadow-lg truncate">{winners[0].name}</h2>
                         </div>

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Globe, Check, Shield, Users, Lock, Layout, UserCircle, Info, Anchor, Gavel, Activity, Settings, CheckCircle } from 'lucide-react';
-import { UserPermissions, Team, ViewMode } from '../types';
+import { Globe, Check, Shield, Users, Lock, Layout, UserCircle, Info, Anchor, Gavel, Activity, Settings, CheckCircle, Zap } from 'lucide-react';
+import { UserPermissions, Team, ViewMode } from '../../types';
 
 const SCREENS: { id: ViewMode; label: string; icon: any }[] = [
     { id: 'dashboard', label: 'לוח שיבוצים', icon: Layout },
@@ -82,6 +82,37 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
                         )}
                     </div>
                 )}
+            </section>
+
+            {/* Advanced Capabilities */}
+            <section className="space-y-4">
+                <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <Shield size={14} />
+                    יכולות מתקדמות (Capabilities)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${permissions.canApproveRequests ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-white border-slate-200 hover:border-emerald-300'}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${permissions.canApproveRequests ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                            <CheckCircle size={20} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="font-bold text-slate-800 text-sm">אישור בקשות יציאה</div>
+                            <div className="text-[10px] text-slate-500">יכולת לאשר או לדחות בקשות יציאה של חיילים</div>
+                        </div>
+                        <input type="checkbox" className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500" checked={!!permissions.canApproveRequests} onChange={(e) => setPermissions(p => ({ ...p, canApproveRequests: e.target.checked }))} />
+                    </label>
+
+                    <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${permissions.canManageRotaWizard ? 'bg-orange-50 border-orange-200 shadow-sm' : 'bg-white border-slate-200 hover:border-orange-300'}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${permissions.canManageRotaWizard ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'}`}>
+                            <Zap size={20} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="font-bold text-slate-800 text-sm">ניהול מחולל סבבים</div>
+                            <div className="text-[10px] text-slate-500">יכולת להגדיר ולהפעיל את מחולל הסבבים האוטומטי</div>
+                        </div>
+                        <input type="checkbox" className="w-5 h-5 rounded text-orange-600 focus:ring-orange-500" checked={!!permissions.canManageRotaWizard} onChange={(e) => setPermissions(p => ({ ...p, canManageRotaWizard: e.target.checked }))} />
+                    </label>
+                </div>
             </section>
 
             <section>

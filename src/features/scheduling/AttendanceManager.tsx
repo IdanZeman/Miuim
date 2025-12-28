@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
-import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, Wand2, Sparkles } from 'lucide-react';
+import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, Wand2, Sparkles, Users, MoreVertical, Download } from 'lucide-react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { GlobalTeamCalendar } from './GlobalTeamCalendar';
@@ -14,6 +14,7 @@ import { BulkAttendanceModal } from './BulkAttendanceModal';
 import { useToast } from '@/contexts/ToastContext';
 import { RotaWizardModal } from './RotaWizardModal';
 import { PageInfo } from '@/components/ui/PageInfo';
+import { useAuth } from '@/features/auth/AuthContext';
 
 interface AttendanceManagerProps {
     people: Person[];
@@ -41,12 +42,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
     isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction
 }) => {
+    const activePeople = people.filter(p => p.isActive !== false);
+    const { profile } = useAuth();
     const { showToast } = useToast();
-    const [viewMode, setViewMode] = useState<'calendar' | 'day_detail'>('calendar');
+    const [viewMode, setViewMode] = useState<'calendar' | 'table' | 'day_detail'>('calendar');
     const [calendarViewType, setCalendarViewType] = useState<'grid' | 'table'>('grid'); // NEW: sub-view for calendar
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [viewDate, setViewDate] = useState(new Date()); // Lifted state for calendar view
-    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [searchTerm, setSearchTerm] = useState('');
     const [showRotationSettings, setShowRotationSettings] = useState<string | null>(null);
     const [selectedPersonForCalendar, setSelectedPersonForCalendar] = useState<Person | null>(null);
@@ -58,6 +61,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [showRotaWizard, setShowRotaWizard] = useState(initialOpenRotaWizard); // Initialize from prop
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+    const [showMoreActions, setShowMoreActions] = useState(false);
 
     useEffect(() => {
         if (initialOpenRotaWizard && onDidConsumeInitialAction) {
@@ -126,7 +131,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         onUpdatePerson(updatedPerson);
     };
 
-    const filteredPeople = people.filter(p => p.name.includes(searchTerm));
+    const filteredPeople = activePeople.filter(p => p.name.includes(searchTerm) || (p.phone && p.phone.includes(searchTerm)));
 
     let peopleByTeam = teams.map(team => ({
         team,
@@ -182,7 +187,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         const start = new Date(data.startDate);
         const end = new Date(data.endDate);
 
-        people.forEach(person => {
+        activePeople.forEach(person => {
             if (selectedPersonIds.has(person.id)) {
                 let updatedPerson = { ...person };
                 let current = new Date(start);
@@ -289,6 +294,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     };
 
     const handleExport = () => {
+        if (isViewer) {
+            showToast('אין לך הרשאה לייצא נתונים', 'error');
+            return;
+        }
         if (viewMode === 'calendar') {
             // Export Month
             const year = viewDate.getFullYear();
@@ -510,6 +519,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 }}
                                 onUpdateAvailability={handleUpdateAvailability}
                                 className="h-full"
+                                isViewer={isViewer}
                             />
                         </div>
                     )}
@@ -547,69 +557,185 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 <CalendarDays size={16} />
-                                תצוגה לוח שנה
+                                לוח שנה
+                            </button>
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <ListChecks size={16} />
+                                טבלה חודשית
                             </button>
                             <button
                                 onClick={() => setViewMode('day_detail')}
-                                data-testid="list-view-btn"
                                 className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'day_detail' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                <ListChecks size={16} />
-                                תצוגה רשימה
+                                <Users size={16} />
+                                רשימה יומית
                             </button>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        {/* Desktop Date Controls */}
-                        <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                        {/* Expandable Search */}
+                        {viewMode !== 'calendar' && (
+                            <div className={`relative transition-all duration-300 ease-in-out ${isSearchExpanded || searchTerm ? 'w-32' : 'w-9'}`}>
+                                {isSearchExpanded || searchTerm ? (
+                                    <div className="relative w-full">
+                                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            placeholder="חיפוש..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            onBlur={() => { if (!searchTerm) setIsSearchExpanded(false); }}
+                                            className="w-full pr-9 pl-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm"
+                                        />
+                                        <button
+                                            onClick={() => { setSearchTerm(''); setIsSearchExpanded(false); }}
+                                            className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setIsSearchExpanded(true)}
+                                        className="w-9 h-9 flex items-center justify-center bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-500 transition-colors"
+                                    >
+                                        <Search size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Grouped Date Controls with "Today" button */}
+                        <div className="flex items-center bg-slate-50 p-1 rounded-lg border border-slate-200 gap-1">
                             <button
                                 onClick={() => {
-                                    const d = viewMode === 'calendar' ? viewDate : selectedDate;
-                                    const setter = viewMode === 'calendar' ? setViewDate : setSelectedDate;
-                                    setter(new Date(d.getFullYear(), d.getMonth() - 1, 1));
+                                    if (viewMode === 'day_detail') {
+                                        const next = new Date(selectedDate);
+                                        next.setDate(selectedDate.getDate() - 1);
+                                        setSelectedDate(next);
+                                    } else {
+                                        const d = viewMode === 'calendar' ? viewDate : selectedDate;
+                                        const setter = viewMode === 'calendar' ? setViewDate : setSelectedDate;
+                                        setter(new Date(d.getFullYear(), d.getMonth() - 1, 1));
+                                    }
                                 }}
-                                className="p-1 hover:bg-white rounded shadow-sm"
+                                className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
                             >
-                                <ChevronRight size={18} />
+                                <ChevronRight size={16} />
                             </button>
 
-                            <span className="font-bold min-w-[120px] text-center">
-                                {(viewMode === 'calendar' ? viewDate : selectedDate).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}
-                            </span>
+                            <div className="relative group cursor-pointer flex items-center justify-center px-2">
+                                <span
+                                    onClick={() => {
+                                        const input = document.getElementById('header-date-picker') as HTMLInputElement;
+                                        if (input) input.showPicker ? input.showPicker() : input.click();
+                                    }}
+                                    className="text-sm font-black text-slate-700 min-w-[100px] text-center py-1 hover:text-blue-600 transition-colors"
+                                >
+                                    {viewMode === 'day_detail'
+                                        ? selectedDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })
+                                        : (viewMode === 'calendar' ? viewDate : selectedDate).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })
+                                    }
+                                </span>
+                                <input
+                                    id="header-date-picker"
+                                    type={viewMode === 'day_detail' ? "date" : "month"}
+                                    className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
+                                    value={
+                                        viewMode === 'day_detail'
+                                            ? selectedDate.toLocaleDateString('en-CA')
+                                            : (viewMode === 'calendar' ? viewDate : selectedDate).toISOString().slice(0, 7)
+                                    }
+                                    onChange={(e) => {
+                                        if (!e.target.value) return;
+                                        let newDate;
+                                        if (viewMode === 'day_detail') {
+                                            newDate = new Date(e.target.value);
+                                        } else {
+                                            const [y, m] = e.target.value.split('-').map(Number);
+                                            newDate = new Date(y, m - 1, 1);
+                                        }
+
+                                        if (isNaN(newDate.getTime())) return;
+                                        if (viewMode === 'day_detail') {
+                                            setSelectedDate(newDate);
+                                        } else {
+                                            if (viewMode === 'calendar') setViewDate(newDate);
+                                            else setSelectedDate(newDate);
+                                        }
+                                    }}
+                                />
+                            </div>
 
                             <button
                                 onClick={() => {
-                                    const d = viewMode === 'calendar' ? viewDate : selectedDate;
-                                    const setter = viewMode === 'calendar' ? setViewDate : setSelectedDate;
-                                    setter(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+                                    if (viewMode === 'day_detail') {
+                                        const next = new Date(selectedDate);
+                                        next.setDate(selectedDate.getDate() + 1);
+                                        setSelectedDate(next);
+                                    } else {
+                                        const d = viewMode === 'calendar' ? viewDate : selectedDate;
+                                        const setter = viewMode === 'calendar' ? setViewDate : setSelectedDate;
+                                        setter(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+                                    }
                                 }}
-                                className="p-1 hover:bg-white rounded shadow-sm"
+                                className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
                             >
-                                <ChevronLeft size={18} />
+                                <ChevronLeft size={16} />
+                            </button>
+
+                            <div className="w-px h-5 bg-slate-200 mx-1" />
+
+                            <button
+                                onClick={() => {
+                                    const now = new Date();
+                                    setViewDate(now);
+                                    setSelectedDate(now);
+                                }}
+                                className="px-2 py-0.5 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded transition-colors whitespace-nowrap"
+                            >
+                                {viewMode === 'day_detail' ? 'היום' : 'החודש'}
                             </button>
                         </div>
 
-                        <button
-                            onClick={() => {
-                                const now = new Date();
-                                setViewDate(now);
-                                setSelectedDate(now);
-                            }}
-                            className="px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-sm font-bold transition-colors"
-                        >
-                            חודש נוכחי
-                        </button>
-                        {!isViewer && (
+                        {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
                             <button
                                 onClick={() => setShowRotaWizard(true)}
                                 data-testid="open-rota-wizard-btn"
-                                className="px-3 py-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 border border-amber-100"
+                                className="px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 border border-amber-100"
                             >
                                 <Sparkles size={16} />
                                 מחולל סבבים
                             </button>
                         )}
-                        <button onClick={handleExport} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 text-sm font-bold transition-colors">ייצוא</button>
+                        {/* More Actions Menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowMoreActions(!showMoreActions)}
+                                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors border ${showMoreActions ? 'bg-slate-100 border-slate-300 text-slate-800' : 'bg-white border-transparent hover:bg-slate-50 text-slate-500'}`}
+                            >
+                                <MoreVertical size={18} />
+                            </button>
+
+                            {showMoreActions && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowMoreActions(false)} />
+                                    <div className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                                        <button
+                                            onClick={() => { handleExport(); setShowMoreActions(false); }}
+                                            className="w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                                        >
+                                            <Download size={16} className="text-slate-400" />
+                                            ייצוא לאקסל
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -640,12 +766,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 absences={absences}
                                 currentDate={selectedDate}
                                 onDateChange={setSelectedDate}
+                                viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
                                 onSelectPerson={(p) => {
                                     if (isBulkMode) handleToggleSelectPerson(p.id);
                                     else setSelectedPersonForCalendar(p);
                                 }}
                                 onUpdateAvailability={isViewer ? undefined : handleUpdateAvailability}
                                 className="h-full"
+                                isViewer={isViewer}
                             />
                         </div>
                     )}
@@ -701,7 +829,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 <RotaWizardModal
                     isOpen={showRotaWizard}
                     onClose={() => setShowRotaWizard(false)}
-                    people={people}
+                    people={activePeople}
                     teams={teams}
                     tasks={tasks}
                     constraints={constraints}

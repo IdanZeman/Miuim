@@ -187,13 +187,14 @@ export const LandingPage: React.FC = () => {
                 {/* Background Image */}
                 <div className="absolute inset-0 z-0">
                     <img
-                        src="/images/landing-hero-new.png"
+                        src="/images/landing-hero-new.webp"
                         alt="Background"
                         className="w-full h-full object-cover"
+                        loading="lazy"
                     />
-                    {/* Gradient Overlays */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-transparent"></div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-80"></div>
+                    {/* Gradient Overlays - Strengthened for accessibility legibility */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-transparent"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-90"></div>
                 </div>
 
                 {/* Content */}
@@ -206,7 +207,7 @@ export const LandingPage: React.FC = () => {
 
                         <h1 className="text-5xl md:text-7xl font-black text-white leading-[1.1] tracking-tight drop-shadow-2xl">
                             עושים סדר <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFD700] to-amber-500">בבלאגן בפלוגה</span>
+                            <span className="text-[#FFD700] drop-shadow-lg">בבלאגן בפלוגה</span>
                         </h1>
 
                         <p className="text-lg md:text-2xl text-slate-300 font-light leading-relaxed max-w-xl">
@@ -217,9 +218,10 @@ export const LandingPage: React.FC = () => {
                         <div className="flex flex-col sm:flex-row gap-4 pt-4">
                             <button
                                 onClick={() => setShowLoginModal(true)}
-                                className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-green-900/20 hover:shadow-green-900/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-3"
+                                className="bg-[#FFD700] hover:bg-[#F4C430] text-slate-950 px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-amber-900/20 hover:shadow-amber-900/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-3"
+                                aria-label="תעבור מאקסלים לשליטה בזמן אמת"
                             >
-                                <span>התחל שימוש</span>
+                                <span>תעבור מאקסלים לשליטה בזמן אמת</span>
                                 <ArrowLeft className="group-hover:-translate-x-1 transition-transform" />
                             </button>
 

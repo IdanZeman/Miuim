@@ -158,8 +158,11 @@ export const Select: React.FC<SelectProps> = ({
                         ${className}
                     `}
                     title={placeholder}
+                    aria-label={label || placeholder}
+                    aria-haspopup="listbox"
+                    aria-expanded={isOpen}
                 >
-                    {Icon ? <Icon size={20} /> : <Filter size={20} />}
+                    {Icon ? <Icon size={20} aria-hidden="true" /> : <Filter size={20} aria-hidden="true" />}
                 </button>
             ) : (
                 <button
@@ -171,6 +174,9 @@ export const Select: React.FC<SelectProps> = ({
                         ${disabled ? 'opacity-60 cursor-not-allowed bg-slate-100' : 'cursor-pointer'}
                         ${className}
                     `}
+                    aria-haspopup="listbox"
+                    aria-expanded={isOpen}
+                    aria-label={label || placeholder}
                 >
                     <span className={`block truncate ${!selectedOption ? 'text-slate-400 font-normal' : ''}`}>
                         {selectedOption ? selectedOption.label : placeholder}
@@ -179,13 +185,13 @@ export const Select: React.FC<SelectProps> = ({
                     {/* Left Icon */}
                     {Icon && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                            <Icon size={18} />
+                            <Icon size={18} aria-hidden="true" />
                         </div>
                     )}
 
                     {/* Chevron Icon */}
                     <div className={`absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-500' : ''}`}>
-                        <ChevronDown size={18} />
+                        <ChevronDown size={18} aria-hidden="true" />
                     </div>
                 </button>
             )}
@@ -195,6 +201,8 @@ export const Select: React.FC<SelectProps> = ({
                 <div
                     ref={dropdownRef} // NEW: Attach ref here
                     className="fixed z-[100000] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100 origin-top"
+                    role="listbox"
+                    aria-label={label || placeholder}
                     style={{
                         top: position.isTop ? 'auto' : position.top,
                         bottom: position.isTop ? (window.innerHeight - position.top) : 'auto',
@@ -207,7 +215,7 @@ export const Select: React.FC<SelectProps> = ({
                     {searchable && (
                         <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10">
                             <div className="relative">
-                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} aria-hidden="true" />
                                 <input
                                     ref={searchInputRef}
                                     type="text"
@@ -217,6 +225,7 @@ export const Select: React.FC<SelectProps> = ({
                                     className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-sans"
                                     onClick={(e) => e.stopPropagation()}
                                     autoFocus
+                                    aria-label="חיפוש באפשרויות"
                                 />
                             </div>
                         </div>
@@ -234,13 +243,15 @@ export const Select: React.FC<SelectProps> = ({
                                         : 'text-slate-700 hover:bg-slate-50'
                                     }
                                 `}
+                                role="option"
+                                aria-selected={option.value === value}
                             >
                                 <span className="flex items-center gap-2 truncate">
-                                    {option.icon && <span className="text-slate-400 group-hover:text-slate-500">{option.icon}</span>}
+                                    {option.icon && <span className="text-slate-400 group-hover:text-slate-500" aria-hidden="true">{option.icon}</span>}
                                     {option.label}
                                 </span>
                                 {option.value === value && (
-                                    <Check size={16} className="text-blue-600" />
+                                    <Check size={16} className="text-blue-600" aria-hidden="true" />
                                 )}
                             </button>
                         ))}

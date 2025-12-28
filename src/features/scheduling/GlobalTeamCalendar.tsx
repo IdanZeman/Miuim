@@ -52,7 +52,7 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
             const isToday = new Date().toDateString() === date.toDateString();
 
             // Filter Data
-            const relevantPeople = people.filter(p => !p.teamId || selectedTeamIds.has(p.teamId || 'no-team'));
+            const relevantPeople = people.filter(p => (p.isActive !== false) && (!p.teamId || selectedTeamIds.has(p.teamId || 'no-team')));
             let totalPeople = 0;
             let presentPeople = 0;
             relevantPeople.forEach(person => {

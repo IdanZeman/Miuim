@@ -106,8 +106,8 @@ const JoinPage: React.FC = () => {
     if (error) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 p-4">
-                <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center border-2 border-red-100 animate-in zoom-in-95 duration-300">
-                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center border-2 border-red-100 animate-in zoom-in-95 duration-300" role="alert">
+                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner" aria-hidden="true">
                         <AlertCircle className="w-10 h-10 text-red-600" />
                     </div>
                     <h1 className="text-2xl font-bold text-slate-800 mb-2">שגיאה</h1>
@@ -125,14 +125,14 @@ const JoinPage: React.FC = () => {
             <div className="m-auto max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 md:p-10 text-center border border-white/50 relative overflow-hidden animate-in fade-in zoom-in-95 duration-500">
 
                 {/* Decorative Background Elements */}
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-500 via-teal-500 to-blue-500"></div>
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-green-100 rounded-full blur-3xl opacity-50"></div>
-                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-100 rounded-full blur-3xl opacity-50"></div>
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-500 via-teal-500 to-blue-500" aria-hidden="true"></div>
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-green-100 rounded-full blur-3xl opacity-50" aria-hidden="true"></div>
+                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-100 rounded-full blur-3xl opacity-50" aria-hidden="true"></div>
 
                 {/* IDF Style Logo */}
                 <div className="relative mb-8">
                     <div className="w-24 h-24 md:w-28 md:h-28 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-lg overflow-hidden p-4 border border-slate-100">
-                        <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
+                        <img src="/favicon.png" alt="לוגו האפליקציה" className="w-full h-full object-contain" />
                     </div>
                 </div>
 
@@ -163,9 +163,10 @@ const JoinPage: React.FC = () => {
                         <button
                             onClick={handleJoin}
                             disabled={joining}
+                            aria-busy={joining}
                             className="w-full group relative bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden"
                         >
-                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" aria-hidden="true"></div>
                             <div className="relative flex items-center justify-center gap-2">
                                 {joining ? (
                                     <>
@@ -202,7 +203,7 @@ const JoinPage: React.FC = () => {
                             }}
                             className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 hover:border-slate-300 hover:shadow-md px-6 py-4 rounded-xl font-bold text-slate-700 transition-all duration-200 group"
                         >
-                            <svg className="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" aria-hidden="true">
                                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />

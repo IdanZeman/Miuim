@@ -6,7 +6,7 @@ import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, Schedul
 import { generateRoster, RosterGenerationResult, PersonHistory } from '@/utils/rotaGenerator';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Sparkles, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock, Calculator } from 'lucide-react';
+import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Search, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock, Calculator, Info, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect';
 import { useToast } from '@/contexts/ToastContext';
@@ -14,6 +14,8 @@ import { supabase } from '@/services/supabaseClient';
 import { mapShiftToDB } from '@/services/supabaseClient';
 import { Select } from '@/components/ui/Select';
 import { StaffingAnalysis } from '@/features/stats/StaffingAnalysis';
+import { StatusEditModal } from './StatusEditModal';
+import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
 
 interface RotaWizardModalProps {
     isOpen: boolean;
@@ -28,103 +30,12 @@ interface RotaWizardModalProps {
     onSaveRoster?: (data: DailyPresence[]) => void;
 }
 
-const CustomDatePicker = ({ label, value, onChange }: { label: string, value: string, onChange: (val: string) => void }) => {
-    const inputRef = React.useRef<HTMLInputElement>(null);
-    const dateObj = new Date(value);
-
-    return (
-        <div className="flex flex-col gap-1.5 w-full">
-            <span className="text-xs font-bold text-slate-500 mr-1">{label}</span>
-            <div
-                className="relative flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl p-3 cursor-pointer transition-all duration-200 shadow-sm hover:shadow group w-full"
-                onClick={() => {
-                    if (inputRef.current) {
-                        try {
-                            if ('showPicker' in inputRef.current) {
-                                (inputRef.current as any).showPicker();
-                            } else {
-                                (inputRef.current as HTMLInputElement).focus();
-                                (inputRef.current as HTMLInputElement).click();
-                            }
-                        } catch (e) {
-                            inputRef.current.click();
-                        }
-                    }
-                }}
-            >
-                <div className="bg-blue-50 text-blue-600 p-2 rounded-lg group-hover:bg-blue-100 transition-colors">
-                    <Calendar size={18} />
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-sm font-black text-slate-700 group-hover:text-blue-700 transition-colors">
-                        {dateObj.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </span>
-                    <span className="text-[10px] font-medium text-slate-400">
-                        {dateObj.toLocaleDateString('he-IL', { weekday: 'long' })}
-                    </span>
-                </div>
-                <input
-                    ref={inputRef}
-                    type="date"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                />
-            </div>
-        </div>
-    );
-};
-
-const CustomTimePicker = ({ label, value, onChange }: { label: string, value: string, onChange: (val: string) => void }) => {
-    const inputRef = React.useRef<HTMLInputElement>(null);
-
-    return (
-        <div className="flex flex-col gap-1.5 w-full">
-            <span className="text-xs font-bold text-slate-500 mr-1">{label}</span>
-            <div
-                className="relative flex items-center gap-3 bg-white hover:bg-slate-50 border border-slate-200 hover:border-blue-400 rounded-xl p-3 cursor-pointer transition-all duration-200 shadow-sm hover:shadow group w-full"
-                onClick={() => {
-                    if (inputRef.current) {
-                        try {
-                            if ('showPicker' in inputRef.current) {
-                                (inputRef.current as any).showPicker();
-                            } else {
-                                (inputRef.current as HTMLInputElement).focus();
-                                (inputRef.current as HTMLInputElement).click();
-                            }
-                        } catch (e) {
-                            inputRef.current.click();
-                        }
-                    }
-                }}
-            >
-                <div className="bg-blue-50 text-blue-600 p-2 rounded-lg group-hover:bg-blue-100 transition-colors">
-                    <Clock size={18} />
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-sm font-black text-slate-700 group-hover:text-blue-700 transition-colors">
-                        {value}
-                    </span>
-                    <span className="text-[10px] font-medium text-slate-400">
-                        שעה
-                    </span>
-                </div>
-                <input
-                    ref={inputRef}
-                    type="time"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                />
-            </div>
-        </div>
-    );
-};
 
 export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     isOpen, onClose, people, teams, tasks, settings, teamRotations, constraints, absences, onSaveRoster
 }) => {
     const queryClient = useQueryClient();
+    const activePeople = people.filter(p => p.isActive !== false);
     const { showToast } = useToast();
     // Default to Today -> One Month Ahead
     const [startDate, setStartDate] = useState(() => {
@@ -149,6 +60,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     const [result, setResult] = useState<RosterGenerationResult | null>(null);
     const [saving, setSaving] = useState(false);
     const [showAnalysis, setShowAnalysis] = useState(false);
+    const [showTaskAnalysis, setShowTaskAnalysis] = useState(false);
     const [selectedPreviewDate, setSelectedPreviewDate] = useState<string | null>(null);
     const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
     // Config State
@@ -171,7 +83,48 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     // Temp state for custom hours in popup
     const [customStart, setCustomStart] = useState('08:00');
     const [customEnd, setCustomEnd] = useState('17:00');
-    const [customType, setCustomType] = useState<null | 'arrival' | 'departure' | 'custom'>(null); // NEW
+    const [customType, setCustomType] = useState<null | 'arrival' | 'departure' | 'custom'>(null);
+    const [searchQuery, setSearchQuery] = useState(''); // NEW: Search for matrix view
+    const [showConstraintDetails, setShowConstraintDetails] = useState(false);
+    const [showStatsDetails, setShowStatsDetails] = useState(false);
+
+    // Feature: Collapsible Teams
+    const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+    const toggleTeam = (teamId: string) => {
+        setCollapsedTeams(prev => {
+            const next = new Set(prev);
+            if (next.has(teamId)) next.delete(teamId);
+            else next.add(teamId);
+            return next;
+        });
+    };
+
+    const handleToggleAllTeams = () => {
+        const visibleTeamIdsWithMembers = teams.filter(team => {
+            const teamMembers = activePeople
+                .filter(p => p.teamId === team.id)
+                .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId))
+                .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId))
+                .filter(p => !searchQuery || p.name.includes(searchQuery));
+            return teamMembers.length > 0;
+        }).map(t => t.id);
+
+        const allCollapsed = visibleTeamIdsWithMembers.every(id => collapsedTeams.has(id));
+
+        if (allCollapsed) {
+            setCollapsedTeams(prev => {
+                const next = new Set(prev);
+                visibleTeamIdsWithMembers.forEach(id => next.delete(id));
+                return next;
+            });
+        } else {
+            setCollapsedTeams(prev => {
+                const next = new Set(prev);
+                visibleTeamIdsWithMembers.forEach(id => next.add(id));
+                return next;
+            });
+        }
+    };
 
     const handleCellClick = (e: React.MouseEvent, personId: string, date: string) => {
         e.stopPropagation(); // Prevent modal close or other clicks
@@ -269,41 +222,38 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
     // Helper to normalize ratio for display (Hoisted)
     const getArmyRatio = (base: number, home: number): string => {
-        if (home < 0.1) return "מלא";
-        if (base < 0.1) return "יומיות";
+        // Safe division handle
+        if (home === 0) return "מלא"; // Or closest high ratio? User said "Abandon edges". But 11-3 is max.
+        if (base === 0) return "יומיות";
 
-        // Check for common ratios (Sum ~ 14)
-        const total = base + home;
+        const ratio = base / home;
 
-        // Try to normalize to 14 days cycle
-        const factor14 = 14 / total;
-        const b14 = Math.round(base * factor14);
-        const h14 = Math.round(home * factor14);
+        // Standard Cycle Candidates (Sum = 14)
+        const candidates = [
+            { b: 7, h: 7 },  // 7-7 (1.0)
+            { b: 8, h: 6 },  // 8-6 (1.33)
+            { b: 9, h: 5 },  // 9-5 (1.8)
+            { b: 10, h: 4 }, // 10-4 (2.5)
+            { b: 11, h: 3 }, // 11-3 (3.66)
+            { b: 12, h: 2 }  // 12-2 (6.0)
+        ];
 
-        // If error is small, return normalized 14-day ratio
-        const err14 = Math.abs((b14 / h14) - (base / home));
-        if (err14 < 0.5) { // Threshold for "close enough"
-            return `${b14} - ${h14}`;
+        let best = candidates[0];
+        let minDiff = Math.abs(ratio - (best.b / best.h));
+
+        for (const c of candidates) {
+            const cRatio = c.b / c.h;
+            const diff = Math.abs(ratio - cRatio);
+            if (diff < minDiff) {
+                minDiff = diff;
+                best = c;
+            }
         }
 
-        // Try normalize to 7 days? ("5-9", "Week-Week")
-        const factor7 = 7 / total;
-        const b7 = Math.round(base * factor7);
-        const h7 = Math.round(home * factor7);
-        if (Math.abs((b7 / h7) - (base / home)) < 0.5) {
-            return `${b7} - ${h7}`;
-        }
+        // Debug Log
+        // console.log(`[RatioDebug] In(${base}/${home} = ${ratio.toFixed(2)}) -> Matched ${best.b}-${best.h} (Ratio ${best.b/best.h}) with diff ${minDiff}`);
 
-        // Try normalize to 21 days? ("17-4")
-        const factor21 = 21 / total;
-        const b21 = Math.round(base * factor21);
-        const h21 = Math.round(home * factor21);
-        if (Math.abs((b21 / h21) - (base / home)) < 0.5) {
-            return `${b21} - ${h21}`;
-        }
-
-        // Fallback: Just Round(Base) - Round(Home) 
-        return `${Math.round(base)} - ${Math.round(home)}`;
+        return `${best.b} - ${best.h}`;
     };
 
     const validateRosterBeforeSave = () => {
@@ -344,12 +294,19 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         const dailyStaffCounts: Record<string, number> = {};
 
         // Helper: Get Effective Status
+        // Helper: Get Effective Status
         const getEffectiveStatus = (pid: string, dateKey: string) => {
             const override = manualOverrides[`${pid}-${dateKey}`];
             if (override) return override.status;
             // Fallback to result or Availability
             const resStatus = result?.personStatuses?.[dateKey]?.[pid];
             if (resStatus) return resStatus;
+
+            // Fallback to DB Availability (Sync with Table Logic)
+            const person = people.find(p => p.id === pid);
+            const dbAvail = person?.dailyAvailability?.[dateKey];
+            if (dbAvail) return dbAvail.isAvailable ? 'base' : 'home';
+
             return 'base'; // Default
         };
 
@@ -392,6 +349,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
         // 2. Ratio Check
         // Only if we are optimizing for Ratio
+        // 2. Ratio Check
+        // Only if we are optimizing for Ratio
         if (optimizationMode === 'ratio') {
             const targetRatioStr = getArmyRatio(daysBase, daysHome);
 
@@ -401,26 +360,19 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                 dateRange.forEach((dateKey, idx) => {
                     const status = getEffectiveStatus(p.id, dateKey);
-                    if (status === 'home' || status === 'unavailable') {
+                    if (status === 'home' || status === 'unavailable' || status === 'departure') {
                         homeCount++;
                     } else {
-                        // Check Departure Logic for Counting
-                        const nextKey = idx < dateRange.length - 1 ? dateRange[idx + 1] : null;
-                        const nextStatus = nextKey ? getEffectiveStatus(p.id, nextKey) : 'base';
-
-                        // Is Departure?
-                        if (nextStatus !== 'base' && nextStatus !== 'arrival') {
-                            homeCount++;
-                        } else {
-                            baseCount++;
-                        }
+                        baseCount++;
                     }
                 });
+
+                // console.log(`[Validation] ${p.name}: Range=${dateRange.length}, Base=${baseCount}, Home=${homeCount}`);
 
                 const currentRatio = getArmyRatio(baseCount, homeCount);
 
                 if (currentRatio !== targetRatioStr) {
-                    issues.push(`${p.name}: יחס היציאות השתנה ל-${currentRatio} (יעד: ${targetRatioStr})`);
+                    issues.push(`${p.name}: חריגה בימי בית - יחס קרוב ל-${currentRatio} (יעד: ${targetRatioStr})`);
                 }
             });
         }
@@ -454,7 +406,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             startDate, endDate,
             settings,
             tasksCount: tasks.length,
-            peopleCount: people.length
+            peopleCount: activePeople.length
         });
 
         if (!settings) {
@@ -527,8 +479,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             console.log('Calling generateRoster with history sizes:', history.size);
 
             const effectivePeople = targetTeamIds.length === 0
-                ? people
-                : people.filter(p => targetTeamIds.includes(p.teamId));
+                ? activePeople
+                : activePeople.filter(p => targetTeamIds.includes(p.teamId));
 
             const res = generateRoster({
                 startDate: new Date(startDate),
@@ -789,7 +741,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     };
 
     const rosterStats = React.useMemo(() => {
-        if (!result) return { avgBase: "0.0", avgHome: "0.0" };
+        if (!result) return { avgBase: "0.0", avgHome: "0.0", ratioStr: "0 - 0" };
 
         const relevantPeople = people
             .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId))
@@ -800,12 +752,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
         const startD = new Date(startDate);
         const endD = new Date(endDate);
+        const dateRange: string[] = [];
+        for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+            dateRange.push(d.toLocaleDateString('en-CA'));
+        }
 
         relevantPeople.forEach(person => {
-            // Re-creating day loop to aggregate stats
-            for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-                const k = d.toLocaleDateString('en-CA');
-
+            dateRange.forEach(k => {
                 let status = 'base';
                 const override = manualOverrides[`${person.id}-${k}`];
 
@@ -822,59 +775,38 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     }
                 }
 
-                if (status === 'home' || status === 'unavailable') {
+                // Normalise for Stats
+                if (status === 'home' || status === 'unavailable' || status === 'departure') {
                     sumHome++;
                 } else {
-                    // Check Next Day for Departure logic
-                    const nextDay = new Date(d);
-                    nextDay.setDate(d.getDate() + 1);
-                    const nextK = nextDay.toLocaleDateString('en-CA');
-
-                    let nextStatus = 'base';
-                    const nextOverride = manualOverrides[`${person.id}-${nextK}`];
-
-                    if (nextOverride) {
-                        nextStatus = nextOverride.status;
-                    } else {
-                        const nextResStatus = result.personStatuses?.[nextK]?.[person.id];
-                        if (nextResStatus) {
-                            nextStatus = nextResStatus;
-                        } else {
-                            const nextDbAvail = person.dailyAvailability?.[nextK];
-                            if (nextDbAvail) nextStatus = nextDbAvail.isAvailable ? 'base' : 'home';
-                            else nextStatus = 'base';
-                        }
-                    }
-
-                    if (nextStatus !== 'base') {
-                        // Departure counts as home for the ratio metric usually? 
-                        // The user said "Avg ratio". 
-                        // In the table logic (lines 864-867): `if (isDeparture) homeCount++; else baseCount++;`
-                        // So I will mirror that logic.
-                        sumHome++;
-                    } else {
-                        sumBase++;
-                    }
+                    sumBase++;
                 }
-            }
+            });
         });
 
         const count = relevantPeople.length || 1;
+        const avgB = sumBase / count;
+        const avgH = sumHome / count;
+
+        // Ratio based on Averages
+        const ratioStr = getArmyRatio(avgB, avgH);
+
         return {
-            avgBase: (sumBase / count).toFixed(1),
-            avgHome: (sumHome / count).toFixed(1)
+            avgBase: avgB.toFixed(1),
+            avgHome: avgH.toFixed(1),
+            ratioStr
         };
     }, [result, people, targetTeamIds, selectedTeamId, startDate, endDate, manualOverrides]);
 
     const configFooter = (
-        <div className="flex flex-row gap-3 w-full">
-            <Button variant="ghost" onClick={onClose} className="flex-1 justify-center">ביטול</Button>
+        <div className="flex gap-3 w-full justify-between">
+            <Button variant="ghost" onClick={onClose} className="w-32 justify-center">ביטול</Button>
             <Button
                 onClick={handleGenerate}
                 isLoading={generating}
                 icon={Sparkles}
                 data-testid="rota-wizard-generate-btn"
-                className="bg-[#7cbd52] hover:bg-[#6aa845] text-white shadow-md hover:shadow-lg flex-[2] h-12 md:h-10 justify-center text-base md:text-sm font-black"
+                className="bg-[#7cbd52] hover:bg-[#6aa845] text-white shadow-md hover:shadow-lg w-[240px] h-12 md:h-10 justify-center text-base md:text-sm font-black"
             >
                 צור הצעה
             </Button>
@@ -882,83 +814,59 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     );
 
     const previewFooter = (
-        <div className="flex flex-col w-full gap-4">
-            {/* Constraint Stats */}
-            {result && result.stats.constraintStats && (
-                <div className={`flex flex-col gap-2 rounded-lg border p-3 ${result.stats.constraintStats.percentage === 100 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+        <div className="flex gap-2 w-full justify-between items-center select-none">
+            {/* Left Side: Buttons */}
+            <div className="flex gap-2 items-center flex-1">
+                <Button variant="ghost" onClick={() => setStep('config')} className="h-10 px-0 md:px-4 text-slate-400">
+                    <ArrowRight size={20} />
+                </Button>
+
+                {/* Info Buttons (Mobile Optimized) */}
+                <div className="flex items-center gap-2">
+                    {/* Stats Info Button - Updated Label */}
+                    <button
+                        onClick={() => setShowStatsDetails(true)}
+                        className="h-9 px-3 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-600 active:bg-slate-100 text-xs font-bold gap-2 whitespace-nowrap"
+                    >
+                        <span>ממוצע ללוחם - לחץ לפירוט</span>
+                    </button>
+
+                    {/* Constraints Status Button */}
+                    {result && result.stats.constraintStats && (
+                        <button
+                            onClick={() => setShowConstraintDetails(true)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all ${result.stats.constraintStats.percentage === 100
+                                ? 'bg-green-50 border-green-200 text-green-700'
+                                : 'bg-amber-50 border-amber-200 text-amber-700'
+                                }`}
+                        >
                             {result.stats.constraintStats.percentage === 100 ? (
-                                <CheckCircle size={18} className="text-green-600" />
+                                <CheckCircle size={14} className="shrink-0" />
                             ) : (
-                                <AlertTriangle size={18} className="text-amber-600" />
+                                <AlertTriangle size={14} className="shrink-0" />
                             )}
-                            <span className="font-bold text-slate-800 text-sm">
-                                {result.stats.constraintStats.percentage === 100
-                                    ? 'כל האילוצים נענו בהצלחה!'
-                                    : `נענו ${result.stats.constraintStats.met} מתוך ${result.stats.constraintStats.total} אילוצים (${result.stats.constraintStats.percentage}%)`}
+                            <span className="truncate max-w-[80px] hidden md:inline">
+                                {result.stats.constraintStats.percentage === 100 ? 'הכל תקין' : 'יש חריגות'}
                             </span>
-                        </div>
-                        {result.unfulfilledConstraints && result.unfulfilledConstraints.length > 0 && (
-                            <button
-                                onClick={() => setShowConstraints(!showConstraints)}
-                                className="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1"
-                            >
-                                {showConstraints ? 'הסתר פירוט' : 'הצג פירוט'}
-                                {showConstraints ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            </button>
-                        )}
-                    </div>
-
-                    {showConstraints && result.unfulfilledConstraints && (
-                        <div className="mt-2 pt-2 border-t border-amber-200/50 flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar">
-                            {result.unfulfilledConstraints.map((c, idx) => {
-                                const p = people.find(p => p.id === c.personId);
-                                return (
-                                    <div key={idx} className="text-xs text-amber-800 flex items-start gap-1.5 bg-white/50 p-1.5 rounded">
-                                        <XCircle size={12} className="mt-0.5 shrink-0 text-amber-600" />
-                                        <span>
-                                            <span className="font-bold">{p?.name || 'משתמש'}:</span> {c.reason} ({new Date(c.date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })})
-                                        </span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                            <span className="md:hidden">
+                                {result.stats.constraintStats.met}/{result.stats.constraintStats.total}
+                            </span>
+                        </button>
                     )}
-                </div>
-            )}
-
-            {/* Stats Summary */}
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[11px] md:text-sm shadow-sm">
-                <div className="font-black text-slate-700">ממוצע ללוחם:</div>
-                <div className="flex items-center gap-3">
-                    <span className="text-slate-600 bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
-                        בסיס: <span className="font-black text-emerald-600">{rosterStats.avgBase}</span>
-                    </span>
-                    <span className="text-slate-600 bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
-                        בית: <span className="font-black text-rose-600">{rosterStats.avgHome}</span>
-                    </span>
-                    <div className="w-px h-3 bg-slate-200" />
-                    <span className="text-slate-600">
-                        יחס: <span dir="ltr" className="font-black text-blue-600">{getArmyRatio(Number(rosterStats.avgBase), Number(rosterStats.avgHome))}</span>
-                    </span>
                 </div>
             </div>
 
-            <div className="flex flex-row gap-2 w-full">
-                <Button variant="ghost" onClick={() => setStep('config')} className="flex-1 justify-center px-1">
-                    <ArrowRight size={18} className="md:ml-2 ml-0" />
-                    <span className="hidden md:inline">חזרה</span>
-                </Button>
-                <Button variant="ghost" onClick={onClose} className="flex-1 justify-center px-1">ביטול</Button>
+            {/* Right Side: Actions */}
+            <div className="flex gap-2 items-center">
+                <Button variant="ghost" onClick={onClose} className="h-10 text-xs md:text-sm px-2 text-slate-500">ביטול</Button>
                 <Button
                     onClick={handleSave}
                     isLoading={saving}
                     icon={Save}
                     data-testid="rota-wizard-save-btn"
-                    className="bg-green-600 text-white hover:bg-green-700 shadow-md flex-[2] justify-center font-black h-12 md:h-10"
+                    className="bg-green-600 text-white hover:bg-green-700 shadow-md h-10 px-4 text-xs md:text-sm font-black whitespace-nowrap"
                 >
-                    שמור
+                    שמור שיבוץ
                 </Button>
             </div>
         </div>
@@ -1091,10 +999,9 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 title={
                     <div className="flex flex-col">
                         <span className="text-lg md:text-2xl font-black text-slate-800">מחולל סבבים</span>
-                        <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">Automated Roster Generator</span>
                     </div>
                 }
-                size="full" // Full screen on mobile for better space usage
+                size={step === 'preview' ? 'full' : 'xl'} // tight for config, full for preview
                 scrollableContent={step === 'config'}
                 footer={step === 'preview' ? previewFooter : configFooter}
             >
@@ -1102,20 +1009,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     {step === 'config' ? (
                         <>
                             <div className="flex justify-between items-center mb-4 px-1">
-                                <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Configuration</span>
-                                <button
-                                    onClick={() => setShowAnalysis(!showAnalysis)}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${showAnalysis ? 'bg-slate-200 text-slate-700' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
-                                >
-                                    <Calculator size={14} />
-                                    {showAnalysis ? 'חזרה להגדרות' : 'ניתוח נגזרות משימה'}
-                                </button>
+                                <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">הגדרה</span>
                             </div>
 
                             {showAnalysis ? (
                                 <StaffingAnalysis tasks={tasks} totalPeople={people.length} />
                             ) : (
-                                <div className="space-y-4 animate-in fade-in duration-300">
+                                <div className="space-y-4 animate-in fade-in duration-300 max-w-2xl mx-auto w-full">
                                     {/* ... config content ... */}
 
 
@@ -1138,41 +1038,65 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
-                                        <CustomDatePicker
-                                            label="מתאריך"
-                                            value={startDate}
-                                            onChange={setStartDate}
-                                        />
-                                        <CustomDatePicker
-                                            label="עד תאריך"
-                                            value={endDate}
-                                            onChange={setEndDate}
-                                        />
+                                        <DatePicker label="תאריך התחלה" value={startDate} onChange={setStartDate} />
+                                        <DatePicker label="תאריך סיום" value={endDate} onChange={setEndDate} />
                                     </div>
 
-                                    <div className="mt-4">
-                                        <label className="text-sm font-bold text-slate-700 block mb-2">מטרת השיבוץ (אופטימיזציה)</label>
-                                        <div className="flex flex-col sm:flex-row bg-slate-100 p-1 rounded-lg gap-1">
+                                    <div className="mt-6">
+                                        <label className="text-sm font-bold text-slate-700 block mb-3">מטרת השיבוץ (בחר אחת)</label>
+                                        <div className="grid grid-cols-3 gap-3">
                                             <button
                                                 onClick={() => setOptimizationMode('ratio')}
-                                                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'ratio' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 ${optimizationMode === 'ratio'
+                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                                                    }`}
                                             >
-                                                <span> שמירה על יחס</span>
-                                                <span className="text-[10px] font-normal opacity-70 scale-90">חלוקה הוגנת (11-3)</span>
+                                                {optimizationMode === 'ratio' && (
+                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600" />
+                                                )}
+                                                <span className="text-sm font-bold">שמירה על יחס יציאות</span>
+                                                <span className="text-[10px] opacity-80 leading-tight">חלוקה הוגנת (11-3)</span>
                                             </button>
+
                                             <button
                                                 onClick={() => setOptimizationMode('min_staff')}
-                                                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'min_staff' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 ${optimizationMode === 'min_staff'
+                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                                                    }`}
                                             >
-                                                <span>סד״כ מינימלי</span>
-                                                <span className="text-[10px] font-normal opacity-70 scale-90">מקסימום בבית</span>
+                                                {optimizationMode === 'min_staff' && (
+                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600" />
+                                                )}
+                                                <span className="text-sm font-bold">סד״כ מינימלי</span>
+                                                <span className="text-[10px] opacity-80 leading-tight">מקסימום בבית</span>
                                             </button>
+
                                             <button
                                                 onClick={() => setOptimizationMode('tasks')}
-                                                className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex flex-col items-center gap-1 ${optimizationMode === 'tasks' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 ${optimizationMode === 'tasks'
+                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                                                    }`}
                                             >
-                                                <span>נגזרת משימות</span>
-                                                <span className="text-[10px] font-normal opacity-70 scale-90">איוש כל המשימות</span>
+                                                {optimizationMode === 'tasks' && (
+                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600" />
+                                                )}
+                                                <div className="flex items-center gap-1.5 z-10">
+                                                    <span className="text-sm font-bold">נגזרת משימות</span>
+                                                    <div
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setShowTaskAnalysis(true);
+                                                        }}
+                                                        className="flex items-center justify-center bg-slate-800 text-white rounded-full w-4 h-4 hover:bg-black transition-colors shadow-sm cursor-help"
+                                                        title="לחץ לצפייה בפירוט המשימות"
+                                                    >
+                                                        <span className="font-serif italic font-bold text-[9px] leading-none">i</span>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[10px] opacity-80 leading-tight">איוש כל המשימות</span>
                                             </button>
                                         </div>
                                     </div>
@@ -1211,16 +1135,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     )}
 
                                     <div className="grid grid-cols-2 gap-3 mt-4">
-                                        <CustomTimePicker
-                                            label="שעת הגעה"
-                                            value={userArrivalHour}
-                                            onChange={setUserArrivalHour}
-                                        />
-                                        <CustomTimePicker
-                                            label="שעת יציאה"
-                                            value={userDepartureHour}
-                                            onChange={setUserDepartureHour}
-                                        />
+                                        <TimePicker label="שעת הגעה" value={userArrivalHour} onChange={setUserArrivalHour} />
+                                        <TimePicker label="שעת יציאה" value={userDepartureHour} onChange={setUserDepartureHour} />
                                     </div>
 
                                     {optimizationMode === 'tasks' && (
@@ -1230,19 +1146,54 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                 <span className="text-sm font-bold">דרישת סד״כ מחושבת:</span>
                                                 <span className="text-sm bg-white px-2 py-0.5 rounded border border-blue-200">
                                                     {(() => {
-                                                        // Simplified version of the generator logic for UI feedback
-                                                        let totalDailyHours = 0;
-                                                        tasks.forEach(t => {
-                                                            t.segments?.forEach(seg => {
-                                                                if (seg.frequency === 'daily' || seg.isRepeat) {
-                                                                    totalDailyHours += seg.isRepeat ? 24 : (seg.durationHours * seg.requiredPeople);
+                                                        let maxDaily = 0;
+                                                        const start = new Date(startDate);
+                                                        const end = new Date(endDate);
+                                                        const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+                                                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                                            let dailySum = 0;
+                                                            const checkDate = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+                                                            tasks.forEach(t => {
+                                                                // Check Task Validity Range
+                                                                const tStart = t.startDate ? t.startDate : '1900-01-01';
+                                                                const tEnd = t.endDate ? t.endDate : '2100-01-01';
+
+                                                                if (checkDate >= tStart && checkDate <= tEnd) {
+                                                                    t.segments?.forEach(seg => {
+                                                                        let isActive = false;
+                                                                        if (seg.frequency === 'daily') {
+                                                                            isActive = true;
+                                                                        } else if (seg.frequency === 'specific_date') {
+                                                                            if (seg.specificDate === checkDate) isActive = true;
+                                                                        } else if (seg.frequency === 'weekly') {
+                                                                            const dayName = dayMap[d.getDay()];
+                                                                            if (seg.daysOfWeek?.includes(dayName)) isActive = true;
+                                                                        }
+
+                                                                        if (isActive) {
+                                                                            dailySum += seg.requiredPeople;
+                                                                        }
+                                                                    });
                                                                 }
                                                             });
-                                                        });
-                                                        // Assuming ~8h capacity avg for shorthand UI display
-                                                        return Math.ceil(totalDailyHours / 8);
-                                                    })()} חיילים
+                                                            if (dailySum > maxDaily) maxDaily = dailySum;
+                                                        }
+
+                                                        return `עד ${maxDaily}`;
+                                                    })()} חיילים (משתנה)
                                                 </span>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setShowTaskAnalysis(true);
+                                                    }}
+                                                    className="p-1 hover:bg-white rounded-full transition-colors text-blue-500 hover:text-blue-700"
+                                                    title="פירוט משימות יומי"
+                                                >
+                                                    <Info size={16} />
+                                                </button>
                                             </div>
                                             <p className="text-[10px] text-blue-600 mt-1 mr-6">המערכת תחשב את הסד״כ המדויק לכל יום בנפרד במהלך יצירת השיבוץ.</p>
                                         </div>
@@ -1262,16 +1213,38 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     >
                                         <Download size={20} />
                                     </button>
-                                    <div className="h-6 w-px bg-slate-200 mx-2"></div>
+                                    <button
+                                        onClick={handleToggleAllTeams}
+                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200 flex items-center gap-2"
+                                        title="כיווץ/הרחבת הכל"
+                                    >
+                                        <div className={`transition-transform duration-300 ${Array.from(collapsedTeams).some(id => teams.some(t => t.id === id)) ? 'rotate-180' : 'rotate-0'}`}>
+                                            <ChevronDown size={20} />
+                                        </div>
+                                        <span className="text-xs font-bold hidden md:inline">כיווץ/הרחבה</span>
+                                    </button>
+                                    <div className="h-6 w-px bg-slate-200 mx-1"></div>
                                     <Select
                                         value={selectedTeamId}
                                         onChange={(val) => setSelectedTeamId(val)}
                                         options={[{ value: 'all', label: 'כל הצוותים' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
                                         placeholder="סינון לפי צוות"
-                                        className="py-1.5 pl-3 pr-9 text-sm w-[150px]"
+                                        className="py-1.5 pl-3 pr-9 text-sm w-[180px]" // Increased width
                                         icon={Filter}
                                         triggerMode="default"
                                     />
+                                    {/* Search Input */}
+                                    <div className="relative">
+                                        <input
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="חיפוש..."
+                                            className="h-9 pr-9 pl-3 text-sm border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 w-[140px] transition-all focus:w-[180px]"
+                                        />
+                                        <div className="absolute top-0 bottom-0 right-3 flex items-center pointer-events-none text-slate-400">
+                                            <Search size={14} />
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-slate-500">
                                     <div className="flex items-center gap-1">
@@ -1315,7 +1288,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 <div className="absolute inset-0 overflow-scroll force-scrolling" dir="rtl">
                                     <div className="min-w-max">
                                         {/* Summary Header */}
-                                        <div className="sticky top-0 z-30 bg-white border-b border-slate-200">
+                                        <div className="sticky top-0 z-50 bg-white border-b border-slate-200">
                                             {/* Date Header Row */}
                                             <div className="flex h-10">
                                                 <div className="w-32 shrink-0 p-2 font-bold bg-slate-50 border-l sticky right-0 z-40 flex items-center border-b border-slate-200">
@@ -1341,7 +1314,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                         }
                                                         // Summary Column Header
                                                         headers.push(
-                                                            <div key="summary-header" className="shrink-0 w-24 p-2 text-center border-l border-slate-100 bg-slate-50 flex items-center justify-center">
+                                                            <div key="summary-header" className="shrink-0 w-24 p-2 text-center border-l border-slate-100 bg-slate-50 flex items-center justify-center sticky left-0 z-50 shadow-sm">
                                                                 <div className="text-xs font-bold text-slate-700">סיכום</div>
                                                             </div>
                                                         );
@@ -1359,7 +1332,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                     {(() => {
                                                         const start = new Date(startDate);
                                                         const end = new Date(endDate);
-                                                        const relevantPeople = targetTeamIds.length > 0 ? people.filter(p => targetTeamIds.includes(p.teamId)) : people;
+                                                        const relevantPeople = targetTeamIds.length > 0 ? activePeople.filter(p => targetTeamIds.includes(p.teamId)) : activePeople;
                                                         const cells = [];
                                                         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                                                             const dateKey = d.toLocaleDateString('en-CA');
@@ -1392,7 +1365,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                 </div>
                                                             );
                                                         }
-                                                        cells.push(<div key="total-summary-pad" className="shrink-0 w-24 bg-indigo-50 border-l border-indigo-100"></div>);
+                                                        cells.push(<div key="total-summary-pad" className="shrink-0 w-24 bg-indigo-50 border-l border-indigo-100 flex items-center justify-center text-indigo-300 text-[10px] sticky left-0 z-40">-</div>);
                                                         return cells;
                                                     })()}
                                                 </div>
@@ -1401,234 +1374,305 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                                         {/* Table Body */}
                                         <div>
-                                            {people
-                                                .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId))
-                                                .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId))
-                                                .map((person, idx) => (
-                                                    <div key={person.id} className={`flex border-b border-slate-50 hover:bg-slate-50 transition-colors h-14 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
-                                                        {/* Sticky Name Column */}
-                                                        <div className={`w-32 shrink-0 p-2 border-l sticky right-0 z-20 flex items-center gap-2 border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                                            <div
-                                                                className="hidden md:flex w-8 h-8 rounded-full items-center justify-center text-xs font-bold shrink-0 shadow-sm border border-slate-200 text-slate-700"
-                                                                style={{
-                                                                    backgroundColor: teams.find(t => t.id === person.teamId)?.color || '#f1f5f9'
-                                                                }}
-                                                            >
-                                                                {person.name.charAt(0)}
+                                            {teams.map(team => {
+                                                // Filter members for this team
+                                                const teamMembers = activePeople
+                                                    .filter(p => p.teamId === team.id)
+                                                    .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId)) // Config filter
+                                                    .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId)) // Dropdown filter
+                                                    .filter(p => !searchQuery || p.name.includes(searchQuery)); // Search filter
+
+                                                if (teamMembers.length === 0) return null;
+
+                                                const isCollapsed = collapsedTeams.has(team.id);
+
+                                                return (
+                                                    <div key={team.id}>
+                                                        {/* Team Header */}
+                                                        {/* Team Header */}
+                                                        <div
+                                                            className="flex items-center h-8 bg-slate-50 border-b border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors"
+                                                            onClick={() => toggleTeam(team.id)}
+                                                        >
+                                                            <div className="w-32 shrink-0 sticky right-0 bg-slate-50 border-l border-slate-200 z-20 flex items-center px-2 py-1 gap-1">
+                                                                <div className="w-1 h-4 rounded-full" style={{ backgroundColor: team.color || '#cbd5e1' }} />
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div className="font-bold text-xs text-slate-600 truncate max-w-[80px]">{team.name}</div>
+                                                                        <div className="text-[10px] text-slate-400 font-medium">({teamMembers.length})</div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className={`text-slate-400 transition-transform ${isCollapsed ? 'rotate-[-90deg]' : 'rotate-0'}`}>
+                                                                    <ChevronDown size={14} />
+                                                                </div>
                                                             </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="text-sm font-bold text-slate-700 truncate">{person.name}</div>
-                                                                <div className="text-[10px] text-slate-400 truncate">{teams.find(t => t.id === person.teamId)?.name || 'ללא צוות'}</div>
+
+                                                            {/* Daily Stats Cells */}
+                                                            <div className="flex">
+                                                                {(() => {
+                                                                    const start = new Date(startDate);
+                                                                    const end = new Date(endDate);
+                                                                    const cells = [];
+                                                                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                                                        const dateKey = d.toLocaleDateString('en-CA');
+                                                                        let presentCount = 0;
+                                                                        teamMembers.forEach(p => {
+                                                                            const override = manualOverrides[`${p.id}-${dateKey}`];
+                                                                            let status = 'base';
+                                                                            if (override) {
+                                                                                status = override.status;
+                                                                            } else {
+                                                                                status = result?.personStatuses?.[dateKey]?.[p.id] || 'base';
+                                                                            }
+                                                                            if (status === 'base' || status === 'arrival' || status === 'departure') {
+                                                                                presentCount++;
+                                                                            }
+                                                                        });
+
+                                                                        const isFull = presentCount === teamMembers.length;
+                                                                        const isEmpty = presentCount === 0;
+
+                                                                        cells.push(
+                                                                            <div key={`team-${team.id}-${dateKey}`} className={`shrink-0 w-24 flex items-center justify-center border-l border-slate-100 text-[10px] font-bold ${isFull ? 'text-green-600' : isEmpty ? 'text-red-400' : 'text-slate-600'}`}>
+                                                                                {teamMembers.length} / {presentCount}
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    // Summary Column Placeholder
+                                                                    cells.push(
+                                                                        <div key={`team-${team.id}-summary`} className="shrink-0 w-24 bg-slate-50 border-l border-slate-100 sticky left-0 z-10" />
+                                                                    );
+                                                                    return cells;
+                                                                })()}
                                                             </div>
                                                         </div>
 
-                                                        {/* Days Cells */}
-                                                        <div className="flex">
-                                                            {(() => {
-                                                                const start = new Date(startDate);
-                                                                const end = new Date(endDate);
-                                                                const cells = [];
-                                                                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                                                                    const dateKey = d.toLocaleDateString('en-CA');
-                                                                    // const status = result?.personStatuses?.[dateKey]?.[person.id]; // Removed to avoid conflict
-
-                                                                    // Look back for Departure definition: Current=Home && Prev=Base
-                                                                    const prevDate = new Date(d);
-                                                                    prevDate.setDate(prevDate.getDate() - 1);
-                                                                    const prevDateKey = prevDate.toLocaleDateString('en-CA');
-
-                                                                    const nextDate = new Date(d);
-                                                                    nextDate.setDate(nextDate.getDate() + 1);
-                                                                    const nextDateKey = nextDate.toLocaleDateString('en-CA');
-                                                                    const overrideKey = `${person.id}-${dateKey}`;
-
-                                                                    // Helper to resolve status (Override > Result > Existing DB)
-                                                                    const resolveStatus = (key: string, pId: string = person.id) => {
-                                                                        // Check for Manual Override FIRST
-                                                                        const ov = manualOverrides[`${pId}-${key}`];
-                                                                        if (ov) return ov.status;
-
-                                                                        if (d.getTime() >= end.getTime() && key === nextDateKey) return 'base'; // End of roster = Base
-
-                                                                        const resStatus = result?.personStatuses?.[key]?.[pId];
-                                                                        if (resStatus) return resStatus;
-                                                                        const dbAvail = person.dailyAvailability?.[key];
-                                                                        if (dbAvail) {
-                                                                            if (dbAvail.status) return dbAvail.status;
-                                                                            return dbAvail.isAvailable ? 'base' : 'home';
-                                                                        }
-                                                                        return 'base'; // Default
-                                                                    };
-
-                                                                    // Current Status (Override aware)
-                                                                    const status = resolveStatus(dateKey);
-                                                                    const prevStatus = resolveStatus(prevDateKey);
-                                                                    const nextStatus = resolveStatus(nextDateKey);
-
-                                                                    let content = null;
-                                                                    let cellClass = "bg-white";
-
-                                                                    if (status === 'home' || status === 'unavailable') {
-
-                                                                        // Check for Implicit Departure (Home day following Base)
-                                                                        // ONLY if not explicitly overridden to Home/Unavailable
-                                                                        const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
-
-                                                                        if (!isOverridden && prevStatus === 'base' && status !== 'unavailable') {
-                                                                            // DEPARTURE (Home day following Base)
-                                                                            cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
-                                                                            content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                    <span className="font-bold mb-0.5">יציאה</span>
-                                                                                    <span className="text-[9px]">{userDepartureHour}</span>
-                                                                                </div>
-                                                                            );
-                                                                        } else {
-                                                                            // Standard Home Day (Explicit or Middle of Home Block)
-                                                                            cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
-
-                                                                            const isConstraint = status === 'unavailable';
-                                                                            // Show '(אילוץ)' if unavailable, otherwise standard 'בית'
-
-                                                                            content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
-                                                                                    <span>{isConstraint ? 'לא זמין' : 'בית'}</span>
-                                                                                    {isConstraint && <span className="text-[8px] font-normal">(אילוץ)</span>}
-                                                                                </div>
-                                                                            );
-                                                                        }
-                                                                    } else if (status === 'arrival') {
-                                                                        // Explicit Arrival
-                                                                        const ov = manualOverrides[`${person.id}-${dateKey}`];
-                                                                        const time = ov?.startTime || userArrivalHour;
-
-                                                                        cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
-                                                                        content = (
-                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                <span className="font-bold mb-0.5">הגעה</span>
-                                                                                <span className="text-[9px]">{time}</span>
-                                                                            </div>
-                                                                        );
-                                                                    } else if (status === 'departure') {
-                                                                        // Explicit Departure
-                                                                        const ov = manualOverrides[`${person.id}-${dateKey}`];
-                                                                        const time = ov?.endTime || userDepartureHour;
-
-                                                                        cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
-                                                                        content = (
-                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                <span className="font-bold mb-0.5">יציאה</span>
-                                                                                <span className="text-[9px]">{time}</span>
-                                                                            </div>
-                                                                        );
-                                                                    } else if (status === 'base') {
-                                                                        // Base Day 
-                                                                        // Check for Implicit Arrival (Base day following Home/Unavailable)
-                                                                        const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
-                                                                        const isPrevHome = prevStatus === 'home' || prevStatus === 'unavailable';
-
-                                                                        if (!isOverridden && isPrevHome) {
-                                                                            // ARRIVAL (Base day following Home)
-                                                                            cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
-                                                                            content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                    <span className="font-bold mb-0.5">הגעה</span>
-                                                                                    <span className="text-[9px]">{userArrivalHour}</span>
-                                                                                </div>
-                                                                            );
-                                                                        } else {
-                                                                            // Full Base
-                                                                            // Check for Custom Times override
-                                                                            let label = "בבסיס";
-                                                                            let subLabel = "";
-
-                                                                            if (isOverridden && isOverridden.status === 'base' && isOverridden.startTime && isOverridden.endTime) {
-                                                                                if (isOverridden.startTime !== '00:00' || isOverridden.endTime !== '23:59') {
-                                                                                    subLabel = `${isOverridden.startTime}-${isOverridden.endTime}`;
-                                                                                }
-                                                                            }
-
-                                                                            cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
-                                                                            content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center">
-                                                                                    <span className="font-bold">{label}</span>
-                                                                                    {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
-                                                                                </div>
-                                                                            );
-                                                                        }
-                                                                    }
-
-                                                                    cells.push(
+                                                        {/* Team Members */}
+                                                        <div className={`${isCollapsed ? 'hidden' : 'block'}`}>
+                                                            {teamMembers.map((person, idx) => (
+                                                                <div key={person.id} className={`flex border-b border-slate-50 hover:bg-slate-50 transition-colors h-14 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                                                                    {/* Sticky Name Column */}
+                                                                    <div className={`w-32 shrink-0 p-2 border-l sticky right-0 z-20 flex items-center gap-2 border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                                                                         <div
-                                                                            key={`${person.id}-${dateKey}`}
-                                                                            className={`w-24 shrink-0 p-1 border-l border-slate-100 h-12 flex items-center justify-center transition-colors cursor-pointer hover:ring-1 hover:ring-blue-300 ${cellClass}`}
-                                                                            onClick={(e) => handleCellClick(e, person.id, dateKey)}
+                                                                            className="hidden md:flex w-8 h-8 rounded-full items-center justify-center text-xs font-bold shrink-0 shadow-sm border border-slate-200 text-slate-700"
+                                                                            style={{
+                                                                                backgroundColor: team.color || '#f1f5f9'
+                                                                            }}
                                                                         >
-                                                                            {content}
+                                                                            {person.name.charAt(0)}
                                                                         </div>
-                                                                    );
-                                                                }
-
-                                                                // Calculate Summary for this person
-                                                                let homeCount = 0;
-                                                                let baseCount = 0;
-                                                                const startD = new Date(startDate);
-                                                                const endD = new Date(endDate);
-
-                                                                // Helper to resolve status for any date
-                                                                const getStatusForDate = (dateObj: Date) => {
-                                                                    const k = dateObj.toLocaleDateString('en-CA');
-                                                                    // Check overrides first
-                                                                    if (manualOverrides[`${person.id}-${k}`]) return manualOverrides[`${person.id}-${k}`].status;
-
-                                                                    const resStatus = result?.personStatuses?.[k]?.[person.id];
-                                                                    if (resStatus) return resStatus;
-                                                                    const dbAvail = person.dailyAvailability?.[k];
-                                                                    if (dbAvail) return dbAvail.isAvailable ? 'base' : 'home';
-                                                                    return 'base'; // Default
-                                                                };
-
-                                                                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-                                                                    const currentStatus = getStatusForDate(d);
-
-                                                                    if (currentStatus === 'home' || currentStatus === 'unavailable') {
-                                                                        homeCount++;
-                                                                    } else {
-                                                                        // It IS base. Check if it's a departure (Tomorrow is home)
-                                                                        const nextDay = new Date(d);
-                                                                        nextDay.setDate(d.getDate() + 1);
-                                                                        const nextStatus = getStatusForDate(nextDay);
-
-                                                                        const isDeparture = nextStatus !== 'base';
-
-                                                                        if (isDeparture) {
-                                                                            homeCount++; // User wants Departure to count as Home
-                                                                        } else {
-                                                                            baseCount++;
-                                                                        }
-                                                                    }
-                                                                }
-
-                                                                const ratioStr = getArmyRatio(baseCount, homeCount);
-                                                                cells.push(
-                                                                    <div key="summary-cell" className="shrink-0 w-24 border-l border-slate-100 p-2 flex flex-col items-center justify-center bg-slate-50/50">
-                                                                        <div className="text-[10px] font-bold text-slate-600">
-                                                                            בסיס: <span className="text-green-600 text-xs">{baseCount}</span>
-                                                                        </div>
-                                                                        <div className="text-[10px] font-bold text-slate-600">
-                                                                            בית: <span className="text-orange-600 text-xs">{homeCount}</span>
-                                                                        </div>
-                                                                        <div className="text-[10px] font-bold text-slate-600 mt-1 pt-1 border-t border-slate-200 w-full text-center">
-                                                                            יחס: <span dir="ltr" className="text-blue-600 text-xs">{ratioStr}</span>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-sm font-bold text-slate-700 truncate">{person.name}</div>
+                                                                            <div className="text-[10px] text-slate-400 truncate">{team.name}</div>
                                                                         </div>
                                                                     </div>
-                                                                );
 
-                                                                return cells;
-                                                            })()}
+                                                                    {/* Days Cells */}
+                                                                    <div className="flex">
+                                                                        {(() => {
+                                                                            const start = new Date(startDate);
+                                                                            const end = new Date(endDate);
+                                                                            const cells = [];
+                                                                            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                                                                const dateKey = d.toLocaleDateString('en-CA');
+                                                                                // const status = result?.personStatuses?.[dateKey]?.[person.id]; // Removed to avoid conflict
+
+                                                                                // Look back for Departure definition: Current=Home && Prev=Base
+                                                                                const prevDate = new Date(d);
+                                                                                prevDate.setDate(prevDate.getDate() - 1);
+                                                                                const prevDateKey = prevDate.toLocaleDateString('en-CA');
+
+                                                                                const nextDate = new Date(d);
+                                                                                nextDate.setDate(nextDate.getDate() + 1);
+                                                                                const nextDateKey = nextDate.toLocaleDateString('en-CA');
+                                                                                const overrideKey = `${person.id}-${dateKey}`;
+
+                                                                                // Helper to resolve status (Override > Result > Existing DB)
+                                                                                const resolveStatus = (key: string, pId: string = person.id) => {
+                                                                                    // Check for Manual Override FIRST
+                                                                                    const ov = manualOverrides[`${pId}-${key}`];
+                                                                                    if (ov) return ov.status;
+
+                                                                                    if (d.getTime() >= end.getTime() && key === nextDateKey) return 'base'; // End of roster = Base
+
+                                                                                    const resStatus = result?.personStatuses?.[key]?.[pId];
+                                                                                    if (resStatus) return resStatus;
+                                                                                    const dbAvail = person.dailyAvailability?.[key];
+                                                                                    if (dbAvail) {
+                                                                                        if (dbAvail.status) return dbAvail.status;
+                                                                                        return dbAvail.isAvailable ? 'base' : 'home';
+                                                                                    }
+                                                                                    return 'base'; // Default
+                                                                                };
+
+                                                                                // Current Status (Override aware)
+                                                                                const status = resolveStatus(dateKey);
+                                                                                const prevStatus = resolveStatus(prevDateKey);
+                                                                                const nextStatus = resolveStatus(nextDateKey);
+
+                                                                                let content = null;
+                                                                                let cellClass = "bg-white";
+
+                                                                                if (status === 'home' || status === 'unavailable') {
+
+                                                                                    // Check for Implicit Departure (Home day following Base)
+                                                                                    // ONLY if not explicitly overridden to Home/Unavailable
+                                                                                    const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
+
+                                                                                    if (!isOverridden && prevStatus === 'base' && status !== 'unavailable') {
+                                                                                        // DEPARTURE (Home day following Base)
+                                                                                        cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
+                                                                                        content = (
+                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                                <span className="font-bold mb-0.5">יציאה</span>
+                                                                                                <span className="text-[9px]">{userDepartureHour}</span>
+                                                                                            </div>
+                                                                                        );
+                                                                                    } else {
+                                                                                        // Standard Home Day (Explicit or Middle of Home Block)
+                                                                                        cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
+
+                                                                                        const isConstraint = status === 'unavailable';
+                                                                                        // Show '(אילוץ)' if unavailable, otherwise standard 'בית'
+
+                                                                                        content = (
+                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
+                                                                                                <span>{isConstraint ? 'לא זמין' : 'בית'}</span>
+                                                                                                {isConstraint && <span className="text-[8px] font-normal">(אילוץ)</span>}
+                                                                                            </div>
+                                                                                        );
+                                                                                    }
+                                                                                } else if (status === 'arrival') {
+                                                                                    // Explicit Arrival
+                                                                                    const ov = manualOverrides[`${person.id}-${dateKey}`];
+                                                                                    const time = ov?.startTime || userArrivalHour;
+
+                                                                                    cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
+                                                                                    content = (
+                                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                            <span className="font-bold mb-0.5">הגעה</span>
+                                                                                            <span className="text-[9px]">{time}</span>
+                                                                                        </div>
+                                                                                    );
+                                                                                } else if (status === 'departure') {
+                                                                                    // Explicit Departure
+                                                                                    const ov = manualOverrides[`${person.id}-${dateKey}`];
+                                                                                    const time = ov?.endTime || userDepartureHour;
+
+                                                                                    cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
+                                                                                    content = (
+                                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                            <span className="font-bold mb-0.5">יציאה</span>
+                                                                                            <span className="text-[9px]">{time}</span>
+                                                                                        </div>
+                                                                                    );
+                                                                                } else if (status === 'base') {
+                                                                                    // Base Day 
+                                                                                    // Check for Implicit Arrival (Base day following Home/Unavailable)
+                                                                                    const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
+                                                                                    const isPrevHome = prevStatus === 'home' || prevStatus === 'unavailable';
+
+                                                                                    if (!isOverridden && isPrevHome) {
+                                                                                        // ARRIVAL (Base day following Home)
+                                                                                        cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
+                                                                                        content = (
+                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                                <span className="font-bold mb-0.5">הגעה</span>
+                                                                                                <span className="text-[9px]">{userArrivalHour}</span>
+                                                                                            </div>
+                                                                                        );
+                                                                                    } else {
+                                                                                        // Full Base
+                                                                                        // Check for Custom Times override
+                                                                                        let label = "בבסיס";
+                                                                                        let subLabel = "";
+
+                                                                                        if (isOverridden && isOverridden.status === 'base' && isOverridden.startTime && isOverridden.endTime) {
+                                                                                            if (isOverridden.startTime !== '00:00' || isOverridden.endTime !== '23:59') {
+                                                                                                subLabel = `${isOverridden.startTime}-${isOverridden.endTime}`;
+                                                                                            }
+                                                                                        }
+
+                                                                                        cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
+                                                                                        content = (
+                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center">
+                                                                                                <span className="font-bold">{label}</span>
+                                                                                                {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
+                                                                                            </div>
+                                                                                        );
+                                                                                    }
+                                                                                }
+
+                                                                                cells.push(
+                                                                                    <div
+                                                                                        key={`${person.id}-${dateKey}`}
+                                                                                        className={`w-24 shrink-0 p-1 border-l border-slate-100 h-12 flex items-center justify-center transition-colors cursor-pointer hover:ring-1 hover:ring-blue-300 ${cellClass}`}
+                                                                                        onClick={(e) => handleCellClick(e, person.id, dateKey)}
+                                                                                    >
+                                                                                        {content}
+                                                                                    </div>
+                                                                                );
+                                                                            }
+
+                                                                            // Calculate Summary for this person
+                                                                            let homeCount = 0;
+                                                                            let baseCount = 0;
+                                                                            const startD = new Date(startDate);
+                                                                            const endD = new Date(endDate);
+
+                                                                            // Create Range array
+                                                                            const dateRange: string[] = [];
+                                                                            for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                                                                                dateRange.push(d.toLocaleDateString('en-CA'));
+                                                                            }
+
+                                                                            // Helper to resolve status for any date
+                                                                            const getStatusForDate = (dateKey: string) => {
+                                                                                // Check overrides first
+                                                                                // Check overrides first
+                                                                                if (manualOverrides[`${person.id}-${dateKey}`]) return manualOverrides[`${person.id}-${dateKey}`].status;
+                                                                                const resStatus = result?.personStatuses?.[dateKey]?.[person.id];
+                                                                                if (resStatus) return resStatus;
+                                                                                const dbAvail = person.dailyAvailability?.[dateKey];
+                                                                                if (dbAvail) return dbAvail.isAvailable ? 'base' : 'home';
+                                                                                return 'base'; // Default
+                                                                            };
+
+                                                                            // Use full dateRange (No Trimming)
+                                                                            // Use full dateRange (No Trimming)
+                                                                            dateRange.forEach(k => {
+                                                                                const currentStatus = getStatusForDate(k);
+                                                                                if (currentStatus === 'home' || currentStatus === 'unavailable' || currentStatus === 'departure') {
+                                                                                    homeCount++;
+                                                                                } else {
+                                                                                    baseCount++;
+                                                                                }
+                                                                            });
+
+                                                                            const ratioStr = getArmyRatio(baseCount, homeCount);
+                                                                            cells.push(
+                                                                                <div key="summary-cell" className={`shrink-0 w-24 border-l border-slate-100 flex flex-col items-center justify-center sticky left-0 z-30 border-r border-slate-200/50 shadow-[1px_0_3px_rgba(0,0,0,0.05)] h-14 overflow-hidden border-b border-slate-300 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                                                                    <div className="text-[10px] font-bold text-slate-600 leading-tight">
+                                                                                        בסיס: <span className="text-green-600">{baseCount}</span>
+                                                                                    </div>
+                                                                                    <div className="text-[10px] font-bold text-slate-600 leading-tight">
+                                                                                        בית: <span className="text-orange-600">{homeCount}</span>
+                                                                                    </div>
+                                                                                    <div className="text-[10px] font-bold text-slate-600 border-t border-slate-200/50 w-full text-center mt-0.5 pt-0.5 leading-tight">
+                                                                                        יחס: <span dir="ltr" className="text-blue-600">{ratioStr}</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+
+                                                                            return cells;
+                                                                        })()}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     </div>
-                                                ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -1639,89 +1683,110 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             </Modal>
 
             {/* Manual Edit Popover */}
-            {editingCell && createPortal(
-                <div
-                    className="fixed inset-0 z-[9999] flex cursor-default bg-black/5" // Dim background slightly? No, keeping transparent as before or maybe just handling click.
-                    onClick={() => setEditingCell(null)}
-                >
-                    <div
-                        className={`bg-white shadow-2xl flex flex-col gap-1 transition-all duration-300 ${editingCell.isMobile
-                            ? 'fixed bottom-0 left-0 right-0 rounded-t-[2rem] p-6 animate-in slide-in-from-bottom duration-300 ease-out z-[10000]' // Bottom Sheet Mobile 
-                            : 'absolute rounded-lg shadow-xl border border-slate-200 p-2 min-w-[200px] animate-in fade-in zoom-in-95 duration-100 z-[10000]' // Desktop
-                            }`}
-                        style={editingCell.isMobile ? {} : {
-                            top: editingCell.position.top,
-                            left: editingCell.position.left
-                        }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="text-xs font-black text-slate-400 px-1 pb-3 border-b border-slate-100 mb-2 flex justify-between items-center uppercase tracking-widest">
-                            <span>ערוך סטטוס • {editingCell.date}</span>
-                            <button onClick={() => setEditingCell(null)} className="hover:bg-slate-100 rounded-full p-1 transition-colors"><X size={16} /></button>
-                        </div>
+            {/* Status Edit Modal (Replaces old Popover) */}
+            {editingCell && (
+                <StatusEditModal
+                    isOpen={!!editingCell}
+                    onClose={() => setEditingCell(null)}
+                    date={editingCell.date}
+                    personName={people.find(p => p.id === editingCell.personId)?.name}
+                    defaultArrivalHour={userArrivalHour}
+                    defaultDepartureHour={userDepartureHour}
+                    currentAvailability={(() => {
+                        const pid = editingCell.personId;
+                        const date = editingCell.date;
+                        // 1. Check Manual Overrides
+                        const ov = manualOverrides[`${pid}-${date}`];
+                        if (ov) {
+                            // Fix: Ensure we only pass 'base' | 'home' to the modal prop
+                            const rawStatus = ov.status;
+                            const isBaseOrArrival = rawStatus === 'base' || rawStatus === 'arrival' || rawStatus === 'departure';
+                            return {
+                                date,
+                                status: isBaseOrArrival ? 'base' : 'home',
+                                isAvailable: isBaseOrArrival,
+                                startHour: ov.startTime,
+                                endHour: ov.endTime
+                            };
+                        }
 
-                        {!customType ? (
-                            <>
-                                <button onClick={() => applyOverride('base')} className="flex items-center gap-2 px-2 py-2 hover:bg-green-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm" /> בבסיס (מלא)
-                                </button>
-                                <button onClick={() => applyOverride('home')} className="flex items-center gap-2 px-2 py-2 hover:bg-red-50 rounded text-xs text-slate-700 w-full text-right transition-colors">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-sm" /> בבית (מלא)
-                                </button>
+                        // 2. Check Result (Generated Status)
+                        // If generated status exists, we might want to respect it as initial state
+                        const resStatus = result?.personStatuses?.[date]?.[pid];
+                        if (resStatus) {
+                            const isBase = resStatus === 'base' || resStatus === 'arrival';
+                            return {
+                                date,
+                                status: isBase ? 'base' : 'home',
+                                isAvailable: isBase,
+                                startHour: '00:00', // We don't track exact times in simple result string unless we dive deeper
+                                endHour: '23:59'
+                            };
+                        }
 
-                                <div className="flex gap-1 mt-1">
-                                    <button onClick={() => setCustomType('departure')} className="flex-1 flex items-center justify-center gap-1 px-1 py-2 hover:bg-amber-50 rounded text-xs text-slate-700 border border-slate-100 transition-colors">
-                                        <div className="w-2 h-2 rounded-full bg-amber-400" /> יציאה...
-                                    </button>
-                                    <button onClick={() => setCustomType('arrival')} className="flex-1 flex items-center justify-center gap-1 px-1 py-2 hover:bg-teal-50 rounded text-xs text-slate-700 border border-slate-100 transition-colors">
-                                        <div className="w-2 h-2 rounded-full bg-teal-400" /> הגעה...
-                                    </button>
-                                </div>
+                        // 3. Check DB Availability
+                        const p = people.find(x => x.id === pid);
+                        const dbAvail = p?.dailyAvailability?.[date];
+                        if (dbAvail) return dbAvail;
 
-                                <button onClick={() => setCustomType('custom')} className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded text-xs text-slate-700 w-full text-right transition-colors mt-1">
-                                    <Clock size={12} className="text-blue-500" /> שעות מותאמות...
-                                </button>
-                            </>
-                        ) : (
-                            <div className="flex flex-col gap-2 p-1">
-                                {customType === 'departure' && (
-                                    <div className="flex flex-col">
-                                        <label className="text-[9px] text-slate-400 mb-1">שעת יציאה:</label>
-                                        <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-1 text-sm w-full text-center" />
-                                    </div>
-                                )}
+                        // Default Base
+                        return { date, isAvailable: true, status: 'base' };
+                    })()}
+                    onApply={(status, times, blocks) => {
+                        if (!editingCell) return;
+                        let finalStatus = status as string;
 
-                                {customType === 'arrival' && (
-                                    <div className="flex flex-col">
-                                        <label className="text-[9px] text-slate-400 mb-1">שעת הגעה:</label>
-                                        <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-1 text-sm w-full text-center" />
-                                    </div>
-                                )}
+                        // Logic to infer 'arrival'/'departure' from time overrides
+                        if (status === 'base') {
+                            if (times && times.start !== '00:00' && times.start !== '10:00') {
+                                finalStatus = 'arrival';
+                            }
+                            if (times && times.end !== '23:59') {
+                                finalStatus = 'departure';
+                            }
+                        }
 
-                                {customType === 'custom' && (
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex flex-col">
-                                            <label className="text-[9px] text-slate-400">התחלה</label>
-                                            <input type="time" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <label className="text-[9px] text-slate-400">סיום</label>
-                                            <input type="time" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-slate-50 border rounded px-1 py-0.5 text-xs w-16 text-center" />
-                                        </div>
-                                    </div>
-                                )}
+                        // Strict time checks
+                        if (times && times.start > '00:00' && times.end === '23:59') finalStatus = 'arrival';
+                        if (times && times.end < '23:59' && times.start === '00:00') finalStatus = 'departure';
 
-                                <div className="flex gap-2 mt-1">
-                                    <button onClick={() => setCustomType(null)} className="flex-1 bg-slate-100 text-slate-600 text-[10px] py-1 rounded hover:bg-slate-200">ביטול</button>
-                                    <button onClick={() => applyOverride(customType, { start: customStart, end: customEnd })} className="flex-1 bg-blue-600 text-white text-[10px] py-1 rounded hover:bg-blue-700 font-medium">שמור</button>
-                                </div>
-                            </div>
-                        )}
-                        {editingCell.isMobile && <div className="h-6" />} {/* Extra space for mobile thumb */}
-                    </div>
-                </div>,
-                document.body
+                        const override = {
+                            status: finalStatus,
+                            startTime: times?.start || '00:00',
+                            endTime: times?.end || '23:59'
+                        };
+
+                        const key = `${editingCell.personId}-${editingCell.date}`;
+                        setManualOverrides(prev => ({
+                            ...prev,
+                            [key]: override
+                        }));
+                        setEditingCell(null);
+                    }}
+                />
             )}
+
+            {/* Staffing Analysis Modal */}
+            <Modal
+                isOpen={showTaskAnalysis}
+                onClose={() => setShowTaskAnalysis(false)}
+                title={
+                    <div className="flex items-center gap-2">
+                        <Calculator size={20} className="text-blue-600" />
+                        <span>ניתוח נגזרות משימה</span>
+                    </div>
+                }
+                size="xl"
+            >
+                <div className="py-4">
+                    <StaffingAnalysis
+                        tasks={tasks}
+                        totalPeople={people.length}
+                        viewStartDate={new Date(startDate)}
+                        viewEndDate={new Date(endDate)}
+                    />
+                </div>
+            </Modal>
 
             {/* Warning Modal */}
             <Modal
@@ -1750,6 +1815,92 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     <p className="text-sm text-slate-500">
                         האם ברצונך לשמור את הלוח כפי שהוא, או לחזור ולתקן את החריגות?
                     </p>
+                </div>
+            </Modal>
+
+            {/* Constraints Details Modal */}
+            <Modal
+                isOpen={showConstraintDetails}
+                onClose={() => setShowConstraintDetails(false)}
+                title="פירוט אילוצים וחריגות"
+                size="md"
+                footer={<Button variant="ghost" className="w-full" onClick={() => setShowConstraintDetails(false)}>סגור</Button>}
+            >
+                <div className="p-4 space-y-4">
+                    {result && result.stats.constraintStats && (
+                        <div className={`p-4 rounded-xl border flex flex-col items-center text-center gap-2 ${result.stats.constraintStats.percentage === 100 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                            {result.stats.constraintStats.percentage === 100 ? (
+                                <CheckCircle size={48} className="text-green-500 mb-2" />
+                            ) : (
+                                <AlertTriangle size={48} className="text-amber-500 mb-2" />
+                            )}
+                            <div className="text-2xl font-black">
+                                {result.stats.constraintStats.percentage}%
+                            </div>
+                            <div className="text-slate-600 font-bold">
+                                יעד עמידה באילוצים
+                            </div>
+                            <div className="text-sm text-slate-500">
+                                המערכת הצליחה למלא {result.stats.constraintStats.met} מתוך {result.stats.constraintStats.total} אילוצים אישיים שדווחו.
+                            </div>
+                        </div>
+                    )}
+
+                    {result?.unfulfilledConstraints && result.unfulfilledConstraints.length > 0 ? (
+                        <div className="space-y-2">
+                            <h4 className="font-bold text-slate-800 text-sm">חריגות שנמצאו:</h4>
+                            <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
+                                {result.unfulfilledConstraints.map((c, idx) => {
+                                    const p = people.find(p => p.id === c.personId);
+                                    return (
+                                        <div key={idx} className="p-3 flex gap-3 bg-white">
+                                            <div className="mt-1"><XCircle size={16} className="text-red-500" /></div>
+                                            <div>
+                                                <div className="font-bold text-slate-800 text-sm">{p?.name || 'לוחם לא ידוע'}</div>
+                                                <div className="text-xs text-slate-500">{new Date(c.date).toLocaleDateString('he-IL')} • {c.reason}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-slate-400">
+                            לא נמצאו חריגות. כל הלוחמים שובצו בהתאם לאילוצים שלהם.
+                        </div>
+                    )}
+                </div>
+            </Modal>
+
+            {/* Stats Details Modal */}
+            <Modal
+                isOpen={showStatsDetails}
+                onClose={() => setShowStatsDetails(false)}
+                title="סטטיסטיקות שיבוץ (ממוצע ללוחם)"
+                size="sm"
+                footer={<Button variant="ghost" className="w-full" onClick={() => setShowStatsDetails(false)}>סגור</Button>}
+            >
+                <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center text-center gap-1">
+                            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">ימים בבסיס</div>
+                            <div className="text-3xl font-black text-emerald-600">{rosterStats.avgBase}</div>
+                            <div className="text-[10px] text-emerald-800/60">ממוצע לתקופה</div>
+                        </div>
+                        <div className="bg-rose-50 p-4 rounded-xl border border-rose-100 flex flex-col items-center text-center gap-1">
+                            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">ימים בבית</div>
+                            <div className="text-3xl font-black text-rose-600">{rosterStats.avgHome}</div>
+                            <div className="text-[10px] text-rose-800/60">ממוצע לתקופה</div>
+                        </div>
+                    </div>
+
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col items-center text-center gap-2">
+                        <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">יחס כולל (תקן)</div>
+                        <div className="text-4xl font-black text-blue-600" dir="ltr">{rosterStats.ratioStr}</div>
+                        <div className="text-xs text-blue-800/60 max-w-[200px]">
+                            יחס זה מייצג את הממוצע הכולל של כלל הלוחמים בצוותים שנבחרו
+                        </div>
+                    </div>
                 </div>
             </Modal>
         </>

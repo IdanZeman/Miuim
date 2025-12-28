@@ -241,13 +241,20 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
         <div className="min-h-screen text-right font-sans pb-32" dir="rtl">
             {/* Tabs - Solid and Visible */}
             <div className="mb-4 px-1 md:hidden">
-                <div className="bg-white/90 backdrop-blur-md p-1.5 rounded-xl flex shadow-sm border border-white/20">
+                <div
+                    className="bg-white/90 backdrop-blur-md p-1.5 rounded-xl flex shadow-sm border border-white/20"
+                    role="tablist"
+                    aria-label="תצוגות ניהול ציוד"
+                >
                     <button
                         onClick={() => setViewMode('list')}
                         className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${viewMode === 'list'
                             ? 'bg-indigo-600 text-white shadow-md'
                             : 'text-slate-600 hover:bg-white/50'
                             }`}
+                        role="tab"
+                        aria-selected={viewMode === 'list'}
+                        aria-controls="equipment-content"
                     >
                         <span>רשימת ציוד</span>
                         <span className={`px-1.5 py-0.5 rounded text-[10px] ${viewMode === 'list' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>
@@ -260,9 +267,12 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                             ? 'bg-indigo-600 text-white shadow-md'
                             : 'text-slate-600 hover:bg-white/50'
                             }`}
+                        role="tab"
+                        aria-selected={viewMode === 'verify'}
+                        aria-controls="equipment-content"
                     >
                         <span>בדיקה יומית</span>
-                        <ClipboardCheck size={16} />
+                        <ClipboardCheck size={16} aria-hidden="true" />
                     </button>
                 </div>
             </div>
@@ -579,13 +589,14 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                 <button
                                     onClick={handlePrevDay}
                                     className="p-2 rounded-lg hover:bg-white text-indigo-600 transition-colors"
+                                    aria-label="יום קודם"
                                 >
                                     <ChevronRight size={20} />
                                 </button>
 
                                 <div className="flex items-center gap-2">
-                                    <CalendarIcon size={16} className="text-slate-500" />
-                                    <span className="font-bold text-slate-700">
+                                    <CalendarIcon size={16} className="text-slate-500" aria-hidden="true" />
+                                    <span className="font-bold text-slate-700" aria-live="polite">
                                         {selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
                                     </span>
                                     {isToday(selectedDate) && (
@@ -597,6 +608,8 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                 <button
                                     onClick={handleNextDay}
                                     className={`p-2 rounded-lg hover:bg-white transition-colors ${!isToday(selectedDate) ? 'text-indigo-600' : 'text-slate-300 cursor-not-allowed'}`}
+                                    aria-label="יום הבא"
+                                    disabled={isToday(selectedDate)}
                                 >
                                     <ChevronLeft size={20} />
                                 </button>
@@ -667,6 +680,8 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                                     : 'bg-slate-50 text-slate-300 hover:bg-emerald-50 hover:text-emerald-500'
                                                                     } ${isViewer ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 title="תקין / נמצא"
+                                                                aria-label={`סמן את ${item.serial_number} כתקין`}
+                                                                aria-pressed={displayStatus === 'present'}
                                                             >
                                                                 <CheckCircle2 size={18} />
                                                             </button>
@@ -678,6 +693,8 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                                     : 'bg-slate-50 text-slate-300 hover:bg-amber-50 hover:text-amber-500'
                                                                     } ${isViewer ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 title="תקול / דורש תיקון"
+                                                                aria-label={`סמן את ${item.serial_number} כתקול`}
+                                                                aria-pressed={displayStatus === 'damaged'}
                                                             >
                                                                 <Hammer size={18} />
                                                             </button>
@@ -689,6 +706,8 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                                     : 'bg-slate-50 text-slate-300 hover:bg-rose-50 hover:text-rose-500'
                                                                     } ${isViewer ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                 title="חסר / אבד"
+                                                                aria-label={`סמן את ${item.serial_number} כחסר`}
+                                                                aria-pressed={displayStatus === 'missing'}
                                                             >
                                                                 <AlertCircle size={18} />
                                                             </button>
@@ -726,6 +745,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                 <button
                     onClick={() => { setEditingItem({}); setIsAddEditModalOpen(true); }}
                     className="md:hidden fixed bottom-24 left-6 z-50 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl shadow-indigo-600/30 flex items-center justify-center hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all"
+                    aria-label="הוסף פריט חדש"
                 >
                     <Plus size={28} />
                 </button>

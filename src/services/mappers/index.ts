@@ -206,7 +206,9 @@ export const mapAbsenceFromDB = (dbAbsence: any): Absence => ({
     start_time: dbAbsence.start_time || '00:00',
     end_time: dbAbsence.end_time || '23:59',
     reason: dbAbsence.reason,
-    status: dbAbsence.status || 'pending', // Default to pending
+    // Note: status, approved_by, approved_at are derived or optimistic, 
+    // not stored in the absences table.
+    status: 'pending', 
     created_at: dbAbsence.created_at
 });
 
@@ -216,10 +218,9 @@ export const mapAbsenceToDB = (absence: Absence) => ({
     organization_id: absence.organization_id,
     start_date: absence.start_date,
     end_date: absence.end_date,
-    start_time: absence.start_time,
-    end_time: absence.end_time,
-    reason: absence.reason,
-    status: absence.status
+    start_time: absence.start_time || '00:00',
+    end_time: absence.end_time || '23:59',
+    reason: absence.reason
 });
 
 // Equipment Mappers
