@@ -253,11 +253,12 @@ export const solveSchedule = (
 
   if (shiftsToSolve.length === 0) return { shifts: [], suggestions: [] };
 
+  const activePeople = people.filter(p => p.isActive !== false);
   const rolePoolCounts = new Map<string, number>();
-  people.forEach(p => (p.roleIds || []).forEach(rid => rolePoolCounts.set(rid, (rolePoolCounts.get(rid) || 0) + 1)));
+  activePeople.forEach(p => (p.roleIds || []).forEach(rid => rolePoolCounts.set(rid, (rolePoolCounts.get(rid) || 0) + 1)));
   const isRareRole = (roleId: string) => (rolePoolCounts.get(roleId) || 0) <= rareRoleThreshold;
 
-  const algoUsers = initializeUsers(people, startDate, historyScores, [...futureAssignments, ...fixedShiftsOnDay], taskTemplates, shifts, rolePoolCounts, constraints || [], currentState.teamRotations || [], currentState.absences || []);
+  const algoUsers = initializeUsers(activePeople, startDate, historyScores, [...futureAssignments, ...fixedShiftsOnDay], taskTemplates, shifts, rolePoolCounts, constraints || [], currentState.teamRotations || [], currentState.absences || []);
 
   const algoTasks: AlgoTask[] = shiftsToSolve.map(s => {
     const template = taskTemplates.find(t => t.id === s.taskId);

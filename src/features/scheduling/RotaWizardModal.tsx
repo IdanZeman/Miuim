@@ -126,6 +126,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     isOpen, onClose, people, teams, tasks, settings, teamRotations, constraints, absences, onSaveRoster
 }) => {
     const queryClient = useQueryClient();
+    const activePeople = people.filter(p => p.isActive !== false);
     const { showToast } = useToast();
     // Default to Today -> One Month Ahead
     const [startDate, setStartDate] = useState(() => {
@@ -454,7 +455,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             startDate, endDate,
             settings,
             tasksCount: tasks.length,
-            peopleCount: people.length
+            peopleCount: activePeople.length
         });
 
         if (!settings) {
@@ -527,8 +528,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             console.log('Calling generateRoster with history sizes:', history.size);
 
             const effectivePeople = targetTeamIds.length === 0
-                ? people
-                : people.filter(p => targetTeamIds.includes(p.teamId));
+                ? activePeople
+                : activePeople.filter(p => targetTeamIds.includes(p.teamId));
 
             const res = generateRoster({
                 startDate: new Date(startDate),
@@ -1341,7 +1342,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                     {(() => {
                                                         const start = new Date(startDate);
                                                         const end = new Date(endDate);
-                                                        const relevantPeople = targetTeamIds.length > 0 ? people.filter(p => targetTeamIds.includes(p.teamId)) : people;
+                                                        const relevantPeople = targetTeamIds.length > 0 ? activePeople.filter(p => targetTeamIds.includes(p.teamId)) : activePeople;
                                                         const cells = [];
                                                         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                                                             const dateKey = d.toLocaleDateString('en-CA');
@@ -1383,7 +1384,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                                         {/* Table Body */}
                                         <div>
-                                            {people
+                                            {activePeople
                                                 .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId))
                                                 .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId))
                                                 .map((person, idx) => (

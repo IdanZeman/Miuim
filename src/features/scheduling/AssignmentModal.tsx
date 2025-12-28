@@ -122,6 +122,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
         if (!selectedShift || !task) return [];
 
         return people.filter(p => {
+            // 0. Exclude if inactive
+            if (p.isActive === false) return false;
+
             // 1. Exclude if already assigned
             if (selectedShift.assignedPersonIds.includes(p.id)) return false;
 
@@ -215,6 +218,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             let score = 0;
             const reasons: string[] = [];
 
+            if (p.isActive === false) score -= 20000;
             if (selectedShift.assignedPersonIds.includes(p.id)) score -= 10000;
 
             const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id) && !s.isCancelled);

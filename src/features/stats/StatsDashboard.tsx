@@ -26,6 +26,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    people, shifts, tasks, roles, teams, teamRotations = [],
    isViewer = false, currentUserEmail, currentUserName
 }) => {
+   const activePeople = people.filter(p => p.isActive !== false);
    const [reportType, setReportType] = useState<ReportType>(isViewer ? 'tasks' : 'manpower');
 
    return (
@@ -113,7 +114,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
          <div className="min-h-[500px]" id="report-content" role="tabpanel" aria-labelledby={`tab-${reportType}`}>
             {reportType === 'manpower' && (
                <ManpowerReports
-                  people={people}
+                  people={activePeople}
                   teams={teams}
                   roles={roles}
                />
@@ -121,7 +122,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
 
             {reportType === 'tasks' && (
                <TaskReports
-                  people={people}
+                  people={activePeople}
                   shifts={shifts}
                   tasks={tasks}
                   roles={roles}
@@ -133,7 +134,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
 
             {reportType === 'location' && (
                <LocationReport
-                  people={people}
+                  people={activePeople}
                   shifts={shifts}
                   taskTemplates={tasks}
                   teamRotations={teamRotations}

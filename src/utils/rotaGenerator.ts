@@ -320,7 +320,8 @@ class TaskDerivedStrategy implements ISchedulingStrategy {
 // --- MAIN SERVICE ---
 
 const generateRoster = (params: RosterGenerationParams): RosterGenerationResult => {
-    const { startDate, endDate, people, settings, constraints, absences, history, tasks, customMinStaff } = params;
+    const { startDate, endDate, settings, constraints, absences, history, tasks, customMinStaff } = params;
+    const people = params.people.filter(p => p.isActive !== false);
 
     // 1. Build Context
     const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;

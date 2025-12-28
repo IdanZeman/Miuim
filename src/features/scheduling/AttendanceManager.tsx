@@ -41,6 +41,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
     isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction
 }) => {
+    const activePeople = people.filter(p => p.isActive !== false);
     const { showToast } = useToast();
     const [viewMode, setViewMode] = useState<'calendar' | 'table' | 'day_detail'>('calendar');
     const [calendarViewType, setCalendarViewType] = useState<'grid' | 'table'>('grid'); // NEW: sub-view for calendar
@@ -126,7 +127,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         onUpdatePerson(updatedPerson);
     };
 
-    const filteredPeople = people.filter(p => p.name.includes(searchTerm));
+    const filteredPeople = activePeople.filter(p => p.name.includes(searchTerm));
 
     let peopleByTeam = teams.map(team => ({
         team,
@@ -182,7 +183,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         const start = new Date(data.startDate);
         const end = new Date(data.endDate);
 
-        people.forEach(person => {
+        activePeople.forEach(person => {
             if (selectedPersonIds.has(person.id)) {
                 let updatedPerson = { ...person };
                 let current = new Date(start);
@@ -770,7 +771,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 <RotaWizardModal
                     isOpen={showRotaWizard}
                     onClose={() => setShowRotaWizard(false)}
-                    people={people}
+                    people={activePeople}
                     teams={teams}
                     tasks={tasks}
                     constraints={constraints}
