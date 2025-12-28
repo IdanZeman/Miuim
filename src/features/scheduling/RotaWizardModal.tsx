@@ -1120,19 +1120,54 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                 <span className="text-sm font-bold">דרישת סד״כ מחושבת:</span>
                                                 <span className="text-sm bg-white px-2 py-0.5 rounded border border-blue-200">
                                                     {(() => {
-                                                        // Simplified version of the generator logic for UI feedback
-                                                        let totalDailyHours = 0;
-                                                        tasks.forEach(t => {
-                                                            t.segments?.forEach(seg => {
-                                                                if (seg.frequency === 'daily' || seg.isRepeat) {
-                                                                    totalDailyHours += seg.isRepeat ? 24 : (seg.durationHours * seg.requiredPeople);
+                                                        let maxDaily = 0;
+                                                        const start = new Date(startDate);
+                                                        const end = new Date(endDate);
+                                                        const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+                                                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                                            let dailySum = 0;
+                                                            const checkDate = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+                                                            tasks.forEach(t => {
+                                                                // Check Task Validity Range
+                                                                const tStart = t.startDate ? t.startDate : '1900-01-01';
+                                                                const tEnd = t.endDate ? t.endDate : '2100-01-01';
+
+                                                                if (checkDate >= tStart && checkDate <= tEnd) {
+                                                                    t.segments?.forEach(seg => {
+                                                                        let isActive = false;
+                                                                        if (seg.frequency === 'daily') {
+                                                                            isActive = true;
+                                                                        } else if (seg.frequency === 'specific_date') {
+                                                                            if (seg.specificDate === checkDate) isActive = true;
+                                                                        } else if (seg.frequency === 'weekly') {
+                                                                            const dayName = dayMap[d.getDay()];
+                                                                            if (seg.daysOfWeek?.includes(dayName)) isActive = true;
+                                                                        }
+
+                                                                        if (isActive) {
+                                                                            dailySum += seg.requiredPeople;
+                                                                        }
+                                                                    });
                                                                 }
                                                             });
-                                                        });
-                                                        // Assuming ~8h capacity avg for shorthand UI display
-                                                        return Math.ceil(totalDailyHours / 8);
-                                                    })()} חיילים
+                                                            if (dailySum > maxDaily) maxDaily = dailySum;
+                                                        }
+
+                                                        return `עד ${maxDaily}`;
+                                                    })()} חיילים (משתנה)
                                                 </span>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setShowTaskAnalysis(true);
+                                                    }}
+                                                    className="p-1 hover:bg-white rounded-full transition-colors text-blue-500 hover:text-blue-700"
+                                                    title="פירוט משימות יומי"
+                                                >
+                                                    <Info size={16} />
+                                                </button>
                                             </div>
                                             <p className="text-[10px] text-blue-600 mt-1 mr-6">המערכת תחשב את הסד״כ המדויק לכל יום בנפרד במהלך יצירת השיבוץ.</p>
                                         </div>
@@ -1217,7 +1252,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 <div className="absolute inset-0 overflow-scroll force-scrolling" dir="rtl">
                                     <div className="min-w-max">
                                         {/* Summary Header */}
-                                        <div className="sticky top-0 z-30 bg-white border-b border-slate-200">
+                                        <div className="sticky top-0 z-50 bg-white border-b border-slate-200">
                                             {/* Date Header Row */}
                                             <div className="flex h-10">
                                                 <div className="w-32 shrink-0 p-2 font-bold bg-slate-50 border-l sticky right-0 z-40 flex items-center border-b border-slate-200">
@@ -1303,229 +1338,305 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                                         {/* Table Body */}
                                         <div>
-                                            {activePeople
-                                                .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId))
-                                                .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId))
-                                                .filter(p => !searchQuery || p.name.includes(searchQuery)) // Added Search Filter
-                                                .map((person, idx) => (
-                                                    <div key={person.id} className={`flex border-b border-slate-50 hover:bg-slate-50 transition-colors h-14 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
-                                                        {/* Sticky Name Column */}
-                                                        <div className={`w-32 shrink-0 p-2 border-l sticky right-0 z-20 flex items-center gap-2 border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                                            <div
-                                                                className="hidden md:flex w-8 h-8 rounded-full items-center justify-center text-xs font-bold shrink-0 shadow-sm border border-slate-200 text-slate-700"
-                                                                style={{
-                                                                    backgroundColor: teams.find(t => t.id === person.teamId)?.color || '#f1f5f9'
-                                                                }}
-                                                            >
-                                                                {person.name.charAt(0)}
+                                            {teams.map(team => {
+                                                // Filter members for this team
+                                                const teamMembers = activePeople
+                                                    .filter(p => p.teamId === team.id)
+                                                    .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId)) // Config filter
+                                                    .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId)) // Dropdown filter
+                                                    .filter(p => !searchQuery || p.name.includes(searchQuery)); // Search filter
+
+                                                if (teamMembers.length === 0) return null;
+
+                                                const isCollapsed = collapsedTeams.has(team.id);
+
+                                                return (
+                                                    <div key={team.id}>
+                                                        {/* Team Header */}
+                                                        {/* Team Header */}
+                                                        <div
+                                                            className="flex items-center h-8 bg-slate-50 border-b border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors"
+                                                            onClick={() => toggleTeam(team.id)}
+                                                        >
+                                                            <div className="w-32 shrink-0 sticky right-0 bg-slate-50 border-l border-slate-200 z-20 flex items-center px-2 py-1 gap-1">
+                                                                <div className="w-1 h-4 rounded-full" style={{ backgroundColor: team.color || '#cbd5e1' }} />
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div className="font-bold text-xs text-slate-600 truncate max-w-[80px]">{team.name}</div>
+                                                                        <div className="text-[10px] text-slate-400 font-medium">({teamMembers.length})</div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className={`text-slate-400 transition-transform ${isCollapsed ? 'rotate-[-90deg]' : 'rotate-0'}`}>
+                                                                    <ChevronDown size={14} />
+                                                                </div>
                                                             </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="text-sm font-bold text-slate-700 truncate">{person.name}</div>
-                                                                <div className="text-[10px] text-slate-400 truncate">{teams.find(t => t.id === person.teamId)?.name || 'ללא צוות'}</div>
+
+                                                            {/* Daily Stats Cells */}
+                                                            <div className="flex">
+                                                                {(() => {
+                                                                    const start = new Date(startDate);
+                                                                    const end = new Date(endDate);
+                                                                    const cells = [];
+                                                                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                                                        const dateKey = d.toLocaleDateString('en-CA');
+                                                                        let presentCount = 0;
+                                                                        teamMembers.forEach(p => {
+                                                                            const override = manualOverrides[`${p.id}-${dateKey}`];
+                                                                            let status = 'base';
+                                                                            if (override) {
+                                                                                status = override.status;
+                                                                            } else {
+                                                                                status = result?.personStatuses?.[dateKey]?.[p.id] || 'base';
+                                                                            }
+                                                                            if (status === 'base' || status === 'arrival' || status === 'departure') {
+                                                                                presentCount++;
+                                                                            }
+                                                                        });
+
+                                                                        const isFull = presentCount === teamMembers.length;
+                                                                        const isEmpty = presentCount === 0;
+
+                                                                        cells.push(
+                                                                            <div key={`team-${team.id}-${dateKey}`} className={`shrink-0 w-24 flex items-center justify-center border-l border-slate-100 text-[10px] font-bold ${isFull ? 'text-green-600' : isEmpty ? 'text-red-400' : 'text-slate-600'}`}>
+                                                                                {teamMembers.length} / {presentCount}
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    // Summary Column Placeholder
+                                                                    cells.push(
+                                                                        <div key={`team-${team.id}-summary`} className="shrink-0 w-24 bg-slate-50 border-l border-slate-100 sticky left-0 z-10" />
+                                                                    );
+                                                                    return cells;
+                                                                })()}
                                                             </div>
                                                         </div>
 
-                                                        {/* Days Cells */}
-                                                        <div className="flex">
-                                                            {(() => {
-                                                                const start = new Date(startDate);
-                                                                const end = new Date(endDate);
-                                                                const cells = [];
-                                                                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                                                                    const dateKey = d.toLocaleDateString('en-CA');
-                                                                    // const status = result?.personStatuses?.[dateKey]?.[person.id]; // Removed to avoid conflict
-
-                                                                    // Look back for Departure definition: Current=Home && Prev=Base
-                                                                    const prevDate = new Date(d);
-                                                                    prevDate.setDate(prevDate.getDate() - 1);
-                                                                    const prevDateKey = prevDate.toLocaleDateString('en-CA');
-
-                                                                    const nextDate = new Date(d);
-                                                                    nextDate.setDate(nextDate.getDate() + 1);
-                                                                    const nextDateKey = nextDate.toLocaleDateString('en-CA');
-                                                                    const overrideKey = `${person.id}-${dateKey}`;
-
-                                                                    // Helper to resolve status (Override > Result > Existing DB)
-                                                                    const resolveStatus = (key: string, pId: string = person.id) => {
-                                                                        // Check for Manual Override FIRST
-                                                                        const ov = manualOverrides[`${pId}-${key}`];
-                                                                        if (ov) return ov.status;
-
-                                                                        if (d.getTime() >= end.getTime() && key === nextDateKey) return 'base'; // End of roster = Base
-
-                                                                        const resStatus = result?.personStatuses?.[key]?.[pId];
-                                                                        if (resStatus) return resStatus;
-                                                                        const dbAvail = person.dailyAvailability?.[key];
-                                                                        if (dbAvail) {
-                                                                            if (dbAvail.status) return dbAvail.status;
-                                                                            return dbAvail.isAvailable ? 'base' : 'home';
-                                                                        }
-                                                                        return 'base'; // Default
-                                                                    };
-
-                                                                    // Current Status (Override aware)
-                                                                    const status = resolveStatus(dateKey);
-                                                                    const prevStatus = resolveStatus(prevDateKey);
-                                                                    const nextStatus = resolveStatus(nextDateKey);
-
-                                                                    let content = null;
-                                                                    let cellClass = "bg-white";
-
-                                                                    if (status === 'home' || status === 'unavailable') {
-
-                                                                        // Check for Implicit Departure (Home day following Base)
-                                                                        // ONLY if not explicitly overridden to Home/Unavailable
-                                                                        const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
-
-                                                                        if (!isOverridden && prevStatus === 'base' && status !== 'unavailable') {
-                                                                            // DEPARTURE (Home day following Base)
-                                                                            cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
-                                                                            content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                    <span className="font-bold mb-0.5">יציאה</span>
-                                                                                    <span className="text-[9px]">{userDepartureHour}</span>
-                                                                                </div>
-                                                                            );
-                                                                        } else {
-                                                                            // Standard Home Day (Explicit or Middle of Home Block)
-                                                                            cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
-
-                                                                            const isConstraint = status === 'unavailable';
-                                                                            // Show '(אילוץ)' if unavailable, otherwise standard 'בית'
-
-                                                                            content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
-                                                                                    <span>{isConstraint ? 'לא זמין' : 'בית'}</span>
-                                                                                    {isConstraint && <span className="text-[8px] font-normal">(אילוץ)</span>}
-                                                                                </div>
-                                                                            );
-                                                                        }
-                                                                    } else if (status === 'arrival') {
-                                                                        // Explicit Arrival
-                                                                        const ov = manualOverrides[`${person.id}-${dateKey}`];
-                                                                        const time = ov?.startTime || userArrivalHour;
-
-                                                                        cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
-                                                                        content = (
-                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                <span className="font-bold mb-0.5">הגעה</span>
-                                                                                <span className="text-[9px]">{time}</span>
-                                                                            </div>
-                                                                        );
-                                                                    } else if (status === 'departure') {
-                                                                        // Explicit Departure
-                                                                        const ov = manualOverrides[`${person.id}-${dateKey}`];
-                                                                        const time = ov?.endTime || userDepartureHour;
-
-                                                                        cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
-                                                                        content = (
-                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                <span className="font-bold mb-0.5">יציאה</span>
-                                                                                <span className="text-[9px]">{time}</span>
-                                                                            </div>
-                                                                        );
-                                                                    } else if (status === 'base') {
-                                                                        // Base Day 
-                                                                        // Check for Implicit Arrival (Base day following Home/Unavailable)
-                                                                        const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
-                                                                        const isPrevHome = prevStatus === 'home' || prevStatus === 'unavailable';
-
-                                                                        if (!isOverridden && isPrevHome) {
-                                                                            // ARRIVAL (Base day following Home)
-                                                                            cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
-                                                                            content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                    <span className="font-bold mb-0.5">הגעה</span>
-                                                                                    <span className="text-[9px]">{userArrivalHour}</span>
-                                                                                </div>
-                                                                            );
-                                                                        } else {
-                                                                            // Full Base
-                                                                            // Check for Custom Times override
-                                                                            let label = "בבסיס";
-                                                                            let subLabel = "";
-
-                                                                            if (isOverridden && isOverridden.status === 'base' && isOverridden.startTime && isOverridden.endTime) {
-                                                                                if (isOverridden.startTime !== '00:00' || isOverridden.endTime !== '23:59') {
-                                                                                    subLabel = `${isOverridden.startTime}-${isOverridden.endTime}`;
-                                                                                }
-                                                                            }
-
-                                                                            cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
-                                                                            content = (
-                                                                                <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center">
-                                                                                    <span className="font-bold">{label}</span>
-                                                                                    {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
-                                                                                </div>
-                                                                            );
-                                                                        }
-                                                                    }
-
-                                                                    cells.push(
+                                                        {/* Team Members */}
+                                                        <div className={`${isCollapsed ? 'hidden' : 'block'}`}>
+                                                            {teamMembers.map((person, idx) => (
+                                                                <div key={person.id} className={`flex border-b border-slate-50 hover:bg-slate-50 transition-colors h-14 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                                                                    {/* Sticky Name Column */}
+                                                                    <div className={`w-32 shrink-0 p-2 border-l sticky right-0 z-20 flex items-center gap-2 border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                                                                         <div
-                                                                            key={`${person.id}-${dateKey}`}
-                                                                            className={`w-24 shrink-0 p-1 border-l border-slate-100 h-12 flex items-center justify-center transition-colors cursor-pointer hover:ring-1 hover:ring-blue-300 ${cellClass}`}
-                                                                            onClick={(e) => handleCellClick(e, person.id, dateKey)}
+                                                                            className="hidden md:flex w-8 h-8 rounded-full items-center justify-center text-xs font-bold shrink-0 shadow-sm border border-slate-200 text-slate-700"
+                                                                            style={{
+                                                                                backgroundColor: team.color || '#f1f5f9'
+                                                                            }}
                                                                         >
-                                                                            {content}
+                                                                            {person.name.charAt(0)}
                                                                         </div>
-                                                                    );
-                                                                }
-
-                                                                // Calculate Summary for this person
-                                                                let homeCount = 0;
-                                                                let baseCount = 0;
-                                                                const startD = new Date(startDate);
-                                                                const endD = new Date(endDate);
-
-                                                                // Create Range array
-                                                                const dateRange: string[] = [];
-                                                                for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-                                                                    dateRange.push(d.toLocaleDateString('en-CA'));
-                                                                }
-
-                                                                // Helper to resolve status for any date
-                                                                const getStatusForDate = (dateKey: string) => {
-                                                                    // Check overrides first
-                                                                    if (manualOverrides[`${person.id}-${dateKey}`]) return manualOverrides[`${person.id}-${dateKey}`].status;
-                                                                    const resStatus = result?.personStatuses?.[dateKey]?.[person.id];
-                                                                    if (resStatus) return resStatus;
-                                                                    const dbAvail = person.dailyAvailability?.[dateKey];
-                                                                    if (dbAvail) return dbAvail.isAvailable ? 'base' : 'home';
-                                                                    return 'base'; // Default
-                                                                };
-
-                                                                // Use full dateRange (No Trimming)
-                                                                // Use full dateRange (No Trimming)
-                                                                dateRange.forEach(k => {
-                                                                    const currentStatus = getStatusForDate(k);
-                                                                    if (currentStatus === 'home' || currentStatus === 'unavailable' || currentStatus === 'departure') {
-                                                                        homeCount++;
-                                                                    } else {
-                                                                        baseCount++;
-                                                                    }
-                                                                });
-
-                                                                const ratioStr = getArmyRatio(baseCount, homeCount);
-                                                                cells.push(
-                                                                    <div key="summary-cell" className={`shrink-0 w-24 border-l border-slate-100 flex flex-col items-center justify-center sticky left-0 z-30 border-r border-slate-200/50 shadow-[1px_0_3px_rgba(0,0,0,0.05)] h-14 overflow-hidden border-b border-slate-300 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                                                        <div className="text-[10px] font-bold text-slate-600 leading-tight">
-                                                                            בסיס: <span className="text-green-600">{baseCount}</span>
-                                                                        </div>
-                                                                        <div className="text-[10px] font-bold text-slate-600 leading-tight">
-                                                                            בית: <span className="text-orange-600">{homeCount}</span>
-                                                                        </div>
-                                                                        <div className="text-[10px] font-bold text-slate-600 border-t border-slate-200/50 w-full text-center mt-0.5 pt-0.5 leading-tight">
-                                                                            יחס: <span dir="ltr" className="text-blue-600">{ratioStr}</span>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="text-sm font-bold text-slate-700 truncate">{person.name}</div>
+                                                                            <div className="text-[10px] text-slate-400 truncate">{team.name}</div>
                                                                         </div>
                                                                     </div>
-                                                                );
 
-                                                                return cells;
-                                                            })()}
+                                                                    {/* Days Cells */}
+                                                                    <div className="flex">
+                                                                        {(() => {
+                                                                            const start = new Date(startDate);
+                                                                            const end = new Date(endDate);
+                                                                            const cells = [];
+                                                                            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                                                                const dateKey = d.toLocaleDateString('en-CA');
+                                                                                // const status = result?.personStatuses?.[dateKey]?.[person.id]; // Removed to avoid conflict
+
+                                                                                // Look back for Departure definition: Current=Home && Prev=Base
+                                                                                const prevDate = new Date(d);
+                                                                                prevDate.setDate(prevDate.getDate() - 1);
+                                                                                const prevDateKey = prevDate.toLocaleDateString('en-CA');
+
+                                                                                const nextDate = new Date(d);
+                                                                                nextDate.setDate(nextDate.getDate() + 1);
+                                                                                const nextDateKey = nextDate.toLocaleDateString('en-CA');
+                                                                                const overrideKey = `${person.id}-${dateKey}`;
+
+                                                                                // Helper to resolve status (Override > Result > Existing DB)
+                                                                                const resolveStatus = (key: string, pId: string = person.id) => {
+                                                                                    // Check for Manual Override FIRST
+                                                                                    const ov = manualOverrides[`${pId}-${key}`];
+                                                                                    if (ov) return ov.status;
+
+                                                                                    if (d.getTime() >= end.getTime() && key === nextDateKey) return 'base'; // End of roster = Base
+
+                                                                                    const resStatus = result?.personStatuses?.[key]?.[pId];
+                                                                                    if (resStatus) return resStatus;
+                                                                                    const dbAvail = person.dailyAvailability?.[key];
+                                                                                    if (dbAvail) {
+                                                                                        if (dbAvail.status) return dbAvail.status;
+                                                                                        return dbAvail.isAvailable ? 'base' : 'home';
+                                                                                    }
+                                                                                    return 'base'; // Default
+                                                                                };
+
+                                                                                // Current Status (Override aware)
+                                                                                const status = resolveStatus(dateKey);
+                                                                                const prevStatus = resolveStatus(prevDateKey);
+                                                                                const nextStatus = resolveStatus(nextDateKey);
+
+                                                                                let content = null;
+                                                                                let cellClass = "bg-white";
+
+                                                                                if (status === 'home' || status === 'unavailable') {
+
+                                                                                    // Check for Implicit Departure (Home day following Base)
+                                                                                    // ONLY if not explicitly overridden to Home/Unavailable
+                                                                                    const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
+
+                                                                                    if (!isOverridden && prevStatus === 'base' && status !== 'unavailable') {
+                                                                                        // DEPARTURE (Home day following Base)
+                                                                                        cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
+                                                                                        content = (
+                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                                <span className="font-bold mb-0.5">יציאה</span>
+                                                                                                <span className="text-[9px]">{userDepartureHour}</span>
+                                                                                            </div>
+                                                                                        );
+                                                                                    } else {
+                                                                                        // Standard Home Day (Explicit or Middle of Home Block)
+                                                                                        cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
+
+                                                                                        const isConstraint = status === 'unavailable';
+                                                                                        // Show '(אילוץ)' if unavailable, otherwise standard 'בית'
+
+                                                                                        content = (
+                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
+                                                                                                <span>{isConstraint ? 'לא זמין' : 'בית'}</span>
+                                                                                                {isConstraint && <span className="text-[8px] font-normal">(אילוץ)</span>}
+                                                                                            </div>
+                                                                                        );
+                                                                                    }
+                                                                                } else if (status === 'arrival') {
+                                                                                    // Explicit Arrival
+                                                                                    const ov = manualOverrides[`${person.id}-${dateKey}`];
+                                                                                    const time = ov?.startTime || userArrivalHour;
+
+                                                                                    cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
+                                                                                    content = (
+                                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                            <span className="font-bold mb-0.5">הגעה</span>
+                                                                                            <span className="text-[9px]">{time}</span>
+                                                                                        </div>
+                                                                                    );
+                                                                                } else if (status === 'departure') {
+                                                                                    // Explicit Departure
+                                                                                    const ov = manualOverrides[`${person.id}-${dateKey}`];
+                                                                                    const time = ov?.endTime || userDepartureHour;
+
+                                                                                    cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
+                                                                                    content = (
+                                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                            <span className="font-bold mb-0.5">יציאה</span>
+                                                                                            <span className="text-[9px]">{time}</span>
+                                                                                        </div>
+                                                                                    );
+                                                                                } else if (status === 'base') {
+                                                                                    // Base Day 
+                                                                                    // Check for Implicit Arrival (Base day following Home/Unavailable)
+                                                                                    const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
+                                                                                    const isPrevHome = prevStatus === 'home' || prevStatus === 'unavailable';
+
+                                                                                    if (!isOverridden && isPrevHome) {
+                                                                                        // ARRIVAL (Base day following Home)
+                                                                                        cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
+                                                                                        content = (
+                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                                                <span className="font-bold mb-0.5">הגעה</span>
+                                                                                                <span className="text-[9px]">{userArrivalHour}</span>
+                                                                                            </div>
+                                                                                        );
+                                                                                    } else {
+                                                                                        // Full Base
+                                                                                        // Check for Custom Times override
+                                                                                        let label = "בבסיס";
+                                                                                        let subLabel = "";
+
+                                                                                        if (isOverridden && isOverridden.status === 'base' && isOverridden.startTime && isOverridden.endTime) {
+                                                                                            if (isOverridden.startTime !== '00:00' || isOverridden.endTime !== '23:59') {
+                                                                                                subLabel = `${isOverridden.startTime}-${isOverridden.endTime}`;
+                                                                                            }
+                                                                                        }
+
+                                                                                        cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
+                                                                                        content = (
+                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center">
+                                                                                                <span className="font-bold">{label}</span>
+                                                                                                {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
+                                                                                            </div>
+                                                                                        );
+                                                                                    }
+                                                                                }
+
+                                                                                cells.push(
+                                                                                    <div
+                                                                                        key={`${person.id}-${dateKey}`}
+                                                                                        className={`w-24 shrink-0 p-1 border-l border-slate-100 h-12 flex items-center justify-center transition-colors cursor-pointer hover:ring-1 hover:ring-blue-300 ${cellClass}`}
+                                                                                        onClick={(e) => handleCellClick(e, person.id, dateKey)}
+                                                                                    >
+                                                                                        {content}
+                                                                                    </div>
+                                                                                );
+                                                                            }
+
+                                                                            // Calculate Summary for this person
+                                                                            let homeCount = 0;
+                                                                            let baseCount = 0;
+                                                                            const startD = new Date(startDate);
+                                                                            const endD = new Date(endDate);
+
+                                                                            // Create Range array
+                                                                            const dateRange: string[] = [];
+                                                                            for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                                                                                dateRange.push(d.toLocaleDateString('en-CA'));
+                                                                            }
+
+                                                                            // Helper to resolve status for any date
+                                                                            const getStatusForDate = (dateKey: string) => {
+                                                                                // Check overrides first
+                                                                                // Check overrides first
+                                                                                if (manualOverrides[`${person.id}-${dateKey}`]) return manualOverrides[`${person.id}-${dateKey}`].status;
+                                                                                const resStatus = result?.personStatuses?.[dateKey]?.[person.id];
+                                                                                if (resStatus) return resStatus;
+                                                                                const dbAvail = person.dailyAvailability?.[dateKey];
+                                                                                if (dbAvail) return dbAvail.isAvailable ? 'base' : 'home';
+                                                                                return 'base'; // Default
+                                                                            };
+
+                                                                            // Use full dateRange (No Trimming)
+                                                                            // Use full dateRange (No Trimming)
+                                                                            dateRange.forEach(k => {
+                                                                                const currentStatus = getStatusForDate(k);
+                                                                                if (currentStatus === 'home' || currentStatus === 'unavailable' || currentStatus === 'departure') {
+                                                                                    homeCount++;
+                                                                                } else {
+                                                                                    baseCount++;
+                                                                                }
+                                                                            });
+
+                                                                            const ratioStr = getArmyRatio(baseCount, homeCount);
+                                                                            cells.push(
+                                                                                <div key="summary-cell" className={`shrink-0 w-24 border-l border-slate-100 flex flex-col items-center justify-center sticky left-0 z-30 border-r border-slate-200/50 shadow-[1px_0_3px_rgba(0,0,0,0.05)] h-14 overflow-hidden border-b border-slate-300 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                                                                    <div className="text-[10px] font-bold text-slate-600 leading-tight">
+                                                                                        בסיס: <span className="text-green-600">{baseCount}</span>
+                                                                                    </div>
+                                                                                    <div className="text-[10px] font-bold text-slate-600 leading-tight">
+                                                                                        בית: <span className="text-orange-600">{homeCount}</span>
+                                                                                    </div>
+                                                                                    <div className="text-[10px] font-bold text-slate-600 border-t border-slate-200/50 w-full text-center mt-0.5 pt-0.5 leading-tight">
+                                                                                        יחס: <span dir="ltr" className="text-blue-600">{ratioStr}</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+
+                                                                            return cells;
+                                                                        })()}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     </div>
-                                                ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -1632,7 +1743,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 size="xl"
             >
                 <div className="py-4">
-                    <StaffingAnalysis tasks={tasks} totalPeople={people.length} />
+                    <StaffingAnalysis
+                        tasks={tasks}
+                        totalPeople={people.length}
+                        viewStartDate={new Date(startDate)}
+                        viewEndDate={new Date(endDate)}
+                    />
                 </div>
             </Modal>
 

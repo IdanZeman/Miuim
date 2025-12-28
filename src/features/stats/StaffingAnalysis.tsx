@@ -5,118 +5,121 @@ import { Users, Clock, AlertCircle } from 'lucide-react';
 interface StaffingAnalysisProps {
     tasks: TaskTemplate[];
     totalPeople: number;
+    viewStartDate?: Date;
+    viewEndDate?: Date;
 }
 
-export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, totalPeople }) => {
+export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, totalPeople, viewStartDate, viewEndDate }) => {
 
-    // Calculate Needs
-    const analysis = useMemo(() => {
-        let totalRequired = 0;
-        const breakdown = tasks.map(task => {
-            // 1. Calculate Daily Man-Hours Demand
-            let dailyManHours = 0;
-            let totalDuration = 0;
-            let totalRest = 0; // Accumulated rest for weighting
+    const { headers, tableData, totalDaily, maxReq, simulationRange } = useMemo(() => {
+        // 1. Determine Date Range
+        let simStart = viewStartDate ? new Date(viewStartDate) : new Date();
+        let simEnd = viewEndDate ? new Date(viewEndDate) : new Date();
 
-            // If no segments, assume 24h coverage with template defaults? 
-            // Better to rely on segments.
-            const segments = task.segments || [];
+        if (!viewStartDate || !viewEndDate) {
+            // Auto-detect range if not provided
+            simEnd.setMonth(simEnd.getMonth() + 2);
+            const taskStarts = tasks.map(t => t.startDate ? new Date(t.startDate) : null).filter(d => d) as Date[];
+            const taskEnds = tasks.map(t => t.endDate ? new Date(t.endDate) : null).filter(d => d) as Date[];
 
-            if (segments.length === 0) {
-                // Fallback: Assume 1 person, 24/7 ??? No, safer to return 0 and warn.
-                return {
-                    id: task.id,
-                    name: task.name,
-                    staffNeeded: 0,
-                    details: 'לא הוגדרו משמרות (Segments)',
-                    error: true
-                };
+            if (taskStarts.length > 0) simStart = new Date(Math.min(...taskStarts.map(d => d.getTime())));
+            if (taskEnds.length > 0) simEnd = new Date(Math.max(...taskEnds.map(d => d.getTime())));
+
+            if (simEnd <= simStart) {
+                simEnd = new Date(simStart);
+                simEnd.setDate(simEnd.getDate() + 30);
             }
+        }
 
-            segments.forEach(seg => {
-                if (seg.isRepeat) {
-                    // Constant 24/7 coverage
-                    dailyManHours += 24 * seg.requiredPeople;
-                    // Duration and Rest still relevant for calculating the Work/Rest Ratio
-                    totalDuration += seg.durationHours;
-                    totalRest += (seg.minRestHoursAfter * seg.durationHours);
-                } else if (seg.frequency === 'daily') {
-                    dailyManHours += seg.durationHours * seg.requiredPeople;
-                    totalDuration += seg.durationHours;
-                    totalRest += (seg.minRestHoursAfter * seg.durationHours);
+        // Ensure range isn't too huge for display, cap at ~60 days for table sanity if auto-detected
+        // But if viewStartDate is provided, respect it.
+
+        const headers: { date: Date, label: string, subLabel: string, iso: string }[] = [];
+        const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+        for (let d = new Date(simStart); d <= simEnd; d.setDate(d.getDate() + 1)) {
+            headers.push({
+                date: new Date(d),
+                label: d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+                subLabel: d.toLocaleDateString('he-IL', { weekday: 'short' }),
+                iso: d.toLocaleDateString('en-CA')
+            });
+        }
+
+        const totalDaily: Record<string, number> = {};
+        let maxReq = 0;
+        headers.forEach(h => totalDaily[h.iso] = 0);
+
+        // 2. Build Table Rows
+        const tableData = tasks.map(task => {
+            const rowCells: Record<string, number | null> = {};
+            const taskStart = task.startDate ? task.startDate : '1900-01-01';
+            const taskEnd = task.endDate ? task.endDate : '2100-01-01';
+
+            headers.forEach(h => {
+                const dateKey = h.iso;
+                // Check Global Task Range
+                if (dateKey < taskStart || dateKey > taskEnd) {
+                    rowCells[dateKey] = null;
+                    return;
                 }
-                // Handle Weekly? (For "SADAK" we usually look at max daily load or average)
-                // Let's assume daily for the core calc
+
+                // Check Segments
+                let dailySum = 0;
+                let isActive = false;
+
+                if (!task.segments || task.segments.length === 0) {
+                    // No segments -> 0
+                } else {
+                    task.segments.forEach(seg => {
+                        let segActive = false;
+                        if (seg.frequency === 'daily') {
+                            segActive = true;
+                        } else if (seg.frequency === 'specific_date') {
+                            if (seg.specificDate === dateKey) segActive = true;
+                        } else if (seg.frequency === 'weekly') {
+                            const dayName = dayMap[h.date.getDay()];
+                            if (seg.daysOfWeek?.includes(dayName)) segActive = true;
+                        } else if (seg.frequency === 'one_time') { // Fallback/Legacy
+                            const s = (seg as any).startDate;
+                            const e = (seg as any).endDate;
+                            if (s && e && dateKey >= s && dateKey <= e) segActive = true;
+                        }
+
+                        if (segActive) {
+                            isActive = true;
+                            dailySum += seg.requiredPeople;
+                        }
+                    });
+                }
+
+                if (isActive) {
+                    rowCells[dateKey] = dailySum;
+                    totalDaily[dateKey] += dailySum;
+                } else {
+                    rowCells[dateKey] = null; // Not active on this specific day (e.g. weekend for weekday task)
+                }
             });
 
-            if (totalDuration === 0) {
-                return {
-                    id: task.id,
-                    name: task.name,
-                    staffNeeded: 0,
-                    details: 'אין משמרות יומיות פעילות',
-                    error: true
-                };
-            }
-
-            const avgRest = totalRest / totalDuration;
-            const avgDuration = totalDuration / segments.length; // Approximate
-
-            // Work Ratio: How much of the time is a person Working vs Total Cycle?
-            // Ratio = Duration / (Duration + Rest)
-            // Example Hamal: 2 / (2+6) = 0.25 (25% of time working)
-            const workRatio = avgDuration / (avgDuration + avgRest);
-
-            // Staff Needed = ManHoursNeeded / (24 * WorkRatio)
-            // Example Hamal: 24 / (24 * 0.25) = 4.
-            const exactStaffNeeded = dailyManHours / (24 * workRatio);
-
-            // However, a simpler discrete math for 24h cycle:
-            // "Sum of people in all shifts" (Sayur logic: 4+4+5=13)
-            // This applies if Cycle == 24h.
-            // If Cycle < 24h, logic is ManHours based.
-            // Let's use the ManHours formula as it generalizes.
-
-            const staffNeeded = Math.ceil(exactStaffNeeded);
-            totalRequired += staffNeeded;
-
-            // Calculate Date Range Label
-            let dateRange = undefined;
-            if (task.startDate || task.endDate) {
-                const s = task.startDate ? new Date(task.startDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : '∞';
-                const e = task.endDate ? new Date(task.endDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : '∞';
-                dateRange = `${s} - ${e}`;
-            }
-
-            return {
-                id: task.id,
-                name: task.name,
-                staffNeeded,
-                exact: exactStaffNeeded.toFixed(1),
-                manHours: dailyManHours,
-                avgRest: avgRest.toFixed(1),
-                details: `${dailyManHours} שעות אדם ביום / יחס תעסוקה ${(workRatio * 100).toFixed(0)}%`,
-                error: false,
-                dateRange,
-                data: {
-                    duration: avgDuration.toFixed(1),
-                    rest: avgRest.toFixed(1),
-                    cycle: (avgDuration + avgRest).toFixed(1),
-                    shiftsPerDay: (24 / (avgDuration + avgRest)).toFixed(1)
-                }
-            };
+            return { task, cells: rowCells };
         });
 
-        return { totalRequired, breakdown };
-    }, [tasks]);
+        // Calc max
+        Object.values(totalDaily).forEach(v => {
+            if (v > maxReq) maxReq = v;
+        });
 
-    const surplus = totalPeople - analysis.totalRequired;
+        return { headers, tableData, totalDaily, maxReq, simulationRange: { start: simStart, end: simEnd } };
+
+    }, [tasks, viewStartDate, viewEndDate]);
+
+    const surplus = totalPeople - maxReq;
     const isDeficit = surplus < 0;
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full max-h-[80vh]">
             {/* Header Status */}
-            <div className={`p-4 border-b flex items-center justify-between ${isDeficit ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
+            <div className={`p-4 border-b flex items-center justify-between shrink-0 ${isDeficit ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-full ${isDeficit ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
                         <Users size={20} />
@@ -126,7 +129,7 @@ export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, total
                             {isDeficit ? 'חוסר בסד״כ!' : 'סד״כ תקין'}
                         </h3>
                         <p className={`text-xs ${isDeficit ? 'text-red-700' : 'text-green-700'}`}>
-                            נדרשים {analysis.totalRequired} לוחמים למילוי משימות (יש {totalPeople})
+                            שיא הדרישה: {maxReq} לוחמים (יש {totalPeople})
                         </p>
                     </div>
                 </div>
@@ -138,63 +141,78 @@ export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, total
                 </div>
             </div>
 
-            {/* Breakdown Table */}
-            <div className="p-0">
-                <table className="w-full text-right text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+            {/* Matrix Table Wrapper */}
+            <div className="relative flex-1 overflow-auto bg-white" dir="rtl">
+                <table className="w-full border-collapse">
+                    <thead className="sticky top-0 z-20 bg-slate-50 shadow-sm">
                         <tr>
-                            <th className="px-4 py-3">משימה</th>
-                            <th className="px-4 py-3">נגזרת (אנשים)</th>
-                            <th className="px-4 py-3 text-center">פרטים</th>
+                            <th className="sticky right-0 z-30 bg-slate-50 border-b border-l border-slate-200 p-2 text-right text-xs font-bold w-48 min-w-[12rem] text-slate-700 shadow-[1px_0_3px_rgba(0,0,0,0.05)]">
+                                משימה / תאריך
+                            </th>
+                            {headers.map(h => (
+                                <th key={h.iso} className="border-b border-l border-slate-100 p-1 text-center min-w-[3.5rem] w-14">
+                                    <div className="text-xs font-bold text-slate-700">{h.label}</div>
+                                    <div className="text-[10px] text-slate-400 font-normal">{h.subLabel}</div>
+                                </th>
+                            ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {analysis.breakdown.map((item) => (
-                            <tr key={item.id} className="hover:bg-slate-50/50">
-                                <td className="px-4 py-3 font-medium text-slate-700">{item.name}</td>
-                                <td className="px-4 py-3">
+                    <tbody>
+                        {tableData.map((row, idx) => (
+                            <tr key={row.task.id} className={`hover:bg-slate-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                                <td className="sticky right-0 z-10 bg-white border-l border-b border-slate-100 p-2 text-right shadow-[1px_0_3px_rgba(0,0,0,0.05)]">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
-                                            {item.staffNeeded}
-                                        </span>
-                                        <span className="text-xs text-slate-400">
-                                            ({item.exact})
-                                        </span>
-                                    </div>
-                                </td>
-                                <td className="px-4 py-3">
-                                    {item.error ? (
-                                        <span className="text-red-500 flex items-center justify-start gap-1">
-                                            <AlertCircle size={12} /> {item.details}
-                                        </span>
-                                    ) : (
-                                        <div className="flex flex-col gap-0.5 text-right">
-                                            {item.dateRange && (
-                                                <div className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded w-fit mb-1">
-                                                    <Clock size={10} />
-                                                    <span>{item.dateRange}</span>
+                                        <div className="w-1 h-6 rounded-full shrink-0" style={{ backgroundColor: row.task.color || '#cbd5e1' }} />
+                                        <div className="min-w-0">
+                                            <div className="text-xs font-bold text-slate-700 truncate max-w-[10rem]" title={row.task.name}>{row.task.name}</div>
+                                            {/* Mini date range if specific */}
+                                            {(row.task.startDate || row.task.endDate) && (
+                                                <div className="text-[9px] text-slate-400 flex items-center gap-1">
+                                                    <Clock size={8} />
+                                                    {row.task.startDate ? new Date(row.task.startDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : '∞'} -
+                                                    {row.task.endDate ? new Date(row.task.endDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : '∞'}
                                                 </div>
                                             )}
-                                            <span className="font-bold text-slate-600 block">
-                                                משמרת {item.data?.duration} שעות + {item.data?.rest} שעות מנוחה
-                                            </span>
-                                            <span className="text-slate-400">
-                                                מחזוריות: {item.data?.cycle} שעות
-                                            </span>
-                                            <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-100 rounded px-1.5 py-0.5 inline-block w-fit mt-1">
-                                                {item.data?.shiftsPerDay} משמרות ביום (לאדם) = נדרשים {item.exact} אנשים למילוי רציף
-                                            </span>
                                         </div>
-                                    )}
+                                    </div>
                                 </td>
+                                {headers.map(h => {
+                                    const val = row.cells[h.iso];
+                                    return (
+                                        <td key={h.iso} className="border-b border-l border-slate-100 p-1 text-center">
+                                            {val !== null ? (
+                                                <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${val > 0 ? 'bg-blue-50 text-blue-700' : 'text-slate-300'}`}>
+                                                    {val > 0 ? val : '-'}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-200 text-[10px]">•</span>
+                                            )}
+                                        </td>
+                                    );
+                                })}
                             </tr>
                         ))}
                     </tbody>
+                    <tfoot className="sticky bottom-0 z-20 bg-slate-50 font-bold border-t border-slate-200 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+                        <tr className="bg-slate-100">
+                            <td className="sticky right-0 z-30 bg-slate-100 border-l border-slate-200 p-2 text-right text-xs text-slate-800 shadow-[1px_0_3px_rgba(0,0,0,0.05)]">
+                                סה״כ יומי
+                            </td>
+                            {headers.map(h => {
+                                const total = totalDaily[h.iso];
+                                const isOverCapacity = total > totalPeople;
+                                return (
+                                    <td key={h.iso} className={`border-l border-slate-200 p-1 text-center text-xs ${isOverCapacity ? 'text-red-600 bg-red-50' : 'text-slate-700'}`}>
+                                        {total}
+                                    </td>
+                                );
+                            })}
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
-
-            <div className="p-3 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-400 text-center">
-                * החישוב מתבסס על מחזוריות משמרת + מנוחה נדרשת ל-24 שעות
+            <div className="p-2 text-center text-[10px] text-slate-400 border-t bg-white shrink-0">
+                * הטבלה מציגה דרשיות כוח אדם לכל יום. ייתכן שחלק מהמשימות אינן פעילות בימים מסוימים (למשל סופ"ש).
             </div>
         </div>
     );
