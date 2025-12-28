@@ -153,7 +153,9 @@ const ShiftCard: React.FC<{
                         <AlertTriangle size={12} className="text-red-500 drop-shadow-sm shrink-0" />
                     )}
                     {hasTeamMismatch && (
-                        <AlertTriangle size={12} className="text-orange-500 shrink-0" title="ישנם משובצים שאינם מהצוות המוגדר!" />
+                        <span title="ישנם משובצים שאינם מהצוות המוגדר!">
+                            <AlertTriangle size={12} className="text-orange-500 shrink-0" />
+                        </span>
                     )}
 
                     {task.assignedTeamId && (
@@ -248,6 +250,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 // Use requestAnimationFrame to ensure layout is ready
                 requestAnimationFrame(() => {
                     if (verticalScrollRef.current) {
+                        // Skip auto-scroll on mobile (width < 768px)
+                        if (window.innerWidth < 768) return;
+
                         verticalScrollRef.current.scrollTo({ top: scrollPosition, behavior: 'smooth' });
 
                         // Fallback check - ensures we scroll even if smooth scroll is interrupted or fails
@@ -505,7 +510,29 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     return (
         <div className={`flex flex-col gap-2 ${containerHeightClass}`}>
             {isViewer && renderFeaturedCard()}
-            {selectedShift && <AssignmentModal />}
+            {selectedShift && (() => {
+                const task = taskTemplates.find(t => t.id === selectedShift.taskId);
+                if (!task) return null;
+                return (
+                    <AssignmentModal
+                        selectedShift={selectedShift}
+                        task={task}
+                        people={people}
+                        roles={roles}
+                        teams={teams}
+                        shifts={shifts}
+                        selectedDate={selectedDate}
+                        teamRotations={teamRotations}
+                        isViewer={isViewer}
+                        onClose={() => setSelectedShiftId(null)}
+                        onAssign={onAssign}
+                        onUnassign={onUnassign}
+                        onUpdateShift={onUpdateShift || (() => { })}
+                        onToggleCancelShift={onToggleCancelShift || (() => { })}
+                        constraints={constraints}
+                    />
+                );
+            })()}
 
 
 
@@ -550,7 +577,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         {!isViewer && (() => {
                             const dateKey = selectedDate.toLocaleDateString('en-CA');
                             const unavailableCount = people.filter(p => {
-                                if (p.unavailableDates?.includes(dateKey)) return true;
+                                // if (p.unavailableDates?.includes(dateKey)) return true; // Removed invalid property
                                 if (p.dailyAvailability?.[dateKey]?.isAvailable === false) return true;
                                 return false;
                             }).length;
@@ -583,8 +610,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                         if ('showPicker' in dateInputRef.current) {
                                             (dateInputRef.current as any).showPicker();
                                         } else {
-                                            dateInputRef.current.focus();
-                                            dateInputRef.current.click();
+                                            (dateInputRef.current as HTMLInputElement).focus();
+                                            (dateInputRef.current as HTMLInputElement).click();
                                         }
                                     }
                                 }}

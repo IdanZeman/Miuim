@@ -201,8 +201,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                     {/* Team Organic Toggle - Full width row */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 md:bg-slate-50 md:mx-6 md:rounded-xl md:mb-4 md:border-none">
                         <div>
-                            <h4 className="text-sm font-bold text-slate-800">שמור על אורגניות מתחם</h4>
-                            <p className="text-xs text-slate-500">שיבוץ לפי צוותים</p>
+                            <h4 className="text-sm font-bold text-slate-800">שמור על אורגניות צוותים</h4>
                         </div>
                         <button
                             onClick={() => setPrioritizeTeamOrganic(!prioritizeTeamOrganic)}
@@ -256,7 +255,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                             <div className="text-xs text-slate-500 flex items-center gap-1.5">
                                                 <span>{task.segments?.length || 0} מקטעים</span>
                                                 <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                                <span>{task.difficulty === 3 || task.difficulty === 'hard' ? 'מורכב' : (task.difficulty === 2 || task.difficulty === 'medium' ? 'בינוני' : 'קל')}</span>
+                                                <span>{task.difficulty >= 4 ? 'מורכב' : (task.difficulty === 3 ? 'בינוני' : 'קל')}</span>
                                             </div>
                                         </div>
 

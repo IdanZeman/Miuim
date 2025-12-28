@@ -43,9 +43,9 @@ import {
     mapAbsenceFromDB, mapAbsenceToDB, // Added imports
     mapEquipmentFromDB, mapEquipmentToDB
 } from './services/supabaseClient';
-import { solveSchedule } from './services/scheduler';
+import { solveSchedule, SchedulingSuggestion, SchedulingResult } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
-import { Wand2, Loader2, Sparkles, Shield } from 'lucide-react';
+import { Wand2, Loader2, Sparkles, Shield, X, Calendar, AlertCircle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { generateShiftsForTask } from './utils/shiftUtils';
 import JoinPage from './features/auth/JoinPage';
@@ -110,6 +110,8 @@ const MainApp: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
     const [autoOpenRotaWizard, setAutoOpenRotaWizard] = useState(false);
+    const [schedulingSuggestions, setSchedulingSuggestions] = useState<SchedulingSuggestion[]>([]);
+    const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
 
     const {
         people,
@@ -693,9 +695,12 @@ const MainApp: React.FC = () => {
         } catch (e) { console.warn(e); }
     };
 
-    const handleAutoSchedule = async (params: { startDate: Date; endDate: Date; selectedTaskIds: string[] }) => {
+    const handleAutoSchedule = async ({ startDate, endDate, selectedTaskIds, prioritizeTeamOrganic }: { startDate: Date; endDate: Date; selectedTaskIds?: string[]; prioritizeTeamOrganic?: boolean }) => {
+        if (!organization) return;
         setIsScheduling(true);
-        const { startDate, endDate, selectedTaskIds } = params;
+        setSchedulingSuggestions([]); // Clear previous
+        const start = new Date(startDate);
+        const end = new Date(endDate);
 
         try {
             // Loop through each day in the range
@@ -771,7 +776,11 @@ const MainApp: React.FC = () => {
                     }
 
                     // 5. Solve schedule for this day
-                    const solvedShifts = solveSchedule(state, dateStart, dateEnd, historyScores, futureAssignments, selectedTaskIds, shiftsToSchedule);
+                    const { shifts: solvedShifts, suggestions: daySuggestions } = solveSchedule(state, dateStart, dateEnd, historyScores, futureAssignments, selectedTaskIds, shiftsToSchedule, prioritizeTeamOrganic);
+
+                    if (daySuggestions?.length > 0) {
+                        setSchedulingSuggestions(prev => [...prev, ...daySuggestions]);
+                    }
 
                     if (solvedShifts.length > 0) {
                         const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: organization!.id }));
@@ -799,6 +808,9 @@ const MainApp: React.FC = () => {
             if (successCount > 0) {
                 showToast(`✅ שיבוץ הושלם עבור ${successCount} ימים`, 'success');
                 refreshData();
+                if (schedulingSuggestions.length > 0) {
+                    setShowSuggestionsModal(true);
+                }
             } else if (failCount > 0) {
                 showToast('שגיאה בשיבוץ', 'error');
             } else {
@@ -879,10 +891,11 @@ const MainApp: React.FC = () => {
                         ) : (
                             <>
                                 {state.taskTemplates.length > 0 && checkAccess('dashboard', 'edit') && (
-                                    <div className="fixed bottom-20 md:bottom-8 left-4 md:left-8 z-50">
-                                        <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-3 md:px-5 md:py-3 rounded-full shadow-xl flex items-center justify-center gap-0 md:gap-2 font-bold hover:scale-105 transition-all">
-                                            <Sparkles size={20} className="md:w-5 md:h-5" />
-                                            <span className="hidden md:inline whitespace-nowrap text-base">שיבוץ אוטומטי</span>
+                                    <div className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-50">
+                                        <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-4 md:px-6 md:py-4 rounded-full shadow-2xl flex items-center justify-center gap-0 md:gap-3 font-bold hover:scale-105 transition-all hover:bg-blue-700 active:scale-95 group overflow-hidden">
+                                            <div className="absolute inset-0 bg-blue-400/20 group-hover:animate-pulse pointer-events-none" />
+                                            <Sparkles size={24} className="md:w-6 md:h-6 text-idf-yellow" />
+                                            <span className="hidden md:inline whitespace-nowrap text-lg">שיבוץ אוטומטי</span>
                                         </button>
                                     </div>
                                 )}
@@ -998,9 +1011,84 @@ const MainApp: React.FC = () => {
 
     return (
         <Layout currentView={view} setView={setView}>
-            <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><Loader2 className="animate-spin text-blue-500" /></div>}>
-                {renderContent()}
-            </React.Suspense>
+            <div className="relative min-h-screen bg-slate-50 pb-20 md:pb-0">
+                <ErrorBoundary>
+                    <main className="max-w-[1600px] mx-auto transition-all duration-300">
+                        <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><Loader2 className="animate-spin text-blue-500" /></div>}>
+                            {renderContent()}
+                        </React.Suspense>
+                    </main>
+                </ErrorBoundary>
+
+                {/* Suggestions Modal */}
+                {showSuggestionsModal && schedulingSuggestions.length > 0 && (
+                    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                        <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
+                            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white rounded-t-2xl">
+                                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                    <Sparkles className="text-idf-yellow" size={24} />
+                                    הצעות להשלמת שיבוץ
+                                </h2>
+                                <button onClick={() => setShowSuggestionsModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="overflow-y-auto p-6 space-y-6">
+                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-right" dir="rtl">
+                                    <div className="bg-blue-100 p-2 rounded-lg h-fit text-blue-600">
+                                        <Shield size={20} />
+                                    </div>
+                                    <p className="text-blue-900 text-sm leading-relaxed">
+                                        השיבוץ בוצע במצב <strong>"אורגניות צוות"</strong> קשיח. המשימות הבאות לא הושלמו במלואן כדי שלא לערבב צוותים, אך נמצאו אנשים מצוותים אחרים שיכולים להתאים:
+                                    </p>
+                                </div>
+                                <div className="space-y-4" dir="rtl">
+                                    {schedulingSuggestions.map((sug, idx) => (
+                                        <div key={idx} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-idf-yellow/30 transition-colors text-right">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div>
+                                                    <h3 className="font-bold text-slate-900 text-lg">{sug.taskName}</h3>
+                                                    <div className="flex items-center gap-2 mt-1 text-slate-500 text-sm">
+                                                        <Calendar size={14} />
+                                                        <span>{new Date(sug.startTime).toLocaleDateString('he-IL')}</span>
+                                                        <span className="text-slate-300">•</span>
+                                                        <span>{new Date(sug.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-rose-50 text-rose-600 text-xs px-3 py-1.5 rounded-full font-bold border border-rose-100 flex items-center gap-1.5 direction-ltr">
+                                                    <AlertCircle size={14} />
+                                                    חסרים {sug.missingCount}
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2.5">
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">אלטרנטיבות מצוותים אחרים</p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    {sug.alternatives.map((alt, aidx) => (
+                                                        <div key={aidx} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                                            <span className="font-bold text-slate-700 text-sm">{alt.name}</span>
+                                                            <span className="text-slate-400 text-xs font-medium">
+                                                                {state.teams.find(t => t.id === alt.teamId)?.name || 'ללא צוות'}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
+                                <button
+                                    onClick={() => setShowSuggestionsModal(false)}
+                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 shadow-lg shadow-slate-200 transition-all active:scale-[0.98]"
+                                >
+                                    הבנתי, תודה
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
         </Layout>
     );
 };
