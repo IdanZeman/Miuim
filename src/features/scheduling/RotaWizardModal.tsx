@@ -99,6 +99,33 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         });
     };
 
+    const handleToggleAllTeams = () => {
+        const visibleTeamIdsWithMembers = teams.filter(team => {
+            const teamMembers = activePeople
+                .filter(p => p.teamId === team.id)
+                .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId))
+                .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId))
+                .filter(p => !searchQuery || p.name.includes(searchQuery));
+            return teamMembers.length > 0;
+        }).map(t => t.id);
+
+        const allCollapsed = visibleTeamIdsWithMembers.every(id => collapsedTeams.has(id));
+
+        if (allCollapsed) {
+            setCollapsedTeams(prev => {
+                const next = new Set(prev);
+                visibleTeamIdsWithMembers.forEach(id => next.delete(id));
+                return next;
+            });
+        } else {
+            setCollapsedTeams(prev => {
+                const next = new Set(prev);
+                visibleTeamIdsWithMembers.forEach(id => next.add(id));
+                return next;
+            });
+        }
+    };
+
     const handleCellClick = (e: React.MouseEvent, personId: string, date: string) => {
         e.stopPropagation(); // Prevent modal close or other clicks
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -1186,7 +1213,17 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     >
                                         <Download size={20} />
                                     </button>
-                                    <div className="h-6 w-px bg-slate-200 mx-2"></div>
+                                    <button
+                                        onClick={handleToggleAllTeams}
+                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200 flex items-center gap-2"
+                                        title="כיווץ/הרחבת הכל"
+                                    >
+                                        <div className={`transition-transform duration-300 ${Array.from(collapsedTeams).some(id => teams.some(t => t.id === id)) ? 'rotate-180' : 'rotate-0'}`}>
+                                            <ChevronDown size={20} />
+                                        </div>
+                                        <span className="text-xs font-bold hidden md:inline">כיווץ/הרחבה</span>
+                                    </button>
+                                    <div className="h-6 w-px bg-slate-200 mx-1"></div>
                                     <Select
                                         value={selectedTeamId}
                                         onChange={(val) => setSelectedTeamId(val)}
