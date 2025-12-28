@@ -397,7 +397,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 }
                 return false;
             });
-        });
+        }).sort((a, b) => a.name.localeCompare(b.name, 'he'));
     }, [taskTemplates, selectedDate]);
 
     const today = new Date();

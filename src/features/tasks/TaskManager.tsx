@@ -203,7 +203,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
             {/* Task List - Full Width */}
             <div className="divide-y divide-slate-100">
-                {tasks.map(task => (
+                {[...tasks].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(task => (
                     <div
                         key={task.id}
                         className="relative bg-white hover:bg-slate-50 transition-colors group select-none"
