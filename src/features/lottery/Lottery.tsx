@@ -12,6 +12,9 @@ interface LotteryProps {
     people: Person[];
     teams: Team[];
     roles: Role[];
+    shifts?: import('@/types').Shift[]; // NEW
+    absences?: import('@/types').Absence[]; // NEW
+    tasks?: import('@/types').TaskTemplate[]; // NEW
 }
 
 type PoolType = 'all' | 'team' | 'role' | 'manual';
@@ -79,7 +82,7 @@ const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }:
     </div >
 );
 
-export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
+export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts = [], absences = [], tasks = [] }) => {
     const { organization } = useAuth();
 
     // History State
@@ -96,6 +99,38 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
     const [rotation, setRotation] = useState(0);
     const [isSpinning, setIsSpinning] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
+
+    // NEW: Availability Filter
+    const [onlyAvailable, setOnlyAvailable] = useState(false);
+
+    // Helper: Check Availability
+    const isPersonAvailableNow = (personId: string) => {
+        const now = new Date();
+        const dateKey = now.toLocaleDateString('en-CA');
+        const currentTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+        // 1. Check Absences
+        const isAbsent = absences.some(a =>
+            a.person_id === personId &&
+            a.status === 'approved' &&
+            a.start_date <= dateKey &&
+            a.end_date >= dateKey
+        );
+        if (isAbsent) return false;
+
+        // 2. Check Active Shifts (Currently on task)
+        // Shift.startTime and Shift.endTime are ISO strings (e.g. 2023-10-27T08:00:00.000Z)
+        const nowIso = now.toISOString();
+
+        const activeShift = shifts.find(s =>
+            s.assignedPersonIds.includes(personId) &&
+            s.startTime <= nowIso &&
+            s.endTime >= nowIso
+        );
+        if (activeShift) return false;
+
+        return true;
+    };
 
     // Multiple Winners State
     const [numberOfWinners, setNumberOfWinners] = useState(1);
@@ -126,9 +161,17 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
         }
 
         if (filterType !== 'manual') {
-            setParticipatingIds(new Set(ids));
+            // Filter inactive
+            let finalIds = people.filter(p => p.isActive !== false && ids.includes(p.id)).map(p => p.id);
+
+            // Filter availability if toggled
+            if (onlyAvailable) {
+                finalIds = finalIds.filter(id => isPersonAvailableNow(id));
+            }
+
+            setParticipatingIds(new Set(finalIds));
         }
-    }, [filterType, activeFilterId, people]);
+    }, [filterType, activeFilterId, people, onlyAvailable, shifts, absences]); // Depend on onlyAvailable
 
     const candidates = people.filter(p => participatingIds.has(p.id));
 
@@ -324,6 +367,17 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles }) => {
                     placeholder="בחר תפקיד..."
                 />
             )}
+
+            {/* NEW: Availability Toggle */}
+            <div className="flex items-center justify-between bg-slate-100 p-2 rounded-lg">
+                <span className="text-xs font-bold text-slate-700">זמינים בבסיס בלבד (לא במשימה/בית)</span>
+                <div
+                    onClick={() => setOnlyAvailable(!onlyAvailable)}
+                    className={`w-10 h-5 rounded-full flex items-center p-1 cursor-pointer transition-colors ${onlyAvailable ? 'bg-blue-600' : 'bg-slate-300'}`}
+                >
+                    <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${onlyAvailable ? '-translate-x-5' : 'translate-x-0'}`} />
+                </div>
+            </div>
 
             <div className="bg-blue-50/50 rounded-lg p-3 flex items-center justify-between border border-blue-100">
                 <span className="text-xs text-blue-800 font-medium">משתתפים: {participatingIds.size}</span>
