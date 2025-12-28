@@ -3,14 +3,14 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmationModalProps {
-    isOpen: boolean;
     title: string;
-    message: string;
+    message?: string;
     confirmText?: string;
     cancelText?: string;
     type?: 'danger' | 'warning' | 'info';
     onConfirm: () => void;
     onCancel: () => void;
+    children?: React.ReactNode;
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -22,6 +22,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     type = 'warning',
     onConfirm,
     onCancel,
+    children
 }) => {
     const [isVisible, setIsVisible] = useState(false);
 
@@ -84,9 +85,9 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                             <h3 className="text-lg font-bold text-slate-900 mb-2">
                                 {title}
                             </h3>
-                            <p className="text-slate-600 leading-relaxed">
-                                {message}
-                            </p>
+                            <div className="text-slate-600 leading-relaxed">
+                                {children ? children : message}
+                            </div>
                         </div>
                     </div>
                 </div>

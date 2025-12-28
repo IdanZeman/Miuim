@@ -20,11 +20,13 @@ interface AbsenceManagerProps {
     onUpdatePerson: (p: Person) => void;
     isViewer?: boolean;
     onNavigateToAttendance?: () => void;
+    shifts?: import('@/types').Shift[]; // NEW
+    tasks?: import('@/types').TaskTemplate[]; // NEW
 }
 
 export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     people, absences, onAddAbsence, onUpdateAbsence, onDeleteAbsence, onUpdatePerson,
-    isViewer = false, onNavigateToAttendance
+    isViewer = false, onNavigateToAttendance, shifts = [], tasks = []
 }) => {
     const activePeople = people.filter(p => p.isActive !== false);
     const { organization, profile } = useAuth();
@@ -60,7 +62,13 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const [approvalDepartureTime, setApprovalDepartureTime] = useState('10:00');
     const [approvalReturnTime, setApprovalReturnTime] = useState('14:00'); // Return to base time if relevant, or just end of leave
 
+
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [conflictModalState, setConflictModalState] = useState<{
+        isOpen: boolean;
+        conflicts: { taskName: string; startTime: string; endTime: string }[];
+    }>({ isOpen: false, conflicts: [] });
+
     const [sortBy, setSortBy] = useState<'date' | 'name'>('date');
 
     // --- Helpers ---
@@ -192,17 +200,14 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
         setApprovingAbsence(absence);
         setApprovalStartDate(absence.start_date);
         setApprovalEndDate(absence.end_date);
-        setApprovalDepartureTime(absence.start_time !== '00:00' ? absence.start_time || '10:00' : '10:00');
-        setApprovalReturnTime(absence.end_time !== '23:59' ? absence.end_time || '14:00' : '14:00');
+        // Default to request times. If full day (00:00-23:59), default to standard base hours (08:00-17:00)
+        setApprovalDepartureTime(absence.start_time !== '00:00' ? absence.start_time || '08:00' : '08:00');
+        setApprovalReturnTime(absence.end_time !== '23:59' ? absence.end_time || '17:00' : '17:00');
         setIsApprovalModalOpen(true);
     };
 
-    const handleConfirmApproval = async () => {
+    const executeApproval = async () => {
         if (!approvingAbsence || !profile) return;
-        if (approvalEndDate < approvalStartDate) {
-            showToast('תאריך חזרה חייב להיות אחרי או שווה לתאריך יציאה', 'error');
-            return;
-        }
 
         const start = new Date(approvalStartDate);
         const end = new Date(approvalEndDate);
@@ -219,19 +224,15 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 status: 'home' as const,
                 source: 'manual' as const,
                 organization_id: organization?.id,
-                // If it's the first/last day, we might want to record the specific leave/return times
-                // but for 'home' status it's usually considered the whole day.
-                // However, the schema allows it.
                 start_time: isFirstDay ? approvalDepartureTime : '00:00',
                 end_time: isLastDay ? approvalReturnTime : '23:59'
             });
         }
 
         try {
-            // 1. Update Absence (Dates/Times) - Status is filtered out by mapper
             const updated: Absence = {
                 ...approvingAbsence,
-                status: 'approved', // Optimistic UI update
+                status: 'approved',
                 start_date: approvalStartDate,
                 end_date: approvalEndDate,
                 start_time: approvalDepartureTime,
@@ -242,12 +243,10 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
             await updateAbsence(updated);
 
-            // 2. Upsert Daily Presence
             if (updates.length > 0) {
                 await upsertDailyPresence(updates);
             }
 
-            // 3. Update Person Daily Availability JSON (Source of Truth for status badges)
             const person = people.find(p => p.id === approvingAbsence.person_id);
             if (person) {
                 const newAvailability = { ...(person.dailyAvailability || {}) };
@@ -272,6 +271,54 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
             console.error(e);
             showToast('שגיאה באישור הבקשה', 'error');
         }
+    };
+
+    const handleConfirmApproval = async () => {
+        if (!approvingAbsence || !profile) return;
+        if (approvalEndDate < approvalStartDate) {
+            showToast('תאריך חזרה חייב להיות אחרי או שווה לתאריך יציאה', 'error');
+            return;
+        }
+
+        // NEW: Check for Conflicts with Shifts
+        // 1. Identify date range
+        // 2. Filter shifts for this person in this range
+        const personId = approvingAbsence.person_id;
+        const approvalStartTimeIso = new Date(`${approvalStartDate}T${approvalDepartureTime}`).toISOString();
+        const approvalEndTimeIso = new Date(`${approvalEndDate}T${approvalReturnTime}`).toISOString();
+
+        const conflictingShifts = shifts.filter(s => {
+            // Check if person is assigned
+            if (!s.assignedPersonIds.includes(personId)) return false;
+            if (s.isCancelled) return false;
+
+            // Check Overlap: (ShiftStart < AbsenceEnd) && (ShiftEnd > AbsenceStart)
+            // Note: Shift times are full ISOs. We constructing Approval ISOs for check.
+            // Simplified check: Does the shift fall on any day of the absence?
+            // More precise: Time overlap.
+
+            // However, approvalStartDate is YYYY-MM-DD. We constructing boundaries.
+
+            return s.startTime < approvalEndTimeIso && s.endTime > approvalStartTimeIso;
+        });
+
+        if (conflictingShifts.length > 0) {
+            const conflicts = conflictingShifts.map(s => {
+                const t = tasks.find(t => t.id === s.taskId);
+                return {
+                    taskName: t ? t.name : 'משימה לא ידועה',
+                    startTime: s.startTime,
+                    endTime: s.endTime
+                };
+            });
+
+            // Open Conflict Modal
+            setConflictModalState({ isOpen: true, conflicts });
+            return;
+        }
+
+        // If no conflicts, proceed directly
+        await executeApproval();
     };
 
     const handleReject = async (absence: Absence) => {
@@ -834,6 +881,42 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     </div>
                 </div>
             </Modal>
+
+            {/* Conflict Warning Modal */}
+            <ConfirmationModal
+                isOpen={conflictModalState.isOpen}
+                onCancel={() => setConflictModalState({ ...conflictModalState, isOpen: false })}
+                onConfirm={() => {
+                    setConflictModalState({ ...conflictModalState, isOpen: false });
+                    executeApproval();
+                }}
+                title="התראה על כפילות שיבוץ"
+                confirmText="אשר בכל זאת"
+                cancelText="ביטול"
+                type="danger"
+            >
+                <div className="text-right" dir="rtl">
+                    <p className="font-bold text-slate-800 mb-2">שים לב! החייל משובץ למשימות הבאות בטווח הזמן של ההיעדרות:</p>
+                    <div className="bg-red-50 p-3 rounded-lg border border-red-100 space-y-2 max-h-[200px] overflow-y-auto">
+                        {conflictModalState.conflicts.map((c, i) => {
+                            const start = new Date(c.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                            const end = new Date(c.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                            const date = new Date(c.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+
+                            return (
+                                <div key={i} className="flex items-center gap-2 text-sm text-red-700">
+                                    <AlertTriangle size={14} className="shrink-0" />
+                                    <span className="font-bold">{c.taskName}</span>
+                                    <span className="text-red-500 text-xs bg-white px-1 py-0.5 rounded border border-red-100">
+                                        {date} | {start} - {end}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <p className="text-sm text-slate-500 mt-3">אישור הבקשה <span className="font-bold">לא ימחק</span> את המשימות הקיימות. האם להמשיך באישור ההיעדרות?</p>
+                </div>
+            </ConfirmationModal>
 
             {/* Delete Confirmation Modal */}
             <ConfirmationModal

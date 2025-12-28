@@ -1005,6 +1005,8 @@ const MainApp: React.FC = () => {
                         onDeleteAbsence={handleDeleteAbsence}
                         onUpdatePerson={handleUpdatePerson}
                         isViewer={!checkAccess('attendance', 'edit')}
+                        shifts={state.shifts} // NEW
+                        tasks={state.taskTemplates} // NEW
                         onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); setView('attendance'); }}
                     />
                 ) : <Navigate to="/" />;
