@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Person, Team, TeamRotation, Absence } from '@/types';
-import { ChevronRight, ChevronLeft, ChevronDown, Calendar, Users, Home, MapPin, XCircle, Clock, Info, CheckCircle2, Search } from 'lucide-react';
+import { Person, Team, TeamRotation, Absence, TaskTemplate } from '@/types';
+import { ChevronRight, ChevronLeft, ChevronDown, Calendar, Users, Home, MapPin, XCircle, Clock, Info, CheckCircle2, Search, AlertCircle } from 'lucide-react';
 import { getEffectiveAvailability, getRotationStatusForDate } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
@@ -10,6 +10,7 @@ interface AttendanceTableProps {
     people: Person[];
     teamRotations: TeamRotation[];
     absences: Absence[]; // New prop
+    tasks?: TaskTemplate[]; // New prop
     currentDate: Date;
     onDateChange: (date: Date) => void;
     onSelectPerson: (person: Person) => void;
@@ -18,10 +19,11 @@ interface AttendanceTableProps {
     className?: string; // Allow parent styling for mobile sheet integration
     isViewer?: boolean; // NEW: Security prop
     searchTerm?: string; // NEW: Controlled search term
+    showRequiredDetails?: boolean; // NEW: Toggle required row
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
-    teams, people, teamRotations, absences, currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = ''
+    teams, people, teamRotations, absences, tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
@@ -64,6 +66,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     }
 
     const weekDaysShort = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+    const weekDaysEnglish = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
     const handleCellClick = (e: React.MouseEvent, person: Person, date: Date) => {
         if (!onUpdateAvailability) return;
@@ -315,9 +318,65 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Team Sections */}
+                                {/* Summary Row (Required Manpower) - Optional */}
+                                {showRequiredDetails && (
+                                    <div className="flex sticky z-[85] top-[64px] bg-white backdrop-blur-md h-12 border-b border-slate-200 shadow-sm">
+                                        <div className="w-60 shrink-0 bg-rose-50 border-l border-rose-100 h-full flex items-center gap-2 sticky right-0 z-[90] px-6">
+                                            <AlertCircle size={16} className="text-rose-500" />
+                                            <span className="text-sm font-black text-rose-900 tracking-tight">נדרשים למשימות</span>
+                                        </div>
+                                        <div className="flex h-full">
+                                            {dates.map(date => {
+                                                const dateKey = date.toISOString().split('T')[0];
+
+                                                // Calculate total required people for this date from tasks
+                                                let totalRequired = 0;
+                                                tasks.forEach(task => {
+                                                    // Check task validity dates
+                                                    if (task.startDate && new Date(task.startDate) > date) return;
+                                                    if (task.endDate && new Date(task.endDate) < date) return;
+
+                                                    task.segments.forEach(segment => {
+                                                        let isActive = false;
+                                                        if (segment.frequency === 'daily') isActive = true;
+                                                        else if (segment.frequency === 'weekly' && segment.daysOfWeek?.includes(weekDaysEnglish[date.getDay()])) isActive = true;
+                                                        else if (segment.frequency === 'specific_date' && segment.specificDate === dateKey) isActive = true;
+
+                                                        if (isActive) {
+                                                            totalRequired += segment.requiredPeople;
+                                                        }
+                                                    });
+                                                });
+
+                                                // Calculate present people to compare
+                                                let present = 0;
+                                                sortedPeople.forEach(p => {
+                                                    const avail = getEffectiveAvailability(p, date, teamRotations, absences);
+                                                    if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+                                                        present++;
+                                                    }
+                                                });
+
+                                                const diff = present - totalRequired;
+                                                const isDeficit = diff < 0;
+
+                                                return (
+                                                    <div
+                                                        key={dateKey}
+                                                        className={`w-24 shrink-0 flex flex-col items-center justify-center border-l border-slate-100 h-full bg-rose-50/30 text-xs font-bold relative`}
+                                                    >
+                                                        <span className="text-rose-700 font-black text-sm">{totalRequired}</span>
+                                                        {isDeficit && <span className="text-[9px] text-red-500 font-bold bg-red-100 px-1 rounded absolute top-1 right-1">חסר {Math.abs(diff)}</span>}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="flex-1 bg-white h-full" />
+                                    </div>
+                                )}
+
                                 {/* Summary Row (Global Stats) */}
-                                <div className="flex sticky z-[85] top-[64px] bg-white backdrop-blur-md h-12">
+                                <div className={`flex sticky z-[85] ${showRequiredDetails ? 'top-[112px]' : 'top-[64px]'} bg-white backdrop-blur-md h-12`}>
                                     <div className="w-60 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[90] px-6">
                                         <Users size={16} className="text-blue-600" />
                                         <span className="text-sm font-black text-slate-900 tracking-tight">סך הכל פלוגה</span>
@@ -360,7 +419,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             {/* Team Header Row */}
                                             <div
                                                 onClick={() => toggleTeam(team.id)}
-                                                className="flex sticky z-[75] top-[112px] group cursor-pointer bg-white h-12"
+                                                className={`flex sticky z-[75] ${showRequiredDetails ? 'top-[160px]' : 'top-[112px]'} group cursor-pointer bg-white h-12`}
                                             >
                                                 {/* Sticky Name Part */}
                                                 <div className="w-60 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex items-center gap-2 shadow-md sticky right-0 z-[80] px-4">

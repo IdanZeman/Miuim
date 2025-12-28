@@ -58,6 +58,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
     // Bulk Mode State
     const [isBulkMode, setIsBulkMode] = useState(false);
+    const [showRequiredDetails, setShowRequiredDetails] = useState(false); // New State
     const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [showRotaWizard, setShowRotaWizard] = useState(initialOpenRotaWizard); // Initialize from prop
@@ -726,6 +727,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     <div className="fixed inset-0 z-40" onClick={() => setShowMoreActions(false)} />
                                     <div className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
                                         <button
+                                            onClick={() => { setShowRequiredDetails(!showRequiredDetails); setShowMoreActions(false); }}
+                                            className="w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                                        >
+                                            <ListChecks size={16} className="text-slate-400" />
+                                            {showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
+                                        </button>
+                                        <button
                                             onClick={() => { handleExport(); setShowMoreActions(false); }}
                                             className="w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-slate-50 flex items-center gap-2 text-slate-700"
                                         >
@@ -774,6 +782,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 onUpdateAvailability={isViewer ? undefined : handleUpdateAvailability}
                                 className="h-full"
                                 isViewer={isViewer}
+                                showRequiredDetails={showRequiredDetails}
+                                tasks={tasks}
                             />
                         </div>
                     )}

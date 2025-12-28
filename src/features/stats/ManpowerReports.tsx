@@ -455,8 +455,8 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         {(selectedTeamIds.includes('all') || selectedTeamIds.length > 1) && (
                             <div className="bg-white p-6 rounded-2xl border border-slate-100 flex flex-col">
                                 <h3 className="text-lg font-bold text-slate-800 mb-2">התפלגות נוכחים לפי צוותים</h3>
-                                <div className="w-full h-[300px] relative">
-                                    <ResponsiveContainer width="100%" height={340}>
+                                <div className="w-full h-[400px] relative">
+                                    <ResponsiveContainer width="100%" height="100%">
                                         <PieChart margin={{ top: 0, right: 0, bottom: 20, left: 0 }}>
                                             <Pie
                                                 data={stats.teamBreakdown}
