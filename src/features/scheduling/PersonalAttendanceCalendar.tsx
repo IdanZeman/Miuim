@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
+import { logger } from '@/services/loggingService';
 
 interface PersonalAttendanceCalendarProps {
     person: Person;
@@ -37,6 +38,11 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         };
         setPerson(updatedPerson);
         onUpdatePerson(updatedPerson);
+        logger.info('UPDATE', `Updated personal rotation for ${person.name}`, {
+            personId: person.id,
+            rotation: rotationSettings,
+            category: 'attendance'
+        });
         setShowRotationSettings(false);
     };
 
@@ -92,6 +98,19 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
         setPerson(updatedPerson); // Optimistic update
         onUpdatePerson(updatedPerson);
+
+        const isCheckIn = editState.isAvailable && editState.start === '00:00' && editState.end === '23:59';
+        logger.info(isCheckIn ? 'CHECK_IN' : 'UPDATE',
+            `${isCheckIn ? 'Reported presence' : 'Manually updated personal attendance'} for ${person.name}`,
+            {
+                personId: person.id,
+                date: dateKey,
+                isAvailable: editState.isAvailable,
+                start: editState.start,
+                end: editState.end,
+                category: 'attendance'
+            }
+        );
         setEditingDate(null);
     };
 
@@ -104,6 +123,11 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         const updatedPerson = { ...person, dailyAvailability: newDaily };
         setPerson(updatedPerson); // Optimistic update
         onUpdatePerson(updatedPerson);
+        logger.info('DELETE', `Cleared manual attendance update for ${person.name} on ${dateKey}`, {
+            personId: person.id,
+            date: dateKey,
+            category: 'attendance'
+        });
         setEditingDate(null);
     };
 
@@ -225,6 +249,13 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                                 document.body.appendChild(link);
                                 link.click();
                                 document.body.removeChild(link);
+                                logger.log({
+                                    action: 'EXPORT',
+                                    entityType: 'attendance',
+                                    entityName: person.name,
+                                    category: 'data',
+                                    metadata: { month: month + 1, year }
+                                });
                             }}
                         >
                             ייצוא

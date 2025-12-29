@@ -31,6 +31,16 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
         return () => clearInterval(timer);
     }, []);
 
+    const myPerson = people.find(p =>
+        p.userId === user?.id || (p as any).email === user?.email || (profile?.email && (p as any).email === profile.email)
+    );
+
+    useEffect(() => {
+        if (myPerson) {
+            logger.info('VIEW', 'Viewed Personal Roster', { personId: myPerson.id, category: 'navigation' });
+        }
+    }, [myPerson?.id]);
+
     useEffect(() => {
         const fetchSettings = async () => {
             if (!organization) return;
@@ -52,10 +62,6 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
         };
         fetchSettings();
     }, [organization]);
-
-    const myPerson = people.find(p =>
-        p.userId === user?.id || (p as any).email === user?.email || (profile?.email && (p as any).email === profile.email)
-    );
 
     if (!myPerson) {
         return (
@@ -129,8 +135,17 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
 
                         {activeShift ? (
                             <div
-                                onClick={() => onNavigate('dashboard', activeShift.start)}
-                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate('dashboard', activeShift.start); } }}
+                                onClick={() => {
+                                    logger.logClick('active_shift_card', 'HomePage');
+                                    onNavigate('dashboard', activeShift.start);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        logger.logClick('active_shift_card_assessibility', 'HomePage');
+                                        onNavigate('dashboard', activeShift.start);
+                                    }
+                                }}
                                 className="relative rounded-2xl p-6 md:p-8 cursor-pointer overflow-hidden shadow-sm hover:shadow-md border border-slate-100 group transition-all bg-white"
                                 role="button"
                                 tabIndex={0}
@@ -211,7 +226,10 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                                 <CheckCircle2 size={48} className="text-green-500 mb-4" />
                                 <h3 className="text-lg font-bold text-slate-800 mb-1">היומן שלך ריק!</h3>
                                 <p className="text-slate-500 text-sm mb-6">אין לך משמרות בשבוע הקרוב. זמן מעולה לנוח.</p>
-                                <button onClick={() => onNavigate('dashboard')} className="text-blue-600 font-medium hover:underline">ללוח המלא</button>
+                                <button onClick={() => {
+                                    logger.logClick('empty_state_full_board', 'HomePage');
+                                    onNavigate('dashboard');
+                                }} className="text-blue-600 font-medium hover:underline">ללוח המלא</button>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -221,7 +239,10 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                                     return (
                                         <div
                                             key={shift.id}
-                                            onClick={() => onNavigate('dashboard', shift.start)}
+                                            onClick={() => {
+                                                logger.logClick('upcoming_shift_card', 'HomePage');
+                                                onNavigate('dashboard', shift.start);
+                                            }}
                                             className="group flex items-center gap-4 bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-slate-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all cursor-pointer"
                                         >
                                             <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center flex-shrink-0 border ${isToday ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600'}`}>
@@ -261,7 +282,10 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                                 <span className="text-xs text-orange-800 font-medium">שעות</span>
                             </div>
                         </div>
-                        <button onClick={() => onNavigate('stats')} className="w-full mt-4 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-bold hover:bg-slate-900 transition-colors">צפה בדוח המלא</button>
+                        <button onClick={() => {
+                            logger.logClick('view_full_stats', 'HomePage');
+                            onNavigate('stats');
+                        }} className="w-full mt-4 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-bold hover:bg-slate-900 transition-colors">צפה בדוח המלא</button>
                     </div>
                 </div>
             </div>

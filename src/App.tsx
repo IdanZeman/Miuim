@@ -100,6 +100,10 @@ const MainApp: React.FC = () => {
             logger.logView(view);
         }
     }, [view]);
+
+    useEffect(() => {
+        logger.info('APP_LAUNCH', 'Main Application Mounted');
+    }, []);
     const [personnelTab, setPersonnelTab] = useState<'people' | 'teams' | 'roles'>('people');
     // const [isLoading, setIsLoading] = useState(true); // REMOVED: Using React Query isOrgLoading instead
     const [isScheduling, setIsScheduling] = useState(false);
@@ -329,11 +333,15 @@ const MainApp: React.FC = () => {
     };
 
     const handleAddTeam = async (t: Team) => {
-        if (!organization) return;
         try {
-            await supabase.from('teams').insert(mapTeamToDB({ ...t, organization_id: organization.id }));
+            const { error } = await supabase.from('teams').insert(mapTeamToDB({ ...t, organization_id: organization.id }));
+            if (error) throw error;
+            await logger.logCreate('team', t.id, t.name, t);
             refreshData();
-        } catch (e) { console.warn(e); }
+        } catch (e: any) {
+            logger.error('ERROR', 'Failed to add team', e);
+            console.warn(e);
+        }
     };
 
     const handleUpdateTeam = async (t: Team) => {
@@ -386,9 +394,11 @@ const MainApp: React.FC = () => {
                 const { error: shiftsError } = await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
                 if (shiftsError) console.error('Error saving shifts:', shiftsError);
             }
+            await logger.logCreate('task', t.id, t.name, t);
             refreshData();
             showToast('המשימה נוצרה בהצלחה', 'success');
         } catch (e: any) {
+            logger.error('ERROR', 'Failed to add task', e);
             console.error('Add Task Failed:', e);
             showToast(`שגיאה ביצירת משימה: ${e.message}`, 'error');
         }
@@ -514,12 +524,15 @@ const MainApp: React.FC = () => {
     // I will assume absences table exists and was used (it was in fetched data).
 
     const handleAddAbsence = async (a: Absence) => {
-        // setState(prev => ({ ...prev, absences: [...prev.absences, a] }));
-        // Assuming DB implementation:
         try {
-            await supabase.from('absences').insert(mapAbsenceToDB({ ...a, organization_id: organization?.id }));
+            const { error } = await supabase.from('absences').insert(mapAbsenceToDB({ ...a, organization_id: organization?.id }));
+            if (error) throw error;
+            await logger.logCreate('absence', a.id, 'בקשת יציאה', a);
             refreshData();
-        } catch (e) { console.warn(e); }
+        } catch (e: any) {
+            logger.error('ERROR', 'Failed to add absence', e);
+            console.warn(e);
+        }
     };
 
     const handleUpdateAbsence = async (a: Absence) => {
@@ -633,7 +646,8 @@ const MainApp: React.FC = () => {
             if (error) throw error;
             await logger.logAssign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם');
             refreshData();
-        } catch (e) {
+        } catch (e: any) {
+            logger.error('ASSIGN', 'Failed to assign person to shift', e);
             console.warn("Assignment failed, reverting:", e);
             showToast('שגיאה בשיבוץ, אנא נסה שוב', 'error');
         }
@@ -644,9 +658,15 @@ const MainApp: React.FC = () => {
         if (!shift) return;
         const newAssignments = shift.assignedPersonIds.filter(pid => pid !== personId);
         try {
-            await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
+            const { error } = await supabase.from('shifts').update({ assigned_person_ids: newAssignments }).eq('id', shiftId);
+            if (error) throw error;
+            await logger.logUnassign(shiftId, personId, state.people.find(p => p.id === personId)?.name || 'אדם');
             refreshData();
-        } catch (e) { console.warn(e); }
+        } catch (e: any) {
+            logger.error('UNASSIGN', 'Failed to unassign person from shift', e);
+            console.warn(e);
+            showToast('שגיאה בהסרת שיבוץ', 'error');
+        }
     };
 
     const handleUpdateShift = async (updatedShift: Shift) => {

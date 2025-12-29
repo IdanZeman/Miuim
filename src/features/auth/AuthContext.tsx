@@ -85,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError && profileError.code !== 'PGRST116') {
         console.error('⚠️ Error fetching profile:', profileError);
+        logger.error('ERROR', 'Failed to fetch user profile', profileError);
         return;
       }
 
@@ -135,6 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (insertError) {
           console.error('❌ Error creating profile:', insertError);
+          logger.error('CREATE', 'Failed to create new user profile', insertError);
           setProfile(null);
           return;
         }
@@ -247,6 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setOrganization(manualOrg);
           } catch (e) {
             console.error('Error in manual fallback fetch', e);
+            logger.error('ERROR', 'Manual fallback organization fetch failed', e);
             setOrganization(null);
           }
         }
@@ -260,6 +263,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (analytics && typeof (analytics as any).trackError === 'function') {
         (analytics as any).trackError((error as Error).message, 'FetchProfile');
       }
+      logger.error('ERROR', 'Unexpected error in fetchProfile', error);
     } finally {
       setIsFetchingProfile(false);
 
@@ -335,6 +339,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         console.error('Init auth error:', error);
+        logger.error('AUTH', 'Authentication initialization error', error);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -394,6 +399,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { data, error: null };
     } catch (error) {
       analytics.trackError((error as Error).message, 'Login');
+      logger.error('LOGIN', 'Email sign-in failed', error);
       return { data: null, error: error as Error };
     }
   };
@@ -416,6 +422,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { data, error: null };
     } catch (error) {
       analytics.trackError((error as Error).message, 'Signup');
+      logger.error('SIGNUP', 'Email sign-up failed', error);
       return { data: null, error: error as Error };
     }
   };
@@ -455,6 +462,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       analytics.trackError((error as Error).message, 'Logout');
       console.error('Error signing out:', error);
+      logger.error('LOGOUT', 'Sign-out failed', error);
     }
   };
 

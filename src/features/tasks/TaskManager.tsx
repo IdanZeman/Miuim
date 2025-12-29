@@ -10,6 +10,7 @@ import { SegmentEditor } from './SegmentEditor';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { logger } from '@/services/loggingService';
 
 interface TaskManagerProps {
     tasks: TaskTemplate[];
@@ -95,6 +96,15 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         newTask.segments.forEach(s => s.taskId = newTask.id);
 
         onAddTask(newTask);
+        logger.log({
+            action: 'CREATE',
+            entityType: 'task',
+            entityId: newTask.id,
+            entityName: newTask.name,
+            newData: newTask,
+            actionDescription: `Duplicated task ${task.name} to ${newTask.name}`,
+            category: 'data'
+        });
         showToast('המשמרת שוכפלה בהצלחה', 'success');
     };
 
@@ -122,10 +132,13 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         };
 
         if (editId) {
+            const oldTask = tasks.find(t => t.id === editId);
             onUpdateTask(taskData);
+            logger.logUpdate('task', taskId, name, oldTask, taskData);
             showToast('המשימה עודכנה בהצלחה', 'success');
         } else {
             onAddTask(taskData);
+            logger.logCreate('task', taskId, name, taskData);
             showToast('המשימה נוצרה בהצלחה', 'success');
         }
         resetForm();
@@ -273,7 +286,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                                     <Copy size={14} /> שכפל
                                                 </button>
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); setOpenMenuId(null); }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onDeleteTask(task.id);
+                                                        logger.logDelete('task', task.id, task.name, task);
+                                                        setOpenMenuId(null);
+                                                    }}
                                                     className="px-4 py-2 text-right text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                                                 >
                                                     <Trash2 size={14} /> מחק

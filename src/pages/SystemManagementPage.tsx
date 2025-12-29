@@ -5,7 +5,7 @@ import { AdminLogsViewer } from '../features/admin/AdminLogsViewer';
 import { SupportTicketsPage } from './SupportTicketsPage';
 import { useAuth } from '../features/auth/AuthContext';
 
-import { SystemStatsDashboard } from '../features/admin/SystemStatsDashboard';
+import { GlobalStats } from '../features/admin/GlobalStats';
 import { SystemMessagesManager } from '../features/admin/SystemMessagesManager';
 
 type Tab = 'dashboard' | 'logs' | 'tickets' | 'messages';
@@ -14,7 +14,6 @@ export const SystemManagementPage: React.FC = () => {
     const { user, profile } = useAuth();
     const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
-    // Double check access (though App.tsx also gates it)
     // Double check access (though App.tsx also gates it)
     if (!profile?.is_super_admin) {
         return (
@@ -83,7 +82,7 @@ export const SystemManagementPage: React.FC = () => {
 
             {/* Content Area */}
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                {activeTab === 'dashboard' && <SystemStatsDashboard />}
+                {activeTab === 'dashboard' && <GlobalStats />}
                 {activeTab === 'logs' && <AdminLogsViewer />}
                 {activeTab === 'tickets' && <SupportTicketsPage />}
                 {activeTab === 'messages' && <SystemMessagesManager />}

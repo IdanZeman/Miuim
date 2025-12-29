@@ -13,6 +13,7 @@ import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { useToast } from '../../contexts/ToastContext';
 import { analytics } from '../../services/analytics';
+import { logger } from '../../services/loggingService';
 
 interface AssignmentModalProps {
     selectedShift: Shift;
@@ -85,6 +86,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 setNewStart(new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }));
                 setNewEnd(new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }));
             } catch (e) {
+                logger.error('ERROR', "Invalid time format in AssignmentModal", e);
                 console.error("Invalid time format", e);
             }
         }
@@ -323,6 +325,12 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             startTime: s.toISOString(),
             endTime: e.toISOString()
         });
+        logger.info('UPDATE', `Manually updated shift time`, {
+            shiftId: selectedShift.id,
+            taskName: task.name,
+            oldStart: selectedShift.startTime,
+            newStart: s.toISOString()
+        });
         setIsEditingTime(false);
     };
 
@@ -406,6 +414,12 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             return;
         }
         onAssign(selectedShift.id, p.id);
+        logger.info('ASSIGN', `Manually assigned ${p.name}`, {
+            shiftId: selectedShift.id,
+            personId: p.id,
+            taskName: task.name,
+            method: 'manual_modal'
+        });
         setSuggestedCandidates([]);
     };
 
@@ -549,7 +563,14 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                         </div>
                                         {!isViewer && (
                                             <button
-                                                onClick={() => onUnassign(selectedShift.id, p.id)}
+                                                onClick={() => {
+                                                    logger.info('UNASSIGN', `Manually unassigned ${p.name}`, {
+                                                        shiftId: selectedShift.id,
+                                                        personId: p.id,
+                                                        taskName: task.name
+                                                    });
+                                                    onUnassign(selectedShift.id, p.id);
+                                                }}
                                                 className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
                                                 aria-label={`הסר את ${p.name} מהמשמרת`}
                                             >

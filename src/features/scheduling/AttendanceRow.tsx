@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Person } from '@/types';
 import { ChevronRight, ChevronLeft, Settings, Clock, CheckCircle2 } from 'lucide-react';
+import { logger } from '@/services/loggingService';
 
 interface AttendanceRowProps {
     person: Person;
@@ -34,8 +35,10 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
 
     const handleToggle = () => {
         if (isViewer) return;
-        setIsAvailable(!isAvailable); // Immediate visual update
+        const newAvailable = !isAvailable;
+        setIsAvailable(newAvailable); // Immediate visual update
         onTogglePresence(person);
+        logger.info('CLICK', `${newAvailable ? 'Checked' : 'Unchecked'} presence for ${person.name}`, { personId: person.id, isAvailable: newAvailable });
     };
 
     const isManualOverride = availability.source === 'manual';

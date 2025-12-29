@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Select } from '@/components/ui/Select';
 import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
+import { logger } from '@/services/loggingService';
 
 interface AbsenceManagerProps {
     people: Person[];
@@ -188,9 +189,11 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 });
                 onAddAbsence(newAbsence);
                 showToast('הבקשה נשלחה לאישור', 'success');
+                await logger.logCreate('absence', newAbsence.id, 'בקשת יציאה', newAbsence);
             }
             setIsModalOpen(false);
         } catch (e) {
+            logger.error('CREATE', 'Failed to save absence', e);
             console.error(e);
             showToast('שגיאה בשמירה', 'error');
         }
@@ -267,7 +270,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
             showToast('הבקשה אושרה והנוכחות עודכנה', 'success');
             setIsApprovalModalOpen(false);
             setApprovingAbsence(null);
+            await logger.logUpdate('absence', updated.id, 'אושרה בקשת יציאה', approvingAbsence, updated);
         } catch (e) {
+            logger.error('UPDATE', 'Failed to execute approval', e);
             console.error(e);
             showToast('שגיאה באישור הבקשה', 'error');
         }
@@ -374,7 +379,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
             setPendingUpdates(prev => ({ ...prev, [updated.id]: updated }));
             onUpdateAbsence(updated);
             showToast('הבקשה נדחתה והנוכחות עודכנה לבסיס', 'info');
+            await logger.logUpdate('absence', updated.id, 'נדחתה בקשת יציאה', absence, updated);
         } catch (e) {
+            logger.error('UPDATE', 'Failed to reject absence', e);
             console.error(e);
             showToast('שגיאה בדחיית הבקשה', 'error');
         }
@@ -386,8 +393,10 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
             await deleteAbsence(deleteConfirmId);
             onDeleteAbsence(deleteConfirmId);
             showToast('ההיעדרות נמחקה', 'success');
+            await logger.logDelete('absence', deleteConfirmId, 'מחיקת בקשת יציאה');
             setDeleteConfirmId(null);
         } catch (e) {
+            logger.error('DELETE', 'Failed to delete absence', e);
             console.error(e);
             showToast('שגיאה במחיקה', 'error');
         }

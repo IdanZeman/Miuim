@@ -9,11 +9,14 @@ export type LogAction =
     | 'CREATE' | 'UPDATE' | 'DELETE'
     | 'ASSIGN' | 'UNASSIGN'
     | 'AUTO_SCHEDULE' | 'CLEAR_DAY'
-    | 'VIEW' | 'EXPORT' | 'CLICK' | 'ERROR' | 'SUBMIT';
+    | 'VIEW' | 'EXPORT' | 'CLICK' | 'ERROR' | 'SUBMIT'
+    | 'IMPORT_DATA' | 'APP_LAUNCH'
+    | 'GENERATE' | 'SAVE' | 'SYNC' | 'CHECK_IN' | 'AUTH';
 
 export type EntityType = 
     | 'person' | 'shift' | 'task' | 'role' | 'team' 
-    | 'organization' | 'profile' | 'attendance' | 'button' | 'page' | 'form';
+    | 'organization' | 'profile' | 'attendance' | 'button' | 'page' | 'form'
+    | 'absence' | 'rotation' | 'equipment';
 
 export type EventCategory = 'auth' | 'data' | 'scheduling' | 'settings' | 'system' | 'navigation' | 'ui' | 'security';
 
@@ -49,7 +52,9 @@ class LoggingService {
     private userName: string | null = null;
     private sessionId: string | null = null;
     private minLogLevel: LogLevel = 'INFO';
+    private isSuperAdmin: boolean = false;
     private SESSION_STORAGE_KEY = 'miuim_session_id';
+    private geoFetchPromise: Promise<void> | null = null;
 
     constructor() {
         this.fetchSessionId();
@@ -61,6 +66,9 @@ class LoggingService {
             // Default to TRACE (Highest Level) as per user request to capture all data
             this.minLogLevel = 'TRACE'; 
         }
+
+        // Start fetching geo data immediately
+        this.ensureGeoData();
     }
 
     private fetchSessionId() {
@@ -82,6 +90,7 @@ class LoggingService {
         if (profile) {
             this.organizationId = profile.organization_id;
             this.userName = profile.full_name || profile.name;
+            this.isSuperAdmin = !!profile.is_super_admin;
         }
     }
 
@@ -90,6 +99,7 @@ class LoggingService {
         this.userEmail = null;
         this.organizationId = null;
         this.userName = null;
+        this.isSuperAdmin = false;
         // Keep session ID
     }
 
@@ -98,8 +108,6 @@ class LoggingService {
     }
 
     private async persistLog(entry: LogEntry & { level: LogLevel }) {
-        // Fire and forget - don't await this in the main thread usually
-        // But in async context we can just let it run
         try {
             // Also log to console
             const consoleMsg = `[${entry.category}] ${entry.action}: ${entry.actionDescription || ''}`;
@@ -114,31 +122,60 @@ class LoggingService {
                 case 'FATAL': console.error(consoleMsg, consoleData); break;
             }
 
-            // In local dev, maybe don't flood DB unless testing
-            // if (!import.meta.env.PROD && entry.level !== 'ERROR') return;
+            // Ensure GeoData is loaded for first logs
+            if (!this.geoData && this.geoFetchPromise) {
+                await this.geoFetchPromise;
+            }
 
-             await supabase.from('audit_logs').insert({
+            // Skip persistence for Super Admins
+
+            // Skip persistence for Super Admins
+            if (this.isSuperAdmin) return;
+
+            // Skip persistence for unauthenticated users (prevents 401 on landing page)
+            if (!this.userId) return;
+
+            const metadata = { ...entry.metadata };
+            if (this.geoData) {
+                metadata.ip = metadata.ip || this.geoData.ip;
+                metadata.city = metadata.city || this.geoData.city;
+                metadata.country = metadata.country || this.geoData.country_name;
+            }
+
+            // Ensure we strictly follow DB Schema to avoid 400 errors
+            // Add extra fields to metadata instead of top-level
+            metadata.url = window.location.href;
+            metadata.user_agent = navigator.userAgent;
+            metadata.client_timestamp = new Date().toISOString();
+            metadata.entity_name = entry.entityName;
+
+            await supabase.from('audit_logs').insert({
                 organization_id: this.organizationId,
                 user_id: this.userId,
                 user_email: this.userEmail,
-                user_name: this.userName, // NEW: De-normalized
-                session_id: this.sessionId, // NEW
+                user_name: this.userName,
+                session_id: this.sessionId,
                 log_level: entry.level,
-                event_type: entry.action, // mapping action -> event_type
+                event_type: entry.action,
                 entity_type: entry.entityType,
                 entity_id: entry.entityId,
+                // entity_name: entry.entityName, // REMOVED - not in DB
                 action_description: entry.actionDescription,
                 event_category: entry.category || 'system',
                 component_name: entry.component,
                 performance_ms: entry.performanceMs,
                 before_data: entry.oldData || null,
                 after_data: entry.newData || null,
-                metadata: entry.metadata || null,
-                user_agent: navigator.userAgent
+                metadata: metadata || null,
+                user_agent: navigator.userAgent // Verified acts as text in some schemas, keeping if sure, else move to meta
+                // url and client_timestamp REMOVED from top level
             });
 
         } catch (error) {
-            console.error('Failed to persist log:', error);
+            console.error('❌ Failed to persist log:', error);
+            if ((error as any)?.message) console.error('Error Message:', (error as any).message);
+            if ((error as any)?.details) console.error('Error Details:', (error as any).details);
+            if ((error as any)?.hint) console.error('Error Hint:', (error as any).hint);
         }
     }
 
@@ -201,7 +238,110 @@ class LoggingService {
             entityType: 'page',
             entityId: pageName
         });
+        
+        // Auto-fetch geo once per session
+        this.ensureGeoData();
     }
+
+    private geoData: any = null;
+    private GEO_CACHE_KEY = 'miuim_geo_cache';
+
+    private async ensureGeoData() {
+        if (this.geoData || typeof window === 'undefined') return;
+        if (this.geoFetchPromise) return this.geoFetchPromise;
+
+        this.geoFetchPromise = (async () => {
+            // 1. Try Cache First
+            const cached = localStorage.getItem(this.GEO_CACHE_KEY);
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    const age = Date.now() - (parsed.timestamp || 0);
+                    if (age < 1000 * 60 * 60 * 24) { // 24h cache
+                        this.geoData = parsed.data;
+                        this.geoFetchPromise = null;
+                        return;
+                    }
+                } catch (e) {
+                    localStorage.removeItem(this.GEO_CACHE_KEY);
+                }
+            }
+
+            // 2. Fetch with Failover Strategy (Chain)
+            try {
+                // Try 1: db-ip.com
+                try {
+                    const res = await fetch('https://api.db-ip.com/v2/free/self');
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.geoData = { ip: data.ipAddress, city: data.city, country_name: data.countryName };
+                        console.log('✅ Geo: Fetched from db-ip', this.geoData);
+                    } else throw new Error(res.statusText);
+                } catch (e1) {
+                    console.warn('⚠️ Geo: db-ip failed, trying ipwho.is...', e1);
+                    // Try 2: ipwho.is
+                    try {
+                        const res = await fetch('https://ipwho.is/');
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.geoData = { ip: data.ip, city: data.city, country_name: data.country };
+                            console.log('✅ Geo: Fetched from ipwho.is', this.geoData);
+                        } else throw new Error(res.statusText);
+                    } catch (e2) {
+                        console.warn('⚠️ Geo: ipwho.is failed, trying ipapi.co...', e2);
+                        // Try 3: ipapi.co
+                        try {
+                            const res = await fetch('https://ipapi.co/json/');
+                            if (res.ok) {
+                                const data = await res.json();
+                                this.geoData = data;
+                                console.log('✅ Geo: Fetched from ipapi.co', this.geoData);
+                            } else throw new Error(res.statusText);
+                        } catch (e3) {
+                            console.warn('⚠️ Geo: ipapi.co failed, trying ipinfo.io...', e3);
+                             // Try 4: ipinfo.io
+                            try {
+                                const res = await fetch('https://ipinfo.io/json');
+                                if (res.ok) {
+                                    const data = await res.json();
+                                    this.geoData = {
+                                        ip: data.ip,
+                                        city: data.city,
+                                        country_name: data.country // ipinfo returns code mostly, but sometimes name
+                                    };
+                                    console.log('✅ Geo: Fetched from ipinfo.io', this.geoData);
+                                } else throw new Error(res.statusText);
+                            } catch (e4) {
+                                console.error('❌ Geo: All providers failed.', e4);
+                            }
+                        }
+                    }
+                }
+            } catch (fatal) {
+                 console.error('❌ Geo: Fatal error in fetch chain', fatal);
+            }
+
+            if (this.geoData) {
+                localStorage.setItem(this.GEO_CACHE_KEY, JSON.stringify({
+                    data: this.geoData,
+                    timestamp: Date.now()
+                }));
+                console.info('Fetched and cached Geo Data', this.geoData.ip);
+            }
+
+            this.geoFetchPromise = null;
+        })();
+
+        return this.geoFetchPromise;
+    }
+
+    private getDeviceType(): string {
+        const ua = navigator.userAgent;
+        if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) return "Tablet";
+        if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) return "Mobile";
+        return "Desktop";
+    }
+
     public setContext(orgId: string | null, userId: string | null, email: string | null, name: string | null) {
         this.organizationId = orgId;
         this.userId = userId;
@@ -253,6 +393,17 @@ class LoggingService {
             entityType: 'shift',
             entityId: shiftId,
             actionDescription: `Assigned ${personName} to shift`,
+            metadata: { personId, personName }
+        });
+    }
+
+    public logUnassign(shiftId: string, personId: string, personName: string) {
+        this.log({
+            level: 'INFO',
+            action: 'UNASSIGN',
+            entityType: 'shift',
+            entityId: shiftId,
+            actionDescription: `Unassigned ${personName} from shift`,
             metadata: { personId, personName }
         });
     }

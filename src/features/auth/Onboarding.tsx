@@ -7,6 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { ExcelImportWizard } from '../personnel/ExcelImportWizard';
 import { Person, Team, Role } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../../services/loggingService';
 
 export const Onboarding: React.FC = () => {
     const { user, profile, refreshProfile, signOut } = useAuth();
@@ -78,6 +79,7 @@ export const Onboarding: React.FC = () => {
             }
         } catch (error) {
             console.error('Error checking for invites:', error);
+            logger.error('AUTH', 'Failed to check for invites in onboarding', error);
         } finally {
             setCheckingInvite(false);
         }
@@ -113,6 +115,7 @@ export const Onboarding: React.FC = () => {
         } catch (error) {
             console.error('Error accepting invite:', error);
             showToast('שגיאה בקבלת ההזמנה. אנא נסה שוב.', 'error');
+            logger.error('AUTH', 'Failed to accept invitation during onboarding', error);
         } finally {
             setLoading(false);
         }
@@ -158,6 +161,7 @@ export const Onboarding: React.FC = () => {
             console.error('Error creating organization:', error);
             analytics.trackFormSubmit('create_organization', false);
             analytics.trackError((error as Error).message, 'CreateOrganization');
+            logger.error('CREATE', 'Failed to create organization in onboarding', error);
             setError('שגיאה ביצירת הארגון');
         } finally {
             setLoading(false);
@@ -190,6 +194,7 @@ export const Onboarding: React.FC = () => {
         } catch (error) {
             console.error('Error finalizing onboarding:', error);
             showToast('שגיאה בהשלמת ההרשמה', 'error');
+            logger.error('SIGNUP', 'Failed to finalize manual onboarding path', error);
         } finally {
             setLoading(false);
         }
@@ -361,6 +366,7 @@ export const Onboarding: React.FC = () => {
         } catch (error: any) {
             console.error('Import error full:', error);
             showToast('שגיאה בייבוא הנתונים: ' + (error.details || error.message || error), 'error');
+            logger.error('IMPORT_DATA', 'Bulk import failed during onboarding', error);
         } finally {
             setLoading(false);
         }
@@ -377,6 +383,7 @@ export const Onboarding: React.FC = () => {
         } catch (error) {
             console.error(error);
             showToast('שגיאה בקישור הפרופיל', 'error');
+            logger.error('AUTH', 'Failed to claim profile in onboarding', error);
         } finally {
             setLoading(false);
         }

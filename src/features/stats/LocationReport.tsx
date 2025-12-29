@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Person, Shift, TaskTemplate, Team } from '../../types';
 import { MapPin, Home, Briefcase, Download, Filter, Copy, ChevronDown, Users, LayoutGrid, ArrowUpDown, User, ChevronRight, ChevronLeft, Clock } from 'lucide-react';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { useToast } from '../../contexts/ToastContext';
 import { Select } from '../../components/ui/Select';
+import { logger } from '../../services/loggingService';
 
 interface LocationReportProps {
     people: Person[];
@@ -109,6 +110,16 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
     };
 
     const reportData = generateReport();
+
+    useEffect(() => {
+        logger.info('VIEW', 'Viewed Location Report', {
+            date: selectedDate.toISOString().split('T')[0],
+            time: selectedTime,
+            filterTeam,
+            groupBy,
+            category: 'stats'
+        });
+    }, [selectedDate, selectedTime, filterTeam, groupBy]);
 
     const renderContent = () => {
         if (groupBy === 'status') {
@@ -383,6 +394,11 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                                 document.body.appendChild(link);
                                 link.click();
                                 document.body.removeChild(link);
+                                logger.info('EXPORT', `Exported Location Report to CSV for ${selectedDate.toLocaleDateString('he-IL')}`, {
+                                    date: selectedDate.toISOString().split('T')[0],
+                                    itemCount: reportData.length,
+                                    category: 'data'
+                                });
                             }}
                             className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                         >
@@ -400,7 +416,15 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                                 if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
                                 if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
 
-                                try { await navigator.clipboard.writeText(text); showToast('הועתק', 'success'); } catch (e) { showToast('שגיאה', 'error'); }
+                                try {
+                                    await navigator.clipboard.writeText(text);
+                                    showToast('הועתק', 'success');
+                                    logger.info('EXPORT', `Copied Location Report to clipboard for ${selectedDate.toLocaleDateString('he-IL')}`, {
+                                        date: selectedDate.toISOString().split('T')[0],
+                                        itemCount: reportData.length,
+                                        category: 'data'
+                                    });
+                                } catch (e) { showToast('שגיאה', 'error'); }
                             }}
                             className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                         >

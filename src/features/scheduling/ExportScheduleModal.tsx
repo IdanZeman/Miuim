@@ -5,6 +5,7 @@ import { Input } from '../../components/ui/Input';
 import { Shift, Person, TaskTemplate } from '../../types';
 import { Download, FileDown } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+import { logger } from '../../services/loggingService';
 
 interface ExportScheduleModalProps {
     isOpen: boolean;
@@ -94,6 +95,14 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
             link.click();
             document.body.removeChild(link);
 
+            logger.info('EXPORT', `Exported schedule to CSV (${startDate} to ${endDate})`, {
+                startDate,
+                endDate,
+                itemCount: filteredShifts.length,
+                taskCount: selectedTasks.length || tasks.length,
+                category: 'data'
+            });
+
             showToast('הקובץ נוצר בהצלחה', 'success');
             onClose();
 
@@ -112,7 +121,7 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="ייצוא נתונים" maxWidth="max-w-md">
+        <Modal isOpen={isOpen} onClose={onClose} title="ייצוא נתונים">
             <div className="space-y-6">
 
                 {/* Date Range */}

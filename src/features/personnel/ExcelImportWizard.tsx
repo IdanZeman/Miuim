@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { logger } from '../../services/loggingService';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import { Upload, FileSpreadsheet, ArrowRight, ArrowLeft, Check, AlertCircle, Plus, ArrowUpRight, Download, X, AlertTriangle } from 'lucide-react';
@@ -128,9 +129,10 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
                 setMappings(initialMappings);
                 setStep('mapping');
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error reading excel:", error);
                 showToast('שגיאה בקריאת הקובץ', 'error');
+                logger.error('ERROR', "Failed to read excel file during import", error);
             }
         };
         reader.readAsBinaryString(file);
@@ -439,6 +441,8 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         setStep('preview');
     };
 
+    // ...
+
     const handleFinalImport = async () => {
         // 1. Create real items for conflicts marked as 'create'
         const resolutionMap = new Map<string, string>(); // entries: 'type-name' -> 'real-id'
@@ -488,6 +492,13 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 teamId: finalTeamId,
                 roleIds: finalRoleIds
             };
+        });
+
+        // Log Import
+        logger.info('IMPORT_DATA', 'Bulk Imported Excel Data', {
+            peopleCount: finalPeople.length,
+            newTeamsCount: teamsToCreate.length,
+            newRolesCount: rolesToCreate.length
         });
 
         await onImport(finalPeople, teamsToCreate, rolesToCreate);

@@ -3,6 +3,7 @@ import { supabase } from '../../services/supabaseClient';
 import { ArrowRight } from 'lucide-react';
 import { Layout } from '../../components/layout/Layout';
 import { useToast } from '../../contexts/ToastContext';
+import { logger } from '../../services/loggingService';
 
 interface LoginProps {
     onBack?: () => void;
@@ -20,9 +21,10 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
                 }
             });
             if (error) throw error;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error logging in:', error);
             showToast('שגיאה בהתחברות עם Google', 'error');
+            logger.error('AUTH', 'Failed to sign in with Google', error);
         }
     };
 

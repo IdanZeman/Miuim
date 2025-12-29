@@ -1,4 +1,6 @@
 import React from 'react';
+import { logger } from '../../lib/logger';
+import { analytics, trackEvent } from '../../services/analytics';
 
 interface SwitchProps {
     checked: boolean;
@@ -31,7 +33,18 @@ export const Switch: React.FC<SwitchProps> = ({
                 type="checkbox"
                 className="sr-only peer"
                 checked={checked}
-                onChange={(e) => !disabled && onChange(e.target.checked)}
+                onChange={(e) => {
+                    const nextVal = e.target.checked;
+                    if (!disabled) {
+                        logger.info('UPDATE', `Toggled ${label || 'Switch'} to ${nextVal}`, {
+                            category: 'ui',
+                            label,
+                            value: nextVal
+                        });
+                        trackEvent('switch_toggle', 'UI', label || 'switch', nextVal ? 1 : 0);
+                        onChange(nextVal);
+                    }
+                }}
                 disabled={disabled}
             />
 

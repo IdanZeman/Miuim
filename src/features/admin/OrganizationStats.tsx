@@ -208,6 +208,19 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                         <Eye size={20} />
                     </div>
                 </div>
+
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                        <p className="text-slate-500 text-xs font-bold mb-1">אינטראקטיביות (קליקים)</p>
+                        <h3 className="text-2xl font-black text-slate-800">
+                            {categories.find(c => c.name === 'ui')?.value || 0}
+                        </h3>
+                        <p className="text-[10px] text-slate-400">לחיצות על כפתורים ותפריטים</p>
+                    </div>
+                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg shrink-0">
+                        <Activity size={20} />
+                    </div>
+                </div>
             </div>
 
             {/* Charts Row */}

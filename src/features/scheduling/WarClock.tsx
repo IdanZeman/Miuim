@@ -8,6 +8,7 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { Person, Team, Role } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../../contexts/ToastContext';
+import { logger } from '../../services/loggingService';
 import { Select } from '../../components/ui/Select';
 import { Modal } from '../../components/ui/Modal';
 import { SheetModal } from '../../components/ui/SheetModal';
@@ -153,6 +154,10 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                     if (error) throw error;
                 }
 
+                logger.info(editItem.id && !editItem.id.startsWith('local-') ? 'UPDATE' : 'CREATE',
+                    `${editItem.id && !editItem.id.startsWith('local-') ? 'Updated' : 'Created'} war clock item: ${editItem.description}`,
+                    { ...payload, id: editItem.id, category: 'scheduling' });
+
                 showToast('האירוע נשמר בהצלחה', 'success');
                 setIsEditing(false);
                 setEditItem({});
@@ -194,6 +199,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
             try {
                 const { error } = await supabase.from('war_clock_items').delete().eq('id', id);
                 if (error) throw error;
+                logger.info('DELETE', `Deleted war clock item: ${id}`, { id, category: 'scheduling' });
                 showToast('האירוע נמחק', 'success');
                 fetchItems();
                 return;
@@ -216,6 +222,11 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
             ...item,
             id: undefined,
             description: `${item.description} (עותק)`
+        });
+        logger.info('CREATE', `Duplicated war clock item: ${item.description}`, {
+            originalId: item.id,
+            description: `${item.description} (עותק)`,
+            category: 'scheduling'
         });
         setIsEditing(true);
     };

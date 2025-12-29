@@ -437,7 +437,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     const handleExportClick = async () => {
         analytics.trackButtonClick('export_schedule', 'schedule_board');
-        logger.log({ action: 'EXPORT', entityName: 'schedule_board', category: 'data' });
+        logger.info('EXPORT', 'Copied schedule board to clipboard', { date: selectedDate.toISOString().split('T')[0], category: 'data' });
         await handleExportToClipboard();
     };
 
@@ -452,7 +452,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             type: 'danger',
             onConfirm: () => {
                 onClearDay();
-                logger.log({ action: 'CLEAR_DAY', category: 'scheduling', metadata: { date: selectedDate.toISOString() } });
+                logger.info('DELETE', `Cleared all shifts for ${selectedDate.toLocaleDateString('he-IL')}`, {
+                    date: selectedDate.toISOString().split('T')[0],
+                    category: 'scheduling',
+                    action: 'CLEAR_DAY'
+                });
                 showToast('היום נוקה בהצלחה', 'success');
                 setConfirmationState(prev => ({ ...prev, isOpen: false }));
             }

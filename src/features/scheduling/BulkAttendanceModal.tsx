@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Switch } from '@/components/ui/Switch';
 import { Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { logger } from '@/services/loggingService';
 
 interface BulkAttendanceModalProps {
     isOpen: boolean;
@@ -30,6 +31,15 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
             startHour: status === 'available' ? startHour : '00:00',
             endHour: status === 'available' ? endHour : '00:00',
             reason
+        });
+        logger.info('UPDATE', `Applied bulk attendance update to ${selectedCount} people`, {
+            selectedCount,
+            startDate,
+            endDate,
+            status,
+            startHour,
+            endHour,
+            category: 'attendance'
         });
         onClose();
     };

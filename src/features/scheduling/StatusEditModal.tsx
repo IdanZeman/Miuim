@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, ArrowRight, Plus, Trash2, Calendar as CalendarIcon, X } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { logger } from '@/services/loggingService';
 import { AvailabilitySlot } from '@/types';
 
 interface StatusEditModalProps {
@@ -90,6 +91,22 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                 finalEnd = customEnd;
             }
         }
+
+        // Log the change
+        const isCheckIn = mainStatus === 'base' && customType === null;
+        logger.info(isCheckIn ? 'CHECK_IN' : 'UPDATE',
+            `${personName}: Updated status to ${mainStatus}${customType ? ` (${customType})` : ''} for ${date}`,
+            {
+                personName,
+                date,
+                status: mainStatus,
+                type: customType,
+                start: finalStart,
+                end: finalEnd,
+                blocksCount: unavailableBlocks.length,
+                category: 'attendance'
+            }
+        );
 
         onApply(mainStatus, { start: finalStart, end: finalEnd }, unavailableBlocks);
     };

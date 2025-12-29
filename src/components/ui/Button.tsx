@@ -1,5 +1,7 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
+import { logger } from '../../lib/logger';
+import { analytics } from '../../services/analytics';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
@@ -36,11 +38,34 @@ export const Button: React.FC<ButtonProps> = ({
     fullWidth = false,
     className = '',
     disabled,
+    onClick,
     ...props
 }) => {
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        // Track the click
+        let label = '';
+        if (typeof children === 'string') {
+            label = children;
+        } else if (props.title) {
+            label = props.title;
+        } else if (props['aria-label']) {
+            label = props['aria-label'];
+        } else {
+            label = 'icon-button';
+        }
+
+        logger.logClick(label, 'Button');
+        analytics.trackButtonClick(label, window.location.pathname);
+
+        if (onClick) {
+            onClick(e);
+        }
+    };
+
     return (
         <button
             disabled={disabled || isLoading}
+            onClick={handleClick}
             className={`
                 flex items-center justify-center gap-2 
                 rounded-full 

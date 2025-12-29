@@ -204,16 +204,19 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 selectedItemIds.forEach(id => {
                     if (activeTab === 'people') {
                         onDeletePerson(id);
-                        logger.logDelete('person', id, 'Unknown', { bulk: true });
                     }
                     else if (activeTab === 'teams') {
                         onDeleteTeam(id);
-                        logger.logDelete('team', id, 'Unknown', { bulk: true });
                     }
                     else if (activeTab === 'roles') {
                         onDeleteRole(id);
-                        logger.logDelete('role', id, 'Unknown', { bulk: true });
                     }
+                });
+                logger.info('DELETE', `Bulk deleted ${selectedItemIds.size} ${activeTab}`, {
+                    count: selectedItemIds.size,
+                    type: activeTab,
+                    ids: Array.from(selectedItemIds),
+                    category: 'data'
                 });
                 setSelectedItemIds(new Set());
                 showToast('הפריטים נמחקו בהצלחה', 'success');
@@ -281,7 +284,18 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             showToast('אין לך הרשאה לייצא נתונים', 'error');
             return;
         }
-        logger.log({ action: 'EXPORT', entityName: activeTab, category: 'data' });
+
+        let itemCount = 0;
+        if (activeTab === 'people') itemCount = people.length;
+        else if (activeTab === 'teams') itemCount = teams.length;
+        else if (activeTab === 'roles') itemCount = roles.length;
+
+        logger.log({
+            action: 'EXPORT',
+            entityName: activeTab,
+            category: 'data',
+            metadata: { count: itemCount }
+        });
         let csvContent = '';
         let fileName = '';
 
@@ -364,6 +378,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     }
                 } catch (e: any) {
                     console.error("Import Error for", p.name, e);
+                    logger.error('CREATE', `Failed to import person ${p.name}`, e);
                     failed++;
                     // Use explicit message if available, otherwise generic
                     let msg = e.message || 'שגיאה לא ידועה';
@@ -425,7 +440,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         } catch (e: any) {
             console.error("Save Error", e);
             showToast(e.message || 'שגיאה בשמירה', 'error');
-            logger.logError(e, 'PersonnelManager:SavePerson');
+            logger.logError(editingPersonId ? 'UPDATE' : 'CREATE', 'Failed to save person', e);
         } finally {
             setIsSaving(false);
         }
@@ -464,9 +479,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     showToast('הצוות נוצר', 'success');
                 }
                 closeForm();
-            } catch (e) {
+            } catch (e: any) {
                 console.error("Team Save Error", e);
                 showToast("שגיאה בשמירת צוות", 'error');
+                logger.error(editingTeamId ? 'UPDATE' : 'CREATE', "Failed to save team", e);
             } finally {
                 setIsSaving(false);
             }
@@ -485,9 +501,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     showToast('התפקיד נוצר', 'success');
                 }
                 closeForm();
-            } catch (e) {
+            } catch (e: any) {
                 console.error("Role Save Error", e);
                 showToast("שגיאה בשמירת תפקיד", 'error');
+                logger.error(editingRoleId ? 'UPDATE' : 'CREATE', "Failed to save role", e);
             } finally {
                 setIsSaving(false);
             }

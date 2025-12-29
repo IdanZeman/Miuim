@@ -1,4 +1,5 @@
 import { handleAppError } from '../../utils/errorUtils';
+import { logger } from '../../lib/logger';
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
@@ -218,6 +219,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             ...prev,
             [key]: override
         }));
+        logger.info('UPDATE', `Applied manual override in wizard for ${editingCell.personId} on ${editingCell.date}`, {
+            personId: editingCell.personId,
+            date: editingCell.date,
+            status,
+            times: `${override.startTime}-${override.endTime}`
+        });
         setEditingCell(null);
     };
 
@@ -402,6 +409,15 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     };
 
     const handleGenerate = async () => {
+        const startTime = performance.now();
+        logger.info('AUTO_SCHEDULE', 'Started roster generation', {
+            startDate,
+            endDate,
+            optimizationMode,
+            peopleCount: activePeople.length,
+            tasksCount: tasks.length
+        });
+
         console.log('--- Wizard: Starting Generation ---');
         console.log('Inputs:', {
             startDate, endDate,
@@ -501,8 +517,18 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             console.log('Generation Result:', res);
             setResult(res);
             setStep('preview');
+
+            const duration = performance.now() - startTime;
+            logger.info('AUTO_SCHEDULE', 'Completed roster generation', {
+                durationMs: duration,
+                performanceMs: duration, // Dedicated field
+                warningsCount: res.warnings?.length || 0,
+                rosterSize: res.roster?.length || 0
+            });
+
         } catch (e) {
             console.error('Wizard Error:', e);
+            logger.error('AUTO_SCHEDULE', 'Failed roster generation', e);
             showToast('שגיאה בחישוב השיבוץ', 'error');
         } finally {
             setGenerating(false);
@@ -527,8 +553,18 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     };
 
     const performSave = async () => {
+        const startTime = performance.now();
         setSaving(true);
         setWarningModal(prev => ({ ...prev, isOpen: false })); // Close warning
+
+        // Log start of save
+        const overrideCount = Object.keys(manualOverrides).length;
+        if (overrideCount > 0) {
+            logger.info('UPDATE', 'Saving roster with manual overrides', { count: overrideCount });
+        } else {
+            logger.info('UPDATE', 'Saving auto-generated roster', { optimizations: optimizationMode });
+        }
+
         try {
             // Bulk insert into daily_presence
             // Algorithm doesn't generate Arrival/Departure statuses, only Base/Home
@@ -732,10 +768,17 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             console.log('[RotaSave] Cache invalidated');
 
             if (onSaveRoster) onSaveRoster(result.roster);
+            const duration = performance.now() - startTime;
+            logger.info('GENERATE', 'Successfully saved generated roster to database', {
+                performanceMs: duration,
+                peopleCount: entries.length,
+                totalRecords: payload.length
+            });
             showToast('השיבוץ נשמר בהצלחה', 'success');
             onClose();
         } catch (e) {
             const msg = handleAppError(e, 'Save Roster Failed');
+            logger.error('ERROR', 'Failed to save roster', e); // Error log
             showToast(msg, 'error');
         } finally {
             setSaving(false);

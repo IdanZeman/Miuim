@@ -2,6 +2,8 @@ import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom'; // NEW
 import { ChevronDown, Check, Search, LucideIcon, Filter } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { logger } from '../../lib/logger';
+import { analytics, trackEvent } from '../../services/analytics';
 
 export interface SelectOption {
     value: string;
@@ -66,6 +68,14 @@ export const Select: React.FC<SelectProps> = ({
     }, [options, searchTerm]);
 
     const handleSelect = (val: string) => {
+        const option = options.find(o => o.value === val);
+        logger.info('UPDATE', `Selected ${option?.label || val} in ${label || 'Select'}`, {
+            category: 'ui',
+            label,
+            value: val
+        });
+        trackEvent('select_change', 'UI', `${label || 'select'}:${option?.label || val}`);
+
         onChange(val);
         setIsOpen(false);
         setSearchTerm('');

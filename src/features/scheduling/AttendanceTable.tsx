@@ -4,6 +4,7 @@ import { ChevronRight, ChevronLeft, ChevronDown, Calendar, Users, Home, MapPin, 
 import { getEffectiveAvailability, getRotationStatusForDate } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
+import { logger } from '@/services/loggingService';
 
 interface AttendanceTableProps {
     teams: Team[];
@@ -83,6 +84,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             personId: person.id,
             date: dateStr
         });
+        logger.info('CLICK', `Opened attendance status editor for ${person.name} on ${dateStr}`, { personId: person.id, date: dateStr });
     };
 
     const handleApplyStatus = (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => {

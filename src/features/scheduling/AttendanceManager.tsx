@@ -7,6 +7,8 @@ import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { GlobalTeamCalendar } from './GlobalTeamCalendar';
 import { RotationEditor } from './RotationEditor';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
+import { logger } from '../../services/loggingService';
+import { Modal } from '../../components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { AttendanceRow } from './AttendanceRow';
 import { AttendanceTable } from './AttendanceTable';
@@ -308,9 +310,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             if (promises.length > 0) {
                 try {
                     await Promise.all(promises);
+                    logger.info('UPDATE', `Updated ${promises.length} hourly blocks for ${person.name}`, { personId, date: dateKey, count: promises.length });
                     if (onRefresh) onRefresh();
                 } catch (err) {
-                    console.error('Failed to sync blocks', err);
+                    logger.error('ERROR', 'Failed to sync blocks', err);
                     showToast('שגיאה בשמירת חסימות', 'error');
                 }
             }
@@ -330,11 +333,18 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 // Auto-Reject the absence
                 try {
                     await updateAbsence({ ...conflictingAbsence, status: 'rejected' });
+                    logger.info('UPDATE', `Auto-rejected conflicting absence for ${person.name}`, {
+                        personId,
+                        absenceId: conflictingAbsence.id,
+                        date: dateKey,
+                        action: 'conflict_resolution'
+                    });
                     showToast('היעדרות מאושרת לחפיפה זו בוטלה (נדחתה) עקב שינוי ידני לבסיס', 'info');
                     // Note: We don't need to manually update state here because onRefresh() or onUpdateAbsence (if we had it) would handle it.
                     // But AttendanceManager receives absences as props, so we rely on the parent to refresh or the onRefresh callback.
                 } catch (e) {
-                    console.error("Failed to auto-reject absence", e);
+                    logger.error('ERROR', "Failed to auto-reject absence", e);
+                    console.error(e);
                 }
             }
         }
@@ -348,6 +358,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             status: status,
             unavailableBlocks: []
         };
+
+        logger.info('UPDATE', `Manually updated attendance status for ${person.name} to ${status}`, {
+            personId,
+            date,
+            oldStatus: currentData.status,
+            newStatus: status,
+            category: 'attendance'
+        });
 
         if (status === 'base') {
             newData.isAvailable = true;
@@ -423,7 +441,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-
+            logger.info('EXPORT', 'Exported monthly attendance report', { month: month + 1, year });
         } else {
             // Export Day (Existing logic)
             const dateStr = selectedDate.toLocaleDateString('he-IL');
@@ -453,6 +471,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            logger.info('EXPORT', 'Exported daily attendance report', { date: selectedDate.toLocaleDateString('en-CA') });
         }
     };
 
