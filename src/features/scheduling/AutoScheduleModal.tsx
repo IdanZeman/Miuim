@@ -109,7 +109,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="px-6 pb-4 md:py-6 shrink-0 flex items-center justify-between md:border-b md:border-slate-100 md:bg-slate-50 md:rounded-t-2xl">
+                <div className="px-6 pb-4 md:py-6 shrink-0 flex items-center justify-between md:border-b md:border-slate-100 md:rounded-t-2xl">
                     <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                         <Sparkles className="text-idf-yellow" size={20} />
                         שיבוץ אוטומטי

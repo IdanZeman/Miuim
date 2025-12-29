@@ -923,7 +923,7 @@ const MainApp: React.FC = () => {
                                 {state.taskTemplates.length > 0 && checkAccess('dashboard', 'edit') && (
                                     <div className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-50">
                                         <button onClick={() => setShowScheduleModal(true)} className="bg-blue-600 text-white p-4 md:px-6 md:py-4 rounded-full shadow-2xl flex items-center justify-center gap-0 md:gap-3 font-bold hover:scale-105 transition-all hover:bg-blue-700 active:scale-95 group overflow-hidden">
-                                            <div className="absolute inset-0 bg-blue-400/20 group-hover:animate-pulse pointer-events-none" />
+
                                             <Sparkles size={24} className="md:w-6 md:h-6 text-idf-yellow" />
                                             <span className="hidden md:inline whitespace-nowrap text-lg">שיבוץ אוטומטי</span>
                                         </button>
@@ -1054,7 +1054,7 @@ const MainApp: React.FC = () => {
 
     return (
         <Layout currentView={view} setView={setView}>
-            <div className="relative min-h-screen bg-slate-50 pb-20 md:pb-0">
+            <div className="relative min-h-screen bg-transparent pb-20 md:pb-0">
                 <ErrorBoundary>
                     <main className="max-w-[1600px] mx-auto transition-all duration-300">
                         <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><Loader2 className="animate-spin text-blue-500" /></div>}>
