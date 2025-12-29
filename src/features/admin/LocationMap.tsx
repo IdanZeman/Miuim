@@ -63,52 +63,92 @@ const LocateControl = () => {
 };
 
 export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
-    // 1. Prepare data with coordinates
-    const plottedPoints = useMemo(() => {
-        const maxVal = Math.max(...data.map(d => d.value), 1);
+    // State for dynamic points (merged static + fetched)
+    const [points, setPoints] = React.useState<(typeof data[0] & { lat: number, lon: number, radius: number, color: string })[]>([]);
 
-        return data.map(item => {
-            let lat = item.lat;
-            let lon = item.lon;
+    useEffect(() => {
+        const resolveCoordinates = async () => {
+            const maxVal = Math.max(...data.map(d => d.value), 1);
+            const resolvedPoints = await Promise.all(data.map(async (item) => {
+                let lat = item.lat;
+                let lon = item.lon;
+                let usedCache = false;
 
-            // If no direct coords, try lookup
-            if (!lat || !lon) {
-                // Try Israel Cities First (Exact match or includes)
-                // Normalize string for better matching (optional)
-                const searchName = item.name.trim();
+                // 1. Direct or Static Lookup
+                if (!lat || !lon) {
+                    const searchName = item.name.trim();
 
-                let found = ISRAEL_CITIES[searchName];
+                    // Check ISRAEL_CITIES
+                    let found = ISRAEL_CITIES[searchName] ||
+                        Object.values(ISRAEL_CITIES).find((_, i) => Object.keys(ISRAEL_CITIES)[i] === searchName); // Values check is wrong, keys check
 
-                // If not found, try fuzzy search in Israel Cities
-                if (!found) {
-                    const key = Object.keys(ISRAEL_CITIES).find(k => k.includes(searchName) || searchName.includes(k));
-                    if (key) found = ISRAEL_CITIES[key];
+                    if (!found) {
+                        const key = Object.keys(ISRAEL_CITIES).find(k => k.toLowerCase() === searchName.toLowerCase() || k.includes(searchName) || searchName.includes(k));
+                        if (key) found = ISRAEL_CITIES[key];
+                    }
+
+                    // Check WORLD_COUNTRIES
+                    if (!found) {
+                        const key = Object.keys(WORLD_COUNTRIES).find(k => k.toLowerCase() === searchName.toLowerCase() || k.includes(searchName) || searchName.includes(k));
+                        if (key) found = WORLD_COUNTRIES[key];
+                    }
+
+                    if (found) {
+                        lat = found.lat;
+                        lon = found.lon;
+                    }
+
+                    // 2. Check Local Cache
+                    if (!lat || !lon) {
+                        try {
+                            const cache = JSON.parse(localStorage.getItem('city_coords_cache') || '{}');
+                            if (cache[searchName]) {
+                                lat = cache[searchName].lat;
+                                lon = cache[searchName].lon;
+                                usedCache = true;
+                            }
+                        } catch (e) { }
+                    }
+
+                    // 3. Fetch from Nominatim (OpenStreetMap) if still missing
+                    if ((!lat || !lon)) {
+                        try {
+                            console.log(`Fetching coordinates for: ${searchName}`);
+                            const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchName + ', Israel')}&format=json&limit=1`, {
+                                headers: { 'Accept-Language': 'en' }
+                            });
+                            const json = await res.json();
+                            if (json && json.length > 0) {
+                                lat = parseFloat(json[0].lat);
+                                lon = parseFloat(json[0].lon);
+
+                                // Update Cache
+                                const cache = JSON.parse(localStorage.getItem('city_coords_cache') || '{}');
+                                cache[searchName] = { lat, lon };
+                                localStorage.setItem('city_coords_cache', JSON.stringify(cache));
+                            }
+                        } catch (err) {
+                            console.error(`Failed to geocode ${searchName}`, err);
+                        }
+                    }
                 }
 
-                // If not found, try World Countries
-                if (!found) {
-                    const key = Object.keys(WORLD_COUNTRIES).find(k => k.includes(searchName) || searchName.includes(k));
-                    if (key) found = WORLD_COUNTRIES[key];
+                if (lat && lon) {
+                    return {
+                        ...item,
+                        lat,
+                        lon,
+                        radius: Math.max(5, (item.value / maxVal) * 20),
+                        color: '#10b981',
+                    };
                 }
+                return null;
+            }));
 
-                if (found) {
-                    lat = found.lat;
-                    lon = found.lon;
-                }
-            }
+            setPoints(resolvedPoints.filter(Boolean) as any);
+        };
 
-            if (lat && lon) {
-                return {
-                    ...item,
-                    lat,
-                    lon,
-                    // Dynamic size based on value relative to max, with min/max caps
-                    radius: Math.max(5, (item.value / maxVal) * 20),
-                    color: '#10b981', // emerald-500
-                };
-            }
-            return null;
-        }).filter(Boolean) as (typeof data[0] & { lat: number, lon: number, radius: number, color: string })[];
+        resolveCoordinates();
     }, [data]);
 
     // Default Center: Israel
@@ -155,7 +195,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
                     }
                 `}</style>
 
-                {plottedPoints.map((point, i) => (
+                {points.map((point, i) => (
                     <CircleMarker
                         key={`${point.name}-${i}`}
                         center={[point.lat, point.lon]}

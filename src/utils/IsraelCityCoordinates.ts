@@ -8,8 +8,9 @@ export interface CityCoordinate {
 }
 
 export const ISRAEL_CITIES: Record<string, { lat: number, lon: number }> = {
-    // Major Cities
+    // --- Major Cities (Gush Dan & Metro) ---
     'Tel Aviv': { lat: 32.0853, lon: 34.7818 },
+    'Tel Aviv-Yafo': { lat: 32.0853, lon: 34.7818 },
     'Jerusalem': { lat: 31.7683, lon: 35.2137 },
     'Haifa': { lat: 32.7940, lon: 34.9896 },
     'Rishon LeTsion': { lat: 31.9730, lon: 34.7925 },
@@ -22,50 +23,165 @@ export const ISRAEL_CITIES: Record<string, { lat: number, lon: number }> = {
     'Ramat Gan': { lat: 32.0684, lon: 34.8264 },
     'Rehovot': { lat: 31.8928, lon: 34.8113 },
     'Bat Yam': { lat: 32.0162, lon: 34.7422 },
-    'Ashkelon': { lat: 31.6690, lon: 34.5715 },
     'Herzliya': { lat: 32.1624, lon: 34.8447 },
-    
-    // Sharon Area
+    'Givatayim': { lat: 32.0715, lon: 34.8089 },
+
+    // --- Sharon & Central District ---
     'Kfar Saba': { lat: 32.1750, lon: 34.9069 },
     'Raanana': { lat: 32.1848, lon: 34.8713 },
     'Hod HaSharon': { lat: 32.1500, lon: 34.8833 },
     'Ramat HaSharon': { lat: 32.1499, lon: 34.8398 },
+    'Kiryat Ono': { lat: 32.0626, lon: 34.8576 },
+    'Or Yehuda': { lat: 32.0306, lon: 34.8546 },
+    'Yehud': { lat: 32.0353, lon: 34.8872 },
+    'Yehud-Monosson': { lat: 32.0353, lon: 34.8872 },
+    'Rosh HaAyin': { lat: 32.0956, lon: 34.9566 },
+    'Elad': { lat: 32.0520, lon: 34.9515 },
+    'Lod': { lat: 31.9525, lon: 34.8967 },
+    'Ramla': { lat: 31.9292, lon: 34.8656 },
+    'Yavne': { lat: 31.8780, lon: 34.7381 },
+    'Ness Ziona': { lat: 31.9333, lon: 34.7997 },
+    'Gedera': { lat: 31.8123, lon: 34.7788 },
+    'Gan Yavne': { lat: 31.7915, lon: 34.7077 },
+    'Shoham': { lat: 31.9996, lon: 34.9455 },
+    'Ganei Tikva': { lat: 32.0620, lon: 34.8730 },
+    'Savion': { lat: 32.0531, lon: 34.8767 },
+    'Kfar Yona': { lat: 32.3168, lon: 34.9337 },
+    'Kadima-Zoran': { lat: 32.2770, lon: 34.9120 },
+    'Tel Mond': { lat: 32.2536, lon: 34.9197 },
+    'Even Yehuda': { lat: 32.2692, lon: 34.8856 },
+    'Pardesiya': { lat: 32.3023, lon: 34.9080 },
+    'Kochav Yair': { lat: 32.2312, lon: 35.0003 },
+    'Tzur Yigal': { lat: 32.2312, lon: 35.0003 },
+    'Tayibe': { lat: 32.2662, lon: 35.0097 },
+    'Tira': { lat: 32.2343, lon: 34.9518 },
+    'Qalansawe': { lat: 32.2858, lon: 34.9774 },
+    'Kafr Qasim': { lat: 32.1130, lon: 34.9760 },
+    'Jaljulia': { lat: 32.1550, lon: 34.9540 },
+    'Beit Dagan': { lat: 32.0020, lon: 34.8300 },
+    'Azor': { lat: 32.0222, lon: 34.8112 },
+    'Mazkeret Batya': { lat: 31.8550, lon: 34.8383 },
+    'Kiryat Ekron': { lat: 31.8617, lon: 34.8217 },
+    'Bnei Ayish': { lat: 31.7900, lon: 34.7570 },
+    'Be\'er Ya\'akov': { lat: 31.9427, lon: 34.8331 },
 
-    // North
+    // --- North (Haifa & Galilee) ---
     'Nazareth': { lat: 32.6996, lon: 35.3035 },
+    'Nof HaGalil': { lat: 32.7090, lon: 35.3270 }, // Formerly Nazareth Illit
     'Nahariya': { lat: 33.0031, lon: 35.0934 },
-    'Akko': { lat: 32.9249, lon: 35.0827 },
+    'Akko': { lat: 32.9249, lon: 35.0827 }, // Acre
     'Tiberias': { lat: 32.7944, lon: 35.5312 },
     'Afula': { lat: 32.6065, lon: 35.2881 },
     'Karmiel': { lat: 32.9199, lon: 35.2901 },
     'Safed': { lat: 32.9646, lon: 35.4960 }, // Tzfat
     'Kiryat Shmona': { lat: 33.2073, lon: 35.5682 },
-
-    // Center / Gush Dan
-    'Givatayim': { lat: 32.0715, lon: 34.8089 },
-    'Kirjat Ono': { lat: 32.0626, lon: 34.8576 },
-    'Kiryat Ono': { lat: 32.0626, lon: 34.8576 },
-    'Or Yehuda': { lat: 32.0306, lon: 34.8546 },
-    'Yehud': { lat: 32.0353, lon: 34.8872 },
-    'Rosh HaAyin': { lat: 32.0956, lon: 34.9566 },
-    'Elad': { lat: 32.0520, lon: 34.9515 },
-    'Modiin': { lat: 31.8988, lon: 35.0104 },
-    'Lod': { lat: 31.9525, lon: 34.8967 },
-    'Ramla': { lat: 31.9292, lon: 34.8656 },
-    'Yavne': { lat: 31.8780, lon: 34.7381 },
-    'Ness Ziona': { lat: 31.9333, lon: 34.7997 },
-
-    // South
-    'Eilat': { lat: 29.5581, lon: 34.9482 },
-    'Dimona': { lat: 31.0694, lon: 35.0340 },
+    'Maalot-Tarshiha': { lat: 33.0167, lon: 35.2750 },
+    'Migdal HaEmek': { lat: 32.6718, lon: 35.2403 },
+    'Yokneam Illit': { lat: 32.6596, lon: 35.0988 },
+    'Kiryat Ata': { lat: 32.8016, lon: 35.1039 },
+    'Kiryat Bialik': { lat: 32.8333, lon: 35.0833 },
+    'Kiryat Motzkin': { lat: 32.8368, lon: 35.0747 },
+    'Kiryat Yam': { lat: 32.8333, lon: 35.0667 },
+    'Nesher': { lat: 32.7750, lon: 35.0390 },
+    'Tirat Carmel': { lat: 32.7621, lon: 34.9730 },
+    'Or Akiva': { lat: 32.5080, lon: 34.9210 },
+    'Hadera': { lat: 32.4340, lon: 34.9197 },
+    'Pardes Hanna-Karkur': { lat: 32.4715, lon: 34.9702 },
+    'Binyamina': { lat: 32.5180, lon: 34.9540 },
+    'Zichron Yaakov': { lat: 32.5714, lon: 34.9536 },
+    'Fureidis': { lat: 32.5950, lon: 34.9480 },
+    'Umm al-Fahm': { lat: 32.5190, lon: 35.1530 },
+    'Baqa al-Gharbiyye': { lat: 32.4200, lon: 35.0400 },
+    'Tamra': { lat: 32.8530, lon: 35.1970 },
+    'Sakhnin': { lat: 32.8630, lon: 35.3050 },
+    'Shefa-Amr': { lat: 32.8050, lon: 35.1700 }, // Shfar'am
+    'Arraba': { lat: 32.8570, lon: 35.3370 },
+    'Maghar': { lat: 32.8900, lon: 35.4070 },
+    'Daliyat al-Karmel': { lat: 32.6890, lon: 35.0480 },
+    'Isfiya': { lat: 32.7200, lon: 35.0500 },
+    'Beit Shean': { lat: 32.4971, lon: 35.4985 },
+    'Katzrin': { lat: 32.9930, lon: 35.6900 },
+    'Metula': { lat: 33.2790, lon: 35.5780 },
+    'Rosh Pinna': { lat: 32.9680, lon: 35.5410 },
+    'Hatzor HaGlilit': { lat: 32.9800, lon: 35.5400 },
+    'Shlomi': { lat: 33.0720, lon: 35.1430 },
+    'Kfar Vradim': { lat: 32.9920, lon: 35.2600 },
+    'Yarka': { lat: 32.9560, lon: 35.1910 },
+    
+    // --- South & Negev ---
+    'Ashkelon': { lat: 31.6690, lon: 34.5715 },
+    'Kiryat Gat': { lat: 31.6034, lon: 34.7633 },
+    'Kiryat Malakhi': { lat: 31.7289, lon: 34.7336 },
     'Sderot': { lat: 31.5218, lon: 34.5956 },
     'Netivot': { lat: 31.4222, lon: 34.5951 },
     'Ofakim': { lat: 31.3142, lon: 34.6200 },
-    'Kiryat Gat': { lat: 31.6034, lon: 34.7633 },
-    
-    // Special
+    'Dimona': { lat: 31.0694, lon: 35.0340 },
+    'Arad': { lat: 31.2610, lon: 35.2150 },
+    'Yeruham': { lat: 30.9880, lon: 34.9250 },
+    'Mitzpe Ramon': { lat: 30.6120, lon: 34.8020 },
+    'Eilat': { lat: 29.5581, lon: 34.9482 },
+    'Rahat': { lat: 31.3920, lon: 34.7560 },
+    'Hura': { lat: 31.2940, lon: 34.9350 },
+    'Tel Sheva': { lat: 31.2480, lon: 34.8390 },
+    'Lakiya': { lat: 31.3530, lon: 34.8680 },
+    'Omer': { lat: 31.2780, lon: 34.8390 },
+    'Meitar': { lat: 31.3280, lon: 34.9350 },
+    'Lehavim': { lat: 31.3710, lon: 34.8250 },
+
+    // --- Jerusalem Area & Judea/Samaria ---
+    'Mevaseret Zion': { lat: 31.7990, lon: 35.1500 },
+    'Maale Adumim': { lat: 31.7770, lon: 35.2970 },
+    'Beitar Illit': { lat: 31.6960, lon: 35.1140 },
+    'Modiin Illit': { lat: 31.9320, lon: 35.0420 },
+    'Ariel': { lat: 32.1040, lon: 35.1740 },
+    'Givat Zeev': { lat: 31.8620, lon: 35.1660 },
+    'Efrat': { lat: 31.6530, lon: 35.1510 },
+    'Kiryat Arba': { lat: 31.5290, lon: 35.1130 },
+    'Beit Shemesh': { lat: 31.7470, lon: 34.9881 },
+    'Abu Ghosh': { lat: 31.8060, lon: 35.1070 },
+    'Tzur Hadassah': { lat: 31.7140, lon: 35.0970 },
+    'Har Adar': { lat: 31.8210, lon: 35.1320 },
+    'Kiryat Yearim': { lat: 31.8080, lon: 35.1030 }, // Telz-Stone
+    'Oranit': { lat: 32.1260, lon: 34.9920 },
+    'Alfei Menashe': { lat: 32.1700, lon: 35.0150 },
+    'Karnei Shomron': { lat: 32.1670, lon: 35.0960 },
+    'Kedumim': { lat: 32.1910, lon: 35.1430 },
+    'Beit El': { lat: 31.9420, lon: 35.2230 },
+
+    // --- Modiin Area ---
+    'Modiin-Maccabim-Reut': { lat: 31.8988, lon: 35.0104 },
+    'Kfar HaOranim': { lat: 31.9210, lon: 35.0330 },
+    'Lapid': { lat: 31.9170, lon: 35.0280 },
+    'Shilat': { lat: 31.9120, lon: 35.0110 },
+
+    // --- Smaller Towns & Villages (Moshavim/Kibbutzim) ---
+    'Caesarea': { lat: 32.5000, lon: 34.9000 },
+    'Batzra': { lat: 32.2230, lon: 34.8720 },
+    'Bnei Zion': { lat: 32.2280, lon: 34.8620 },
+    'Rishpon': { lat: 32.2040, lon: 34.8320 },
+    'Gaash': { lat: 32.2350, lon: 34.8290 },
+    'Shefayim': { lat: 32.2220, lon: 34.8230 },
+    'Yakum': { lat: 32.2530, lon: 34.8320 },
+    'Udim': { lat: 32.2700, lon: 34.8420 },
+    'Beit Yanai': { lat: 32.3810, lon: 34.8630 },
+    'Mikhmoret': { lat: 32.4030, lon: 34.8700 },
+    'Avihayil': { lat: 32.3480, lon: 34.8720 },
+    'Hadar Am': { lat: 32.3497, lon: 34.8983 },
+    'Kfar Vitkin': { lat: 32.3810, lon: 34.8770 },
+    'Bat Hefer': { lat: 32.3330, lon: 35.0100 },
+    'Nitzan': { lat: 31.7240, lon: 34.6210 },
+    'Yad Binyamin': { lat: 31.7960, lon: 34.8300 },
+    'Kfar Chabad': { lat: 31.9930, lon: 34.8480 },
+    'Savyon': { lat: 32.0531, lon: 34.8767 },
+    'Ein Vered': { lat: 32.2640, lon: 34.9290 },
+    'Zoran': { lat: 32.2770, lon: 34.9120 },
+    'Herut': { lat: 32.2470, lon: 34.9080 },
+    'Mishmeret': { lat: 32.2420, lon: 34.9080 },
+
+    // --- Special Locations ---
     'Ben Gurion Airport': { lat: 32.0004, lon: 34.8706 },
-    'TLV': { lat: 32.0004, lon: 34.8706 }
+    'TLV': { lat: 32.0004, lon: 34.8706 },
+    'Ramon Airport': { lat: 29.7214, lon: 35.0150 }
 };
 
 export const WORLD_COUNTRIES: Record<string, { lat: number, lon: number }> = {
@@ -85,5 +201,10 @@ export const WORLD_COUNTRIES: Record<string, { lat: number, lon: number }> = {
     'Argentina': { lat: -38.4161, lon: -63.6167 },
     'South Africa': { lat: -30.5595, lon: 22.9375 },
     'South Korea': { lat: 35.9078, lon: 127.7669 },
-    'Mexico': { lat: 23.6345, lon: -102.5528 }
+    'Mexico': { lat: 23.6345, lon: -102.5528 },
+    'Turkey': { lat: 38.9637, lon: 35.2433 },
+    'Greece': { lat: 39.0742, lon: 21.8243 },
+    'Egypt': { lat: 26.8206, lon: 30.8025 },
+    'Jordan': { lat: 30.5852, lon: 36.2384 },
+    'Cyprus': { lat: 35.1264, lon: 33.4299 }
 };
