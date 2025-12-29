@@ -376,9 +376,9 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
                 for(let i=s; i<=e; i++) set.add(i);
             }
         });
-        // Add Absences (Only Approved)
+        // Add Absences (Approved AND Pending)
         absences.forEach(a => {
-            if (a.person_id === p.id && a.status === 'approved') { // NEW: Only Approved
+            if (a.person_id === p.id && (a.status === 'approved' || a.status === 'pending')) {
                 const s = Math.max(0, getDayIndex(new Date(a.start_date), startDate));
                 const e = Math.min(totalDays - 1, getDayIndex(new Date(a.end_date), startDate));
                 for(let i=s; i<=e; i++) set.add(i);

@@ -526,13 +526,13 @@ const MainApp: React.FC = () => {
     // I will assume absences table exists and was used (it was in fetched data).
 
     const handleAddAbsence = async (a: Absence) => {
+        // AbsenceManager handles the DB insert via api.addAbsence.
+        // We just need to refresh the local data.
         try {
-            const { error } = await supabase.from('absences').insert(mapAbsenceToDB({ ...a, organization_id: organization?.id }));
-            if (error) throw error;
-            await logger.logCreate('absence', a.id, 'בקשת יציאה', a);
-            refreshData();
+            await refreshData();
+            await logger.logCreate('absence', a.id, 'בקשת יציאה - סנכרון', a);
         } catch (e: any) {
-            logger.error('ERROR', 'Failed to add absence', e);
+            logger.error('ERROR', 'Failed to refresh after adding absence', e);
             console.warn(e);
         }
     };

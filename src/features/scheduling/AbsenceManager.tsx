@@ -456,7 +456,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] overflow-hidden">
             {/* Header */}
             <div className="bg-white p-4 md:px-6 md:py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">

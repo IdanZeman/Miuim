@@ -52,7 +52,7 @@ const NavDropdown = ({
             data-testid={testId}
         >
             <button
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all relative ${isActive || isOpen
+                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-all relative ${isActive || isOpen
                     ? 'text-blue-700 bg-blue-50/50'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}

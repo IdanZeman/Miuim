@@ -843,20 +843,47 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         };
     }, [result, people, targetTeamIds, selectedTeamId, startDate, endDate, manualOverrides]);
 
+    // Optimization: Pre-calculate absence map for quick lookup in render
+    const absenceLookup = React.useMemo(() => {
+        const map = new Map<string, string>(); // Key: personId-date, Value: Reason or ''
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        absences.forEach(a => {
+            if (a.status !== 'approved' && a.status !== 'pending') return;
+
+            const aStart = new Date(a.start_date);
+            const aEnd = new Date(a.end_date);
+
+            // Intersection with range
+            const effectiveStart = aStart < start ? start : aStart;
+            const effectiveEnd = aEnd > end ? end : aEnd;
+
+            for (let d = new Date(effectiveStart); d <= effectiveEnd; d.setDate(d.getDate() + 1)) {
+                const key = `${a.person_id}-${d.toLocaleDateString('en-CA')}`;
+                // Prefer existing reason if multiple (or simply overwrite)
+                // Use explicit reason if available, else marker that implies default
+                map.set(key, a.reason || 'EMPTY_REASON');
+            }
+        });
+        return map;
+    }, [absences, startDate, endDate]);
+
     const configFooter = (
         <div className="flex gap-3 w-full justify-between">
             <Button variant="ghost" onClick={onClose} className="w-32 justify-center">ביטול</Button>
             <Button
                 onClick={handleGenerate}
+                disabled={generating}
                 isLoading={generating}
-                icon={Sparkles}
-                data-testid="rota-wizard-generate-btn"
-                className="bg-[#7cbd52] hover:bg-[#6aa845] text-white shadow-md hover:shadow-lg w-[240px] h-12 md:h-10 justify-center text-base md:text-sm font-black"
+                className="w-40 justify-center font-bold"
             >
-                צור הצעה
+                {generating ? 'מייצר שיבוץ...' : 'צור שיבוץ אוטומטי'}
             </Button>
         </div>
     );
+
+
 
     const previewFooter = (
         <div className="flex gap-2 w-full justify-between items-center select-none">
@@ -1559,12 +1586,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                                 let cellClass = "bg-white";
 
                                                                                 if (status === 'home' || status === 'unavailable') {
-
                                                                                     // Check for Implicit Departure (Home day following Base)
                                                                                     // ONLY if not explicitly overridden to Home/Unavailable
                                                                                     const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
+                                                                                    const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
 
-                                                                                    if (!isOverridden && prevStatus === 'base' && status !== 'unavailable') {
+                                                                                    if (!isOverridden && prevStatus === 'base' && status !== 'unavailable' && !absenceReason) {
                                                                                         // DEPARTURE (Home day following Base)
                                                                                         cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
                                                                                         content = (
@@ -1576,14 +1603,19 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                                     } else {
                                                                                         // Standard Home Day (Explicit or Middle of Home Block)
                                                                                         cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
-
-                                                                                        const isConstraint = status === 'unavailable';
-                                                                                        // Show '(אילוץ)' if unavailable, otherwise standard 'בית'
+                                                                                        const isConstraint = status === 'unavailable' || !!absenceReason;
 
                                                                                         content = (
                                                                                             <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
-                                                                                                <span>{isConstraint ? 'לא זמין' : 'בית'}</span>
-                                                                                                {isConstraint && <span className="text-[8px] font-normal">(אילוץ)</span>}
+                                                                                                <span className="text-red-900">בית</span>
+                                                                                                {isConstraint && (
+                                                                                                    <span className="text-[9px] font-bold truncate max-w-full px-0.5" title={absenceReason || 'בקשת יציאה'}>
+                                                                                                        {absenceReason
+                                                                                                            ? (absenceReason === 'EMPTY_REASON' ? 'בקשת יציאה' : absenceReason)
+                                                                                                            : 'בקשת יציאה'
+                                                                                                        }
+                                                                                                    </span>
+                                                                                                )}
                                                                                             </div>
                                                                                         );
                                                                                     }
@@ -1591,24 +1623,36 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                                     // Explicit Arrival
                                                                                     const ov = manualOverrides[`${person.id}-${dateKey}`];
                                                                                     const time = ov?.startTime || userArrivalHour;
+                                                                                    const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
 
                                                                                     cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
                                                                                     content = (
                                                                                         <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
                                                                                             <span className="font-bold mb-0.5">הגעה</span>
                                                                                             <span className="text-[9px]">{time}</span>
+                                                                                            {absenceReason && (
+                                                                                                <span className="text-[9px] font-bold truncate max-w-full px-0.5 mt-0.5 block opacity-100" title={absenceReason}>
+                                                                                                    {absenceReason === 'EMPTY_REASON' ? 'בקשת יציאה' : absenceReason}
+                                                                                                </span>
+                                                                                            )}
                                                                                         </div>
                                                                                     );
                                                                                 } else if (status === 'departure') {
                                                                                     // Explicit Departure
                                                                                     const ov = manualOverrides[`${person.id}-${dateKey}`];
                                                                                     const time = ov?.endTime || userDepartureHour;
+                                                                                    const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
 
                                                                                     cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
                                                                                     content = (
                                                                                         <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
                                                                                             <span className="font-bold mb-0.5">יציאה</span>
                                                                                             <span className="text-[9px]">{time}</span>
+                                                                                            {absenceReason && (
+                                                                                                <span className="text-[9px] font-bold truncate max-w-full px-0.5 mt-0.5 block opacity-100" title={absenceReason}>
+                                                                                                    {absenceReason === 'EMPTY_REASON' ? 'בקשת יציאה' : absenceReason}
+                                                                                                </span>
+                                                                                            )}
                                                                                         </div>
                                                                                     );
                                                                                 } else if (status === 'base') {
@@ -1616,8 +1660,9 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                                     // Check for Implicit Arrival (Base day following Home/Unavailable)
                                                                                     const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
                                                                                     const isPrevHome = prevStatus === 'home' || prevStatus === 'unavailable';
+                                                                                    const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
 
-                                                                                    if (!isOverridden && isPrevHome) {
+                                                                                    if (!isOverridden && isPrevHome && !absenceReason) {
                                                                                         // ARRIVAL (Base day following Home)
                                                                                         cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
                                                                                         content = (
@@ -1640,9 +1685,19 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                                                                                         cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
                                                                                         content = (
-                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center">
+                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center relative">
+                                                                                                {absenceReason && (
+                                                                                                    <div className="absolute top-[1px] left-[1px] text-red-600 animate-pulse">
+                                                                                                        <AlertTriangle size={10} strokeWidth={3} />
+                                                                                                    </div>
+                                                                                                )}
                                                                                                 <span className="font-bold">{label}</span>
                                                                                                 {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
+                                                                                                {absenceReason && (
+                                                                                                    <span className="text-[9px] font-bold truncate max-w-full px-0.5 mt-0.5 block text-green-900" title={absenceReason}>
+                                                                                                        {absenceReason === 'EMPTY_REASON' ? 'בקשת יציאה' : absenceReason}
+                                                                                                    </span>
+                                                                                                )}
                                                                                             </div>
                                                                                         );
                                                                                     }
