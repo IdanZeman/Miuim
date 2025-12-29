@@ -1029,6 +1029,7 @@ const MainApp: React.FC = () => {
                         isViewer={!checkAccess('attendance', 'edit')}
                         shifts={state.shifts} // NEW
                         tasks={state.taskTemplates} // NEW
+                        teams={state.teams} // NEW
                         onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); setView('attendance'); }}
                     />
                 ) : <Navigate to="/" />;
