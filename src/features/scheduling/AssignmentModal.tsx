@@ -536,14 +536,14 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     })()}
 
                     <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0 bg-white -mx-4 md:mx-0">
-                        <div className={`${!isAddMode ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-80 md:border-l border-slate-100 h-full relative bg-white`}>
+                        <div className={`${!isAddMode ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-80 md:border-l border-slate-100 relative bg-white min-h-0`}>
                             <div className="p-4 bg-slate-50/50 sticky top-0 z-10 border-b border-slate-100 flex justify-between items-center group/header">
                                 <h4 className="font-black text-slate-800 text-[11px] uppercase tracking-wider">
                                     חיילים משובצים ({assignedPeople.length})
                                 </h4>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-0 pb-4 md:pb-0">
+                            <div className="flex-1 overflow-y-auto p-0 pb-4 md:pb-0 min-h-0">
                                 {assignedPeople.map(p => (
                                     <div key={p.id} className="flex items-center justify-between p-4 border-b border-slate-100 last:border-0 bg-white hover:bg-slate-50 transition-colors min-h-[72px]">
                                         <div className="flex items-center gap-3">
