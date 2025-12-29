@@ -510,9 +510,9 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
                     unfulfilledConstraints.push({
                         personId: p.id,
                         personName: p.name,
-                        date: dateObj.toLocaleDateString('he-IL'),
+                        date: toDateKey(dateObj),
                         type: 'constraint',
-                        reason: 'סומן כאילוץ/בית אך שובץ בבסיס'
+                        reason: 'שים לב שבקשת היציאה לא התקבלה עקב אילוצי סד"כ'
                     });
                 } else {
                     metConstraints++;
