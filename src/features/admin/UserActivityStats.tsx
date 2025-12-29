@@ -9,6 +9,7 @@ import {
     BarChart3,
     Trophy
 } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { Select } from '../../components/ui/Select';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
@@ -175,26 +176,36 @@ export const UserActivityStats: React.FC = () => {
                         </div>
 
                         {stats.activityGraph.length > 0 ? (
-                            <div className="flex items-end justify-between h-48 gap-2 pt-4">
-                                {stats.activityGraph.map((point, i) => {
-                                    const count = Number(point.count);
-                                    const heightPercent = maxGraphValue > 0 ? (count / maxGraphValue) * 100 : 0;
-                                    return (
-                                        <div key={i} className="flex flex-col items-center flex-1 group relative">
-                                            <div
-                                                className="w-full bg-blue-500 rounded-t-sm hover:bg-blue-600 transition-all relative min-h-[4px]"
-                                                style={{ height: `${Math.max(heightPercent, 5)}%` }}
-                                            >
-                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                                                    {count} פעולות
-                                                </div>
-                                            </div>
-                                            <span className="text-[10px] text-slate-400 mt-2 font-mono rotate-0 sm:rotate-0 truncate w-full text-center">
-                                                {point.date_bucket}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
+                            <div className="h-64 w-full" dir="ltr">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={stats.activityGraph} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis
+                                            dataKey="date_bucket"
+                                            tick={{ fontSize: 11, fill: '#64748b' }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <YAxis
+                                            allowDecimals={false}
+                                            tick={{ fontSize: 11, fill: '#64748b' }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                            cursor={{ fill: '#f8fafc' }}
+                                            formatter={(value: number) => [value, 'פעולות']}
+                                        />
+                                        <Bar
+                                            dataKey="count"
+                                            fill="#3b82f6"
+                                            radius={[4, 4, 0, 0]}
+                                            barSize={30}
+                                            name="פעולות"
+                                        />
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
                         ) : (
                             <div className="h-48 flex items-center justify-center text-slate-400 text-sm italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
