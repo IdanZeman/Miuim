@@ -140,6 +140,8 @@ class LoggingService {
                 metadata.ip = metadata.ip || this.geoData.ip;
                 metadata.city = metadata.city || this.geoData.city;
                 metadata.country = metadata.country || this.geoData.country_name;
+                metadata.latitude = metadata.latitude || this.geoData.latitude;
+                metadata.longitude = metadata.longitude || this.geoData.longitude;
             }
 
             // Ensure we strictly follow DB Schema to avoid 400 errors
@@ -167,7 +169,7 @@ class LoggingService {
                 before_data: entry.oldData || null,
                 after_data: entry.newData || null,
                 metadata: metadata || null,
-                user_agent: navigator.userAgent // Verified acts as text in some schemas, keeping if sure, else move to meta
+                // user_agent: navigator.userAgent // REMOVED - moved to metadata to avoid schema mismatch
                 // url and client_timestamp REMOVED from top level
             });
 
@@ -284,7 +286,13 @@ class LoggingService {
                         const res = await fetch('https://ipwho.is/');
                         if (res.ok) {
                             const data = await res.json();
-                            this.geoData = { ip: data.ip, city: data.city, country_name: data.country };
+                            this.geoData = { 
+                                ip: data.ip, 
+                                city: data.city, 
+                                country_name: data.country,
+                                latitude: data.latitude,
+                                longitude: data.longitude
+                            };
                             console.log('✅ Geo: Fetched from ipwho.is', this.geoData);
                         } else throw new Error(res.statusText);
                     } catch (e2) {
@@ -294,7 +302,11 @@ class LoggingService {
                             const res = await fetch('https://ipapi.co/json/');
                             if (res.ok) {
                                 const data = await res.json();
-                                this.geoData = data;
+                                this.geoData = {
+                                    ...data,
+                                    latitude: data.latitude,
+                                    longitude: data.longitude
+                                };
                                 console.log('✅ Geo: Fetched from ipapi.co', this.geoData);
                             } else throw new Error(res.statusText);
                         } catch (e3) {
@@ -304,10 +316,13 @@ class LoggingService {
                                 const res = await fetch('https://ipinfo.io/json');
                                 if (res.ok) {
                                     const data = await res.json();
+                                    const [lat, lon] = (data.loc || '').split(',');
                                     this.geoData = {
                                         ip: data.ip,
                                         city: data.city,
-                                        country_name: data.country // ipinfo returns code mostly, but sometimes name
+                                        country_name: data.country,
+                                        latitude: parseFloat(lat),
+                                        longitude: parseFloat(lon)
                                     };
                                     console.log('✅ Geo: Fetched from ipinfo.io', this.geoData);
                                 } else throw new Error(res.statusText);

@@ -213,7 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                         aria-label="חזרה לדף הבית"
                     >
                         <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
-                            <img src="/images/new_icon.png" alt="App Logo" className="w-full h-full object-contain" aria-hidden="true" />
+                            <img src="/images/logo.png" alt="App Logo" className="w-full h-full object-contain" aria-hidden="true" />
                         </div>
                         <span className="block text-lg font-bold text-slate-800 tracking-tight">
                             {isPublic ? 'מערכת ניהול' : (organization?.name || 'מערכת ניהול')}

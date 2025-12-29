@@ -56,6 +56,8 @@ import { useOrganizationData } from './hooks/useOrganizationData';
 import { DashboardSkeleton } from './components/ui/DashboardSkeleton'; // Import Skeleton
 import { ClaimProfile } from './features/auth/ClaimProfile';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { LoadingSpinner } from './components/ui/LoadingSpinner';
+import { GlobalClickTracker } from './features/core/GlobalClickTracker';
 import { AutoScheduleModal } from './features/scheduling/AutoScheduleModal';
 import { EmptyStateGuide } from './components/ui/EmptyStateGuide';
 import { ToastProvider } from './contexts/ToastContext';
@@ -1295,6 +1297,7 @@ export default function App() {
             <Router>
                 <AuthProvider>
                     <ToastProvider>
+                        <GlobalClickTracker />
                         <AppContent />
                     </ToastProvider>
                 </AuthProvider>

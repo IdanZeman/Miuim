@@ -156,7 +156,7 @@ export const LandingPage: React.FC = () => {
                         onClick={() => document.getElementById('landing-page-container')?.scrollTo({ top: 0, behavior: 'smooth' })}
                     >
                         <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl flex items-center justify-center shadow-lg transform group-hover:scale-105 transition-transform overflow-hidden bg-white p-2 border border-slate-100">
-                            <img src="/favicon.png" alt="Logo" className="w-full h-full object-contain" />
+                            <img src="/images/logo.png" alt="Logo" className="w-full h-full object-contain" />
                         </div>
                         <div className="hidden md:block">
                             <div className="text-lg font-bold tracking-tight text-slate-900 leading-tight">מערכת ניהול פלוגה</div>
@@ -475,7 +475,7 @@ export const LandingPage: React.FC = () => {
                             {/* Logo */}
                             <div className="flex justify-center mb-4 md:mb-6">
                                 <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden bg-white p-3 border border-slate-100">
-                                    <img src="/favicon.png" alt="Shibuz Logo" className="w-full h-full object-contain" />
+                                    <img src="/images/logo.png" alt="Shibuz Logo" className="w-full h-full object-contain" />
                                 </div>
                             </div>
 

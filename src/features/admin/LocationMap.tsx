@@ -1,209 +1,188 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Plus, Minus, Maximize, RefreshCcw } from 'lucide-react';
+import React, { useMemo, useEffect } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import { ISRAEL_CITIES, WORLD_COUNTRIES } from '../../utils/IsraelCityCoordinates';
 
 interface LocationMapProps {
-    data: { name: string; value: number }[];
+    data: { name: string; value: number; lat?: number; lon?: number }[];
     total: number;
 }
 
-// Approximate percentage coordinates for major countries on a standard Equirectangular projection
-const COUNTRY_COORDS: Record<string, { x: number, y: number }> = {
-    'Israel': { x: 58.5, y: 36 },
-    'United States': { x: 23, y: 35 },
-    'UK': { x: 49, y: 24 },
-    'France': { x: 49.5, y: 28 },
-    'Germany': { x: 51, y: 26 },
-    'Russia': { x: 70, y: 20 },
-    'China': { x: 78, y: 35 },
-    'India': { x: 72, y: 40 },
-    'Brazil': { x: 32, y: 65 },
-    'Australia': { x: 85, y: 75 },
-    'Canada': { x: 20, y: 20 },
-    'Japan': { x: 88, y: 35 },
-    'South Korea': { x: 86, y: 35 },
-    'Italy': { x: 51, y: 30 },
-    'Spain': { x: 48, y: 31 },
-    'Mexico': { x: 20, y: 40 },
-    'Argentina': { x: 30, y: 75 },
-    'South Africa': { x: 54, y: 75 },
-    'Unknown': { x: -10, y: -10 }
+// Component to handle map bounds updates and invalidation
+const MapUpdater: React.FC<{ center: [number, number], zoom: number, triggerResize?: boolean }> = ({ center, zoom, triggerResize }) => {
+    const map = useMap();
+    useEffect(() => {
+        map.setView(center, zoom);
+        if (triggerResize) {
+            map.invalidateSize();
+        }
+    }, [center, zoom, map, triggerResize]);
+
+    // Invalidate size on mount just in case
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            map.invalidateSize();
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [map]);
+
+    return null;
 };
 
-export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
-    // Zoom & Pan State
-    const [zoom, setZoom] = useState(1);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
-    const [isDragging, setIsDragging] = useState(false);
-    const [startPan, setStartPan] = useState({ x: 0, y: 0 });
+// "Locate Me" Button Control
+const LocateControl = () => {
+    const map = useMap();
 
-    // Normalize data for dot sizing
-    const maxVal = Math.max(...data.map(d => d.value), 1);
-
-    // Filter and map valid points
-    const plottedPoints = useMemo(() => {
-        return data.map(item => {
-            // Fuzzy match country names
-            const key = Object.keys(COUNTRY_COORDS).find(k => item.name.includes(k) || k.includes(item.name));
-            const coords = key ? COUNTRY_COORDS[key] : null;
-
-            if (!coords) return null;
-
-            return {
-                ...item,
-                x: coords.x,
-                y: coords.y,
-                size: Math.max(4, (item.value / maxVal) * 12),
-                opacity: 0.5 + (item.value / maxVal) * 0.5
-            };
-        }).filter(Boolean);
-    }, [data, maxVal]);
-
-    // Handlers
-    // Note: Wheel listener attached via ref in useEffect to support non-passive behavior
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-
-        const onWheel = (e: WheelEvent) => {
-            e.preventDefault();
-            const scaleAmount = -e.deltaY * 0.001;
-            setZoom(prevZoom => {
-                const newZoom = Math.min(Math.max(1, prevZoom + scaleAmount), 5);
-                // If zooming out to 1, reset offset logic could be added here
-                if (newZoom === 1) setOffset({ x: 0, y: 0 });
-                return newZoom;
-            });
-        };
-
-        container.addEventListener('wheel', onWheel, { passive: false });
-        return () => container.removeEventListener('wheel', onWheel);
-    }, []); // Empty dependency array means this effect runs once on mount
-
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (zoom > 1) { // Only allow pan if zoomed in
-            setIsDragging(true);
-            setStartPan({ x: e.clientX - offset.x, y: e.clientY - offset.y });
-        }
-    };
-
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDragging) return;
+    const handleLocate = (e: React.MouseEvent) => {
+        e.stopPropagation();
         e.preventDefault();
-        const newX = e.clientX - startPan.x;
-        const newY = e.clientY - startPan.y;
-
-        // Simple bounds check (very rough)
-        const limitX = (zoom - 1) * 300;
-        const limitY = (zoom - 1) * 200;
-
-        setOffset({
-            x: Math.max(Math.min(newX, limitX), -limitX),
-            y: Math.max(Math.min(newY, limitY), -limitY)
+        map.locate().on("locationfound", function (e: any) {
+            map.flyTo(e.latlng, map.getZoom());
         });
-    };
-
-    const handleMouseUp = () => setIsDragging(false);
-
-    const zoomIn = () => setZoom(z => Math.min(z * 1.2, 5));
-    const zoomOut = () => {
-        setZoom(z => {
-            const newZ = Math.max(z / 1.2, 1);
-            if (newZ === 1) setOffset({ x: 0, y: 0 });
-            return newZ;
-        });
-    };
-    const resetZoom = () => {
-        setZoom(1);
-        setOffset({ x: 0, y: 0 });
     };
 
     return (
-        <div
-            ref={containerRef}
-            className="relative w-full aspect-[1.8] bg-slate-900 rounded-xl border border-slate-800 overflow-hidden group select-none shadow-inner"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-        >
-            {/* Map Container with Transform */}
-            <div
-                className="w-full h-full transition-transform duration-100 ease-out origin-center will-change-transform"
-                style={{
-                    transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-                    cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'
-                }}
-            >
-                {/* SVG Background Map */}
-                <svg
-                    viewBox="0 0 100 50"
-                    className="w-full h-full opacity-40 pointer-events-none"
-                    preserveAspectRatio="none"
+        <div className="leaflet-bottom leaflet-right">
+            <div className="leaflet-control leaflet-bar">
+                <a
+                    href="#"
+                    role="button"
+                    title="Show My Location"
+                    className="leaflet-control-custom-button flex items-center justify-center bg-white hover:bg-slate-100 text-slate-800 w-[30px] h-[30px]"
+                    onClick={handleLocate}
                 >
-                    <image
-                        href="https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg"
-                        x="0"
-                        y="0"
-                        width="100"
-                        height="50"
-                        className="grayscale invert brightness-150 contrast-125" // Dark mode map style
-                    />
-                </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <line x1="1" y1="12" x2="23" y2="12"></line>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    );
+};
 
-                {/* Data Points */}
-                <div className="absolute inset-0 pointer-events-none">
-                    {plottedPoints.map((point, i) => point && (
-                        <div
-                            key={i}
-                            className="absolute flex items-center justify-center group/point"
-                            style={{
-                                left: `${point.x}%`,
-                                top: `${point.y}%`,
-                                transform: `translate(-50%, -50%) scale(${1 / Math.sqrt(zoom)})` // Counter-scale markers slightly so they don't get huge
-                            }}
-                        >
-                            {/* Ripple */}
-                            <div className="absolute w-full h-full bg-emerald-500/30 rounded-full animate-ping"
-                                style={{ width: `${point.size * 3}px`, height: `${point.size * 3}px` }}
-                            />
+export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
+    // 1. Prepare data with coordinates
+    const plottedPoints = useMemo(() => {
+        const maxVal = Math.max(...data.map(d => d.value), 1);
 
-                            {/* Dot */}
-                            <div
-                                className="rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)] border border-white/20 transition-transform relative z-10"
-                                style={{
-                                    width: `${point.size}px`,
-                                    height: `${point.size}px`,
-                                    opacity: point.opacity
-                                }}
-                            />
+        return data.map(item => {
+            let lat = item.lat;
+            let lon = item.lon;
 
-                            {/* Label (Only visible on hover or high zoom) */}
-                            <div className={`absolute top-full mt-1 px-2 py-0.5 bg-black/80 text-white text-[8px] rounded border border-white/10 whitespace-nowrap z-20 transition-opacity ${zoom > 2.5 ? 'opacity-100' : 'opacity-0 group-hover/point:opacity-100'}`}>
-                                {point.name} ({point.value})
+            // If no direct coords, try lookup
+            if (!lat || !lon) {
+                // Try Israel Cities First (Exact match or includes)
+                // Normalize string for better matching (optional)
+                const searchName = item.name.trim();
+
+                let found = ISRAEL_CITIES[searchName];
+
+                // If not found, try fuzzy search in Israel Cities
+                if (!found) {
+                    const key = Object.keys(ISRAEL_CITIES).find(k => k.includes(searchName) || searchName.includes(k));
+                    if (key) found = ISRAEL_CITIES[key];
+                }
+
+                // If not found, try World Countries
+                if (!found) {
+                    const key = Object.keys(WORLD_COUNTRIES).find(k => k.includes(searchName) || searchName.includes(k));
+                    if (key) found = WORLD_COUNTRIES[key];
+                }
+
+                if (found) {
+                    lat = found.lat;
+                    lon = found.lon;
+                }
+            }
+
+            if (lat && lon) {
+                return {
+                    ...item,
+                    lat,
+                    lon,
+                    // Dynamic size based on value relative to max, with min/max caps
+                    radius: Math.max(5, (item.value / maxVal) * 20),
+                    color: '#10b981', // emerald-500
+                };
+            }
+            return null;
+        }).filter(Boolean) as (typeof data[0] & { lat: number, lon: number, radius: number, color: string })[];
+    }, [data]);
+
+    // Default Center: Israel
+    const defaultCenter: [number, number] = [32.0853, 34.7818]; // Tel Aviv
+    const defaultZoom = 7;
+
+    return (
+        <div className="relative w-full h-[350px] bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-inner z-0">
+            <MapContainer
+                center={defaultCenter}
+                zoom={defaultZoom}
+                scrollWheelZoom={true}
+                className="w-full h-full z-0"
+                style={{ background: '#0f172a', height: '100%', width: '100%' }} // Match slate-900
+            >
+                <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    className="map-tiles-dark" // We can try to filter this with CSS for dark mode
+                />
+
+                {/* Custom CSS to Darken the Map Tiles */}
+                <style>{`
+                    .leaflet-tile {
+                        filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+                    }
+                    .leaflet-container {
+                        background: #0f172a !important;
+                        height: 100%;
+                        width: 100%;
+                    }
+                    /* Ensure controls are visible on dark map */
+                     .leaflet-control-custom-button {
+                        background-color: #1e293b;
+                        color: #e2e8f0;
+                        border: 1px solid #334155;
+                        cursor: pointer;
+                        border-radius: 4px;
+                        transition: all 0.2s;
+                    }
+                    .leaflet-control-custom-button:hover {
+                         background-color: #334155;
+                         color: #ffffff;
+                    }
+                `}</style>
+
+                {plottedPoints.map((point, i) => (
+                    <CircleMarker
+                        key={`${point.name}-${i}`}
+                        center={[point.lat, point.lon]}
+                        radius={point.radius}
+                        pathOptions={{
+                            color: point.color,
+                            fillColor: point.color,
+                            fillOpacity: 0.6,
+                            weight: 1
+                        }}
+                    >
+                        <Tooltip direction="top" offset={[0, -5]} opacity={1}>
+                            <div className="text-center">
+                                <span className="font-bold block">{point.name}</span>
+                                <span className="text-xs">{point.value} visits</span>
                             </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
+                        </Tooltip>
+                    </CircleMarker>
+                ))}
 
-            {/* Controls Overlay */}
-            <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-30">
-                <button onClick={zoomIn} className="p-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 shadow-lg border border-slate-700 transition-all active:scale-95" title="Zoom In">
-                    <Plus size={16} />
-                </button>
-                <button onClick={zoomOut} className="p-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 shadow-lg border border-slate-700 transition-all active:scale-95" title="Zoom Out">
-                    <Minus size={16} />
-                </button>
-                <button onClick={resetZoom} className="p-2 bg-slate-800 text-slate-400 rounded-lg hover:bg-slate-700 hover:text-white shadow-lg border border-slate-700 transition-all active:scale-95" title="Reset View">
-                    <RefreshCcw size={14} />
-                </button>
-            </div>
+                <MapUpdater center={defaultCenter} zoom={defaultZoom} />
+                <LocateControl />
+            </MapContainer>
 
-            {/* Hint */}
-            <div className="absolute top-2 left-2 text-[9px] text-slate-500 font-mono bg-slate-900/80 px-2 py-1 rounded border border-slate-800 pointer-events-none">
-                Scroll to Zoom • Drag to Pan
+            {/* Overlay Hint */}
+            <div className="absolute top-2 left-12 z-[400] text-[9px] text-slate-500 font-mono bg-slate-900/80 px-2 py-1 rounded border border-slate-800 pointer-events-none">
+                Live Map Enabled
             </div>
         </div>
     );

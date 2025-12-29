@@ -64,17 +64,51 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
             let totalClicks = 0;
             const userCounts: Record<string, { count: number, email: string }> = {};
 
+            const locationCounts: Record<string, { count: number, lat?: number, lon?: number, label: string }> = {};
+
             logs.forEach(log => {
-                // Devices - Support legacy column or metadata
+                // Devices
                 const device = log.metadata?.device_type || log.device_type || 'Desktop';
                 if (deviceCounts[device] !== undefined) deviceCounts[device]++;
 
-                // Geo - Support legacy column or metadata
+                // Geo
                 const country = log.metadata?.country || log.country;
                 const city = log.metadata?.city || log.city;
+                const lat = log.metadata?.latitude;
+                const lon = log.metadata?.longitude;
 
                 if (country) countryCounts[country] = (countryCounts[country] || 0) + 1;
                 if (city) cityCounts[city] = (cityCounts[city] || 0) + 1;
+
+                // Detailed Location Mapping
+                // Prefer Lat/Lon if available, otherwise city/country name
+                // We key by coordinates if possible to cluster effectively, or name if not
+                let locKey = '';
+                if (lat && lon) {
+                    locKey = `${lat.toFixed(2)},${lon.toFixed(2)}`; // Cluster nearby
+                } else if (city) {
+                    locKey = city;
+                } else if (country) {
+                    locKey = country;
+                }
+
+                if (locKey) {
+                    if (!locationCounts[locKey]) {
+                        locationCounts[locKey] = {
+                            count: 0,
+                            lat: lat,
+                            lon: lon,
+                            label: city || country || 'Unknown'
+                        };
+                    }
+                    locationCounts[locKey].count++;
+
+                    // Backfill lat/lon if we found a log that has it for this key (e.g. if key is city name)
+                    if (!locationCounts[locKey].lat && lat) {
+                        locationCounts[locKey].lat = lat;
+                        locationCounts[locKey].lon = lon;
+                    }
+                }
 
                 // Clicks
                 if (log.event_type === 'CLICK') totalClicks++;
@@ -84,6 +118,14 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 if (!userCounts[name]) userCounts[name] = { count: 0, email: log.user_email };
                 userCounts[name].count++;
             });
+
+            // Convert locationCounts to Map Data
+            const mapData = Object.values(locationCounts).map(l => ({
+                name: l.label,
+                value: l.count,
+                lat: l.lat,
+                lon: l.lon
+            }));
 
             const activityTrend = (activityRes.data || []).map((d: any) => ({
                 date: d.date_label,
@@ -113,7 +155,8 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 kpis: kpiRes.data,
                 activityTrend,
                 deviceStats,
-                geoStats,
+                geoStats, // Keeping for tables logic if needed, but Map will use mapData
+                mapData, // New prop
                 cityStats,
                 topUsers,
                 topOrgs: topOrgsRes.data || [],
@@ -122,7 +165,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 totalActions: logs?.length || 0
             };
         },
-        staleTime: 1000 * 60 * 5,
+        staleTime: 1000 * 30, // 30 seconds for near real-time updates
     });
 
     if (isLoading) {
@@ -197,6 +240,13 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                     sub="עומס מערכת כולל"
                     icon={<TrendingUp size={24} />}
                     color="amber"
+                />
+                <KPICard
+                    title="אינטראקציות"
+                    value={totalClicks || 0}
+                    sub="לחיצות כפתורים (Tracking)"
+                    icon={<MousePointerClick size={24} />}
+                    color="cyan"
                 />
             </div>
 
@@ -329,7 +379,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                         <Globe size={18} className="text-emerald-600" />
                         מפת תפוצה (Live Map)
                     </h4>
-                    <LocationMap data={geoStats} total={totalActions} />
+                    <LocationMap data={stats?.mapData || []} total={totalActions} />
                 </div>
 
                 {/* Cities List & Pie Combo */}
@@ -360,7 +410,8 @@ const KPICard: React.FC<{ title: string, value: number, sub: string, icon: any, 
         blue: "bg-blue-50 text-blue-600 border-blue-100",
         indigo: "bg-indigo-50 text-indigo-600 border-indigo-100",
         emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
-        amber: "bg-amber-50 text-amber-600 border-amber-100"
+        amber: "bg-amber-50 text-amber-600 border-amber-100",
+        cyan: "bg-cyan-50 text-cyan-600 border-cyan-100"
     };
 
     return (

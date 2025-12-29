@@ -3,12 +3,12 @@
     "name": "מערכת ניהול משימות ונוכחות",
     "icons": [
         {
-            "src": "/favicon.png",
+            "src": "/images/new_icon.png",
             "type": "image/png",
             "sizes": "192x192"
         },
         {
-            "src": "/favicon.png",
+            "src": "/images/new_icon.png",
             "type": "image/png",
             "sizes": "512x512"
         }
