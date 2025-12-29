@@ -515,7 +515,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     }, [filteredPeople]);
 
     return (
-        <div className="bg-white rounded-2xl shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-100px)] overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-65px)] overflow-hidden">
             {/* Header */}
             <div className="bg-white p-4 md:px-6 md:py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
@@ -1049,9 +1049,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     ) : (
                         // Person Calendar View
                         <div className="flex flex-col h-full">
-                            <div className="relative p-4 md:py-4 border-b border-slate-100 flex items-center justify-between bg-white h-[72px]">
+                            <div className="relative p-4 md:py-4 border-b border-slate-100 flex flex-wrap md:flex-nowrap items-center justify-between bg-white min-h-[72px]">
                                 {/* Right Side: Back Button */}
-                                <div className="flex items-center z-10">
+                                <div className="flex items-center z-10 order-1">
                                     <button
                                         onClick={() => { setSelectedPersonId(null); setIsSidebarOpen(true); }}
                                         className="flex items-center gap-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 px-3 py-2 rounded-lg transition-all group"
@@ -1059,19 +1059,19 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                         <div className="bg-slate-100 p-1 rounded-md group-hover:bg-slate-200 transition-colors">
                                             <ChevronRight size={20} />
                                         </div>
-                                        <span className="font-medium hidden md:inline">חזרה לרשימה</span>
+                                        <span className="font-medium"><span className="md:hidden">חזרה</span><span className="hidden md:inline">חזרה לרשימה</span></span>
                                     </button>
                                 </div>
 
                                 {/* Center: Date Navigation */}
-                                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-4 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-200 shadow-sm z-0">
+                                <div className="order-2 mx-auto md:mx-0 md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 flex items-center gap-4 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-200 shadow-sm z-0">
                                     <button onClick={handlePrevMonth} className="p-1 hover:bg-white hover:shadow-sm rounded-full transition-all text-slate-600" aria-label="חודש קודם"><ChevronRight size={20} /></button>
                                     <span className="text-lg font-bold min-w-[120px] text-center text-slate-800" aria-live="polite">{viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}</span>
                                     <button onClick={handleNextMonth} className="p-1 hover:bg-white hover:shadow-sm rounded-full transition-all text-slate-600" aria-label="חודש הבא"><ChevronLeft size={20} /></button>
                                 </div>
 
                                 {/* Left Side: Name */}
-                                <div className="flex items-center z-10">
+                                <div className="flex items-center z-10 order-3 w-full md:w-auto justify-center md:justify-start mt-3 md:mt-0">
                                     <h2 className="text-xl md:text-2xl font-bold text-slate-800">
                                         {people.find(p => p.id === selectedPersonId)?.name}
                                     </h2>
