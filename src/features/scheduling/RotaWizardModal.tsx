@@ -878,7 +878,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 isLoading={generating}
                 className="w-40 justify-center font-bold"
             >
-                {generating ? 'מייצר שיבוץ...' : 'צור שיבוץ אוטומטי'}
+                {generating ? 'מייצר סבב...' : 'צור סבב יציאות'}
             </Button>
         </div>
     );
@@ -1792,6 +1792,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     personName={people.find(p => p.id === editingCell.personId)?.name}
                     defaultArrivalHour={userArrivalHour}
                     defaultDepartureHour={userDepartureHour}
+                    disableJournal={true}
                     currentAvailability={(() => {
                         const pid = editingCell.personId;
                         const date = editingCell.date;

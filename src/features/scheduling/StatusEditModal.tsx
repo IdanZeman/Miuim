@@ -13,12 +13,14 @@ interface StatusEditModalProps {
     onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => void;
     defaultArrivalHour?: string;
     defaultDepartureHour?: string;
+    disableJournal?: boolean;
 }
 
 export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     isOpen, date, personName, currentAvailability, onClose, onApply,
     defaultArrivalHour = '10:00',
-    defaultDepartureHour = '14:00'
+    defaultDepartureHour = '14:00',
+    disableJournal = false
 }) => {
     // Main Status State
     const [mainStatus, setMainStatus] = useState<'base' | 'home'>('base');
@@ -302,7 +304,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                         <div className="my-2 border-b border-slate-50" />
 
                         {/* Daily Agenda / Blocks - Only show if Base */}
-                        {mainStatus === 'base' && renderTimeline()}
+                        {mainStatus === 'base' && !disableJournal && renderTimeline()}
                     </>
                 ) : (
                     // Sub-views for time picking (Arrival/Departure)
