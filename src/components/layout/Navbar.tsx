@@ -304,7 +304,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             {/* Gate Control (Removed standalone) */}
 
                             {/* 4. Logistics Group */}
-                            {checkAccess('equipment') && (
+                            {(checkAccess('equipment') || checkAccess('gate')) && (
                                 <NavDropdown
                                     label="לוגיסטיקה"
                                     icon={Package}
