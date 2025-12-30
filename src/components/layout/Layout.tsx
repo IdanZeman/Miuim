@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX, Package, Activity, HelpCircle } from 'lucide-react';
+import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX, Package, Activity, HelpCircle, Car } from 'lucide-react';
 import { ViewMode } from '@/types';
 import { SystemMessagePopup } from '../common/SystemMessagePopup';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -87,72 +87,67 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
       {/* Mobile Bottom Navigation */}
       {!isPublic && setView && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 pb-safe">
-          <div className="flex justify-around items-center h-16">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200/50 z-50 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+          <div className="flex justify-around items-center h-20 px-2"> {/* Rule 1: Generous 80px height for touch comfort */}
             <button
               onClick={() => { setView('home'); setIsMobileMenuOpen(false); }}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'home' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'home' ? 'text-blue-600' : 'text-slate-400'}`}
             >
-              <Home size={20} className={currentView === 'home' ? 'fill-blue-100' : ''} />
-              <span className="text-[10px] font-medium">בית</span>
+              <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'home' ? 'bg-blue-50' : ''}`}>
+                <Home size={22} className={currentView === 'home' ? 'fill-blue-200/40' : ''} />
+              </div>
+              <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'home' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>בית</span>
+              {currentView === 'home' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-b-full shadow-[0_1px_4px_rgba(37,99,235,0.3)]" />}
             </button>
 
             {checkAccess('dashboard') && (
               <button
                 onClick={() => { setView('dashboard'); setIsMobileMenuOpen(false); }}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}`}
               >
-                <Calendar size={20} className={currentView === 'dashboard' ? 'fill-blue-100' : ''} />
-                <span className="text-[10px] font-medium">שיבוצים</span>
-              </button>
-            )}
-
-            {checkAccess('personnel') && (
-              <button
-                onClick={() => { setView('personnel'); setIsMobileMenuOpen(false); }}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'personnel' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <Users size={20} className={currentView === 'personnel' ? 'fill-blue-100' : ''} />
-                <span className="text-[10px] font-medium">כוח אדם</span>
-              </button>
-            )}
-
-            {checkAccess('tasks') && (
-              <button
-                onClick={() => { setView('tasks'); setIsMobileMenuOpen(false); }}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'tasks' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <ClipboardList size={20} className={currentView === 'tasks' ? 'fill-blue-100' : ''} />
-                <span className="text-[10px] font-medium">משימות</span>
+                <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'dashboard' ? 'bg-blue-50' : ''}`}>
+                  <Calendar size={22} className={currentView === 'dashboard' ? 'fill-blue-200/40' : ''} />
+                </div>
+                <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'dashboard' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>שיבוצים</span>
+                {currentView === 'dashboard' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-b-full shadow-[0_1px_4px_rgba(37,99,235,0.3)]" />}
               </button>
             )}
 
             {checkAccess('attendance') && (
               <button
                 onClick={() => { setView('attendance'); setIsMobileMenuOpen(false); }}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'attendance' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'attendance' ? 'text-blue-600' : 'text-slate-400'}`}
               >
-                <Clock size={20} className={currentView === 'attendance' ? 'fill-blue-100' : ''} />
-                <span className="text-[10px] font-medium">נוכחות</span>
+                <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'attendance' ? 'bg-blue-50' : ''}`}>
+                  <Clock size={22} className={currentView === 'attendance' ? 'fill-blue-200/40' : ''} />
+                </div>
+                <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'attendance' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>נוכחות</span>
+                {currentView === 'attendance' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-b-full shadow-[0_1px_4px_rgba(37,99,235,0.3)]" />}
               </button>
             )}
 
-            {checkAccess('stats') && (
+            {checkAccess('gate') && (
               <button
-                onClick={() => { setView('stats'); setIsMobileMenuOpen(false); }}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${currentView === 'stats' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                onClick={() => { setView('gate'); setIsMobileMenuOpen(false); }}
+                className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'gate' ? 'text-blue-600' : 'text-slate-400'}`}
               >
-                <BarChart2 size={20} className={currentView === 'stats' ? 'fill-blue-100' : ''} />
-                <span className="text-[10px] font-medium">דוחות</span>
+                <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'gate' ? 'bg-blue-50' : ''}`}>
+                  <Car size={22} className={currentView === 'gate' ? 'fill-blue-200/40' : ''} />
+                </div>
+                <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'gate' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>ש.ג</span>
+                {currentView === 'gate' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-b-full shadow-[0_1px_4px_rgba(37,99,235,0.3)]" />}
               </button>
             )}
 
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400'}`}
             >
-              <Menu size={20} />
-              <span className="text-[10px] font-medium">תפריט</span>
+              <div className={`p-2 rounded-xl transition-all duration-300 ${isMobileMenuOpen ? 'bg-blue-50' : ''}`}>
+                <Menu size={22} />
+              </div>
+              <span className="text-[10px] font-bold mt-1">תפריט</span>
+              {isMobileMenuOpen && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-b-full shadow-[0_1px_4px_rgba(37,99,235,0.3)]" />}
             </button>
           </div>
         </div>

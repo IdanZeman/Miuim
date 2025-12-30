@@ -485,54 +485,53 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 flex-1 flex flex-col md:hidden
                 relative isolate z-10 overflow-hidden
             `}>
-                {/* Mobile Header (Integrated into Sheet) */}
-                <div className="px-4 pt-6 pb-4 border-b border-slate-50 flex flex-col gap-5 shrink-0">
-                    <div className="flex items-center justify-between">
-                        {/* Right Side: View Toggles (Icons) */}
-                        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                            <button
-                                onClick={() => setViewMode('calendar')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'calendar' ? 'bg-white text-blue-600 scale-105' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                                <CalendarDays size={20} />
-                            </button>
-                            <button
-                                onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'day_detail' ? 'bg-white text-blue-600 scale-105' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                                <ListChecks size={20} />
-                            </button>
-                            <div className="w-px h-4 bg-slate-200 mx-0.5" />
+                {/* Mobile Header - Premium Design */}
+                <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-4 pt-4 pb-4">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex flex-col">
+                            <h1 className="text-xl font-black text-slate-900 tracking-tight">יומן נוכחות</h1>
+                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none mt-0.5">ניהול זמינות</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
                             {!isViewer && (
                                 <button
                                     onClick={() => setShowRotaWizard(true)}
-                                    className="p-2 text-amber-500 hover:text-amber-600 transition-all active:scale-95"
+                                    className="w-12 h-12 flex items-center justify-center bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 shadow-sm active:scale-90 transition-all"
                                     title="מחולל סבבים"
                                 >
-                                    <Wand2 size={20} />
+                                    <Sparkles size={22} strokeWidth={2.5} />
                                 </button>
                             )}
-                        </div>
-
-                        {/* Left Side: Back Button (Integrated into Header) */}
-                        <div className="flex items-center">
-                            {viewMode === 'day_detail' && (
-                                <button
-                                    onClick={handleBackToCalendar}
-                                    className="flex items-center gap-1 text-slate-500 hover:text-blue-600 transition-colors py-1 px-2"
-                                >
-                                    <ChevronRight size={22} />
-                                    <span className="text-sm font-black">חודש</span>
-                                </button>
-                            )}
-                            {viewMode === 'calendar' && (
-                                <span className="text-sm font-black text-slate-300 mr-2">תצוגת יומן</span>
-                            )}
+                            <button
+                                onClick={handleExport}
+                                className="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-600 rounded-2xl border border-slate-100 shadow-sm active:scale-90 transition-all"
+                            >
+                                <Download size={22} />
+                            </button>
                         </div>
                     </div>
 
-                    {/* Date Navigator (Day/Month adaptive) */}
-                    <div className="flex items-center justify-between px-1">
+                    {/* Premium Segmented Control */}
+                    <div className="flex items-center p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/50 mb-4 h-14"> {/* Rule 1: 48px+ height */}
+                        <button
+                            onClick={() => setViewMode('calendar')}
+                            className={`flex-1 flex items-center justify-center gap-2 h-full rounded-xl transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
+                        >
+                            <CalendarDays size={18} strokeWidth={viewMode === 'calendar' ? 2.5 : 2} />
+                            <span className="text-sm">חודשי</span>
+                        </button>
+                        <button
+                            onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
+                            className={`flex-1 flex items-center justify-center gap-2 h-full rounded-xl transition-all duration-300 ${viewMode === 'day_detail' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
+                        >
+                            <ListChecks size={18} strokeWidth={viewMode === 'day_detail' ? 2.5 : 2} />
+                            <span className="text-sm">יומי</span>
+                        </button>
+                    </div>
+
+                    {/* Date Navigator - Optimized for Mobile */}
+                    <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-1">
                         <DateNavigator
                             date={viewMode === 'calendar' ? viewDate : selectedDate}
                             onDateChange={(d) => {
@@ -540,7 +539,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 else setSelectedDate(d);
                             }}
                             mode={viewMode === 'calendar' ? 'month' : 'day'}
-                            className="w-full justify-between border-none bg-transparent"
+                            className="w-full justify-between border-none bg-transparent h-12"
                             showTodayButton={true}
                         />
                     </div>
@@ -567,15 +566,20 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         </div>
                     ) : (
                         <div className="h-full flex flex-col">
-                            {/* Search Bar */}
-                            <div className="p-4 pb-2">
-                                <Input
-                                    placeholder="חיפוש לפי שם..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    icon={Search}
-                                    className="bg-slate-50 border-slate-200"
-                                />
+                            {/* Search Bar - Premium Mobile Design */}
+                            <div className="px-4 py-4 bg-white/50 backdrop-blur-sm border-b border-slate-100">
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
+                                        <Search size={18} strokeWidth={2.5} />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="חיפוש לוחם..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="block w-full h-14 pr-12 pl-4 bg-slate-100/50 border-none rounded-[1.25rem] text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-base"
+                                    />
+                                </div>
                             </div>
                             <AttendanceTable
                                 teams={teams}

@@ -114,71 +114,74 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
     };
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-safe-top">
+        <div className="max-w-5xl mx-auto space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-2 pb-10"> {/* Rule 5: Consistent rhythm */}
+
+            {/* Premium Greeting Section (Mobile Optimized) */}
+            <div className="px-4 md:px-0">
+                <div className="flex flex-col gap-1">
+                    <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+                        {getGreeting()}, <span className="text-blue-600">{myPerson.name.split(' ')[0]}</span>
+                    </h1>
+                    <div className="flex items-center gap-3 text-slate-500 text-sm font-bold opacity-80 mt-1">
+                        <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center border border-slate-100">
+                            <Calendar size={14} className="text-blue-500" />
+                        </div>
+                        <span>{now.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                        <span className="text-slate-300">|</span>
+                        <span>{now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                </div>
+            </div>
 
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
 
                 {/* Main Content Column */}
                 <div className="flex-1 min-w-0 w-full space-y-6">
 
-                    {/* Active Shift Card */}
-                    <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 md:p-8 relative overflow-hidden transition-all">
-                        <div className="mb-6 relative z-10">
-                            <h1 className="text-2xl md:text-4xl font-black text-slate-900 mb-1">
-                                {getGreeting()}, <span className="text-blue-600">{myPerson.name.split(' ')[0]}</span>
-                            </h1>
-                            <p className="text-slate-600 flex items-center gap-2 text-sm font-bold opacity-70">
-                                <Calendar size={14} aria-hidden="true" />
-                                <span>{now.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-                            </p>
-                        </div>
-
-                        {activeShift ? (
+                    {/* Active Shift Card - Premium Glassmorphism */}
+                    {activeShift && (
+                        <div className="px-4 md:px-0">
                             <div
                                 onClick={() => {
                                     logger.logClick('active_shift_card', 'HomePage');
                                     onNavigate('dashboard', activeShift.start);
                                 }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        logger.logClick('active_shift_card_assessibility', 'HomePage');
-                                        onNavigate('dashboard', activeShift.start);
-                                    }
-                                }}
-                                className="relative rounded-2xl p-6 md:p-8 cursor-pointer overflow-hidden shadow-sm hover:shadow-md border border-slate-100 group transition-all bg-white"
+                                className="relative rounded-[2.5rem] p-6 md:p-10 cursor-pointer overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.08)] border border-white/60 group transition-all bg-white/40 backdrop-blur-xl hover:scale-[1.01] active:scale-[0.99] active:duration-100" // Rule 2 & Interactive
                                 role="button"
                                 tabIndex={0}
                                 aria-label={`משימה פעילה: ${activeShift.task?.name}`}
                             >
-                                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl opacity-60 -translate-y-1/2 translate-x-1/2" aria-hidden="true"></div>
-                                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500" aria-hidden="true"></div>
+                                <div className="absolute top-0 right-0 w-80 h-80 bg-blue-100/50 rounded-full blur-3xl opacity-70 -translate-y-1/2 translate-x-1/2" aria-hidden="true"></div>
+                                <div className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500" aria-hidden="true"></div>
 
-                                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-                                    <div className="flex items-center gap-5 w-full">
-                                        <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100 text-blue-600 shrink-0">
+                                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                                    <div className="flex items-center gap-6 w-full">
+                                        <div className="w-20 h-20 bg-blue-600 rounded-[1.75rem] flex items-center justify-center shadow-xl shadow-blue-600/20 text-white shrink-0 rotate-3 group-hover:rotate-0 transition-transform">
                                             {activeShift.task?.icon && (AllIcons as any)[activeShift.task.icon] ?
-                                                React.createElement((AllIcons as any)[activeShift.task.icon], { size: 30 }) : <Clock size={30} />
+                                                React.createElement((AllIcons as any)[activeShift.task.icon], { size: 36, strokeWidth: 2.5 }) : <Clock size={36} strokeWidth={2.5} />
                                             }
                                         </div>
                                         <div className="min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_0_3px_rgba(34,197,94,0.15)]"></span>
-                                                <h3 className="text-xl md:text-2xl font-bold truncate text-slate-800">{activeShift.task?.name}</h3>
+                                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                <span className="px-3 py-1 bg-green-500/10 text-green-600 text-[10px] uppercase font-black tracking-widest rounded-full flex items-center gap-1.5 border border-green-500/20">
+                                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                                                    פעיל כעת
+                                                </span>
+                                                <h3 className="text-2xl md:text-3xl font-black truncate text-slate-800 tracking-tight">{activeShift.task?.name}</h3>
                                             </div>
-                                            <div className="flex items-center gap-3 text-slate-500 text-sm md:text-base font-medium">
-                                                <span className="bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 flex items-center gap-1.5">
-                                                    <Clock size={14} className="text-slate-400" />
+                                            <div className="flex items-center gap-3 text-slate-600 text-base md:text-lg font-bold">
+                                                <span className="flex items-center gap-2">
+                                                    <Clock size={16} className="text-slate-400" />
                                                     {activeShift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {activeShift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Countdown Timer */}
-                                    <div className="w-full md:w-auto flex flex-col items-center md:items-end bg-slate-50 rounded-xl p-3 border border-slate-100 min-w-[200px]">
-                                        <span className="text-xs font-bold text-slate-400 mb-0.5 uppercase tracking-wider">נותר למשמרת</span>
-                                        <span className="font-mono text-2xl md:text-3xl font-bold tracking-widest text-slate-700 tabular-nums">
+                                    {/* Countdown Timer - Enhanced */}
+                                    <div className="w-full md:w-auto flex flex-col items-center md:items-end bg-white/60 backdrop-blur shadow-sm rounded-2xl p-4 md:px-6 md:py-4 border border-slate-100/50 min-w-[180px]">
+                                        <span className="text-[10px] font-black text-slate-400 mb-1 uppercase tracking-[0.2em]">נותר לסיום</span>
+                                        <span className="font-mono text-3xl md:text-4xl font-black tracking-widest text-blue-700 tabular-nums">
                                             {(() => {
                                                 const diff = activeShift.end.getTime() - currentTime.getTime();
                                                 if (diff <= 0) return "00:00:00";
@@ -191,45 +194,61 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                                     </div>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-slate-400">
-                                    <Moon size={24} />
+                        </div>
+                    )}
+
+                    {!activeShift && (
+                        <div className="px-4 md:px-0">
+                            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] border border-slate-100 p-8 shadow-sm flex items-center gap-6">
+                                <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 rotate-3 transition-transform hover:rotate-0">
+                                    <Moon size={32} />
                                 </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-slate-800">אין משמרת פעילה</h3>
-                                    <p className="text-sm text-slate-500">זה זמן מצוין לנוח ולצבור כוחות.</p>
+                                <div className="space-y-1">
+                                    <h3 className="text-2xl font-black text-slate-800">אין משמרת פעילה</h3>
+                                    <p className="text-slate-500 font-bold opacity-70">מוזמן לנוח ולהתערנן עד למשימה הבאה.</p>
                                 </div>
                             </div>
-                        )}
+                        </div>
+                    )}
+
+                    {/* War Clock Widget Container */}
+                    <div className="px-4 md:px-0">
+                        <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100/50 p-4 md:p-8 overflow-hidden relative">
+                            <div className="absolute top-0 left-0 w-32 h-32 bg-blue-50/50 rounded-full blur-3xl -z-10 translate-y-[-20%] translate-x-[-20%]" />
+                            <WarClock myPerson={myPerson} teams={teams} roles={roles} />
+                        </div>
                     </div>
 
-                    {/* War Clock Widget */}
-                    <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-4 md:p-6 overflow-hidden">
-                        <WarClock myPerson={myPerson} teams={teams} roles={roles} />
-                    </div>
-
-                    {/* Upcoming Schedule */}
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                                <Clock className="text-blue-500" size={24} />
-                                הלו"ז הקרוב שלך
+                    {/* Upcoming Schedule Tiles */}
+                    <div className="px-4 md:px-0 space-y-6">
+                        <div className="flex items-center justify-between pb-2 border-b-2 border-slate-100">
+                            <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
+                                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl shadow-sm border border-blue-100">
+                                    <Clock size={20} strokeWidth={2.5} />
+                                </div>
+                                הלו"ז הקרוב
                             </h2>
-                            <span className="text-sm text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-                                מציג {viewerDays} ימים קדימה
+                            <span className="text-[10px] font-black tracking-widest uppercase text-slate-400 bg-white px-4 py-2 rounded-full border border-slate-100 shadow-sm leading-none">
+                                {viewerDays} ימים
                             </span>
                         </div>
 
                         {upcomingShifts.length === 0 ? (
-                            <div className="bg-white rounded-3xl p-10 text-center border-2 border-slate-50 shadow-sm flex flex-col items-center">
-                                <CheckCircle2 size={48} className="text-green-500 mb-4" />
-                                <h3 className="text-lg font-bold text-slate-800 mb-1">היומן שלך ריק!</h3>
-                                <p className="text-slate-500 text-sm mb-6">אין לך משמרות בשבוע הקרוב. זמן מעולה לנוח.</p>
-                                <button onClick={() => {
-                                    logger.logClick('empty_state_full_board', 'HomePage');
-                                    onNavigate('dashboard');
-                                }} className="text-blue-600 font-medium hover:underline">ללוח המלא</button>
+                            <div className="bg-white/60 backdrop-blur-sm rounded-[2.5rem] p-12 text-center border border-slate-100 shadow-sm flex flex-col items-center">
+                                <div className="w-20 h-20 bg-green-50 text-green-500 rounded-[1.5rem] flex items-center justify-center mb-6 shadow-xl shadow-green-500/10 rotate-3 border border-white">
+                                    <CheckCircle2 size={40} />
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-800 mb-2">היומן שלך ריק!</h3>
+                                <p className="text-slate-500 font-bold mb-8 max-w-[250px] mx-auto">איזה כיף, אין לך משמרות בשבוע הקרוב. זמן מעולה למילוי מצברים.</p>
+                                <button
+                                    onClick={() => {
+                                        logger.logClick('empty_state_full_board', 'HomePage');
+                                        onNavigate('dashboard');
+                                    }}
+                                    className="h-14 px-8 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95"
+                                >
+                                    ללוח המלא
+                                </button>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -243,20 +262,22 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                                                 logger.logClick('upcoming_shift_card', 'HomePage');
                                                 onNavigate('dashboard', shift.start);
                                             }}
-                                            className="group flex items-center gap-4 bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-slate-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                                            className="group flex h-24 items-center gap-4 bg-white rounded-3xl p-4 border border-slate-100 hover:border-blue-300 shadow-sm hover:shadow-xl transition-all cursor-pointer active:scale-[0.97]" // Rule 1 & Interactive
                                         >
-                                            <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center flex-shrink-0 border ${isToday ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600'}`}>
-                                                <span className="text-[10px] font-bold opacity-80">{dateLabel}</span>
-                                                <span className="text-xl font-bold leading-none">{shift.start.getDate()}</span>
+                                            <div className={`w-16 h-full rounded-2xl flex flex-col items-center justify-center flex-shrink-0 border transition-colors ${isToday ? 'bg-blue-600 text-white border-blue-500 ring-4 ring-blue-50' : 'bg-slate-50 text-slate-600 border-slate-100'}`}>
+                                                <span className={`text-[10px] font-black uppercase ${isToday ? 'opacity-100' : 'opacity-60'}`}>{dateLabel.slice(0, 3)}</span>
+                                                <span className="text-2xl font-black leading-none mt-1">{shift.start.getDate()}</span>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-slate-900 truncate group-hover:text-blue-700">{shift.task?.name}</h4>
-                                                <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                                                    <Clock size={12} />
-                                                    {shift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {shift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                            <div className="flex-1 min-w-0 py-1">
+                                                <h4 className="font-black text-slate-800 text-lg truncate group-hover:text-blue-700 transition-colors uppercase tracking-tight">{shift.task?.name}</h4>
+                                                <div className="flex items-center gap-2 text-sm text-slate-500 font-bold mt-1 opacity-70">
+                                                    <Clock size={14} />
+                                                    {shift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                    <span className="text-slate-300">→</span>
+                                                    {shift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                 </div>
                                             </div>
-                                            <div className="h-10 w-1.5 rounded-full" style={{ backgroundColor: shift.task?.color || '#cbd5e1' }}></div>
+                                            <div className="h-10 w-2 rounded-full shadow-inner" style={{ backgroundColor: shift.task?.color || '#cbd5e1' }}></div>
                                         </div>
                                     );
                                 })}
@@ -265,27 +286,35 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                     </div>
                 </div>
 
-                {/* Sidebar Column */}
-                <div className="w-full lg:w-80 shrink-0 space-y-6">
+                {/* Sidebar Column - Optimized for Layout Stacking */}
+                <div className="w-full lg:w-96 shrink-0 space-y-6 px-4 md:px-0">
                     <AnnouncementsWidget myPerson={myPerson} />
-                    <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
-                        <h3 className="font-bold text-slate-800 mb-4 text-center">סטטיסטיקה שבועית</h3>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="text-center p-3 bg-indigo-50 rounded-2xl border border-indigo-100">
-                                <span className="block text-2xl font-bold text-indigo-600">{myShifts.length}</span>
-                                <span className="text-xs text-indigo-800 font-medium">משמרות</span>
+
+                    <div className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-8 border border-slate-100 shadow-xl relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-3xl -z-10 translate-y-[-30%] translate-x-[30%]" />
+
+                        <h3 className="font-black text-slate-900 mb-6 text-center text-xl tracking-tight">סיכום שבועי</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="text-center p-5 bg-indigo-50/50 backdrop-blur rounded-[2rem] border border-indigo-100 shadow-sm transition-all hover:shadow-indigo-100/50">
+                                <span className="block text-4xl font-black text-indigo-600 mb-1">{myShifts.length}</span>
+                                <span className="text-[10px] text-indigo-600/60 font-black uppercase tracking-widest leading-none">משימות</span>
                             </div>
-                            <div className="text-center p-3 bg-orange-50 rounded-2xl border border-orange-100">
-                                <span className="block text-2xl font-bold text-orange-600">
+                            <div className="text-center p-5 bg-blue-50/50 backdrop-blur rounded-[2rem] border border-blue-100 shadow-sm transition-all hover:shadow-blue-100/50">
+                                <span className="block text-4xl font-black text-blue-600 mb-1">
                                     {myShifts.reduce((acc, curr) => acc + differenceInHours(curr.end, curr.start), 0)}
                                 </span>
-                                <span className="text-xs text-orange-800 font-medium">שעות</span>
+                                <span className="text-[10px] text-blue-600/60 font-black uppercase tracking-widest leading-none">שעות</span>
                             </div>
                         </div>
-                        <button onClick={() => {
-                            logger.logClick('view_full_stats', 'HomePage');
-                            onNavigate('stats');
-                        }} className="w-full mt-4 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-bold hover:bg-slate-900 transition-colors">צפה בדוח המלא</button>
+                        <button
+                            onClick={() => {
+                                logger.logClick('view_full_stats', 'HomePage');
+                                onNavigate('stats');
+                            }}
+                            className="w-full mt-6 h-14 rounded-2xl bg-slate-900 text-white text-base font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-[0.98] active:duration-100"
+                        >
+                            הדוח המלא שלי
+                        </button>
                     </div>
                 </div>
             </div>

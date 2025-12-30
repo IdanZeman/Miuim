@@ -1,6 +1,6 @@
 import React from 'react';
 import { GateLog, AuthorizedVehicle } from '../../hooks/useGateSystem';
-import { ArrowLeftRight, Calendar, Clock, Car, Footprints, AlertTriangle, User, ShieldCheck, Building2, X } from 'lucide-react';
+import { ArrowLeftRight, Calendar, Clock, Car, Footprints, AlertTriangle, User, ShieldCheck, Building2, X, ChevronDown, LogOut } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 
@@ -170,130 +170,119 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
     };
 
     return (
-        <div className="flex-1 overflow-y-auto px-2 space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-8 custom-scrollbar">
             {Object.entries(groupedLogs).map(([date, dateLogs]) => (
                 <div key={date}>
+                    {/* Premium Sticky Date Header */}
                     <div
                         onClick={() => toggleDate(date)}
-                        className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 py-2 px-1 mb-2 border-b border-slate-200 text-xs font-bold text-slate-500 flex items-center gap-2 cursor-pointer hover:bg-slate-100 transition-colors"
+                        className="sticky top-0 bg-white/90 backdrop-blur-xl z-20 py-4 px-1 mb-4 border-b border-slate-100/50 flex items-center justify-between cursor-pointer group transition-all"
                     >
-                        {/* Chevron Icon for Collapse/Expand - Rotation based on state */}
-                        <div className={`transition-transform duration-200 ${collapsedDates[date] ? '-rotate-90' : 'rotate-0'}`}>
-                            <Calendar size={12} />
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors">
+                                <Calendar size={16} />
+                            </div>
+                            <span className="text-sm font-black text-slate-900 tracking-tight">{date}</span>
                         </div>
-                        {date}
-                        <span className="mr-auto bg-slate-200 px-1.5 rounded-full text-[10px]">{dateLogs.length}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="bg-slate-100 text-slate-500 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">{dateLogs.length} תנועות</span>
+                            <div className={`transition-transform duration-300 ${collapsedDates[date] ? '-rotate-90' : 'rotate-0'}`}>
+                                <ChevronDown size={16} className="text-slate-400" />
+                            </div>
+                        </div>
                     </div>
 
                     {/* Collapsible Content */}
                     {!collapsedDates[date] && (
-                        <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-400">
                             {dateLogs.map((log) => (
                                 <div
                                     key={log.id}
                                     onClick={() => setSelectedLog(log)}
-                                    className="bg-white rounded-xl shadow-sm border border-slate-100 p-3 hover:shadow-md transition-shadow relative overflow-hidden cursor-pointer active:scale-[0.98]"
+                                    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 hover:shadow-lg transition-all relative overflow-hidden cursor-pointer active:scale-[0.98] group"
                                 >
-                                    {/* Status Color Bar */}
-                                    <div className={`absolute top-0 right-0 bottom-0 w-1 ${log.status === 'inside' ? 'bg-indigo-500' : 'bg-slate-300'}`} />
+                                    {/* Status Indicator Bar */}
+                                    <div className={`absolute top-0 bottom-0 right-0 w-1.5 transition-all ${log.status === 'inside' ? 'bg-blue-600' : 'bg-slate-200 group-hover:bg-slate-300'}`} />
 
-                                    <div className="flex items-center justify-between mr-2.5">
-                                        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-                                            {/* Icon - Smaller on mobile */}
-                                            <div className={`p-1.5 md:p-2 rounded-full shrink-0 ${log.entry_type === 'pedestrian'
-                                                ? 'bg-amber-50 text-amber-600'
-                                                : 'bg-blue-50 text-blue-600'
+                                    <div className="flex items-center justify-between mr-2">
+                                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                                            {/* Vehicle/Pedestrian Icon Capsule */}
+                                            <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 ${log.entry_type === 'pedestrian'
+                                                ? 'bg-amber-50 text-amber-600 shadow-sm shadow-amber-100'
+                                                : 'bg-blue-50 text-blue-600 shadow-sm shadow-blue-100'
                                                 }`}>
-                                                {log.entry_type === 'pedestrian' ? <Footprints size={16} className="md:w-[18px] md:h-[18px]" /> : <Car size={16} className="md:w-[18px] md:h-[18px]" />}
+                                                {log.entry_type === 'pedestrian' ? <Footprints size={22} strokeWidth={2.5} /> : <Car size={22} strokeWidth={2.5} />}
                                             </div>
 
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                                                    <h4 className="font-bold text-slate-800 text-sm md:text-lg truncate">
+                                                <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                    <h4 className="font-black text-slate-900 text-base md:text-lg tracking-tight truncate uppercase">
                                                         {log.plate_number}
                                                     </h4>
                                                     {log.is_exceptional && (
-                                                        <span className="flex items-center gap-1 text-[9px] md:text-[10px] bg-red-50 text-red-600 px-1 md:px-1.5 py-0.5 rounded font-bold border border-red-100 animate-pulse">
+                                                        <div className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-0.5 rounded-lg font-black text-[9px] border border-red-100/50 animate-pulse">
                                                             <AlertTriangle size={10} />
                                                             חריג
-                                                        </span>
-                                                    )}
-                                                    {log.organizations?.name && (
-                                                        <span className="text-[9px] md:text-[10px] bg-slate-100 text-slate-600 px-1 md:px-1.5 py-0.5 rounded font-medium truncate max-w-[80px] md:max-w-none">
-                                                            {log.organizations.name}
-                                                        </span>
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-1.5 text-[10px] md:text-sm text-slate-500 truncate mt-0.5 md:mt-0">
-                                                    <User size={10} className="md:w-3 md:h-3" />
+                                                <div className="flex items-center gap-2 text-xs text-slate-500 font-bold">
+                                                    <User size={12} className="text-slate-400" />
                                                     <span className="truncate">{log.driver_name}</span>
+                                                    {log.organizations?.name && (
+                                                        <>
+                                                            <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                                            <span className="truncate text-blue-600/70">{log.organizations.name}</span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Action / Times */}
-                                        <div className="shrink-0 flex items-center gap-2 md:gap-4 ml-1">
+                                        {/* Activity Info */}
+                                        <div className="shrink-0 flex items-center gap-3">
                                             {!log.exit_time && (
                                                 <div className="flex flex-col items-center">
-                                                    <span className="text-[9px] md:text-[10px] text-slate-400 uppercase tracking-wider">כניסה</span>
-                                                    <span className="font-bold text-slate-700 text-xs md:text-base">{formatTime(log.entry_time)}</span>
-                                                    {log.entry_reporter?.full_name && (
-                                                        <span className="text-[8px] md:text-[9px] text-slate-400 truncate max-w-[60px] text-center" title={`דיווח: ${log.entry_reporter.full_name}`}>
-                                                            {log.entry_reporter.full_name.split(' ')[0]}
-                                                        </span>
-                                                    )}
+                                                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-0.5">כניסה</span>
+                                                    <span className="font-black text-slate-900 text-sm">{formatTime(log.entry_time)}</span>
                                                 </div>
                                             )}
 
                                             {log.exit_time ? (
-                                                <div className="flex items-center gap-2 md:gap-4 text-sm">
-                                                    {/* Hide Entry time if it's identical to Exit time (Immediate Exit report) */}
-                                                    {Math.abs(new Date(log.entry_time).getTime() - new Date(log.exit_time).getTime()) > 2000 && (
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="text-[9px] md:text-[10px] text-slate-400 uppercase tracking-wider">כניסה</span>
-                                                            <span className="font-bold text-slate-700 text-xs md:text-base">{formatTime(log.entry_time)}</span>
-                                                            {log.entry_reporter?.full_name && (
-                                                                <span className="text-[8px] md:text-[9px] text-slate-400 truncate max-w-[60px] text-center" title={`דיווח: ${log.entry_reporter.full_name}`}>
-                                                                    {log.entry_reporter.full_name.split(' ')[0]}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                <div className="flex items-center gap-3">
+                                                    {/* Duration Logic could be here, but let's stick to times */}
+                                                    <div className="flex flex-col items-center opacity-60">
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">כניסה</span>
+                                                        <span className="font-black text-slate-600 text-sm">{formatTime(log.entry_time)}</span>
+                                                    </div>
+                                                    <div className="w-px h-6 bg-slate-100" />
                                                     <div className="flex flex-col items-center">
-                                                        <span className="text-[9px] md:text-[10px] text-slate-400 uppercase tracking-wider">יציאה</span>
-                                                        <span className="font-bold text-slate-700 text-xs md:text-base">{formatTime(log.exit_time)}</span>
-                                                        {log.exit_reporter?.full_name && (
-                                                            <span className="text-[8px] md:text-[9px] text-slate-400 truncate max-w-[60px] text-center" title={`דיווח: ${log.exit_reporter.full_name}`}>
-                                                                {log.exit_reporter.full_name.split(' ')[0]}
-                                                            </span>
-                                                        )}
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">יציאה</span>
+                                                        <span className="font-black text-slate-900 text-sm">{formatTime(log.exit_time)}</span>
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="flex items-center gap-1.5 md:gap-3">
-                                                    <div className="flex flex-col items-center hidden sm:flex">
-                                                        <span className="text-[9px] md:text-[10px] text-zinc-400 uppercase tracking-wider">סטטוס</span>
-                                                        <span className="font-bold text-indigo-600 text-[10px] md:text-xs bg-indigo-50 px-1.5 md:px-2 py-0.5 rounded-full mt-0.5 uppercase">בפנים</span>
-                                                    </div>
+                                                <div className="flex items-center gap-3">
                                                     {onExit && (
-                                                        <Button
+                                                        <button
                                                             onClick={(e) => {
                                                                 e.preventDefault();
                                                                 e.stopPropagation();
                                                                 onExit(log.id, log.plate_number);
                                                             }}
-                                                            className="h-7 md:h-8 px-2 md:px-3 text-[10px] md:text-xs bg-red-600 text-white hover:bg-red-700 border-none font-bold shadow-lg shadow-red-200"
+                                                            className="h-10 px-4 bg-red-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-red-200 active:scale-95 transition-all flex items-center gap-2"
                                                         >
+                                                            <LogOut size={14} />
                                                             יציאה
-                                                        </Button>
+                                                        </button>
                                                     )}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
                                     {log.notes && (
-                                        <div className="mt-2 mr-3 text-xs bg-yellow-50 text-yellow-800 p-1.5 rounded flex items-start gap-1.5">
-                                            <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+                                        <div className="mt-3 mr-14 bg-amber-50/50 text-amber-900 text-[11px] p-2.5 rounded-xl border border-amber-100/30 flex items-start gap-2 font-bold leading-relaxed">
+                                            <AlertTriangle size={14} className="text-amber-500 shrink-0" />
                                             {log.notes}
                                         </div>
                                     )}
@@ -303,7 +292,6 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
                     )}
                 </div>
             ))}
-            {selectedLog && <LogDetailsModal log={selectedLog} onClose={() => setSelectedLog(null)} />}
         </div>
     );
 };

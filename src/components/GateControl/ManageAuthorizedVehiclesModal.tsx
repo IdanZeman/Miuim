@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Search, Trash2, Car, Calendar as CalendarIcon, ShieldCheck, User, Building2, Pencil, MoreVertical } from 'lucide-react';
+import { X, Plus, Search, Trash2, Car, Calendar as CalendarIcon, ShieldCheck, User, Building2, Pencil, MoreVertical, RefreshCw, ChevronDown } from 'lucide-react';
 import { useGateSystem, AuthorizedVehicle } from '../../hooks/useGateSystem';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -137,12 +137,12 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
     }, [viewMode, battalionOrganizations, profile?.organization_id, selectedOrgId]);
 
     const renderAddVehicleButtons = () => (
-        <div className="flex gap-3 w-full">
+        <div className="flex gap-4 w-full">
             <Button
                 type="button"
                 variant="outline"
                 onClick={() => { setViewMode('list'); resetForm(); }}
-                className="flex-1 h-12 rounded-full border-slate-200 text-slate-600 font-bold"
+                className="flex-1 h-14 rounded-2xl border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-all"
                 disabled={isSubmitting}
             >
                 ביטול
@@ -151,78 +151,107 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                 type="submit"
                 form="add-vehicle-form"
                 disabled={isSubmitting}
-                className="flex-1 h-12 rounded-full font-bold bg-[#FFD15F] hover:bg-[#FFC63A] text-slate-900 border-none shadow-lg shadow-amber-200"
+                className="flex-[1.5] h-14 rounded-2xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
             >
-                {isSubmitting ? <LoadingSpinner size={20} /> : (viewMode === 'edit' ? 'עדכן רכב' : 'הוסף לשרת')}
+                {isSubmitting ? <LoadingSpinner size={20} /> : (viewMode === 'edit' ? 'עדכן פרטי רכב' : 'הוסף רכב למאגר')}
             </Button>
         </div>
     );
 
     const renderAddVehicleForm = () => (
-        <form id="add-vehicle-form" onSubmit={handleSaveVehicle} className="space-y-4 animate-in slide-in-from-right-2 duration-300">
-            <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">מספר רכב <span className="text-red-500">*</span></label>
-                <Input
-                    value={plateNumber}
-                    onChange={(e) => setPlateNumber(e.target.value)}
-                    placeholder="00-000-00"
-                    className="font-bold text-lg tracking-wider h-12 rounded-xl"
-                    maxLength={8}
-                    required
-                />
+        <form id="add-vehicle-form" onSubmit={handleSaveVehicle} className="space-y-6 animate-in slide-in-from-bottom-4 duration-400">
+            {/* Plate Number Section */}
+            <div className="bg-slate-50/50 p-5 rounded-3xl border border-slate-100/50">
+                <label className="block text-[11px] font-black text-blue-600 uppercase tracking-widest mb-3 px-1">מספר רכב (חובה)</label>
+                <div className="relative group">
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                        <Car size={20} strokeWidth={2.5} />
+                    </div>
+                    <Input
+                        value={plateNumber}
+                        onChange={(e) => setPlateNumber(e.target.value)}
+                        placeholder="00-000-00"
+                        className="font-black text-2xl tracking-widest h-16 pr-12 rounded-2xl bg-white border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                        maxLength={8}
+                        required
+                    />
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">שם בעל הרכב <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-slate-600 mb-2 px-1 flex items-center gap-1.5">
+                        <User size={14} className="text-slate-400" />
+                        שם בעל הרכב
+                    </label>
                     <Input
                         value={ownerName}
                         onChange={(e) => setOwnerName(e.target.value)}
                         placeholder="שם מלא..."
-                        className="h-11 rounded-xl"
+                        className="h-12 rounded-2xl bg-white border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold"
                         required
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">שיוך יחידתי <span className="text-red-500">*</span></label>
-                    <select
-                        value={selectedOrgId}
-                        onChange={(e) => setSelectedOrgId(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all bg-white"
-                        required
-                    >
-                        <option value="" disabled>בחר יחידה...</option>
-                        {battalionOrganizations.map(org => (
-                            <option key={org.id} value={org.id}>{org.name}</option>
-                        ))}
-                    </select>
+                    <label className="block text-xs font-bold text-slate-600 mb-2 px-1 flex items-center gap-1.5">
+                        <Building2 size={14} className="text-slate-400" />
+                        שיוך יחידתי
+                    </label>
+                    <div className="relative">
+                        <select
+                            value={selectedOrgId}
+                            onChange={(e) => setSelectedOrgId(e.target.value)}
+                            className="w-full h-12 px-4 rounded-2xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all bg-white font-bold text-slate-900 appearance-none"
+                            required
+                        >
+                            <option value="" disabled>בחר יחידה...</option>
+                            {battalionOrganizations.map(org => (
+                                <option key={org.id} value={org.id}>{org.name}</option>
+                            ))}
+                        </select>
+                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400">
+                            <ChevronDown size={18} />
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">סוג רכב</label>
-                    <select
-                        value={vehicleType}
-                        onChange={(e) => setVehicleType(e.target.value)}
-                        className="w-full h-11 px-4 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all bg-white"
-                    >
-                        <option value="private">רכב פרטי</option>
-                        <option value="operational">רכב מבצעי</option>
-                        <option value="military">רכב צבאי (חום)</option>
-                        <option value="truck">משאית / לוגיסטיקה</option>
-                    </select>
+            <div>
+                <label className="block text-xs font-bold text-slate-600 mb-2 px-1">סוג רכב</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                        { id: 'private', label: 'פרטי' },
+                        { id: 'operational', label: 'מבצעי' },
+                        { id: 'military', label: 'צבאי' },
+                        { id: 'truck', label: 'משאית' },
+                    ].map((type) => (
+                        <button
+                            key={type.id}
+                            type="button"
+                            onClick={() => setVehicleType(type.id)}
+                            className={`h-11 rounded-xl text-xs font-black transition-all border-2 ${vehicleType === type.id ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200' : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'}`}
+                        >
+                            {type.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-2xl space-y-4 border border-slate-100/50">
-                <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">תוקף אישור כניסה</h4>
+            <div className="bg-slate-50/80 p-5 rounded-[2rem] space-y-5 border border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">תוקף אישור כניסה</h4>
+                    {isPermanent && (
+                        <div className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase tracking-widest">
+                            קבוע
+                        </div>
+                    )}
+                </div>
 
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-2">
                     {[
                         { label: '4 שע\'', hours: 4 },
                         { label: '12 שע\'', hours: 12 },
-                        { label: '24 שע\'', hours: 24 },
+                        { label: 'יממה', hours: 24 },
                         { label: 'שבוע', hours: 24 * 7 },
                     ].map((preset) => (
                         <button
@@ -235,7 +264,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                 setValidUntil(getLocalISOString(until));
                                 setIsPermanent(false);
                             }}
-                            className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all shadow-sm ${!isPermanent && validUntil.slice(0, 13) === getLocalISOString(new Date(new Date().getTime() + preset.hours * 60 * 60 * 1000)).slice(0, 13) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600'}`}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${!isPermanent && validUntil.slice(0, 13) === getLocalISOString(new Date(new Date().getTime() + preset.hours * 60 * 60 * 1000)).slice(0, 13) ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-400'}`}
                         >
                             {preset.label}
                         </button>
@@ -247,23 +276,16 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                             setValidUntil('');
                             setIsPermanent(true);
                         }}
-                        className={`px-4 py-2 border rounded-xl text-xs font-bold transition-all shadow-sm ${isPermanent ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-green-400 hover:text-green-600'}`}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-2 ${isPermanent ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-600'}`}
                     >
-                        צמיתות (ללא הגבלה)
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { setValidFrom(''); setValidUntil(''); setIsPermanent(false); }}
-                        className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-400 hover:text-red-500 transition-all shadow-sm"
-                    >
-                        ניקוי
+                        ללא הגבלה
                     </button>
                 </div>
 
                 {!isPermanent ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-in fade-in duration-200">
-                        <div>
-                            <label className="block text-[11px] font-bold text-slate-400 mb-1 px-1">מתאריך ושעה</label>
+                    <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter px-1">מתי?</label>
                             <Input
                                 type="datetime-local"
                                 value={validFrom}
@@ -271,11 +293,11 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                     setValidFrom(e.target.value);
                                     setIsPermanent(false);
                                 }}
-                                className="h-10 text-sm rounded-xl px-3 border-slate-200"
+                                className="h-11 text-xs rounded-xl bg-white border-slate-200 font-bold"
                             />
                         </div>
-                        <div>
-                            <label className="block text-[11px] font-bold text-slate-400 mb-1 px-1">עד תאריך ושעה</label>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter px-1">עד מתי?</label>
                             <Input
                                 type="datetime-local"
                                 value={validUntil}
@@ -283,173 +305,198 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                     setValidUntil(e.target.value);
                                     setIsPermanent(false);
                                 }}
-                                className="h-10 text-sm rounded-xl px-3 border-slate-200"
+                                className="h-11 text-xs rounded-xl bg-white border-slate-200 font-bold"
                             />
                         </div>
                     </div>
                 ) : (
-                    <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-xl border border-green-100 animate-in slide-in-from-top-2 duration-200">
-                        <ShieldCheck size={16} />
-                        <span className="text-xs font-bold">אישור כניסה קבוע - ללא הגבלת זמן</span>
+                    <div className="flex items-center gap-3 text-blue-600 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 animate-in zoom-in-95 duration-300">
+                        <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                            <ShieldCheck size={20} strokeWidth={2.5} />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-sm font-black tracking-tight">אישור כניסה קבוע</span>
+                            <span className="text-[10px] font-bold opacity-70 uppercase tracking-widest">אין תאריך תפוגה מוגדר</span>
+                        </div>
                     </div>
                 )}
             </div>
 
             <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">הערות</label>
-                <Input
+                <label className="block text-xs font-bold text-slate-600 mb-2 px-1">הערות רלוונטיות</label>
+                <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="הערות נוספות..."
-                    className="h-11 rounded-xl"
+                    placeholder="סיבת כניסה, אישור מיוחד, או כל הערה אחרת..."
+                    className="w-full min-h-[100px] p-4 rounded-2xl bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-medium text-sm text-slate-900 resize-none"
                 />
             </div>
         </form>
     );
 
     return (
-        <div className={`flex flex-col h-full overflow-hidden ${className}`}>
-            {/* Content Header (Optional if Tabs exist, but good for context) */}
-            <div className="px-4 py-3 md:p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div>
-                    <h2 className="text-base md:text-lg font-bold text-slate-800">רכבים מורשים</h2>
-                    <p className="text-[10px] md:text-xs text-slate-500 font-medium">ניהול המורשים לכניסה לבסיס</p>
+        <div className={`flex flex-col h-full bg-slate-50/30 overflow-hidden ${className}`}>
+            {/* Content Header - Premium Style */}
+            <div className="px-6 py-5 border-b border-slate-100/60 flex items-center justify-between bg-white z-10">
+                <div className="flex flex-col">
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight">רכבים מורשים</h2>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">ניהול מאגר מורשי כניסה</span>
                 </div>
-                <div className="bg-blue-100 p-1.5 rounded-lg text-blue-600">
-                    <ShieldCheck size={20} />
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shadow-blue-100">
+                    <ShieldCheck size={24} strokeWidth={2.5} />
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-32 custom-scrollbar">
                 {viewMode === 'list' && (
                     <>
-                        {/* Toolbar */}
-                        <div className="flex flex-col sm:flex-row gap-4 mb-4 md:mb-6">
-                            <div className="relative flex-1">
-                                <Input
+                        {/* Premium Toolbar */}
+                        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                            <div className="relative group flex-1">
+                                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
+                                    <Search size={18} strokeWidth={2.5} />
+                                </div>
+                                <input
+                                    type="text"
                                     placeholder="חפש לפי מספר רכב, שם או יחידה..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10 h-11"
+                                    className="block w-full h-12 pr-12 pl-4 bg-white border-slate-200/60 rounded-2xl text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-bold text-sm shadow-sm"
                                 />
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             </div>
                             <Button
                                 onClick={() => setViewMode('add')}
-                                className="hidden md:flex shrink-0 items-center gap-2 h-11"
+                                className="hidden md:flex shrink-0 items-center gap-2 h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 font-black px-6"
                             >
-                                <Plus size={18} />
-                                <span>הוסף רכב חדש</span>
+                                <Plus size={20} strokeWidth={2.5} />
+                                <span>הוסף רכב</span>
                             </Button>
                         </div>
 
-                        {/* List */}
+                        {/* List - Premium Cards */}
                         {isLoading ? (
-                            <div className="flex justify-center py-10">
-                                <LoadingSpinner />
+                            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                                <div className="animate-spin mb-4">
+                                    <RefreshCw size={32} />
+                                </div>
+                                <p className="font-bold">טוען מאגר רכבים...</p>
                             </div>
                         ) : filteredVehicles.length === 0 ? (
-                            <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                <Car size={48} className="mx-auto mb-3 opacity-50" />
-                                <p>לא נמצאו רכבים תואמים</p>
+                            <div className="text-center py-16 text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm">
+                                <Car size={48} className="mx-auto mb-4 opacity-30" />
+                                <p className="text-lg font-bold">לא נמצאו רכבים תואמים</p>
+                                <p className="text-sm">נסה לשנות את מונחי החיפוש</p>
                             </div>
                         ) : (
-                            <div className="space-y-2">
+                            <div className="space-y-4">
                                 {filteredVehicles.map((vehicle) => (
-                                    <div key={vehicle.id} className="group p-3 rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all bg-white flex items-center justify-between relative overflow-visible">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="bg-slate-50 h-10 w-10 shrink-0 rounded-xl flex items-center justify-center text-slate-400 font-black text-sm border border-slate-100/50">
-                                                {vehicle.plate_number.slice(-2)}
+                                    <div key={vehicle.id} className="group p-4 bg-white rounded-3xl border border-slate-100 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/50 transition-all flex items-center justify-between relative active:scale-[0.99]">
+                                        {/* Status Accents */}
+                                        <div className="absolute top-0 bottom-0 right-0 w-1.5 bg-blue-600/10 group-hover:bg-blue-600 transition-all rounded-r-3xl" />
+
+                                        <div className="flex items-center gap-4 min-w-0 mr-2">
+                                            <div className="w-14 h-14 bg-slate-50 group-hover:bg-blue-50 rounded-[1.25rem] flex flex-col items-center justify-center text-slate-400 group-hover:text-blue-600 border border-slate-100 transition-all shrink-0">
+                                                <Car size={20} strokeWidth={2.5} />
+                                                <span className="text-[9px] font-black uppercase mt-0.5 tracking-tighter">VEHICLE</span>
                                             </div>
                                             <div className="min-w-0">
-                                                <div className="flex items-center gap-2 mb-0.5">
-                                                    <h3 className="font-bold text-slate-900 text-sm md:text-base leading-none">{vehicle.plate_number}</h3>
-                                                    <span className="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded-full font-bold border border-green-100/50 leading-none">מורשה</span>
+                                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
+                                                    <h3 className="font-black text-slate-900 text-lg leading-none tracking-tight">{vehicle.plate_number}</h3>
+                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100/50">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest">מורשה כניסה</span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-3 text-[11px] text-slate-500 font-medium">
-                                                    <span className="flex items-center gap-1 truncate max-w-[80px]"><User size={10} className="text-slate-400" /> {vehicle.owner_name}</span>
+                                                <div className="flex items-center gap-3 text-xs text-slate-500 font-bold">
+                                                    <span className="flex items-center gap-1.5 truncate">
+                                                        <User size={12} className="text-slate-400" />
+                                                        {vehicle.owner_name}
+                                                    </span>
                                                     {vehicle.organizations?.name && (
-                                                        <span className="flex items-center gap-1 text-blue-600 truncate max-w-[80px]"><Building2 size={10} className="opacity-70" /> {vehicle.organizations.name}</span>
+                                                        <>
+                                                            <div className="w-1 h-1 rounded-full bg-slate-200" />
+                                                            <span className="flex items-center gap-1.5 text-blue-600/70 truncate uppercase tracking-tight">
+                                                                <Building2 size={12} />
+                                                                {vehicle.organizations.name}
+                                                            </span>
+                                                        </>
                                                     )}
                                                 </div>
-                                                <div className="mt-1">
+                                                <div className="mt-2.5">
                                                     {vehicle.is_permanent || (!vehicle.valid_from && !vehicle.valid_until) ? (
-                                                        <span className="flex items-center gap-1 text-[10px] text-green-600 font-bold bg-green-50/50 px-1.5 py-0.5 rounded-lg w-fit">
-                                                            <ShieldCheck size={10} />
-                                                            קבוע
-                                                        </span>
+                                                        <div className="inline-flex items-center gap-2 text-[10px] text-blue-700 font-black bg-blue-50 px-3 py-1 rounded-xl">
+                                                            <ShieldCheck size={12} strokeWidth={2.5} />
+                                                            תוקף קבוע
+                                                        </div>
                                                     ) : (
-                                                        <span className="flex items-center gap-1 text-[10px] text-amber-600 font-bold bg-amber-50/50 px-1.5 py-0.5 rounded-lg w-fit">
-                                                            <CalendarIcon size={10} />
-                                                            {vehicle.valid_until ? new Date(vehicle.valid_until).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) : 'ללא הגבלה'}
-                                                        </span>
+                                                        <div className="inline-flex items-center gap-2 text-[10px] text-amber-700 font-black bg-amber-50 px-3 py-1 rounded-xl border border-amber-100/50">
+                                                            <CalendarIcon size={12} />
+                                                            <span>עד {vehicle.valid_until ? new Date(vehicle.valid_until).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'ללא הגבלה'}</span>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
                                         </div>
-                                        {/* Actions */}
+
+                                        {/* Actions - Premium Controls */}
                                         <div className="flex items-center gap-1">
-                                            {/* Desktop: Explicit Buttons */}
-                                            <div className="hidden md:flex items-center gap-1">
+                                            {/* Desktop Controls */}
+                                            <div className="hidden md:flex items-center gap-2">
                                                 <button
                                                     onClick={() => handleEditVehicle(vehicle)}
-                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                    title="ערוך רכב"
+                                                    className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all active:scale-90"
                                                 >
-                                                    <Pencil size={18} />
+                                                    <Pencil size={18} strokeWidth={2.5} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteVehicle(vehicle.id, vehicle.plate_number)}
-                                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="מחק רכב"
+                                                    className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90"
                                                 >
-                                                    <Trash2 size={18} />
+                                                    <Trash2 size={18} strokeWidth={2.5} />
                                                 </button>
                                             </div>
 
-                                            {/* Mobile: Three-Dots Menu */}
+                                            {/* Mobile Menu */}
                                             <div className="md:hidden relative">
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setActiveMenuId(activeMenuId === vehicle.id ? null : vehicle.id);
                                                     }}
-                                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"
+                                                    className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600 bg-slate-50 rounded-xl transition-all active:scale-90"
                                                 >
                                                     <MoreVertical size={20} />
                                                 </button>
 
                                                 {activeMenuId === vehicle.id && (
-                                                    <>
-                                                        <div
-                                                            className="fixed inset-0 z-10"
-                                                            onClick={() => setActiveMenuId(null)}
-                                                        />
-                                                        <div className="absolute left-0 top-full mt-1 w-32 bg-white rounded-xl shadow-xl border border-slate-100 z-20 py-1.5 animate-in fade-in zoom-in-95 duration-100 transform origin-top-left">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleEditVehicle(vehicle);
-                                                                    setActiveMenuId(null);
-                                                                }}
-                                                                className="w-full px-4 py-2 text-right text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-                                                            >
-                                                                <Pencil size={14} />
-                                                                ערוך רכב
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleDeleteVehicle(vehicle.id, vehicle.plate_number);
-                                                                    setActiveMenuId(null);
-                                                                }}
-                                                                className="w-full px-4 py-2 text-right text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 transition-colors"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                                מחק רכב
-                                                            </button>
-                                                        </div>
-                                                    </>
+                                                    <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 py-2 animate-in fade-in zoom-in-95 duration-150 origin-top-left ring-1 ring-slate-200/50 overflow-hidden">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEditVehicle(vehicle);
+                                                                setActiveMenuId(null);
+                                                            }}
+                                                            className="w-full px-4 py-3 text-right text-xs font-black text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                                                                <Pencil size={14} strokeWidth={2.5} />
+                                                            </div>
+                                                            עריכת פרטים
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteVehicle(vehicle.id, vehicle.plate_number);
+                                                                setActiveMenuId(null);
+                                                            }}
+                                                            className="w-full px-4 py-3 text-right text-xs font-black text-red-600 hover:bg-rose-50 flex items-center gap-3 transition-colors border-t border-slate-100"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center">
+                                                                <Trash2 size={14} strokeWidth={2.5} />
+                                                            </div>
+                                                            מחיקה מהמאגר
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -458,42 +505,55 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                             </div>
                         )}
 
-                        {/* Mobile FAB for adding vehicles */}
+                        {/* Premium mobile FAB */}
                         <button
                             onClick={() => setViewMode('add')}
-                            className="md:hidden fixed bottom-24 left-6 w-16 h-16 bg-yellow-400 text-slate-900 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:bg-yellow-500 transition-all flex items-center justify-center z-[110] active:scale-95 shadow-yellow-400/40"
+                            className="md:hidden fixed bottom-28 left-6 w-16 h-16 bg-blue-600 text-white rounded-3xl shadow-[0_12px_40px_rgba(37,99,235,0.4)] hover:shadow-[0_12px_40px_rgba(37,99,235,0.6)] active:scale-90 transition-all flex items-center justify-center z-[110] group overflow-hidden"
                             aria-label="הוסף רכב"
                         >
-                            <Plus size={32} strokeWidth={3} />
+                            <div className="absolute inset-0 bg-gradient-to-tr from-blue-700 to-blue-500 opacity-100 group-hover:scale-110 transition-transform" />
+                            <Plus size={32} strokeWidth={3} className="relative z-10" />
                         </button>
                     </>
                 )}
 
-                {/* Always visible on Desktop as part of content, but we wrap it in Modal for mobile */}
+                {/* Mobile Forms are in Modal (managed via viewMode switch) */}
                 <div className="md:hidden">
                     <Modal
                         isOpen={viewMode === 'add' || viewMode === 'edit'}
                         onClose={() => { setViewMode('list'); resetForm(); }}
-                        title={viewMode === 'edit' ? 'עריכת רכב מורשה' : 'הוספת רכב מורשה'}
+                        title={viewMode === 'edit' ? 'עריכת מורשה' : 'הוספת מורשה חדש'}
                         size="lg"
                         footer={renderAddVehicleButtons()}
                     >
-                        <div className="p-0">
+                        <div className="pb-6">
                             {renderAddVehicleForm()}
                         </div>
                     </Modal>
                 </div>
+
+                {/* Desktop Forms - Premium Integration */}
                 <div className="hidden md:block">
                     {(viewMode === 'add' || viewMode === 'edit') && (
-                        <div className="max-w-xl mx-auto bg-white p-6 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 animate-in zoom-in-95 duration-200">
-                            <div className="flex items-center justify-between mb-8">
-                                <h3 className="font-bold text-xl text-slate-800">
-                                    {viewMode === 'edit' ? 'עריכת רכב מורשה' : 'הוספת רכב מורשה חדש'}
-                                </h3>
-                                <Button variant="ghost" size="sm" onClick={() => { setViewMode('list'); resetForm(); }} className="text-slate-400 hover:text-slate-600 rounded-full">ביטול</Button>
+                        <div className="max-w-2xl mx-auto bg-white p-8 rounded-[2rem] border border-slate-100 shadow-2xl shadow-slate-300/30 animate-in zoom-in-95 duration-300">
+                            <div className="flex items-center justify-between mb-8 border-b border-slate-50 pb-6">
+                                <div className="flex flex-col">
+                                    <h3 className="font-black text-2xl text-slate-900 tracking-tight">
+                                        {viewMode === 'edit' ? 'עריכת רכב מורשה' : 'רישום רכב חדש'}
+                                    </h3>
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">הזן פרטו לזיהוי אוטומטי במערכת</span>
+                                </div>
+                                <button
+                                    onClick={() => { setViewMode('list'); resetForm(); }}
+                                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all"
+                                >
+                                    <X size={20} strokeWidth={2.5} />
+                                </button>
                             </div>
+
                             {renderAddVehicleForm()}
-                            <div className="mt-8 pt-6 border-t border-slate-50">
+
+                            <div className="mt-10 pt-8 border-t border-slate-50">
                                 {renderAddVehicleButtons()}
                             </div>
                         </div>

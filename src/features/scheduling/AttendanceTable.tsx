@@ -124,29 +124,35 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         <div className="h-full flex flex-col relative" dir="rtl">
             {/* --- DAILY AGENDA VIEW (Mobile default, Desktop optional) --- */}
             {(viewMode === 'daily' || !viewMode) && (
-                <div className={`flex-1 overflow-y-auto custom-scrollbar bg-white pb-20 ${viewMode === 'daily' ? '' : 'md:hidden'}`}>
-                    <div className="flex flex-col max-w-4xl mx-auto">
+                <div className={`flex-1 overflow-y-auto custom-scrollbar bg-white pb-32 ${viewMode === 'daily' ? '' : 'md:hidden'}`}>
+                    <div className="flex flex-col">
                         {teams.map(team => {
                             const members = sortedPeople.filter(p => p.teamId === team.id);
                             if (members.length === 0) return null;
 
                             return (
                                 <div key={team.id} className="relative">
-                                    {/* Sticky Team Header */}
+                                    {/* Premium Team Header - Sticky with Visual Depth */}
                                     <div
                                         onClick={() => toggleTeam(team.id)}
-                                        className="sticky top-0 z-10 bg-slate-100 border-b border-l border-slate-200 px-4 py-3 flex items-center gap-2 cursor-pointer group shadow-sm transition-all hover:bg-slate-200/50"
+                                        className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 py-4 flex items-center justify-between cursor-pointer group transition-all h-[72px]"
                                     >
-                                        <div className={`transition-transform duration-300 ${collapsedTeams.has(team.id) ? 'rotate-0' : 'rotate-180'}`}>
-                                            <ChevronDown size={18} className="text-slate-600" />
+                                        <div className="flex items-center gap-4">
+                                            <div
+                                                className="w-1.5 h-8 rounded-full"
+                                                style={{ backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6' }}
+                                            />
+                                            <div className="flex flex-col">
+                                                <h3 className="text-lg font-black text-slate-900 tracking-tight leading-none">{team.name}</h3>
+                                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">{members.length} לוחמים</span>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col flex-1">
-                                            <h3 className="text-base font-black text-slate-900 tracking-tight">{team.name}</h3>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{members.length} לוחמים</span>
+                                        <div className={`w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center transition-transform duration-300 ${collapsedTeams.has(team.id) ? 'rotate-0' : 'rotate-180'}`}>
+                                            <ChevronDown size={18} className="text-slate-400" />
                                         </div>
                                     </div>
 
-                                    {/* Personnel List */}
+                                    {/* Personnel List - Optimized for Touch */}
                                     {!collapsedTeams.has(team.id) && (
                                         <div className="divide-y divide-slate-50">
                                             {members.map(person => {
@@ -164,13 +170,12 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 // Status Pill UI Logic
                                                 let statusConfig = {
                                                     label: 'לא ידוע',
-                                                    bg: 'bg-white border-slate-200 text-slate-400',
+                                                    bg: 'bg-white text-slate-400 ring-1 ring-slate-100',
                                                     dot: 'bg-slate-300',
                                                     icon: Info
                                                 };
 
                                                 if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
-                                                    // Detection for display
                                                     const prevDate = new Date(currentDate);
                                                     prevDate.setDate(currentDate.getDate() - 1);
                                                     const nextDate = new Date(currentDate);
@@ -185,32 +190,31 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                                     statusConfig = {
                                                         label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
-                                                        bg: isArrival || isSingleDay ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : isDeparture ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700',
-                                                        dot: 'bg-emerald-500',
+                                                        bg: isArrival || isSingleDay ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-0' : isDeparture ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 ring-0' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100/50',
+                                                        dot: 'bg-white',
                                                         icon: isArrival ? MapPin : isDeparture ? MapPin : CheckCircle2
                                                     };
 
-                                                    // Add time if set
                                                     if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
                                                         if (isSingleDay || (!isArrival && !isDeparture)) {
-                                                            statusConfig.label += ` (${avail.startHour}-${avail.endHour})`;
+                                                            statusConfig.label += ` ${avail.startHour}-${avail.endHour}`;
                                                         } else if (isArrival && avail.startHour !== '00:00') {
-                                                            statusConfig.label += ` (${avail.startHour})`;
+                                                            statusConfig.label += ` ${avail.startHour}`;
                                                         } else if (isDeparture && avail.endHour !== '23:59') {
-                                                            statusConfig.label += ` (${avail.endHour})`;
+                                                            statusConfig.label += ` ${avail.endHour}`;
                                                         }
                                                     }
                                                 } else if (avail.status === 'home') {
                                                     statusConfig = {
                                                         label: 'בבית',
-                                                        bg: 'bg-red-50 border-red-100 text-red-600',
+                                                        bg: 'bg-red-50 text-red-600 ring-1 ring-red-100',
                                                         dot: 'bg-red-500',
                                                         icon: Home
                                                     };
                                                 } else if (avail.status === 'unavailable') {
                                                     statusConfig = {
                                                         label: 'אילוץ',
-                                                        bg: 'bg-amber-50 border-amber-100 text-amber-700',
+                                                        bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
                                                         dot: 'bg-amber-500',
                                                         icon: Clock
                                                     };
@@ -220,14 +224,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     <div
                                                         key={person.id}
                                                         onClick={(e) => handleCellClick(e, person, currentDate)}
-                                                        className="flex items-center justify-between p-4 bg-white active:bg-slate-50 transition-colors h-[68px] cursor-pointer"
+                                                        className="flex items-center justify-between p-5 bg-white active:bg-slate-50 transition-all h-[80px] cursor-pointer group" // Rule 1: 80px for comfort
                                                         role="button"
-                                                        aria-label={`${person.name}, מצב נוכחות: ${statusConfig.label}`}
+                                                        tabIndex={0}
                                                     >
                                                         {/* Left: Person Info */}
-                                                        <div className="flex items-center gap-3">
+                                                        <div className="flex items-center gap-4">
                                                             <div
-                                                                className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-black text-white shadow-md ring-2 ring-white shrink-0"
+                                                                className="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-xl rotate-3 group-active:rotate-0 transition-transform"
                                                                 style={{
                                                                     backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6',
                                                                     backgroundImage: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}cc)`
@@ -236,54 +240,49 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                 {getPersonInitials(person.name)}
                                                             </div>
                                                             <div className="flex flex-col">
-                                                                <span className="text-sm font-black text-slate-800 leading-none">{person.name}</span>
-                                                                <span className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">לוחם</span>
+                                                                <span className="text-base font-black text-slate-900 leading-tight">{person.name}</span>
+                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                    <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">לוחם</span>
+                                                                </div>
                                                             </div>
                                                         </div>
 
                                                         {/* Right Side: Status and Dots/Labels */}
                                                         <div className="flex items-center gap-3">
-                                                            {/* Absence Labels / Red Dots */}
                                                             {isExitRequest ? (
-                                                                <span className="text-[11px] font-bold text-red-600 whitespace-nowrap">
+                                                                <span className="text-[11px] font-black text-red-600 bg-red-50 px-2 py-1 rounded-lg border border-red-100 animate-pulse">
                                                                     {isViewer ? 'היעדרות' : (relevantAbsence?.reason || 'בקשת יציאה')}
                                                                 </span>
                                                             ) : (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
-                                                                <div
-                                                                    className="flex gap-0.5"
-                                                                    aria-label={`קיימים ${avail.unavailableBlocks.length} אילוצים חלקיים היום`}
-                                                                >
+                                                                <div className="flex -space-x-1 rtl:space-x-reverse h-3 items-center">
                                                                     {avail.unavailableBlocks.slice(0, 3).map((_, i) => (
-                                                                        <div key={i} className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm" aria-hidden="true" />
+                                                                        <div key={i} className="w-2 h-2 rounded-full bg-red-500 border-2 border-white shadow-sm" />
                                                                     ))}
                                                                 </div>
                                                             )}
 
-                                                            {/* Status Pill */}
                                                             <div
                                                                 className={`
-                                                                    flex items-center gap-1.5 px-3 py-1.5 rounded-full border 
-                                                                    ${statusConfig.bg} transition-all shadow-sm
+                                                                    flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-xs
+                                                                    ${statusConfig.bg} transition-all active:scale-95
                                                                 `}
-                                                                aria-label={`סטטוס: ${statusConfig.label}`}
                                                             >
-                                                                <statusConfig.icon size={12} aria-hidden="true" />
-                                                                <span className="text-xs font-black whitespace-nowrap">{statusConfig.label}</span>
+                                                                <statusConfig.icon size={14} strokeWidth={2.5} />
+                                                                <span className="whitespace-nowrap">{statusConfig.label}</span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                    )
-                                    }
+                                    )}
                                 </div>
                             );
                         })}
                     </div>
                 </div>
-            )
-            }
+            )}
 
             {/* --- MONTHLY TABLE VIEW (Desktop default) --- */}
             {

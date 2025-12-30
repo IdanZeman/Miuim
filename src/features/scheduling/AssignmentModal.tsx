@@ -461,8 +461,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                             <div
                                                 key={i}
                                                 className={`w-3 h-4 rounded-sm border ${i < taken
-                                                        ? 'bg-emerald-500 border-emerald-600'
-                                                        : 'bg-slate-50 border-slate-300 border-dashed'
+                                                    ? 'bg-emerald-500 border-emerald-600'
+                                                    : 'bg-slate-50 border-slate-300 border-dashed'
                                                     }`}
                                             />
                                         ))}
