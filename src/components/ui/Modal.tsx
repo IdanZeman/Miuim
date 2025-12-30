@@ -11,6 +11,8 @@ interface ModalProps {
     scrollableContent?: boolean; // If false, content container will be overflow-hidden (bring your own scroll)
     footer?: React.ReactNode; // Content for sticky footer
     closeIcon?: 'close' | 'back';
+    hideDefaultHeader?: boolean;
+    className?: string; // Additional classes for the modal container
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -21,7 +23,9 @@ export const Modal: React.FC<ModalProps> = ({
     size = 'md',
     scrollableContent = true,
     footer,
-    closeIcon = 'close'
+    closeIcon = 'close',
+    hideDefaultHeader = false,
+    className = ''
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -74,31 +78,34 @@ export const Modal: React.FC<ModalProps> = ({
                 ${size === 'full' ? 'h-[90dvh] md:h-[90dvh]' : 'max-h-[85dvh]'}
                 ${getSizeClasses()} 
                 ${isOpen ? 'translate-y-0 scale-100' : 'translate-y-full md:translate-y-4 md:scale-95'}
+                ${className}
             `}>
                 {/* Header */}
-                <div className="flex items-center gap-4 p-4 md:p-6 border-b border-slate-100 flex-shrink-0 bg-white z-10">
-                    {closeIcon === 'back' && (
-                        <button
-                            onClick={onClose}
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                        >
-                            <ArrowRight size={24} />
-                        </button>
-                    )}
+                {!hideDefaultHeader && (
+                    <div className="flex items-center gap-4 p-4 md:p-6 border-b border-slate-100 flex-shrink-0 bg-white z-10">
+                        {closeIcon === 'back' && (
+                            <button
+                                onClick={onClose}
+                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                            >
+                                <ArrowRight size={24} />
+                            </button>
+                        )}
 
-                    <div className="text-xl md:text-2xl font-bold text-slate-800 flex-1">
-                        {title}
+                        <div className="text-xl md:text-2xl font-bold text-slate-800 flex-1">
+                            {title}
+                        </div>
+
+                        {closeIcon === 'close' && (
+                            <button
+                                onClick={onClose}
+                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        )}
                     </div>
-
-                    {closeIcon === 'close' && (
-                        <button
-                            onClick={onClose}
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                        >
-                            <X size={24} />
-                        </button>
-                    )}
-                </div>
+                )}
 
                 {/* Content */}
                 <div className={`p-4 md:p-6 ${scrollableContent ? 'overflow-y-auto custom-scrollbar' : 'overflow-hidden flex flex-col'} flex-1`}>

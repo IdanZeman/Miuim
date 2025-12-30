@@ -1,4 +1,4 @@
-import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage } from '@/types';
+import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage, MissionReport } from '@/types';
 
 // --- Mappers (App Types <-> DB Types) ---
 
@@ -269,4 +269,35 @@ export const mapHourlyBlockageToDB = (block: HourlyBlockage) => ({
     end_time: block.end_time,
     reason: block.reason,
     // created_at is automatic
+});
+
+// Mission Reports
+export const mapMissionReportFromDB = (db: any): MissionReport => ({
+    id: db.id,
+    organization_id: db.organization_id,
+    shift_id: db.shift_id,
+    summary: db.summary,
+    exceptional_events: db.exceptional_events,
+    points_to_preserve: db.points_to_preserve,
+    points_to_improve: db.points_to_improve,
+    ongoing_log: db.ongoing_log || [],
+    submitted_by: db.submitted_by,
+    last_editor_id: db.last_editor_id,
+    submitted_at: db.submitted_at,
+    created_at: db.created_at,
+    updated_at: db.updated_at
+});
+
+export const mapMissionReportToDB = (report: MissionReport) => ({
+    id: report.id,
+    organization_id: report.organization_id,
+    shift_id: report.shift_id,
+    summary: report.summary,
+    exceptional_events: report.exceptional_events,
+    points_to_preserve: report.points_to_preserve,
+    points_to_improve: report.points_to_improve,
+    ongoing_log: report.ongoing_log,
+    submitted_by: report.submitted_by,
+    last_editor_id: report.last_editor_id,
+    submitted_at: report.submitted_at
 });

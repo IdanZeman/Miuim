@@ -4,12 +4,12 @@ import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../features/auth/AuthContext';
 import { 
     Person, Shift, TaskTemplate, Role, Team, 
-    SchedulingConstraint, TeamRotation, Absence, Equipment 
+    SchedulingConstraint, TeamRotation, Absence, Equipment, MissionReport 
 } from '../types';
 import { 
     mapPersonFromDB, mapShiftFromDB, mapTaskFromDB, 
     mapRoleFromDB, mapTeamFromDB, mapConstraintFromDB, 
-    mapRotationFromDB, mapAbsenceFromDB, mapEquipmentFromDB, mapHourlyBlockageFromDB
+    mapRotationFromDB, mapAbsenceFromDB, mapEquipmentFromDB, mapHourlyBlockageFromDB, mapMissionReportFromDB
 } from '../services/supabaseClient';
 
 // Helper to calculate data scoping (Duplicated from App.tsx for safety)
@@ -74,7 +74,7 @@ export const useOrganizationData = () => {
             const [
                 peopleRes, tasksRes, rolesRes, teamsRes, settingsRes,
                 constraintsRes, rotationsRes, absencesRes, equipmentRes,
-                hourlyBlockagesRes, shiftsRes
+                hourlyBlockagesRes, shiftsRes, missionReportsRes
             ] = await Promise.all([
                 supabase.from('people').select('*').eq('organization_id', organization.id),
                 supabase.from('task_templates').select('*').eq('organization_id', organization.id),
@@ -89,7 +89,9 @@ export const useOrganizationData = () => {
                 // Fetch last 3 months of shifts for history
                 supabase.from('shifts').select('*')
                     .eq('organization_id', organization.id)
-                    .gte('start_time', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+                    .eq('organization_id', organization.id)
+                    .gte('start_time', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+                supabase.from('mission_reports').select('*').eq('organization_id', organization.id)
             ]);
 
             return {
@@ -103,7 +105,8 @@ export const useOrganizationData = () => {
                 rotations: rotationsRes.data || [],
                 absences: absencesRes.data || [],
                 equipment: equipmentRes.data || [],
-                hourlyBlockages: hourlyBlockagesRes.data || []
+                hourlyBlockages: hourlyBlockagesRes.data || [],
+                missionReports: missionReportsRes.data || []
             };
         },
         enabled: isEnabled,
@@ -134,6 +137,7 @@ export const useOrganizationData = () => {
             teamRotations: (data.rotations || []).map(mapRotationFromDB),
             absences: (data.absences || []).map(mapAbsenceFromDB),
             hourlyBlockages: (data.hourlyBlockages || []).map(mapHourlyBlockageFromDB),
+            missionReports: (data.missionReports || []).map(mapMissionReportFromDB),
             equipment: scopedEquipment
         };
     }, [data, profile, user]);
@@ -151,6 +155,7 @@ export const useOrganizationData = () => {
         constraints: processedData?.constraints || [],
         teamRotations: processedData?.teamRotations || [],
         absences: processedData?.absences || [],
+        missionReports: processedData?.missionReports || [],
         equipment: processedData?.equipment || [],
         isLoading,
         error,

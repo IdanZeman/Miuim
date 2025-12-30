@@ -131,6 +131,7 @@ const MainApp: React.FC = () => {
         constraints,
         teamRotations,
         absences,
+        missionReports,
         equipment,
         hourlyBlockages,
         isLoading: isOrgLoading,
@@ -149,6 +150,7 @@ const MainApp: React.FC = () => {
         constraints: constraints || [],
         teamRotations: teamRotations || [],
         absences: absences || [],
+        missionReports: missionReports || [],
         equipment: equipment || [],
         settings: settings || null,
         hourlyBlockages: hourlyBlockages || []
@@ -932,6 +934,7 @@ const MainApp: React.FC = () => {
                                 )}
                                 <ScheduleBoard
                                     shifts={state.shifts}
+                                    missionReports={state.missionReports}
                                     people={state.people}
                                     taskTemplates={state.taskTemplates}
                                     roles={state.roles}
@@ -950,6 +953,7 @@ const MainApp: React.FC = () => {
                                     onUpdateShift={handleUpdateShift}
                                     onToggleCancelShift={handleToggleCancelShift}
                                     teamRotations={state.teamRotations}
+                                    onRefreshData={refetchOrgData}
                                 />
                             </>
                         )}

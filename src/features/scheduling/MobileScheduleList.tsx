@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Shift, Person, TaskTemplate, Role, Team, TeamRotation } from '../../types';
-import { Clock, MapPin, User, ChevronDown, CheckCircle, AlertTriangle, ChevronRight, Hash, Ban, Undo2, Plus } from 'lucide-react';
+import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, MissionReport } from '../../types';
+import { Clock, MapPin, User, ChevronDown, CheckCircle, AlertTriangle, ChevronRight, Hash, Ban, Undo2, Plus, FileText } from 'lucide-react';
 import { getPersonInitials } from '../../utils/nameUtils';
 
 interface MobileScheduleListProps {
@@ -14,6 +14,8 @@ interface MobileScheduleListProps {
     onSelectShift: (shift: Shift) => void;
     onToggleCancelShift: (shiftId: string) => void;
     onAddShift?: (task: TaskTemplate) => void;
+    missionReports: MissionReport[];
+    onReportClick: (shift: Shift) => void;
 }
 
 const hexToRgba = (hex: string, alpha: number) => {
@@ -28,7 +30,7 @@ const hexToRgba = (hex: string, alpha: number) => {
 
 export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
     shifts, people, taskTemplates, roles, teams, selectedDate, isViewer,
-    onSelectShift, onToggleCancelShift, onAddShift
+    onSelectShift, onToggleCancelShift, onAddShift, missionReports, onReportClick
 }) => {
     // 1. Filter shifts for the selected date
     const dayStart = new Date(selectedDate);
@@ -43,7 +45,7 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
     });
 
     // 2. Sort tasks by logic (e.g. orderIndex later, or just name for now) - assuming templates have order
-    const sortedTasks = [...taskTemplates].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+    const sortedTasks = [...taskTemplates].sort((a, b) => a.name.localeCompare(b.name));
 
     // State for collapsed tasks (default empty = all expanded)
     const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
@@ -135,6 +137,28 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                         {end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                     </div>
                                                     {isCancelled && <span className="text-xs text-red-500 font-bold">מבוטל</span>}
+
+                                                    {/* Report Status / Button */}
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        {missionReports.some(r => r.shift_id === shift.id) ? (
+                                                            <div className="flex items-center gap-1 text-blue-500">
+                                                                <FileText size={12} />
+                                                                <span className="text-[10px] font-bold">קיים דוח</span>
+                                                            </div>
+                                                        ) : (
+                                                            /* Show Add Report button only if assigned or relevant (for now just show if not viewer ?) */
+                                                            /* Actually, let's just create a button area specifically */
+                                                            null
+                                                        )}
+
+                                                        {/* Always show report button to open modal */}
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onReportClick(shift); }}
+                                                            className="text-slate-400 hover:text-blue-600 p-1 -m-1"
+                                                        >
+                                                            <FileText size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
 
                                                 {/* Center/Right: People or CTA */}

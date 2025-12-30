@@ -4,11 +4,11 @@ import { Modal as GenericModal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
-import { Shift, Person, TaskTemplate, Role, Team, TeamRotation } from '../../types';
+import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, MissionReport } from '../../types';
 import { generateShiftsForTask } from '../../utils/shiftUtils';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
-import { RotateCcw, Sparkles } from 'lucide-react';
+import { RotateCcw, Sparkles, FileText } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown, Search, MoreVertical, Wand2 } from 'lucide-react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
@@ -19,11 +19,12 @@ import { logger } from '../../services/loggingService';
 import { supabase } from '../../services/supabaseClient';
 import { EmptyStateGuide } from '../../components/ui/EmptyStateGuide';
 import { AssignmentModal } from './AssignmentModal';
+import { MissionReportModal } from './MissionReportModal';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { ExportScheduleModal } from './ExportScheduleModal';
 import { FileDown } from 'lucide-react';
 
-interface ScheduleBoardProps {
+export interface ScheduleBoardProps {
     shifts: Shift[];
     people: Person[];
     taskTemplates: TaskTemplate[];
@@ -43,7 +44,9 @@ interface ScheduleBoardProps {
     onAddShift?: (task: TaskTemplate, date: Date) => void;
     onUpdateShift?: (shift: Shift) => void;
     onToggleCancelShift?: (shiftId: string) => void;
-    teamRotations: TeamRotation[]; // NEW
+    teamRotations: TeamRotation[];
+    missionReports: MissionReport[];
+    onRefreshData?: () => void;
 }
 
 // Helper to calculate position based on time
@@ -84,8 +87,10 @@ const ShiftCard: React.FC<{
     onToggleCancel: (shiftId: string) => void;
     isViewer: boolean;
     acknowledgedWarnings?: Set<string>;
+    missionReports: MissionReport[];
     style?: React.CSSProperties;
-}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, isViewer, acknowledgedWarnings, style }) => {
+    onReportClick: (shift: Shift) => void;
+}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const assigned = shift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
@@ -140,8 +145,31 @@ const ShiftCard: React.FC<{
             onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
             title={hasMissingRoles ? `חסרים תפקידים: ${missingRoles.join(', ')}` : undefined}
         >
-            {/* Top Row: Task Name & Actions */}
-            <div className="flex font-bold truncate text-slate-800 text-[11px] md:text-sm justify-between items-start">
+            {/* Action Buttons - Absolute Positioned (Top Left) */}
+            <div className="absolute top-1 left-1 flex items-center gap-0.5 z-20">
+
+                <button
+                    onClick={(e) => { e.stopPropagation(); onReportClick(shift); }}
+                    className={`p-0.5 rounded shadow-sm text-slate-500 hover:text-blue-600 transition-all border border-transparent hover:border-slate-200
+                        ${missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? 'bg-blue-100 text-blue-600 border-blue-200' : 'bg-white/50 hover:bg-white'}
+                    `}
+                    title={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "דוח הוגש - לחץ לצפייה" : "דוח משימה"}
+                >
+                    <FileText size={12} className={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "fill-blue-600 text-blue-600" : ""} />
+                </button>
+                {!isViewer && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onToggleCancel(shift.id); }}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 bg-white/50 hover:bg-white rounded shadow-sm text-slate-400 hover:text-red-500 transition-all border border-transparent hover:border-slate-200"
+                        title={shift.isCancelled ? 'הפעל משמרת' : 'בטל משמרת'}
+                    >
+                        {shift.isCancelled ? <RotateCcw size={12} className="text-blue-500" /> : <Ban size={12} />}
+                    </button>
+                )}
+            </div>
+
+            {/* Top Row: Task Name */}
+            <div className="flex font-bold truncate text-slate-800 text-[11px] md:text-sm pl-12 items-start w-full">
                 <div className="flex items-center gap-1 truncate w-full">
                     {shift.isCancelled && <Ban size={12} className="text-red-500 mr-1 shrink-0" />}
 
@@ -165,34 +193,27 @@ const ShiftCard: React.FC<{
                     )}
                     <span className="truncate">{task.name}</span>
                 </div>
-                {!isViewer && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onToggleCancel(shift.id); }}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-slate-200 rounded transition-opacity shrink-0 ml-1"
-                        title={shift.isCancelled ? 'הפעל משמרת' : 'בטל משמרת'}
-                    >
-                        {shift.isCancelled ? <RotateCcw size={12} className="text-blue-500" /> : <Ban size={12} className="text-slate-400 hover:text-red-500" />}
-                    </button>
-                )}
             </div>
 
             {/* Middle Row - Names (Adaptive - Desktop Only) */}
-            {(style?.height && parseInt(String(style.height)) >= 50 && assigned.length > 0) && (
-                <div className={`hidden md:flex flex-1 ${assigned.length > 5 ? 'flex-row flex-wrap content-center justify-center' : 'flex-col justify-center items-center'} gap-1 overflow-hidden py-1 w-full px-1`}>
-                    {assigned.map(p => (
-                        <div
-                            key={p.id}
-                            className={`shadow-sm border border-slate-200/60 bg-white/95 
-                                ${assigned.length > 5 ? 'px-1.5 py-0.5 text-[10px] min-w-[24px]' : 'w-full max-w-[95%] px-3 py-1 text-xs'} 
-                                rounded-full font-bold text-slate-800 truncate text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
-                            title={p.name}
-                            onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
-                        >
-                            {assigned.length > 5 ? getPersonInitials(p.name) : p.name}
-                        </div>
-                    ))}
-                </div>
-            )}
+            {
+                (style?.height && parseInt(String(style.height)) >= 50 && assigned.length > 0) && (
+                    <div className={`hidden md:flex flex-1 ${assigned.length > 5 ? 'flex-row flex-wrap content-center justify-center' : 'flex-col justify-center items-center'} gap-1 overflow-hidden py-0.5 w-full px-1`}>
+                        {assigned.map(p => (
+                            <div
+                                key={p.id}
+                                className={`shadow-sm border border-slate-200/60 bg-white/95 
+                            ${assigned.length > 5 ? 'px-1.5 py-0.5 text-[10px] min-w-[24px]' : 'w-full max-w-[95%] px-2 py-0.5 text-xs'} 
+                            rounded-full font-bold text-slate-800 truncate text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
+                                title={p.name}
+                                onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
+                            >
+                                {assigned.length > 5 ? getPersonInitials(p.name) : p.name}
+                            </div>
+                        ))}
+                    </div>
+                )
+            }
 
             {/* Bottom Row: Info & Avatars (Fallback) */}
             <div className={`flex items-end justify-between ${!(style?.height && parseInt(String(style.height)) >= 50 && assigned.length > 0) ? 'mt-auto' : ''} pt-1 w-full overflow-hidden`}>
@@ -213,15 +234,15 @@ const ShiftCard: React.FC<{
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 
 export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
-    shifts, people, taskTemplates, roles, teams, constraints,
+    shifts, missionReports, people, taskTemplates, roles, teams, constraints,
     selectedDate, onDateChange, onSelect, onDelete, isViewer,
     acknowledgedWarnings: propAcknowledgedWarnings, onClearDay, onNavigate, onAssign,
-    onUnassign, onAddShift, onUpdateShift, onToggleCancelShift, teamRotations
+    onUnassign, onAddShift, onUpdateShift, onToggleCancelShift, teamRotations, onRefreshData
 }) => {
     const activePeople = useMemo(() => people.filter(p => p.isActive !== false), [people]);
     // Scroll Synchronization Refs
@@ -306,7 +327,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         };
     }, []);
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
+    const [selectedReportShiftId, setSelectedReportShiftId] = useState<string | null>(null);
     const selectedShift = useMemo(() => shifts.find(s => s.id === selectedShiftId), [shifts, selectedShiftId]);
+    const selectedReportShift = useMemo(() => shifts.find(s => s.id === selectedReportShiftId), [shifts, selectedReportShiftId]);
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(false);
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
     const [confirmationState, setConfirmationState] = useState<{
@@ -517,29 +540,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     return (
         <div className={`flex flex-col gap-2 ${containerHeightClass}`}>
             {isViewer && renderFeaturedCard()}
-            {selectedShift && (() => {
-                const task = taskTemplates.find(t => t.id === selectedShift.taskId);
-                if (!task) return null;
-                return (
-                    <AssignmentModal
-                        selectedShift={selectedShift}
-                        task={task}
-                        people={activePeople}
-                        roles={roles}
-                        teams={teams}
-                        shifts={shifts}
-                        selectedDate={selectedDate}
-                        teamRotations={teamRotations}
-                        isViewer={isViewer}
-                        onClose={() => setSelectedShiftId(null)}
-                        onAssign={onAssign}
-                        onUnassign={onUnassign}
-                        onUpdateShift={onUpdateShift || (() => { })}
-                        onToggleCancelShift={onToggleCancelShift || (() => { })}
-                        constraints={constraints}
-                    />
-                );
-            })()}
 
 
 
@@ -689,6 +689,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         <MobileScheduleList
                             shifts={shifts}
                             people={activePeople}
+                            missionReports={missionReports}
                             taskTemplates={visibleTasks} // RESPECT FILTERS
                             roles={roles}
                             teams={teams}
@@ -696,6 +697,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             isViewer={isViewer}
                             onSelectShift={handleShiftSelect}
                             onToggleCancelShift={onToggleCancelShift}
+                            onReportClick={(shift) => setSelectedReportShiftId(shift.id)}
                         />
                     </div>
 
@@ -823,14 +825,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                     <ShiftCard
                                                         key={shift.id}
                                                         shift={shift}
+                                                        missionReports={missionReports}
                                                         taskTemplates={taskTemplates}
                                                         people={activePeople}
                                                         roles={roles}
                                                         teams={teams}
                                                         onSelect={handleShiftSelect}
-                                                        onToggleCancel={onToggleCancelShift}
+                                                        onToggleCancel={onToggleCancelShift || (() => { })}
                                                         isViewer={isViewer}
                                                         acknowledgedWarnings={acknowledgedWarnings}
+                                                        onReportClick={(shift) => setSelectedReportShiftId(shift.id)}
                                                         style={{
                                                             top: `${top}px`,
                                                             height: `${Math.max(height, 30)}px`,
@@ -910,6 +914,22 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     onToggleCancelShift={onToggleCancelShift}
                 />
             )}
+
+            {selectedReportShift && (() => {
+                const task = taskTemplates.find(t => t.id === selectedReportShift.taskId);
+                if (!task) return null;
+                return (
+                    <MissionReportModal
+                        shift={selectedReportShift}
+                        task={task}
+                        people={activePeople}
+                        roles={roles}
+                        isViewer={isViewer}
+                        onClose={() => setSelectedReportShiftId(null)}
+                        onRefreshData={onRefreshData}
+                    />
+                );
+            })()}
 
             {/* Confirmation Modal */}
             <ConfirmationModal

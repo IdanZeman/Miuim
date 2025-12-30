@@ -322,3 +322,26 @@ export interface SystemMessage {
   target_role_ids?: string[];
   message_type?: 'POPUP' | 'BULLETIN';
 }
+
+export interface OngoingNote {
+  timestamp: string;
+  text: string;
+  user_id: string;
+  user_name?: string;
+}
+
+export interface MissionReport {
+  id: string;
+  organization_id: string;
+  shift_id: string;
+  summary?: string;
+  exceptional_events?: string;
+  points_to_preserve?: string;
+  points_to_improve?: string;
+  ongoing_log: OngoingNote[];
+  submitted_by?: string;
+  last_editor_id?: string;
+  submitted_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}

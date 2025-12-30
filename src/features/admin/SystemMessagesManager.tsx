@@ -202,63 +202,115 @@ export const SystemMessagesManager: React.FC = () => {
                         <p>לא נמצאו הודעות מערכת.</p>
                     </div>
                 ) : (
-                    <table className="w-full text-right">
-                        <thead className="bg-slate-50 text-slate-500 text-sm">
-                            <tr>
-                                <th className="px-6 py-3 font-medium">סטטוס</th>
-                                <th className="px-6 py-3 font-medium">כותרת</th>
-                                <th className="px-6 py-3 font-medium">תוכן</th>
-                                <th className="px-6 py-3 font-medium">נוצר בתאריך</th>
-                                <th className="px-6 py-3 font-medium">פעולות</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
+                    <>
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-right">
+                                <thead className="bg-slate-50 text-slate-500 text-sm">
+                                    <tr>
+                                        <th className="px-6 py-3 font-medium">סטטוס</th>
+                                        <th className="px-6 py-3 font-medium">כותרת</th>
+                                        <th className="px-6 py-3 font-medium">תוכן</th>
+                                        <th className="px-6 py-3 font-medium">נוצר בתאריך</th>
+                                        <th className="px-6 py-3 font-medium">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {messages.map(msg => (
+                                        <tr key={msg.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                {msg.is_active ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                                        <CheckCircle size={12} />
+                                                        פעיל
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                                        <XCircle size={12} />
+                                                        לא פעיל
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 font-medium text-slate-800">
+                                                {msg.title || '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-600 max-w-md truncate">
+                                                {msg.message}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-500 text-sm">
+                                                {format(new Date(msg.created_at), 'dd/MM/yyyy HH:mm')}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => handleEdit(msg)}
+                                                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                                        title="ערוך"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(msg.id)}
+                                                        className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                                                        title="מחק"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile List View */}
+                        <div className="md:hidden divide-y divide-slate-100">
                             {messages.map(msg => (
-                                <tr key={msg.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        {msg.is_active ? (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                                <CheckCircle size={12} />
-                                                פעיל
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                                <XCircle size={12} />
-                                                לא פעיל
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 font-medium text-slate-800">
-                                        {msg.title || '-'}
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600 max-w-md truncate">
-                                        {msg.message}
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-500 text-sm">
-                                        {format(new Date(msg.created_at), 'dd/MM/yyyy HH:mm')}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => handleEdit(msg)}
-                                                className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                                title="ערוך"
-                                            >
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(msg.id)}
-                                                className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                                                title="מחק"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                <div key={msg.id} className="p-4 bg-white active:bg-slate-50">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                            {msg.is_active ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                                    <CheckCircle size={12} />
+                                                    פעיל
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                                    <XCircle size={12} />
+                                                    לא פעיל
+                                                </span>
+                                            )}
                                         </div>
-                                    </td>
-                                </tr>
+                                        <span className="text-xs text-slate-400">
+                                            {format(new Date(msg.created_at), 'dd/MM/yyyy')}
+                                        </span>
+                                    </div>
+
+                                    <div className="mb-3 space-y-1">
+                                        {msg.title && <div className="font-bold text-slate-800">{msg.title}</div>}
+                                        <div className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{msg.message}</div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-3 pt-2 border-t border-slate-50">
+                                        <button
+                                            onClick={() => handleEdit(msg)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-blue-600 bg-blue-50 rounded-lg text-sm font-medium active:scale-95 transition-transform"
+                                        >
+                                            <Edit2 size={14} />
+                                            ערוך
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(msg.id)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 bg-red-50 rounded-lg text-sm font-medium active:scale-95 transition-transform"
+                                        >
+                                            <Trash2 size={14} />
+                                            מחק
+                                        </button>
+                                    </div>
+                                </div>
                             ))}
-                        </tbody>
-                    </table>
+                        </div>
+                    </>
                 )}
             </div>
         </div>

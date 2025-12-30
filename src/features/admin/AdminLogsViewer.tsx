@@ -198,7 +198,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                 <div className="p-4 border-b border-slate-100 flex flex-col gap-3 bg-slate-50/50">
                     <div className="flex flex-wrap gap-3 items-center">
                         {/* Search */}
-                        <div className="relative flex-1 min-w-[300px]">
+                        <div className="relative flex-1 w-full md:w-auto md:min-w-[300px]">
                             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
                                 type="text"
@@ -266,7 +266,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                 </div>
 
                 {/* Table */}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto hidden md:block">
                     <table className="w-full text-sm text-right">
                         <thead className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-100 uppercase text-[10px] tracking-wider">
                             <tr>
@@ -394,6 +394,76 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Mobile List View */}
+                <div className="md:hidden divide-y divide-slate-100">
+                    {filteredLogs.map((log) => (
+                        <div key={log.id} className="p-4 bg-white active:bg-slate-50 transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${getLevelColor(log.log_level)}`}>
+                                    {log.log_level}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                    {new Date(log.created_at).toLocaleString('he-IL')}
+                                </span>
+                            </div>
+
+                            <div className="mb-2">
+                                <div className="text-sm font-bold text-slate-800">{log.event_type}</div>
+                                <div className="text-xs text-slate-600 line-clamp-2">{log.action_description}</div>
+                            </div>
+
+                            <div className="flex justify-between items-end mt-3">
+                                <div className="text-xs text-slate-500">
+                                    <span className="font-bold text-slate-700">{log.user_name || log.user_email || 'System'}</span>
+                                    {log.org_name && <span className="mx-1">• {log.org_name}</span>}
+                                </div>
+                                <button
+                                    onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
+                                    className="text-blue-600 text-xs font-bold bg-blue-50 px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
+                                >
+                                    {expandedRow === log.id ? 'סגור פרטים' : 'פרטים מלאים'}
+                                </button>
+                            </div>
+
+                            {/* Mobile Expanded Details */}
+                            {expandedRow === log.id && (
+                                <div className="mt-4 pt-4 border-t border-slate-100 space-y-4 animate-in fade-in slide-in-from-top-1">
+                                    <div className="grid grid-cols-2 gap-3 text-xs">
+                                        <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                                            <div className="text-slate-400 font-bold mb-1">Component</div>
+                                            {log.component_name || '-'}
+                                        </div>
+                                        <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                                            <div className="text-slate-400 font-bold mb-1">Entity</div>
+                                            {log.entity_type} {log.entity_id && `#${log.entity_id.slice(0, 4)}`}
+                                        </div>
+                                        <div className="bg-slate-50 p-2 rounded border border-slate-100 col-span-2">
+                                            <div className="text-slate-400 font-bold mb-1">Client</div>
+                                            {(log as any).ip_address || 'IP Unknown'} • {(log as any).device_type || 'Device Unknown'}
+                                        </div>
+                                    </div>
+                                    {(log.before_data || log.after_data) && (
+                                        <div className="rounded-lg border border-slate-200 overflow-hidden">
+                                            <div className="bg-slate-900 px-3 py-1 text-[10px] font-bold text-slate-400 tracking-wider">RAW DATA</div>
+                                            <div className="bg-slate-800 p-3 max-h-40 overflow-auto">
+                                                <pre className="text-[10px] font-mono text-emerald-400 leading-relaxed whitespace-pre-wrap word-break-all">
+                                                    {JSON.stringify({ before: log.before_data, after: log.after_data }, null, 2)}
+                                                </pre>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    {filteredLogs.length === 0 && (
+                        <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-2">
+                            <Search size={32} className="opacity-20" />
+                            <p className="font-medium text-sm">לא נמצאו לוגים</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
