@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, ClipboardList, Menu, LogOut, Clock, Settings, FileText, Shield, Dices, Mail, Anchor, Home, UserX, Package, Activity, HelpCircle } from 'lucide-react';
+import { Calendar, Users, ClipboardList, Menu, LogOut, Clock, Settings, FileText, Shield, Dices, Mail, Anchor, Home, UserX, Package, Activity, HelpCircle, Car } from 'lucide-react';
 import { ViewMode } from '@/types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { analytics } from '../../services/analytics';
@@ -152,6 +152,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                         </button>
                     )}
 
+
+
                     {checkAccess('stats') && (
                         <button
                             className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'stats'
@@ -191,6 +193,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                         >
                             <Package size={22} className={currentView === 'equipment' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>ניהול אמצעים (צלם)</span>
+                        </button>
+                    )}
+
+                    {checkAccess('gate') && (
+                        <button
+                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'gate'
+                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                            onClick={() => { setView('gate'); onClose() }}
+                        >
+                            <Car size={22} className={currentView === 'gate' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <span>ש.ג</span>
                         </button>
                     )}
 

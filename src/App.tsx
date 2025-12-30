@@ -21,6 +21,7 @@ const EquipmentManager = lazyWithRetry(() => import('./features/equipment/Equipm
 const ContactPage = lazyWithRetry(() => import('./features/core/ContactPage').then(module => ({ default: module.ContactPage })));
 const SystemManagementPage = lazyWithRetry(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
 const AccessibilityStatement = lazyWithRetry(() => import('./features/core/AccessibilityStatement').then(module => ({ default: module.AccessibilityStatement })));
+const GateDashboard = lazyWithRetry(() => import('./components/GateControl/GateDashboard').then(module => ({ default: module.GateDashboard })));
 
 
 
@@ -80,7 +81,7 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 const MainApp: React.FC = () => {
     const { organization, user, profile, checkAccess } = useAuth();
     const { showToast } = useToast();
-    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq'>(() => {
+    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq' | 'gate'>(() => {
         // Always start at home, but check for import wizard flag
         if (typeof window !== 'undefined') {
             const shouldOpenImport = localStorage.getItem('open_import_wizard');
@@ -1033,6 +1034,8 @@ const MainApp: React.FC = () => {
                         onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); setView('attendance'); }}
                     />
                 ) : <Navigate to="/" />;
+            case 'gate':
+                return <GateDashboard />;
             default:
                 return (
                     <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">

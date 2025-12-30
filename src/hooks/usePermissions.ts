@@ -10,7 +10,7 @@ export const usePermissions = () => {
     const canView = (screen: ViewMode): boolean => {
         if (!profile) return false;
         if (profile.is_super_admin) return true;
-        if (screen === 'home' || screen === 'contact') return true;
+        if (screen === 'home' || screen === 'contact' || screen === 'gate') return true;
 
         // Custom Permissions Check
         if (profile.permissions?.screens?.[screen]) {

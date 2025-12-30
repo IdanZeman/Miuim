@@ -10,6 +10,7 @@ export interface Organization {
   is_invite_link_active?: boolean;
   invite_link_role?: UserRole;
   invite_link_template_id?: string; // Links to permission_templates
+  battalion_id?: string;
 }
 
 export interface CustomFieldDefinition {
@@ -182,6 +183,7 @@ export interface UserPermissions {
   screens: Partial<Record<ViewMode, AccessLevel>>; // Per-screen access overrides
   canApproveRequests?: boolean;
   canManageRotaWizard?: boolean;
+  canManageGateAuthorized?: boolean;
 }
 
 export interface Profile {
@@ -242,7 +244,7 @@ export interface ContactMessage {
   updated_at?: string; // New column
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq';
+export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq' | 'gate';
 
 export interface DailyPresence {
   id?: string; // Optional for new entries

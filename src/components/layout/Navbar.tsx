@@ -3,7 +3,7 @@ import {
     Calendar, Users, ClipboardList, BarChart2, Menu, LogOut, Clock,
     Settings, FileText, Shield, Dices, Mail, Anchor, Home, UserX,
     Package, Activity, HelpCircle, ChevronDown, User as UserIcon,
-    LayoutDashboard, Briefcase, Database, UserCog
+    LayoutDashboard, Briefcase, Database, UserCog, Car
 } from 'lucide-react';
 import { ViewMode, Profile } from '../../types';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -300,12 +300,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                 </NavDropdown>
                             )}
 
+
+                            {/* Gate Control (Removed standalone) */}
+
                             {/* 4. Logistics Group */}
                             {checkAccess('equipment') && (
                                 <NavDropdown
                                     label="לוגיסטיקה"
                                     icon={Package}
-                                    isActive={['equipment'].includes(currentView || '')}
+                                    isActive={['equipment', 'gate'].includes(currentView || '')}
                                 >
                                     <DropdownItem
                                         label="רשימת ציוד"
@@ -313,6 +316,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                         active={currentView === 'equipment'}
                                         onClick={() => handleNav('equipment')}
                                     />
+                                    {checkAccess('gate') && (
+                                        <DropdownItem
+                                            label="ש.ג"
+                                            icon={Car}
+                                            active={currentView === 'gate'}
+                                            onClick={() => handleNav('gate')}
+                                        />
+                                    )}
                                 </NavDropdown>
                             )}
 

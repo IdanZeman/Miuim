@@ -112,6 +112,17 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
                         </div>
                         <input type="checkbox" className="w-5 h-5 rounded text-orange-600 focus:ring-orange-500" checked={!!permissions.canManageRotaWizard} onChange={(e) => setPermissions(p => ({ ...p, canManageRotaWizard: e.target.checked }))} />
                     </label>
+
+                    <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${permissions.canManageGateAuthorized ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-300'}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${permissions.canManageGateAuthorized ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                            <Shield size={20} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="font-bold text-slate-800 text-sm">ניהול רכבים מורשים (ש.ג)</div>
+                            <div className="text-[10px] text-slate-500">יכולת לערוך את רשימת הרכבים המורשים לכניסה</div>
+                        </div>
+                        <input type="checkbox" className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500" checked={!!permissions.canManageGateAuthorized} onChange={(e) => setPermissions(p => ({ ...p, canManageGateAuthorized: e.target.checked }))} />
+                    </label>
                 </div>
             </section>
 
