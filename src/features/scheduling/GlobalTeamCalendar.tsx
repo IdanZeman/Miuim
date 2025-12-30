@@ -44,7 +44,7 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
         const days = [];
         // Empty slots
         for (let i = 0; i < firstDay; i++) {
-            days.push(<div key={`empty-${i}`} className="min-h-[80px] md:min-h-[100px] bg-slate-50/30 border-b border-r border-slate-100 last:border-r-0 transform-gpu" />);
+            days.push(<div key={`empty-${i}`} className="min-h-[100px] md:min-h-[120px] bg-slate-50/20 border-b border-r border-slate-100 last:border-r-0" />);
         }
 
         // Days
@@ -81,34 +81,27 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
                     key={d}
                     onClick={() => onDateClick(date)}
                     className={`
-                        min-h-[80px] md:min-h-[120px] 
+                        min-h-[100px] md:min-h-[140px] 
                         border-b border-r border-slate-100 last:border-r-0 
-                        relative p-2 md:p-3
+                        relative p-3 md:p-4
                         transition-all active:scale-[0.98] cursor-pointer 
-                        flex flex-col items-start justify-between
+                        flex flex-col items-center justify-center gap-1
                         ${bgClass}
                     `}
                 >
                     {/* Date Number */}
-                    <span className={`text-xl md:text-2xl font-bold leading-none ${dateColorClass} ${isToday ? 'bg-blue-100 px-2 py-0.5 rounded-full' : ''}`}>
+                    <span className={`text-2xl md:text-3xl font-black ${dateColorClass} ${isToday ? 'bg-blue-600 text-white w-9 h-9 md:w-12 md:h-12 flex items-center justify-center rounded-full shadow-lg shadow-blue-200' : ''}`}>
                         {d}
                     </span>
 
-                    {/* Percentage Indicator - Visible on Mobile too now */}
-                    <div className="flex flex-col items-center w-full mt-1 md:mt-2">
-                        <span className={`text-xs md:text-lg font-black ${percentage >= 80 ? 'text-emerald-700' : percentage >= 50 ? 'text-amber-700' : 'text-red-700'}`}>
+                    {/* Percentage Indicator */}
+                    <div className="flex flex-col items-center">
+                        <span className={`text-sm md:text-xl font-black ${percentage >= 80 ? 'text-emerald-700' : percentage >= 50 ? 'text-amber-700' : 'text-red-700'}`}>
                             {percentage}%
                         </span>
-                        <span className="hidden md:inline text-xs text-slate-400 font-medium">
-                            {presentPeople}/{totalPeople}
+                        <span className="hidden md:inline text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                            {presentPeople}/{totalPeople} נוכחים
                         </span>
-                    </div>
-
-                    {/* Mobile Indicators (Dots/Minimal) */}
-                    <div className="md:hidden flex items-center justify-end w-full gap-1 mt-1">
-                        {/* Maybe a small dot if there are constraints/notes? */}
-                        {/* We use background color as primary indicator. */}
-                        {/* Show small People Icon if full? No, too cluttered. */}
                     </div>
                 </div>
             );

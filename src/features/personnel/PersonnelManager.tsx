@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, ChevronDown, ChevronLeft, User, Users, Shield, Pencil, Trash2, FileSpreadsheet, X, Check, Download, Archive, AlertTriangle, Loader2, Filter, ArrowUpDown, ArrowDownAZ, ArrowUpZA, Layers, LayoutList, MoreVertical } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronLeft, User, Users, Shield, Pencil, Mail, Activity, Trash2, FileSpreadsheet, X, Check, Download, Archive, AlertTriangle, Loader2, Filter, ArrowUpDown, ArrowDownAZ, ArrowUpZA, Layers, LayoutList, MoreVertical } from 'lucide-react';
 import { Person, Team, Role } from '../../types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -120,6 +120,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     // Generic Items (Team/Role)
     const [newItemName, setNewItemName] = useState('');
     const [newItemColor, setNewItemColor] = useState('border-slate-500'); // Default for teams
+    const [newItemIcon, setNewItemIcon] = useState('Shield'); // NEW: For roles
 
     // NEW: Bulk Selection
     const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
@@ -249,6 +250,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setNewIsCommander(false);
         setTempCustomKey('');
         setNewItemName('');
+        setNewItemIcon('Shield');
     };
 
     // -- Handlers --
@@ -276,6 +278,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setEditingRoleId(role.id);
         setNewItemName(role.name);
         setNewItemColor(role.color);
+        setNewItemIcon(role.icon || 'Shield');
         setIsModalOpen(true);
     };
 
@@ -489,7 +492,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         }
         else if (activeTab === 'roles') {
             if (!newItemName.trim()) { showToast('נא להזין שם תפקיד', 'error'); return; }
-            const roleData = { name: newItemName, color: newItemColor };
+            const roleData = { name: newItemName, color: newItemColor, icon: newItemIcon };
 
             setIsSaving(true);
             try {
@@ -532,66 +535,86 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             return (
                 <div className="space-y-6">
                     {/* 1. Essential Info Group */}
-                    <div className="space-y-2">
-                        <h3 className="text-xs font-bold text-slate-500 px-2">פרטים אישיים</h3>
-                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                    <div className="space-y-3">
+                        <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">פרטים אישיים</h3>
+                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden divide-y divide-slate-100">
                             {/* Name */}
-                            <div className="flex items-center px-4 py-3">
-                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">שם מלא</div>
-                                <input
-                                    value={newName}
-                                    onChange={e => setNewName(e.target.value)}
-                                    placeholder="ישראל ישראלי"
-                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right placeholder:text-slate-300 h-full w-full"
-                                />
+                            <div className="flex items-center px-5 py-4 group">
+                                <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
+                                    <User size={18} strokeWidth={2.5} />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">שם מלא</label>
+                                    <input
+                                        value={newName}
+                                        onChange={e => setNewName(e.target.value)}
+                                        placeholder="ישראל ישראלי"
+                                        className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300"
+                                    />
+                                </div>
                             </div>
                             {/* Phone */}
-                            <div className="flex items-center px-4 py-3">
-                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">טלפון</div>
-                                <input
-                                    value={newPhone}
-                                    onChange={e => setNewPhone(e.target.value)}
-                                    placeholder="050-0000000"
-                                    type="tel"
-                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right placeholder:text-slate-300 h-full w-full"
-                                    dir="ltr"
-                                />
+                            <div className="flex items-center px-5 py-4 group">
+                                <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
+                                    <div className="text-sm font-black">#</div>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">טלפון</label>
+                                    <input
+                                        value={newPhone}
+                                        onChange={e => setNewPhone(e.target.value)}
+                                        placeholder="050-0000000"
+                                        type="tel"
+                                        className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300"
+                                        dir="ltr"
+                                    />
+                                </div>
                             </div>
                             {/* Email */}
-                            <div className="flex items-center px-4 py-3">
-                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">אימייל</div>
-                                <input
-                                    value={newEmail}
-                                    onChange={e => setNewEmail(e.target.value)}
-                                    placeholder="email@example.com"
-                                    type="email"
-                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right placeholder:text-slate-300 h-full w-full"
-                                    dir="ltr"
-                                />
+                            <div className="flex items-center px-5 py-4 group">
+                                <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
+                                    <Mail size={18} strokeWidth={2.5} />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">אימייל</label>
+                                    <input
+                                        value={newEmail}
+                                        onChange={e => setNewEmail(e.target.value)}
+                                        placeholder="email@example.com"
+                                        type="email"
+                                        className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300"
+                                        dir="ltr"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* 2. Team & Status Group */}
-                    <div className="space-y-2">
-                        <h3 className="text-xs font-bold text-slate-500 px-2">שיוך וסטטוס</h3>
-                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                    <div className="space-y-3">
+                        <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">שיוך וסטטוס</h3>
+                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden divide-y divide-slate-100">
                             {/* Team Selector */}
-                            <div className="flex items-center justify-between px-4 py-3 bg-white relative">
-                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">צוות</div>
-                                <Select
-                                    value={newTeamId}
-                                    onChange={(val) => setNewTeamId(val)}
-                                    options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                    placeholder="בחר צוות"
-                                    className="bg-transparent border-none shadow-none hover:bg-slate-50 pr-0"
-                                    containerClassName="flex-1"
-                                />
+                            <div className="flex items-center px-5 py-4 group bg-white relative">
+                                <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
+                                    <Users size={18} strokeWidth={2.5} />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">צוות</label>
+                                    <Select
+                                        value={newTeamId}
+                                        onChange={(val) => setNewTeamId(val)}
+                                        options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                        placeholder="בחר צוות"
+                                        className="bg-transparent border-none shadow-none hover:bg-slate-50 pr-0 h-auto py-0 font-bold text-base"
+                                        containerClassName="w-full"
+                                    />
+                                </div>
                             </div>
 
                             {/* Active Status */}
                             <div
-                                className="flex items-center justify-between px-4 py-3 cursor-pointer"
+                                className="flex items-center justify-between px-5 py-4 cursor-pointer active:bg-slate-50 transition-colors"
                                 onClick={() => setNewItemActive(!newItemActive)}
                                 role="switch"
                                 aria-checked={newItemActive}
@@ -599,40 +622,54 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 tabIndex={0}
                                 onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setNewItemActive(!newItemActive); } }}
                             >
-                                <div className="font-bold text-slate-700 text-sm">סטטוס פעיל</div>
-                                <div className={`w-12 h-7 rounded-full transition-colors relative ${newItemActive ? 'bg-green-500' : 'bg-slate-200'}`}>
-                                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${newItemActive ? 'left-1' : 'left-6'}`} />
+                                <div className="flex items-center">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ml-4 transition-colors ${newItemActive ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-400'}`}>
+                                        <Activity size={18} strokeWidth={2.5} />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-black text-slate-900">סטטוס פעיל</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase">מופיע בחיפושים ושיבוצים</div>
+                                    </div>
+                                </div>
+                                <div className={`w-12 h-6 rounded-full transition-all relative ${newItemActive ? 'bg-green-500' : 'bg-slate-200'}`}>
+                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${newItemActive ? 'left-1' : 'left-7'}`} />
                                 </div>
                             </div>
 
-                            {/* Commander Status */}
+                            {/* Commander Toggle */}
                             <div
-                                className="flex items-center justify-between px-4 py-3 cursor-pointer"
+                                className="flex items-center justify-between px-5 py-4 cursor-pointer active:bg-slate-50 transition-colors"
                                 onClick={() => setNewIsCommander(!newIsCommander)}
                                 role="switch"
                                 aria-checked={newIsCommander}
-                                aria-label="מפקד צוות"
+                                aria-label="מפקד"
                                 tabIndex={0}
                                 onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setNewIsCommander(!newIsCommander); } }}
                             >
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-slate-700 text-sm">מפקד צוות</span>
-                                    <span className="text-[10px] text-slate-400">הגדר סמכות פיקודית</span>
+                                <div className="flex items-center">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ml-4 transition-colors ${newIsCommander ? 'bg-yellow-50 text-yellow-600' : 'bg-slate-50 text-slate-400'}`}>
+                                        <Shield size={18} strokeWidth={2.5} />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-black text-slate-900">מפקד</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase">הרשאות ניהול והובלה</div>
+                                    </div>
                                 </div>
-                                <div className={`w-12 h-7 rounded-full transition-colors relative ${newIsCommander ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-                                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${newIsCommander ? 'left-1' : 'left-6'}`} />
+                                <div className={`w-12 h-6 rounded-full transition-all relative ${newIsCommander ? 'bg-yellow-400' : 'bg-slate-200'}`}>
+                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${newIsCommander ? 'left-1' : 'left-7'}`} />
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* 3. Roles Group (Chips) */}
-                    <div className="space-y-2">
-                        <h3 className="text-xs font-bold text-slate-500 px-2">תפקידים והכשרות</h3>
-                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                            <div className="flex flex-wrap gap-2">
+                    {/* 3. Roles Group */}
+                    <div className="space-y-3">
+                        <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">תפקידים והכשרות</h3>
+                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5">
+                            <div className="flex flex-wrap gap-2.5">
                                 {roles.map(role => {
                                     const isSelected = newRoleIds.includes(role.id);
+                                    const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
                                     return (
                                         <button
                                             key={role.id}
@@ -640,54 +677,62 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                 if (isSelected) setNewRoleIds(newRoleIds.filter(id => id !== role.id));
                                                 else setNewRoleIds([...newRoleIds, role.id]);
                                             }}
-                                            className={`h-10 px-4 rounded-xl text-sm border-2 transition-all flex items-center gap-2 ${isSelected
-                                                ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-sm'
-                                                : 'bg-white border-slate-100 text-slate-600 hover:border-slate-300'
+                                            className={`h-11 px-4 rounded-2xl text-xs font-black border-2 transition-all flex items-center gap-2.5 active:scale-95 ${isSelected
+                                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-md shadow-indigo-100'
+                                                : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'
                                                 }`}
                                         >
-                                            {role.icon && ROLE_ICONS[role.icon] && React.createElement(ROLE_ICONS[role.icon], { size: 16, className: isSelected ? 'text-blue-500' : 'text-slate-400' })}
+                                            <Icon size={16} strokeWidth={isSelected ? 3 : 2} className={isSelected ? 'text-indigo-600' : 'text-slate-400'} />
                                             {role.name}
                                         </button>
                                     );
                                 })}
                             </div>
+                            {roles.length === 0 && (
+                                <p className="text-xs font-bold text-slate-400 text-center py-4">אין תפקידים מוגדרים במערכת</p>
+                            )}
                         </div>
                     </div>
 
                     {/* 4. Custom Fields Group */}
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between px-2">
-                            <h3 className="text-xs font-bold text-slate-500">נתונים נוספים</h3>
-                        </div>
-
-                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+                    <div className="space-y-3">
+                        <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">נתונים נוספים</h3>
+                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden divide-y divide-slate-100">
                             {Object.entries(newCustomFields || {}).map(([key, value]) => (
-                                <div key={key} className="flex items-center px-4 py-3 group">
-                                    <div className="w-1/3 shrink-0 font-bold text-slate-700 text-sm truncate" title={key}>{key}</div>
-                                    <input
-                                        value={value}
-                                        onChange={(e) => setNewCustomFields({ ...newCustomFields, [key]: e.target.value })}
-                                        className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right placeholder:text-slate-300 h-full"
-                                    />
+                                <div key={key} className="flex items-center px-5 py-4 group bg-white">
+                                    <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
+                                        <Layers size={18} strokeWidth={2.5} />
+                                    </div>
+                                    <div className="flex-1 min-w-0 mr-1">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5 truncate">{key}</label>
+                                        <input
+                                            value={value}
+                                            onChange={(e) => setNewCustomFields({ ...newCustomFields, [key]: e.target.value })}
+                                            className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300"
+                                        />
+                                    </div>
                                     <button onClick={() => {
                                         const next = { ...newCustomFields };
                                         delete next[key];
                                         setNewCustomFields(next);
-                                    }} className="mr-2 text-slate-300 hover:text-red-500">
-                                        <X size={16} />
+                                    }} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                        <X size={20} strokeWidth={2.5} />
                                     </button>
                                 </div>
                             ))}
 
-                            {/* Simple Add Field Row */}
-                            <div className="flex items-center px-4 py-3 bg-slate-50">
-                                <div className="flex-1 relative">
+                            {/* Add Field Row */}
+                            <div className="flex items-center px-5 py-4 bg-slate-50/50">
+                                <div className="w-10 h-10 rounded-xl bg-white text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 ml-4 shadow-sm">
+                                    <Plus size={20} strokeWidth={3} />
+                                </div>
+                                <div className="flex-1">
                                     <input
                                         value={tempCustomKey}
                                         onChange={(e) => setTempCustomKey(e.target.value)}
-                                        placeholder="הוסף שדה חדש..."
+                                        placeholder="שדה חדש (לדוג: דת, מצב משפחתי...)"
                                         list="custom-hits-sheet"
-                                        className="w-full bg-transparent text-sm font-medium outline-none text-slate-700 placeholder:text-slate-400"
+                                        className="w-full bg-transparent text-sm font-black outline-none text-slate-700 placeholder:text-slate-400"
                                     />
                                     <datalist id="custom-hits-sheet">
                                         {Array.from(new Set(people.flatMap(p => Object.keys(p.customFields || {})))).map(k => (
@@ -704,9 +749,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         }
                                     }}
                                     disabled={!tempCustomKey}
-                                    className="bg-white border border-slate-200 text-slate-600 rounded-lg p-1.5 shadow-sm hover:text-blue-600 hover:border-blue-200 disabled:opacity-50"
+                                    className="bg-indigo-600 text-white rounded-xl px-4 py-2 text-xs font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 disabled:shadow-none transition-all"
                                 >
-                                    <Plus size={18} />
+                                    הוסף
                                 </button>
                             </div>
                         </div>
@@ -717,53 +762,138 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         }
 
         return (
-            <div className="space-y-4">
-                <Input
-                    label={`שם ${activeTab === 'teams' ? 'הצוות' : 'התפקיד'}`}
-                    value={newItemName}
-                    onChange={e => setNewItemName(e.target.value)}
-                />
-
-                <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">צבע</label>
-                    <div className="flex flex-wrap gap-3">
-                        {[
-                            { value: 'border-red-500', bg: 'bg-red-500' },
-                            { value: 'border-orange-500', bg: 'bg-orange-500' },
-                            { value: 'border-yellow-500', bg: 'bg-yellow-500' },
-                            { value: 'border-green-500', bg: 'bg-green-500' },
-                            { value: 'border-teal-500', bg: 'bg-teal-500' },
-                            { value: 'border-blue-500', bg: 'bg-blue-500' },
-                            { value: 'border-indigo-500', bg: 'bg-indigo-500' },
-                            { value: 'border-purple-500', bg: 'bg-purple-500' },
-                            { value: 'border-pink-500', bg: 'bg-pink-500' },
-                            { value: 'border-slate-500', bg: 'bg-slate-500' },
-                        ].map((color) => (
-                            <button
-                                key={color.value}
-                                onClick={() => setNewItemColor(color.value)}
-                                className={`w-8 h-8 rounded-full ${color.bg} transition-transform hover:scale-110 flex items-center justify-center ${newItemColor === color.value ? 'ring-2 ring-offset-2 ring-slate-900 scale-110' : ''}`}
-                            >
-                                {newItemColor === color.value && <Check size={14} className="text-white" />}
-                            </button>
-                        ))}
+            <div className="space-y-6">
+                <div className="space-y-3">
+                    <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">מידע כללי</h3>
+                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden p-1">
+                        <Input
+                            placeholder={`שם ${activeTab === 'teams' ? 'הצוות' : 'התפקיד'}`}
+                            value={newItemName}
+                            onChange={e => setNewItemName(e.target.value)}
+                            className="bg-transparent border-none shadow-none h-14 font-black text-lg"
+                        />
                     </div>
                 </div>
 
-                {/* Footer moved to prop */}
+                <div className="space-y-3">
+                    <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">בחירת צבע</h3>
+                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5">
+                        <div className="flex flex-wrap gap-4 justify-center">
+                            {[
+                                { value: 'border-red-500', bg: 'bg-red-500' },
+                                { value: 'border-orange-500', bg: 'bg-orange-500' },
+                                { value: 'border-yellow-500', bg: 'bg-yellow-500' },
+                                { value: 'border-green-500', bg: 'bg-green-500' },
+                                { value: 'border-teal-500', bg: 'bg-teal-500' },
+                                { value: 'border-blue-500', bg: 'bg-blue-500' },
+                                { value: 'border-indigo-500', bg: 'bg-indigo-500' },
+                                { value: 'border-purple-500', bg: 'bg-purple-500' },
+                                { value: 'border-pink-500', bg: 'bg-pink-500' },
+                                { value: 'border-slate-500', bg: 'bg-slate-500' },
+                            ].map((color) => (
+                                <button
+                                    key={color.value}
+                                    onClick={() => setNewItemColor(color.value)}
+                                    className={`w-10 h-10 rounded-2xl ${color.bg} transition-all hover:scale-110 flex items-center justify-center active:scale-90 ${newItemColor === color.value ? 'ring-4 ring-offset-2 ring-indigo-500/20 shadow-lg scale-110' : 'opacity-80'}`}
+                                >
+                                    {newItemColor === color.value && <Check size={20} className="text-white" strokeWidth={3} />}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {activeTab === 'roles' && (
+                    <div className="space-y-3">
+                        <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">בחירת אייקון</h3>
+                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5">
+                            <div className="grid grid-cols-5 gap-4">
+                                {Object.entries(ROLE_ICONS).map(([key, Icon]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setNewItemIcon(key)}
+                                        className={`h-12 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${newItemIcon === key
+                                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-110'
+                                            : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                                            }`}
+                                    >
+                                        <Icon size={24} strokeWidth={2.5} />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                <div className="h-4" />
             </div>
         );
     };
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-0 md:p-6 min-h-[600px] relative overflow-hidden">
-            {/* Sticky Header Container */}
-            {/* Sticky Header Container */}
-            {/* Sticky Header Container */}
-            {/* Sticky Header Container */}
-            <div className="sticky top-0 bg-white z-40 pb-3 border-b border-slate-100 mb-0 px-4 md:px-0 pt-4 transition-all shadow-sm space-y-3">
-                <div className="flex items-center gap-2 mb-2 md:hidden">
-                    <h2 className="text-xl font-bold text-slate-800">ניהול כוח אדם</h2>
+        <div className="bg-slate-50 md:bg-white rounded-[2rem] shadow-xl md:shadow-portal border md:border-slate-100 p-0 md:p-6 min-h-[600px] relative overflow-hidden">
+            {/* Premium Mobile Header - Glassmorphism */}
+            <div className="md:hidden sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 px-5 pt-6 pb-4 space-y-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">ניהול כוח אדם</h2>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">ניהול יחידתי וסד״כ</span>
+                    </div>
+                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm shadow-indigo-100/50">
+                        <Users size={22} strokeWidth={2.5} />
+                    </div>
+                </div>
+
+                {/* Mobile Segmented Control */}
+                <div className="flex p-1.5 bg-slate-200/50 rounded-2xl gap-1">
+                    {(['people', 'teams', 'roles'] as const).map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`flex-1 py-2 rounded-[0.875rem] text-xs font-black transition-all duration-300 ${activeTab === tab
+                                ? 'bg-white text-slate-900 shadow-md shadow-slate-200/50 scale-[1.02]'
+                                : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                        >
+                            {tab === 'people' && 'חיילים'}
+                            {tab === 'teams' && 'צוותים'}
+                            {tab === 'roles' && 'תפקידים'}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Mobile Search & Filter Toolbar */}
+                <div className="flex items-center gap-3">
+                    <div className="flex-1 relative">
+                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
+                            <Search size={18} strokeWidth={2.5} />
+                        </div>
+                        <input
+                            placeholder={`חפש ${activeTab === 'people' ? 'חייל' : activeTab === 'teams' ? 'צוות' : 'תפקיד'}...`}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="block w-full h-11 pr-12 pl-4 bg-slate-100/60 border border-transparent rounded-[1.25rem] text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`h-11 w-11 rounded-[1.25rem] border border-slate-200 transition-all flex items-center justify-center shrink-0 ${showFilters ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-white text-slate-500'}`}
+                    >
+                        <Filter size={18} strokeWidth={showFilters ? 3 : 2.5} />
+                    </button>
+                    <button
+                        onClick={() => setShowMoreMenu(!showMoreMenu)}
+                        className={`h-11 w-11 rounded-[1.25rem] border border-slate-200 bg-white text-slate-500 flex items-center justify-center transition-all ${showMoreMenu ? 'ring-2 ring-indigo-500/50' : ''}`}
+                    >
+                        <MoreVertical size={18} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Desktop Header Container (Hidden on Mobile) */}
+            <div className="hidden md:flex sticky top-0 bg-white/95 backdrop-blur-md z-40 py-4 border-b border-slate-100 mb-0 px-6 transition-all shadow-sm items-center gap-8">
+                {/* 1. Title Area */}
+                <div className="flex items-center gap-3 shrink-0">
+                    <h2 className="text-xl font-black text-slate-800 tracking-tight">ניהול כוח אדם</h2>
                     <PageInfo
                         title="ניהול כוח אדם"
                         description={
@@ -771,55 +901,50 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 <p className="mb-2">כאן מנהלים את האנשים, הצוותים והתפקידים ביחידה.</p>
                                 <ul className="list-disc list-inside space-y-1 mb-2 text-right">
                                     <li><b>חיילים:</b> הוספה, עריכה, ומחיקה של אנשי צוות.</li>
-                                    <li><b>צוותים:</b> חלוקה לצוותים אורגניים.</li>
-                                    <li><b>תפקידים:</b> הגדרת הסמכות ומקצועות.</li>
+                                    <li><b>צוותים:</b> הוספה ועריכה.</li>
+                                    <li><b>תפקידים:</b> הגדרת פקלים הסמכות ומקצועות.</li>
                                 </ul>
-                                <p className="text-sm bg-blue-50 p-2 rounded text-blue-800">
-                                    <b>טיפ:</b> הקפידו שפרטי הקשר מעודכנים כדי שהמערכת תוכל לשלוח הודעות בצורה תקינה.
-                                </p>
                             </>
                         }
                     />
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-3 md:items-center justify-between">
-                    <div className="hidden md:flex items-center gap-2 mr-2">
-                        <h2 className="text-xl font-bold text-slate-800">ניהול כוח אדם</h2>
-                        <PageInfo
-                            title="ניהול כוח אדם"
-                            description={
-                                <>
-                                    <p className="mb-2">כאן מנהלים את האנשים, הצוותים והתפקידים ביחידה.</p>
-                                    <ul className="list-disc list-inside space-y-1 mb-2 text-right">
-                                        <li><b>חיילים:</b> הוספה, עריכה, ומחיקה של אנשי צוות.</li>
-                                        <li><b>צוותים:</b> הוספה ועריכה.</li>
-                                        <li><b>תפקידים:</b> הגדרת פקלים הסמכות ומקצועות.</li>
-                                    </ul>
-                                </>
-                            }
+                {/* 2. Tabs Segmented Control */}
+                <div className="flex p-1 bg-slate-100 rounded-xl shrink-0">
+                    {(['people', 'teams', 'roles'] as const).map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`px-6 py-2 rounded-lg text-sm font-black transition-all whitespace-nowrap ${activeTab === tab
+                                ? 'bg-white text-slate-900 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'
+                                }`}
+                        >
+                            {tab === 'people' && 'חיילים'}
+                            {tab === 'teams' && 'צוותים'}
+                            {tab === 'roles' && 'תפקידים'}
+                        </button>
+                    ))}
+                </div>
+
+                {/* 3. Search & Actions Toolbar */}
+                <div className="flex items-center gap-3 flex-1 justify-end">
+                    {/* Premium Search Bar */}
+                    <div className="flex-1 relative group max-w-sm">
+                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none transition-colors group-focus-within:text-indigo-600 text-slate-400">
+                            <Search size={18} strokeWidth={2.5} />
+                        </div>
+                        <input
+                            placeholder={activeTab === 'people' ? "חפש חייל..." : activeTab === 'teams' ? "חפש צוות..." : "חפש תפקיד..."}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="block w-full h-11 pr-12 pl-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm"
                         />
                     </div>
-                    {/* Tabs Segmented Control */}
-                    <div className="flex p-1 bg-slate-100 rounded-lg w-full md:w-auto shrink-0 order-2 md:order-1 overflow-x-auto no-scrollbar">
-                        {(['people', 'teams', 'roles'] as const).map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab
-                                    ? 'bg-white text-slate-900 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                                    }`}
-                            >
-                                {tab === 'people' && 'חיילים'}
-                                {tab === 'teams' && 'צוותים'}
-                                {tab === 'roles' && 'תפקידים'}
-                            </button>
-                        ))}
-                    </div>
 
-                    {/* Search & Actions */}
-                    <div className="flex items-center gap-2 w-full md:w-auto flex-1 md:max-w-md order-1 md:order-2">
-                        {/* Desktop Add Button */}
+                    {/* Action Buttons Group */}
+                    <div className="flex items-center gap-2">
+                        {/* Add Button */}
                         {canEdit && (
                             <Button
                                 onClick={() => {
@@ -830,50 +955,46 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                     }
                                     setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
                                 }}
-                                className="hidden md:flex shrink-0"
-                                icon={Plus}
-                                variant="primary"
+                                className="shrink-0 flex items-center gap-2 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 font-black px-5 border-none"
                             >
-                                {activeTab === 'people' ? 'הוסף חייל' : activeTab === 'teams' ? 'הוסף צוות' : 'הוסף תפקיד'}
+                                <Plus size={20} strokeWidth={2.5} />
+                                <span>{activeTab === 'people' ? 'הוסף חייל' : activeTab === 'teams' ? 'הוסף צוות' : 'הוסף תפקיד'}</span>
                             </Button>
                         )}
-                        {/* Search Bar */}
-                        <div className="flex-1 relative">
-                            <Input
-                                icon={Search}
-                                placeholder={activeTab === 'people' ? "חפש חייל..." : activeTab === 'teams' ? "חפש צוות..." : "חפש תפקיד..."}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full h-[40px] bg-slate-50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-idf-olive/20"
-                            />
-                        </div>
 
                         {/* Filter Button */}
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`h-[40px] w-[40px] rounded-lg border border-slate-200 transition-colors flex items-center justify-center shrink-0 ${showFilters ? 'bg-idf-yellow text-slate-900 border-idf-yellow' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                            className={`h-11 w-11 rounded-xl border border-slate-200 transition-all flex items-center justify-center shrink-0 ${showFilters ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
                         >
-                            <Filter size={20} />
+                            <Filter size={20} strokeWidth={showFilters ? 3 : 2} />
+                        </button>
+
+                        {/* Sort Button */}
+                        <button
+                            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                            className="h-11 w-11 rounded-xl border border-slate-200 bg-white text-slate-500 flex items-center justify-center transition-colors hover:bg-slate-50"
+                            title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
+                        >
+                            {sortOrder === 'asc' ? <ArrowDownAZ size={20} /> : <ArrowUpZA size={20} />}
                         </button>
 
                         {/* Bulk Delete Action */}
                         {canEdit && selectedItemIds.size > 0 && (
                             <button
                                 onClick={handleBulkDelete}
-                                className="h-[40px] px-3 rounded-lg bg-red-50 text-red-600 border border-red-100 flex items-center gap-2 font-bold text-sm hover:bg-red-100 animate-in fade-in zoom-in duration-200"
+                                className="h-11 px-4 rounded-xl bg-red-50 text-red-600 border border-red-100 flex items-center gap-2 font-black text-sm hover:bg-red-100 animate-in fade-in zoom-in duration-200"
                             >
-                                <Trash2 size={16} />
-                                <span className="hidden md:inline">מחק ({selectedItemIds.size})</span>
-                                <span className="md:hidden">({selectedItemIds.size})</span>
+                                <Trash2 size={18} />
+                                <span>מחק ({selectedItemIds.size})</span>
                             </button>
                         )}
-
 
                         {/* Kebab Menu */}
                         <div className="relative">
                             <button
                                 onClick={() => setShowMoreMenu(!showMoreMenu)}
-                                className="h-[40px] w-[40px] rounded-lg border border-slate-200 bg-white text-slate-500 flex items-center justify-center transition-colors hover:bg-slate-50"
+                                className="h-11 w-11 rounded-xl border border-slate-200 bg-white text-slate-500 flex items-center justify-center transition-colors hover:bg-slate-50"
                             >
                                 <MoreVertical size={20} />
                             </button>
@@ -881,25 +1002,31 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             {showMoreMenu && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
-                                    <div className="absolute top-12 left-0 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden py-1 animate-in fade-in zoom-in duration-200">
+                                    <div className="absolute top-12 left-0 w-52 bg-white rounded-3xl shadow-2xl border border-slate-100 z-50 overflow-hidden py-2 animate-in fade-in zoom-in duration-200 ring-1 ring-slate-200/50">
                                         {activeTab === 'people' && canEdit && (
-                                            <button onClick={() => { setIsImportWizardOpen(true); setShowMoreMenu(false); }} className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
-                                                <FileSpreadsheet size={16} /> ייבוא מאקסל
+                                            <button onClick={() => { setIsImportWizardOpen(true); setShowMoreMenu(false); }} className="w-full text-right px-4 py-3.5 hover:bg-slate-50 text-[13px] font-black flex items-center gap-3 text-slate-700 transition-colors">
+                                                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                                    <FileSpreadsheet size={16} strokeWidth={2.5} />
+                                                </div>
+                                                ייבוא מאקסל
                                             </button>
                                         )}
                                         {canEdit && (
-                                            <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-4 py-2.5 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700">
-                                                <Download size={16} /> ייצוא
+                                            <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-4 py-3.5 hover:bg-slate-50 text-[13px] font-black flex items-center gap-3 text-slate-700 transition-colors">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                                                    <Download size={16} strokeWidth={2.5} />
+                                                </div>
+                                                ייצוא נתונים
                                             </button>
                                         )}
-                                        <div className="px-4 py-2.5 border-t border-slate-50 flex items-center justify-between">
-                                            <span className="text-sm font-medium text-slate-700">הצג לא פעילים</span>
-                                            <input
-                                                type="checkbox"
-                                                checked={showInactive}
-                                                onChange={(e) => setShowInactive(e.target.checked)}
-                                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                                            />
+                                        <div className="px-5 py-4 border-t border-slate-50 flex items-center justify-between">
+                                            <span className="text-[13px] font-black text-slate-700">הצג לא פעילים</span>
+                                            <div
+                                                onClick={() => setShowInactive(!showInactive)}
+                                                className={`w-11 h-6 rounded-full transition-all relative cursor-pointer ${showInactive ? 'bg-indigo-500' : 'bg-slate-200'}`}
+                                            >
+                                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showInactive ? 'left-1' : 'left-6'}`} />
+                                            </div>
                                         </div>
                                     </div>
                                 </>
@@ -907,34 +1034,121 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Filters Panel */}
-                {showFilters && (
-                    <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-100 grid grid-cols-2 gap-2 animate-in slide-in-from-top-1 fade-in duration-200">
+            {/* SHARED: Mobile Overlays for Filters and More Menu (Fixed for Mobile Bug) */}
+            {typeof document !== 'undefined' && (
+                <>
+                    {/* More Menu Sheet */}
+                    {showMoreMenu && createPortal(
+                        <>
+                            <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm" onClick={() => setShowMoreMenu(false)} />
+                            <div className="fixed bottom-0 inset-x-0 z-[101] bg-white rounded-t-[2.5rem] shadow-2xl p-6 pb-20 animate-in slide-in-from-bottom duration-300">
+                                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
+                                <h3 className="text-xl font-black text-slate-900 mb-6 text-center">אפשרויות נוספות</h3>
+                                <div className="space-y-3">
+                                    {activeTab === 'people' && canEdit && (
+                                        <button onClick={() => { setIsImportWizardOpen(true); setShowMoreMenu(false); }} className="w-full text-right px-5 py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-sm font-black flex items-center gap-4 text-slate-700 transition-colors">
+                                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                                <FileSpreadsheet size={20} strokeWidth={2.5} />
+                                            </div>
+                                            ייבוא מאקסל
+                                        </button>
+                                    )}
+                                    {canEdit && (
+                                        <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-5 py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-sm font-black flex items-center gap-4 text-slate-700 transition-colors">
+                                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                                <Download size={20} strokeWidth={2.5} />
+                                            </div>
+                                            ייצוא נתונים
+                                        </button>
+                                    )}
+                                    <div className="px-5 py-4 bg-slate-50 rounded-2xl flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+                                                <X size={20} strokeWidth={2.5} />
+                                            </div>
+                                            <span className="text-sm font-black text-slate-700">הצג לא פעילים</span>
+                                        </div>
+                                        <div
+                                            onClick={() => setShowInactive(!showInactive)}
+                                            className={`w-12 h-6 rounded-full transition-all relative cursor-pointer ${showInactive ? 'bg-indigo-500' : 'bg-slate-200'}`}
+                                        >
+                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showInactive ? 'left-1' : 'left-7'}`} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <Button onClick={() => setShowMoreMenu(false)} className="w-full mt-6 h-14 rounded-2xl font-black text-lg">סגור</Button>
+                            </div>
+                        </>,
+                        document.body
+                    )}
+
+                    {/* Filter Sheet */}
+                    {showFilters && createPortal(
+                        <>
+                            <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
+                            <div className="fixed bottom-0 inset-x-0 z-[101] bg-white rounded-t-[2.5rem] shadow-2xl p-6 pb-20 animate-in slide-in-from-bottom duration-300">
+                                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
+                                <h3 className="text-xl font-black text-slate-900 mb-6 text-center">סינון ותצוגה</h3>
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">סינון לפי צוות</label>
+                                        <Select
+                                            value={filterTeamId}
+                                            onChange={(val) => setFilterTeamId(val)}
+                                            options={[{ value: 'all', label: 'כל הצוותים' }, { value: 'no-team', label: 'ללא צוות' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                                            placeholder="בחר צוות"
+                                            className="bg-slate-50 border-transparent rounded-[1.25rem] h-14 font-bold"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">סינון לפי תפקיד</label>
+                                        <Select
+                                            value={filterRoleId}
+                                            onChange={(val) => setFilterRoleId(val)}
+                                            options={[{ value: 'all', label: 'כל התפקידים' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
+                                            placeholder="בחר תפקיד"
+                                            className="bg-slate-50 border-transparent rounded-[1.25rem] h-14 font-bold"
+                                        />
+                                    </div>
+                                </div>
+                                <Button onClick={() => setShowFilters(false)} className="w-full mt-8 h-14 rounded-2xl font-black text-lg bg-indigo-600">החל סינון</Button>
+                            </div>
+                        </>,
+                        document.body
+                    )}
+                </>
+            )}
+
+            {/* Filters Panel - Desktop Only */}
+            {showFilters && (
+                <div className="hidden md:grid mt-4 p-5 bg-white/50 backdrop-blur-sm rounded-[2rem] border border-slate-200/50 grid-cols-2 gap-4 animate-in slide-in-from-top-4 fade-in duration-300 shadow-xl shadow-slate-200/20 mx-4 md:mx-0">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">צוות</label>
                         <Select
                             value={filterTeamId}
                             onChange={(val) => setFilterTeamId(val)}
                             options={[{ value: 'all', label: 'כל הצוותים' }, { value: 'no-team', label: 'ללא צוות' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
-                            placeholder="צוות"
-                            className="bg-white"
+                            placeholder="בחר צוות"
+                            className="bg-white border-slate-200 rounded-xl h-11 font-bold"
                         />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">תפקיד</label>
                         <Select
                             value={filterRoleId}
                             onChange={(val) => setFilterRoleId(val)}
                             options={[{ value: 'all', label: 'כל התפקידים' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
-                            placeholder="תפקיד"
-                            className="bg-white"
+                            placeholder="בחר תפקיד"
+                            className="bg-white border-slate-200 rounded-xl h-11 font-bold"
                         />
                     </div>
-                )}
-            </div>
-
-
-
-
+                </div>
+            )}
 
             {/* Content Lists */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {activeTab === 'people' && (
                     <div className="col-span-full space-y-6">
 
@@ -972,7 +1186,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 return (
                                     <div
                                         key={person.id}
-                                        className={`flex items-center gap-3 py-3 px-1 border-b border-slate-100 bg-white transition-colors select-none ${isSelected ? 'bg-blue-50' : 'active:bg-slate-50'}`}
+                                        className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
                                         onTouchStart={(e) => canEdit && handleTouchStart(e, person)}
                                         onTouchEnd={handleTouchEnd}
                                         onContextMenu={handleContextMenu}
@@ -984,57 +1198,88 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             }
                                         }}
                                     >
-                                        {/* Checkbox (Visible if editing allowed) */}
+                                        {/* Status Accent (Mobile Only) */}
+                                        <div className={`absolute top-2 bottom-2 right-0 w-1 rounded-l-full transition-all ${person.isActive !== false ? 'bg-indigo-500' : 'bg-slate-300'} md:hidden`} />
+
+                                        {/* Checkbox */}
                                         {canEdit && (
-                                            <div onClick={(e) => { e.stopPropagation(); toggleSelection(person.id); }} className="shrink-0 p-2 -mr-2 cursor-pointer">
-                                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
-                                                    {isSelected && <Check size={12} className="text-white" />}
+                                            <div onClick={(e) => { e.stopPropagation(); toggleSelection(person.id); }} className="shrink-0 cursor-pointer -mr-1">
+                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-sm' : 'border-slate-200 bg-white'}`}>
+                                                    {isSelected && <Check size={14} className="text-white" strokeWidth={3} />}
                                                 </div>
                                             </div>
                                         )}
 
-                                        {/* Avatar (Left) */}
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm ${colorClass}`}>
-                                            {getPersonInitials(person.name)}
+                                        {/* Avatar Group */}
+                                        <div className="relative shrink-0">
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm md:text-xs shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${colorClass}`}>
+                                                {getPersonInitials(person.name)}
+                                            </div>
+                                            {person.isCommander && (
+                                                <div className="absolute -top-1 -left-1 w-5 h-5 bg-yellow-400 text-slate-900 rounded-lg flex items-center justify-center shadow-sm ring-2 ring-white">
+                                                    <Shield size={10} fill="currentColor" />
+                                                </div>
+                                            )}
                                         </div>
 
-                                        {/* Content (Center) */}
+                                        {/* Content Area */}
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <h4 className={`font-bold text-slate-900 text-base truncate ${!person.isActive ? 'line-through text-slate-400' : ''}`}>
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <h4 className={`font-black text-slate-900 text-lg md:text-base tracking-tight truncate ${!person.isActive ? 'text-slate-400 opacity-60' : ''}`}>
                                                     {person.name}
                                                 </h4>
-                                                {!person.isActive && <span className="w-2 h-2 rounded-full bg-red-400"></span>}
+                                                {!person.isActive && (
+                                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-black rounded-lg uppercase tracking-widest">
+                                                        לא פעיל
+                                                    </span>
+                                                )}
                                             </div>
 
-                                            {/* Roles Pills */}
-                                            <div className="flex flex-wrap gap-1 mt-0.5">
-                                                {(person.roleIds || []).length > 0 ? (
-                                                    (person.roleIds || []).map(rid => {
-                                                        const r = roles.find(rl => rl.id === rid);
-                                                        return r ? (
-                                                            <span key={r.id} className="text-[10px] px-1.5 py-px rounded-full bg-slate-100 text-slate-600 font-medium">
-                                                                {r.name}
-                                                            </span>
-                                                        ) : null
-                                                    })
-                                                ) : (
-                                                    <span className="text-[11px] text-slate-400">ללא תפקיד</span>
+                                            {/* Labels / Metadata */}
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {(person.roleIds || []).length > 0 ? (
+                                                        (person.roleIds || []).map(rid => {
+                                                            const r = roles.find(rl => rl.id === rid);
+                                                            return r ? (
+                                                                <span key={r.id} className="text-[10px] md:text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">
+                                                                    {r.name}
+                                                                </span>
+                                                            ) : null
+                                                        })
+                                                    ) : (
+                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-lg">ללא תפקיד</span>
+                                                    )}
+                                                </div>
+                                                {person.phone && (
+                                                    <div className="flex items-center gap-1 text-[11px] text-slate-400 font-bold tracking-tight">
+                                                        <div className="w-1 h-1 rounded-full bg-slate-200" />
+                                                        {person.phone}
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
 
-                                        {/* Status / Indicator (Right) */}
-                                        <div className="shrink-0 flex items-center justify-center w-6">
-                                            {person.isActive !== false ? (
-                                                <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm"></div>
-                                            ) : (
-                                                <div className="w-2.5 h-2.5 rounded-full bg-slate-300"></div>
-                                            )}
+                                        {/* Interaction Indicator (Chevron if not selected) */}
+                                        <div className="shrink-0 flex items-center justify-center text-slate-300 md:hidden">
+                                            <ChevronLeft size={18} strokeWidth={2.5} />
                                         </div>
                                     </div>
                                 );
                             };
+
+                            // 4. Empty State
+                            if (filtered.length === 0) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500">
+                                        <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
+                                            <Users size={40} className="text-slate-300" strokeWidth={1.5} />
+                                        </div>
+                                        <p className="text-xl font-black text-slate-900 tracking-tight">לא נמצאו חיילים</p>
+                                        <p className="text-sm font-bold text-slate-400 mt-1">נסה לשנות את מונחי החיפוש או הסינון</p>
+                                    </div>
+                                );
+                            }
 
                             // MODE: TEAMS
                             if (viewGroupBy === 'teams') {
@@ -1051,7 +1296,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                                     return (
                                         <div key={group.id} className="bg-white">
-                                            <div className="sticky top-[60px] z-20 bg-slate-50 border-y border-slate-100 p-2 flex items-center justify-between cursor-pointer" onClick={() => toggleTeamCollapse(group.id)}>
+                                            <div className="sticky top-[184px] md:top-[60px] z-20 bg-slate-50/95 backdrop-blur-xl border-y border-slate-100/60 px-5 py-2.5 flex items-center justify-between cursor-pointer shadow-sm" onClick={() => toggleTeamCollapse(group.id)}>
                                                 <div className="flex items-center gap-2">
                                                     {canEdit && (
                                                         <div
@@ -1073,10 +1318,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                             </div>
                                                         </div>
                                                     )}
-                                                    <h3 className="font-bold text-slate-800 text-sm">{group.name}</h3>
-                                                    <span className="bg-white text-slate-500 text-[10px] px-1.5 rounded-full border border-slate-200 font-mono font-bold">{members.length}</span>
+                                                    <h3 className="font-black text-slate-800 text-sm tracking-tight">{group.name}</h3>
+                                                    <span className="bg-white text-slate-500 text-[10px] px-2 py-0.5 rounded-lg border border-slate-200 font-bold shadow-sm">{members.length}</span>
                                                 </div>
-                                                <button className="text-slate-400">{isCollapsed ? <ChevronLeft size={16} /> : <ChevronDown size={16} />}</button>
+                                                <button className="text-slate-400 p-1 hover:bg-slate-200/50 rounded-lg transition-colors">
+                                                    {isCollapsed ? <ChevronLeft size={16} strokeWidth={2.5} /> : <ChevronDown size={16} strokeWidth={2.5} />}
+                                                </button>
                                             </div>
                                             {!isCollapsed && <div className="divide-y divide-slate-50">{members.map(renderPerson)}</div>}
                                         </div>
@@ -1099,12 +1346,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                                     return (
                                         <div key={role.id} className="bg-white">
-                                            <div className="sticky top-[60px] z-20 bg-slate-50 border-y border-slate-100 p-2 flex items-center justify-between cursor-pointer" onClick={() => toggleTeamCollapse(role.id)}>
+                                            <div className="sticky top-[184px] md:top-[60px] z-20 bg-slate-50/95 backdrop-blur-md border-y border-slate-100/60 px-5 py-2.5 flex items-center justify-between cursor-pointer shadow-sm" onClick={() => toggleTeamCollapse(role.id)}>
                                                 <div className="flex items-center gap-2">
-                                                    <h3 className="font-bold text-slate-800 text-sm">{role.name}</h3>
-                                                    <span className="bg-white text-slate-500 text-[10px] px-1.5 rounded-full border border-slate-200 font-mono font-bold">{members.length}</span>
+                                                    <h3 className="font-black text-slate-800 text-sm tracking-tight">{role.name}</h3>
+                                                    <span className="bg-white text-slate-500 text-[10px] px-2 py-0.5 rounded-lg border border-slate-200 font-bold shadow-sm">{members.length}</span>
                                                 </div>
-                                                <button className="text-slate-400">{isCollapsed ? <ChevronLeft size={16} /> : <ChevronDown size={16} />}</button>
+                                                <button className="text-slate-400 p-1 hover:bg-slate-200/50 rounded-lg transition-colors">
+                                                    {isCollapsed ? <ChevronLeft size={16} strokeWidth={2.5} /> : <ChevronDown size={16} strokeWidth={2.5} />}
+                                                </button>
                                             </div>
                                             {!isCollapsed && <div className="divide-y divide-slate-50">{members.map(renderPerson)}</div>}
                                         </div>
@@ -1123,143 +1372,215 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </div>
                 )}
 
-                {activeTab === 'teams' && teams.map(team => {
-                    const isSelected = selectedItemIds.has(team.id);
-                    return (
-                        <div
-                            key={team.id}
-                            className={`flex items-center gap-3 py-3 px-1 border-b border-slate-100 bg-white transition-colors cursor-pointer select-none ${isSelected ? 'bg-blue-50' : 'active:bg-slate-50'}`}
-                            onClick={() => {
-                                if (selectedItemIds.size > 0 || isSelected) toggleSelection(team.id);
-                                else if (canEdit) handleEditTeamClick(team);
-                            }}
-                        >
-                            {/* Checkbox */}
-                            {canEdit && (
-                                <div
-                                    onClick={(e) => { e.stopPropagation(); toggleSelection(team.id); }}
-                                    className="shrink-0 p-2 -mr-2 cursor-pointer"
-                                    role="checkbox"
-                                    aria-checked={isSelected}
-                                    aria-label={`בחר את הצוות ${team.name}`}
-                                    tabIndex={0}
-                                    onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleSelection(team.id); } }}
-                                >
-                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
-                                        {isSelected && <Check size={12} className="text-white" />}
+                {activeTab === 'teams' && (
+                    teams.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500 col-span-full">
+                            <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
+                                <Users size={40} className="text-slate-300" strokeWidth={1.5} />
+                            </div>
+                            <p className="text-xl font-black text-slate-900 tracking-tight">לא הוגדרו צוותים</p>
+                            <p className="text-sm font-bold text-slate-400 mt-1">לחץ על ה- FAB כדי להוסיף צוות ראשון</p>
+                        </div>
+                    ) : teams.map(team => {
+                        const isSelected = selectedItemIds.has(team.id);
+                        const memberCount = people.filter(p => p.teamId === team.id).length;
+                        return (
+                            <div
+                                key={team.id}
+                                className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
+                                onClick={() => {
+                                    if (selectedItemIds.size > 0 || isSelected) toggleSelection(team.id);
+                                    else if (canEdit) handleEditTeamClick(team);
+                                }}
+                            >
+                                {/* Checkbox */}
+                                {canEdit && (
+                                    <div
+                                        onClick={(e) => { e.stopPropagation(); toggleSelection(team.id); }}
+                                        className="shrink-0 cursor-pointer -mr-1"
+                                        role="checkbox"
+                                        aria-checked={isSelected}
+                                        aria-label={`בחר את הצוות ${team.name}`}
+                                        tabIndex={0}
+                                        onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleSelection(team.id); } }}
+                                    >
+                                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-sm' : 'border-slate-200 bg-white'}`}>
+                                            {isSelected && <Check size={14} className="text-white" strokeWidth={3} />}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Avatar/Icon */}
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-slate-500 font-bold text-sm shrink-0 shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${team.color?.replace('border-', 'bg-').replace('-500', '-100').replace('-600', '-100') || 'bg-slate-100'}`}>
+                                    <Users size={22} className={`${team.color?.replace('border-', 'text-') || 'text-slate-500'}`} />
+                                </div>
+
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-black text-slate-900 text-lg md:text-base tracking-tight truncate">{team.name}</h4>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                        <span className="text-[10px] md:text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">
+                                            {memberCount} חיילים
+                                        </span>
                                     </div>
                                 </div>
-                            )}
 
-                            {/* Avatar/Icon */}
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-500 md:text-white font-bold text-sm shrink-0 shadow-sm ${team.color?.replace('border-', 'bg-') || 'bg-slate-100'}`}>
-                                <Users size={18} className="md:text-white text-inherit mix-blend-multiply md:mix-blend-normal" />
-                            </div>
-
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <h4 className="font-bold text-slate-900 text-base truncate">{team.name}</h4>
-                                <p className="text-xs text-slate-500">{people.filter(p => p.teamId === team.id).length} חיילים</p>
-                            </div>
-
-                            {/* Actions */}
-                            {canEdit && (
-                                <button onClick={(e) => {
-                                    e.stopPropagation();
-                                    requestConfirm(
-                                        'מחיקת צוות',
-                                        `האם אתה בטוח שברצונך למחוק את הצוות "${team.name}"?`,
-                                        () => onDeleteTeam(team.id)
-                                    );
-                                }}
-                                    className="p-2 text-slate-300 hover:text-red-500 rounded-full"
-                                    aria-label={`מחק את הצוות ${team.name}`}
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                            )}
-                        </div>
-                    );
-                })}
-
-                {activeTab === 'roles' && roles.map(role => {
-                    const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
-                    const isSelected = selectedItemIds.has(role.id);
-                    return (
-                        <div
-                            key={role.id}
-                            className={`flex items-center gap-3 py-3 px-1 border-b border-slate-100 bg-white transition-colors cursor-pointer select-none ${isSelected ? 'bg-blue-50' : 'active:bg-slate-50'}`}
-                            onClick={() => {
-                                if (selectedItemIds.size > 0 || isSelected) toggleSelection(role.id);
-                                else if (canEdit) handleEditRoleClick(role);
-                            }}
-                        >
-                            {/* Checkbox */}
-                            {canEdit && (
-                                <div
-                                    onClick={(e) => { e.stopPropagation(); toggleSelection(role.id); }}
-                                    className="shrink-0 p-2 -mr-2 cursor-pointer"
-                                    role="checkbox"
-                                    aria-checked={isSelected}
-                                    aria-label={`בחר את התפקיד ${role.name}`}
-                                    tabIndex={0}
-                                    onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleSelection(role.id); } }}
-                                >
-                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
-                                        {isSelected && <Check size={12} className="text-white" />}
+                                {/* Actions or Chevron */}
+                                <div className="shrink-0 flex items-center gap-2">
+                                    {canEdit && (
+                                        <button onClick={(e) => {
+                                            e.stopPropagation();
+                                            requestConfirm(
+                                                'מחיקת צוות',
+                                                `האם אתה בטוח שברצונך למחוק את הצוות "${team.name}"?`,
+                                                () => onDeleteTeam(team.id)
+                                            );
+                                        }}
+                                            className="p-2 text-slate-300 hover:text-red-500 rounded-full transition-colors hidden md:block"
+                                            aria-label={`מחק את הצוות ${team.name}`}
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    )}
+                                    <div className="text-slate-300 md:hidden">
+                                        <ChevronLeft size={18} strokeWidth={2.5} />
                                     </div>
                                 </div>
-                            )}
-
-                            {/* Avatar/Icon */}
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-slate-600 font-bold text-sm shrink-0 shadow-sm ${role.color || 'bg-slate-100'}`}>
-                                <Icon size={18} />
                             </div>
+                        );
+                    })
+                )}
 
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <h4 className="font-bold text-slate-900 text-base truncate">{role.name}</h4>
-                                <p className="text-xs text-slate-500">{people.filter(p => (p.roleIds || []).includes(role.id)).length} חיילים</p>
+                {activeTab === 'roles' && (
+                    roles.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500 col-span-full">
+                            <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
+                                <Shield size={40} className="text-slate-300" strokeWidth={1.5} />
                             </div>
-
-                            {/* Actions */}
-                            {canEdit && (
-                                <button onClick={(e) => {
-                                    e.stopPropagation();
-                                    requestConfirm(
-                                        'מחיקת תפקיד',
-                                        `האם אתה בטוח שברצונך למחוק את התפקיד "${role.name}"?`,
-                                        () => onDeleteRole(role.id)
-                                    );
-                                }}
-                                    className="p-2 text-slate-300 hover:text-red-500 rounded-full"
-                                    aria-label={`מחק את התפקיד ${role.name}`}
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                            )}
+                            <p className="text-xl font-black text-slate-900 tracking-tight">לא הוגדרו תפקידים</p>
+                            <p className="text-sm font-bold text-slate-400 mt-1">לחץ על ה- FAB כדי להוסיף תפקיד ראשון</p>
                         </div>
-                    );
-                })}
+                    ) : roles.map(role => {
+                        const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
+                        const isSelected = selectedItemIds.has(role.id);
+                        const assignedCount = people.filter(p => (p.roleIds || []).includes(role.id)).length;
+                        return (
+                            <div
+                                key={role.id}
+                                className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
+                                onClick={() => {
+                                    if (selectedItemIds.size > 0 || isSelected) toggleSelection(role.id);
+                                    else if (canEdit) handleEditRoleClick(role);
+                                }}
+                            >
+                                {/* Checkbox */}
+                                {canEdit && (
+                                    <div
+                                        onClick={(e) => { e.stopPropagation(); toggleSelection(role.id); }}
+                                        className="shrink-0 cursor-pointer -mr-1"
+                                        role="checkbox"
+                                        aria-checked={isSelected}
+                                        aria-label={`בחר את התפקיד ${role.name}`}
+                                        tabIndex={0}
+                                        onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleSelection(role.id); } }}
+                                    >
+                                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-sm' : 'border-slate-200 bg-white'}`}>
+                                            {isSelected && <Check size={14} className="text-white" strokeWidth={3} />}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Avatar/Icon */}
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-slate-600 font-bold text-sm shrink-0 shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${role.color || 'bg-slate-100'}`}>
+                                    <Icon size={22} strokeWidth={2.5} />
+                                </div>
+
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-black text-slate-900 text-lg md:text-base tracking-tight truncate">{role.name}</h4>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                        <span className="text-[10px] md:text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">
+                                            {assignedCount} חיילים
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Actions or Chevron */}
+                                <div className="shrink-0 flex items-center gap-2">
+                                    {canEdit && (
+                                        <button onClick={(e) => {
+                                            e.stopPropagation();
+                                            requestConfirm(
+                                                'מחיקת תפקיד',
+                                                `האם אתה בטוח שברצונך למחוק את התפקיד "${role.name}"?`,
+                                                () => onDeleteRole(role.id)
+                                            );
+                                        }}
+                                            className="p-2 text-slate-300 hover:text-red-500 rounded-full transition-colors hidden md:block"
+                                            aria-label={`מחק את התפקיד ${role.name}`}
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    )}
+                                    <div className="text-slate-300 md:hidden">
+                                        <ChevronLeft size={18} strokeWidth={2.5} />
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
             </div>
 
-            {/* FAB (Floating Action Button) */}
+            {/* FAB or Selection Bar - Premium Mobile */}
             {
                 canEdit && !isModalOpen && (
-                    <button
-                        onClick={() => {
-                            if (activeTab === 'people' && teams.length === 0) {
-                                showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
-                                setActiveTab('teams');
-                                return;
-                            }
-                            setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewName(''); setNewEmail('');
-                        }}
-                        className="md:hidden fixed bottom-24 md:bottom-8 left-6 w-14 h-14 bg-idf-yellow text-slate-900 rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 transition-all flex items-center justify-center z-50 hover:scale-105 active:scale-95"
-                        aria-label={`הוסף ${activeTab === 'people' ? 'חייל' : activeTab === 'teams' ? 'צוות' : 'תפקיד'}`}
-                    >
-                        <Plus size={28} />
-                    </button>
+                    selectedItemIds.size > 0 ? (
+                        <div className="md:hidden fixed bottom-28 inset-x-6 z-50 animate-in slide-in-from-bottom-5 duration-300">
+                            <div className="bg-slate-900 rounded-[2rem] p-4 shadow-2xl shadow-slate-900/40 flex items-center justify-between border border-white/10">
+                                <div className="flex items-center gap-3 mr-2">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-500 text-white flex items-center justify-center font-black">
+                                        {selectedItemIds.size}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-white font-black text-sm">נבחרו פריטים</span>
+                                        <span className="text-slate-400 text-[10px] uppercase font-bold">פעולות קבוצתיות</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setSelectedItemIds(new Set())}
+                                        className="h-11 px-4 rounded-xl bg-slate-800 text-slate-300 font-black text-xs hover:bg-slate-700 active:scale-95 transition-all"
+                                    >
+                                        ביטול
+                                    </button>
+                                    <button
+                                        onClick={handleBulkDelete}
+                                        className="h-11 px-5 rounded-xl bg-red-500 text-white font-black text-xs shadow-lg shadow-red-500/20 active:scale-95 transition-all flex items-center gap-2"
+                                    >
+                                        <Trash2 size={16} strokeWidth={2.5} />
+                                        מחק
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => {
+                                if (activeTab === 'people' && teams.length === 0) {
+                                    showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
+                                    setActiveTab('teams');
+                                    return;
+                                }
+                                setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewName(''); setNewEmail('');
+                            }}
+                            className="md:hidden fixed bottom-28 left-6 w-16 h-16 bg-slate-900 text-white rounded-2xl shadow-2xl shadow-slate-900/40 transition-all flex items-center justify-center z-50 hover:scale-105 active:scale-90"
+                            aria-label={`הוסף ${activeTab === 'people' ? 'חייל' : activeTab === 'teams' ? 'צוות' : 'תפקיד'}`}
+                        >
+                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-slate-900 to-slate-700 active:from-slate-800 active:to-slate-600" />
+                            <Plus size={32} strokeWidth={2.5} className="relative z-10" />
+                        </button>
+                    )
                 )
             }
 
@@ -1274,17 +1595,38 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             role="button"
                         />
                         <div
-                            className="fixed z-50 bg-white rounded-lg shadow-xl border border-slate-100 w-48 overflow-hidden animate-in zoom-in-95 duration-100"
-                            style={{ top: contextMenu.y, left: contextMenu.x - 192 < 10 ? 10 : contextMenu.x - 192 }}
+                            className="fixed z-50 bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-2xl border border-white/20 w-64 overflow-hidden animate-in zoom-in-95 duration-200 shadow-slate-900/10 p-2"
+                            style={{ top: contextMenu.y, left: Math.max(10, Math.min(window.innerWidth - 266, contextMenu.x - 240)) }}
                             role="menu"
                             aria-label={`אפשרויות עבור ${contextMenu.person.name}`}
                         >
-                            <div className="bg-slate-50 px-3 py-2 border-b border-slate-100">
-                                <span className="font-bold text-slate-800 text-sm">{contextMenu.person.name}</span>
+                            <div className="px-4 py-3 mb-1">
+                                <span className="font-black text-slate-900 text-sm tracking-tight block">{contextMenu.person.name}</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{teams.find(t => t.id === contextMenu.person.teamId)?.name || 'ללא צוות'}</span>
                             </div>
-                            <button onClick={() => { handleEditPersonClick(contextMenu.person); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-700" role="menuitem">
-                                <Pencil size={16} aria-hidden="true" /> ערוך פרטים
+
+                            <div className="h-px bg-slate-100/50 mx-2 mb-1" />
+
+                            <button onClick={() => { handleEditPersonClick(contextMenu.person); setContextMenu(null); }} className="w-full text-right px-4 py-3 hover:bg-slate-50 rounded-xl text-[13px] font-black flex items-center gap-3 text-slate-700 transition-colors" role="menuitem">
+                                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                                    <Pencil size={18} strokeWidth={2.5} />
+                                </div>
+                                <span>ערוך פרטים</span>
                             </button>
+
+                            <button onClick={() => {
+                                // Toggle status
+                                onUpdatePerson({ ...contextMenu.person, isActive: !contextMenu.person.isActive });
+                                setContextMenu(null);
+                            }} className="w-full text-right px-4 py-3 hover:bg-slate-50 rounded-xl text-[13px] font-black flex items-center gap-3 text-slate-700 transition-colors" role="menuitem">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${contextMenu.person.isActive ? 'bg-slate-50 text-slate-500' : 'bg-green-50 text-green-600'}`}>
+                                    {contextMenu.person.isActive ? <X size={18} strokeWidth={2.5} /> : <Check size={18} strokeWidth={2.5} />}
+                                </div>
+                                <span>{contextMenu.person.isActive ? 'סמן כלא פעיל' : 'סמן כפעיל'}</span>
+                            </button>
+
+                            <div className="h-px bg-slate-100/50 mx-2 my-1" />
+
                             <button onClick={() => {
                                 setContextMenu(null);
                                 requestConfirm(
@@ -1292,16 +1634,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                     `האם אתה בטוח שברצונך למחוק את "${contextMenu.person.name}"?`,
                                     () => onDeletePerson(contextMenu.person.id)
                                 );
-                            }} className="w-full text-right px-4 py-3 hover:bg-red-50 text-sm font-medium flex items-center gap-2 text-red-600" role="menuitem">
-                                <Trash2 size={16} aria-hidden="true" /> מחק חייל
-                            </button>
-                            <button onClick={() => {
-                                // Toggle status
-                                onUpdatePerson({ ...contextMenu.person, isActive: !contextMenu.person.isActive });
-                                setContextMenu(null);
-                            }} className="w-full text-right px-4 py-3 hover:bg-slate-50 text-sm font-medium flex items-center gap-2 text-slate-500" role="menuitem">
-                                {contextMenu.person.isActive ? <X size={16} aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
-                                {contextMenu.person.isActive ? 'סמן כלא פעיל' : 'סמן כפעיל'}
+                            }} className="w-full text-right px-4 py-3 hover:bg-red-50 rounded-xl text-[13px] font-black flex items-center gap-3 text-red-600 transition-colors" role="menuitem">
+                                <div className="w-8 h-8 rounded-lg bg-red-100/50 text-red-600 flex items-center justify-center">
+                                    <Trash2 size={18} strokeWidth={2.5} />
+                                </div>
+                                <span>מחק חייל לצמיתות</span>
                             </button>
                         </div>
                     </>
@@ -1427,6 +1764,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
                 type={confirmModal.type}
             />
-        </div >
+        </div>
     );
 };

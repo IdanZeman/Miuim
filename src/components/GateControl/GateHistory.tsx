@@ -16,6 +16,7 @@ import { useGateSystem, GateLog } from '../../hooks/useGateSystem';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { LogDetailsModal } from './LogDetailsModal';
 import { format } from 'date-fns';
 
 export const GateHistory: React.FC = () => {
@@ -30,6 +31,7 @@ export const GateHistory: React.FC = () => {
     // Data
     const [logs, setLogs] = useState<GateLog[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedLog, setSelectedLog] = useState<GateLog | null>(null);
 
     const loadHistory = useCallback(async () => {
         setIsLoading(true);
@@ -147,7 +149,11 @@ export const GateHistory: React.FC = () => {
                                 </tr>
                             ) : (
                                 logs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr
+                                        key={log.id}
+                                        className="hover:bg-slate-50 transition-colors cursor-pointer"
+                                        onClick={() => setSelectedLog(log)}
+                                    >
                                         <td className="px-4 py-3">
                                             {log.entry_type === 'pedestrian' ? (
                                                 <div className="bg-orange-100 text-orange-600 p-1.5 rounded-lg w-fit" title="הולך רגל">
@@ -194,6 +200,7 @@ export const GateHistory: React.FC = () => {
                     </table>
                 </div>
             </div>
+            {selectedLog && <LogDetailsModal log={selectedLog} onClose={() => setSelectedLog(null)} />}
         </div>
     );
 };
