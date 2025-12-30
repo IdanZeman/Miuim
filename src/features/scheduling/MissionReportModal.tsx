@@ -107,10 +107,20 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
             hideDefaultHeader={true}
             size="2xl"
             scrollableContent={false}
-            className="p-0 overflow-hidden flex flex-col max-h-[90vh] md:max-h-[85vh] print:max-h-none print:h-auto print:overflow-visible"
+            className="p-0 overflow-hidden flex flex-col h-[90vh] md:h-[85vh] md:max-h-[85vh] print:fixed print:inset-0 print:max-h-none print:h-full print:m-0 print:rounded-none print:shadow-none print:z-[99999]" // Rule 5: Uniform height & Print fix
         >
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @media print {
+                    body * { visibility: hidden !important; overflow: visible !important; }
+                    #print-section, #print-section * { visibility: visible !important; }
+                    #print-section { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                    .print\\:hidden { display: none !important; }
+                    @page { size: portrait; margin: 1cm; }
+                }
+            `}} />
             {/* --- PRINT LAYOUT (Hidden on Screen) --- */}
-            <div className="hidden print:block print:p-8 print:w-full font-sans" dir="rtl">
+            <div id="print-section" className="hidden print:block print:p-8 print:w-full font-sans" dir="rtl">
                 <div className="text-center mb-6 border-b-2 border-slate-800 pb-4">
                     <h1 className="text-2xl font-black text-slate-900 mb-1">דוח סיכום משמרת</h1>
                     <div className="flex justify-center gap-4 text-sm text-slate-600 font-bold">
@@ -211,33 +221,34 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
 
             {/* --- CUSTOM HEADER (Sticky) - Screen Only --- */}
             <div className="bg-white border-b border-slate-200 p-3 md:p-4 shrink-0 z-40 shadow-sm flex justify-between items-center print:hidden">
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-1"> {/* Rule 2: spacing */}
                     <div className="flex items-center gap-3">
-                        <h2 className="text-lg md:text-xl font-black text-slate-800 leading-none flex items-center gap-2">
+                        <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-none flex items-center gap-2"> {/* Rule 2: font size */}
                             {task.name}
                         </h2>
 
                         {/* Status Badge in Header */}
                         {report?.submitted_at ? (
-                            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                <CheckCircle size={12} />
+                            <div className="flex items-center gap-2 bg-emerald-100 border border-emerald-200 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm"> {/* Rule 2: visible badge */}
+                                <CheckCircle size={14} />
                                 <span>הוגש</span>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-500 px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                            <div className="flex items-center gap-2 bg-blue-100 border border-blue-200 text-blue-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm animate-pulse">
+                                <span className="w-2 h-2 rounded-full bg-blue-600" />
                                 <span>פעיל</span>
                             </div>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs md:text-sm text-slate-500 font-medium">
-                        <div className="flex items-center gap-1.5">
-                            <CalendarIcon size={14} className="text-slate-400" />
+                    <div className="flex items-center gap-4 text-base md:text-lg text-slate-600 font-bold"> {/* Rule 2: 16px+ for core metadata */}
+                        <div className="flex items-center gap-2">
+                            <CalendarIcon size={18} className="text-slate-400" />
                             {new Date(shift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
                         </div>
                         <span className="text-slate-300">|</span>
-                        <div className="flex items-center gap-1.5 font-mono">
+                        <div className="flex items-center gap-2 font-mono">
+                            <Clock size={18} className="text-slate-400" />
                             {new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                             -
                             {new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
@@ -245,37 +256,65 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    {/* Print Button in Header */}
+                <div className="flex items-center gap-1 md:gap-2"> {/* Rule 5: tighter for mobile space */}
+                    {/* Desktop Print Button */}
                     <button
                         onClick={() => window.print()}
-                        className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition-colors flex items-center gap-2 group"
+                        className="hidden md:flex w-12 h-12 items-center justify-center hover:bg-slate-100 rounded-xl text-slate-500 hover:text-slate-800 transition-colors group" // Rule 1: 48px target
                         title="הדפס / יצא ל-PDF"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                     </button>
 
-                    <div className="h-8 w-px bg-slate-200" />
+                    <div className="hidden md:block h-8 w-px bg-slate-200 mx-1" />
 
                     {/* Mobile Tabs Switcher */}
-                    <div className="md:hidden flex bg-slate-100 p-1 rounded-lg">
+                    <div className="md:hidden flex bg-slate-100 p-1 rounded-xl items-center">
                         <button
                             onClick={() => setActiveMobileTab('timeline')}
-                            className={`p-1.5 rounded-md transition-all ${activeMobileTab === 'timeline' ? 'bg-white shadow text-blue-600' : 'text-slate-400'}`}
+                            className={`w-11 h-10 flex items-center justify-center rounded-lg transition-all ${activeMobileTab === 'timeline' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500'}`}
                         >
-                            <History size={16} />
+                            <History size={20} />
                         </button>
                         <button
                             onClick={() => setActiveMobileTab('report')}
-                            className={`p-1.5 rounded-md transition-all ${activeMobileTab === 'report' ? 'bg-white shadow text-blue-600' : 'text-slate-400'}`}
+                            className={`w-11 h-10 flex items-center justify-center rounded-lg transition-all ${activeMobileTab === 'report' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500'}`}
                         >
-                            <FileText size={16} />
+                            <FileText size={20} />
                         </button>
                     </div>
 
-                    <Button variant="ghost" size="sm" onClick={onClose}>
-                        <X size={20} />
-                    </Button>
+                    {/* Mobile More Actions (3 dots) */}
+                    <div className="md:hidden relative group">
+                        <button
+                            className="w-12 h-12 flex items-center justify-center hover:bg-slate-100 rounded-xl text-slate-500 focus:outline-none" // Rule 1: 48px target
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+                        </button>
+                        <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl w-48 opacity-0 pointer-events-none group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all z-[60]">
+                            <button
+                                onClick={() => window.print()}
+                                className="w-full flex items-center gap-3 px-4 py-4 text-base font-bold text-slate-700 hover:bg-slate-50 border-b border-slate-100" // Rule 1 & 2
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                                <span>הדפס / יצא ל-PDF</span>
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="w-full flex items-center gap-3 px-4 py-4 text-base font-bold text-red-600 hover:bg-red-50 rounded-b-xl" // Rule 1 & 2
+                            >
+                                <X size={18} />
+                                <span>סגור מודל</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={onClose}
+                        className="hidden md:flex w-12 h-12 items-center justify-center hover:bg-slate-100 rounded-xl text-slate-500 hover:text-red-600 transition-colors" // Desktop close
+                    >
+                        <X size={28} />
+                    </button>
                 </div>
             </div>
 
@@ -283,20 +322,20 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
             <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative print:hidden">
 
                 {/* 1. LEFT COLUMN: CONTEXT & CREW (Desktop: 20%, Mobile: Hidden/Collapsed usually, but let's show as top bar or similar? For now, Desktop only or very compact on mobile) */}
-                <div className="hidden md:flex md:w-[20%] md:min-w-[180px] bg-slate-50 border-l border-slate-200 p-3 flex-col gap-4 overflow-y-auto shrink-0 z-30">
+                <div className="hidden md:flex md:w-[20%] md:min-w-[180px] bg-slate-50 border-l border-slate-200 p-4 flex-col gap-6 overflow-y-auto shrink-0 z-30"> {/* Rule 5: ergonomic padding */}
                     <div>
-                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                            <Users size={12} /> צוות המשימה
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2"> {/* Rule 2: legible labels */}
+                            <Users size={14} /> צוות המשימה
                         </h4>
-                        <div className="space-y-1">
+                        <div className="space-y-2"> {/* Rule 5: more breathing room */}
                             {assignedCrew.map(p => (
-                                <div key={p.id} className="flex items-center gap-2 p-1.5 bg-white border border-slate-100 rounded-md shadow-sm">
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0 ${p.color}`}>
+                                <div key={p.id} className="flex items-center gap-2.5 p-2 bg-white border border-slate-200 rounded-lg shadow-sm">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm ${p.color}`}>
                                         {getPersonInitials(p.name)}
                                     </div>
-                                    <div className="flex flex-col leading-none">
-                                        <span className="text-xs font-bold text-slate-700">{p.name}</span>
-                                        <span className="text-[9px] text-slate-400 scale-90 origin-right">
+                                    <div className="flex flex-col leading-tight">
+                                        <span className="text-sm font-bold text-slate-800">{p.name}</span> {/* Rule 2: 14px names */}
+                                        <span className="text-[10px] text-slate-500 font-medium">
                                             {roles.find(r => (p.roleIds || [p.roleId]).includes(r.id))?.name}
                                         </span>
                                     </div>
@@ -314,9 +353,9 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                     flex-1 bg-white flex flex-col min-h-0 overflow-hidden relative transition-all
                     ${activeMobileTab === 'timeline' ? 'flex' : 'hidden md:flex'}
                 `}>
-                    <div className="p-2 border-b border-slate-100 flex justify-between items-center text-xs bg-white/95 backdrop-blur sticky top-0 z-20">
-                        <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                            <History size={14} className="text-blue-500" /> יומן מבצעים
+                    <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-white/95 backdrop-blur sticky top-0 z-20"> {/* Rule 5: more padding */}
+                        <span className="text-base font-black text-slate-800 flex items-center gap-2"> {/* Rule 2: 16px header */}
+                            <History size={18} className="text-blue-600" /> יומן מבצעים
                         </span>
                     </div>
 
@@ -333,16 +372,16 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                                         {/* Timeline Node */}
                                         <div className="absolute -right-[21px] top-0 w-2.5 h-2.5 rounded-full bg-slate-300 border-2 border-white group-hover:bg-blue-500 transition-colors" />
 
-                                        <div className="flex flex-col gap-1">
+                                        <div className="flex flex-col gap-1.5"> {/* Rule 2: spacing */}
                                             <div className="flex items-baseline gap-2">
-                                                <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1 rounded">
+                                                <span className="text-sm font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded"> {/* Rule 2: 14px timestamps */}
                                                     {new Date(note.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
-                                                <span className="text-[11px] font-bold text-slate-700">
+                                                <span className="text-base font-bold text-slate-900"> {/* Rule 2: 16px names */}
                                                     {note.user_name || 'מערכת'}
                                                 </span>
                                             </div>
-                                            <div className="text-sm text-slate-800 bg-white p-2 rounded-r-lg rounded-bl-lg border border-slate-200 shadow-sm leading-relaxed">
+                                            <div className="text-base text-slate-800 bg-white p-3 rounded-xl border border-slate-200 shadow-sm leading-relaxed"> {/* Rule 2: 16px body */}
                                                 {note.text}
                                             </div>
                                         </div>
@@ -353,33 +392,49 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                         )}
                     </div>
 
-                    {/* Input Area */}
+                    {/* Input Area / Locked State */}
                     {!isViewer && (
-                        <div className="p-2 bg-white border-t border-slate-200">
-                            <div className="flex gap-2 items-end">
-                                <textarea
-                                    value={noteText}
-                                    onChange={(e) => setNoteText(e.target.value)}
-                                    placeholder={report?.submitted_at ? "הדוח הוגש - לא ניתן להוסיף דיווחים" : "הקלד דיווח..."}
-                                    disabled={!!report?.submitted_at}
-                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none resize-none min-h-[44px] max-h-[100px] disabled:opacity-60 disabled:cursor-not-allowed"
-                                    rows={1}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleAddNote();
-                                        }
-                                    }}
-                                />
-                                <Button
-                                    size="icon"
-                                    onClick={handleAddNote}
-                                    disabled={!noteText.trim() || !!report?.submitted_at}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm shrink-0 w-[44px] h-[44px] disabled:bg-slate-300 disabled:text-slate-500"
-                                >
-                                    <Send size={18} />
-                                </Button>
-                            </div>
+                        <div className="p-3 bg-white border-t border-slate-200">
+                            {report?.submitted_at ? (
+                                /* Locked State Bar */
+                                <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 p-4 rounded-xl text-emerald-800">
+                                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                        <Shield size={22} className="text-emerald-600" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-base font-bold">דוח זה הוגש וננעל</span> {/* Rule 2: high contrast */}
+                                        <span className="text-sm opacity-80">לא ניתן להוסיף דיווחים חדשים לציר הזמן.</span>
+                                    </div>
+                                    <div className="mr-auto">
+                                        <CheckCircle size={20} className="text-emerald-500" />
+                                    </div>
+                                </div>
+                            ) : (
+                                /* Active Input Area */
+                                <div className="flex gap-2 items-end">
+                                    <textarea
+                                        value={noteText}
+                                        onChange={(e) => setNoteText(e.target.value)}
+                                        placeholder="הקלד דיווח..."
+                                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 outline-none resize-none min-h-[52px] max-h-[120px]" // Rule 1 & 2
+                                        rows={1}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleAddNote();
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        size="icon"
+                                        onClick={handleAddNote}
+                                        disabled={!noteText.trim()}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shrink-0 w-[52px] h-[52px] rounded-xl" // Rule 1: 48px+
+                                    >
+                                        <Send size={24} />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -391,26 +446,25 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                     flex flex-col overflow-hidden print-visible
                     ${activeMobileTab === 'report' ? 'flex flex-1' : 'hidden md:flex'}
                 `}>
-                    <div className="p-2 border-b border-slate-200 flex justify-between items-center text-xs bg-slate-100 sticky top-0 z-20">
-                        <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                            <FileText size={14} className="text-emerald-600" /> סיכום משימה
+                    <div className="p-3 border-b border-slate-200 flex justify-between items-center bg-slate-100 sticky top-0 z-20"> {/* Rule 5: unified padding */}
+                        <span className="text-base font-black text-slate-800 flex items-center gap-2"> {/* Rule 2: 16px header */}
+                            <FileText size={18} className="text-emerald-600" /> סיכום משימה
                         </span>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-3 space-y-4">
                         {/* Metadata Info Box */}
                         {report?.submitted_at && (
-                            <div className="bg-white p-2 rounded-lg border border-slate-200 text-[10px] space-y-1">
-                                <div className="flex justify-between">
-                                    <span className="text-slate-500">הוגש ע"י:</span>
-                                    {/* Ideally we'd map ID to name, but we might not have a lookup for all users. Using ID fallback or stored name if we had it. */}
-                                    <span className="font-bold text-slate-700">
+                            <div className="bg-white p-4 rounded-xl border border-slate-200 text-sm space-y-2 shadow-sm"> {/* Rule 2: 14px text */}
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-500 font-medium">הוגש ע"י:</span>
+                                    <span className="font-bold text-slate-800 bg-slate-50 px-2 py-0.5 rounded">
                                         {report.submitted_by ? people.find(p => p.userId === report.submitted_by)?.name || 'משתמש לא ידוע' : 'משתמש לא ידוע'}
                                     </span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-500">תאריך הגשה:</span>
-                                    <span className="font-mono text-slate-700">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-slate-500 font-medium">תאריך הגשה:</span>
+                                    <span className="font-mono font-bold text-slate-700">
                                         {new Date(report.submitted_at).toLocaleDateString('he-IL')} {new Date(report.submitted_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
@@ -418,49 +472,49 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                         )}
 
                         {!report?.submitted_at && report?.last_editor_id && (
-                            <div className="text-[9px] text-right text-slate-400 italic px-1">
-                                נערך לאחרונה ע"י {people.find(p => p.userId === report.last_editor_id)?.name || 'משתמש מערכת'}
+                            <div className="text-xs text-right text-slate-500 font-bold bg-slate-100/50 p-2 rounded-lg border border-slate-200/50"> {/* Rule 2: 12px+ legible metadata */}
+                                🕒 נערך לאחרונה ע"י {people.find(p => p.userId === report.last_editor_id)?.name || 'משתמש מערכת'}
                             </div>
                         )}
 
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">חריגים</label>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-bold text-slate-600 uppercase px-1">חריגים</label>
                             <textarea
                                 value={reportForm.exceptional_events}
                                 onChange={e => setReportForm({ ...reportForm, exceptional_events: e.target.value })}
                                 disabled={!!report?.submitted_at}
-                                className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-white focus:ring-1 focus:ring-blue-500 min-h-[60px] disabled:bg-slate-50 disabled:text-slate-500"
+                                className="w-full text-base p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 min-h-[80px] shadow-sm disabled:bg-slate-50 disabled:text-slate-500"
                                 placeholder="אין חריגים"
                             />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">סיכום מפקד</label>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-bold text-slate-600 uppercase px-1">סיכום מפקד</label>
                             <textarea
                                 value={reportForm.summary}
                                 onChange={e => setReportForm({ ...reportForm, summary: e.target.value })}
                                 disabled={!!report?.submitted_at}
-                                className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-white focus:ring-1 focus:ring-blue-500 min-h-[80px] disabled:bg-slate-50 disabled:text-slate-500"
+                                className="w-full text-base p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 min-h-[100px] shadow-sm disabled:bg-slate-50 disabled:text-slate-500"
                                 placeholder="סיכום כללי..."
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 gap-2">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-emerald-600 uppercase">שימור</label>
+                        <div className="grid grid-cols-1 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-bold text-emerald-700 uppercase px-1">שימור</label>
                                 <textarea
                                     value={reportForm.points_to_preserve}
                                     onChange={e => setReportForm({ ...reportForm, points_to_preserve: e.target.value })}
                                     disabled={!!report?.submitted_at}
-                                    className="w-full text-xs p-2 rounded-lg border border-emerald-100 bg-emerald-50/50 focus:ring-1 focus:ring-emerald-500 min-h-[80px] text-emerald-900 disabled:opacity-70"
+                                    className="w-full text-base p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 focus:ring-2 focus:ring-emerald-500 min-h-[100px] text-emerald-900 shadow-sm disabled:opacity-70"
                                 />
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-amber-600 uppercase">שיפור</label>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-bold text-amber-700 uppercase px-1">שיפור</label>
                                 <textarea
                                     value={reportForm.points_to_improve}
                                     onChange={e => setReportForm({ ...reportForm, points_to_improve: e.target.value })}
                                     disabled={!!report?.submitted_at}
-                                    className="w-full text-xs p-2 rounded-lg border border-amber-100 bg-amber-50/50 focus:ring-1 focus:ring-amber-500 min-h-[80px] text-amber-900 disabled:opacity-70"
+                                    className="w-full text-base p-3 rounded-xl border border-amber-200 bg-amber-50/50 focus:ring-2 focus:ring-amber-500 min-h-[100px] text-amber-900 shadow-sm disabled:opacity-70"
                                 />
                             </div>
                         </div>
@@ -468,36 +522,35 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                     </div>
 
                     {!isViewer && !isReportLoading && (
-                        <div className="p-3 bg-white border-t border-slate-200 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                        <div className="p-4 bg-white border-t border-slate-200 z-10 shadow-[0_-4px_12px_-2px_rgba(0,0,0,0.1)]">
                             {!report?.submitted_at ? (
                                 <>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-3">
                                         <Button
                                             variant="secondary"
                                             onClick={() => upsertReport({ ...reportForm })} // Save without submitting
                                             isLoading={isReportLoading}
-                                            className="flex-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold shadow-sm"
+                                            className="flex-1 h-12 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-base font-bold shadow-sm rounded-xl" // Rule 1: 48px
                                         >
                                             שמור טיוטה
                                         </Button>
                                         <Button
                                             onClick={handleSubmitReport}
                                             isLoading={isReportLoading}
-                                            className="flex-[2] bg-slate-800 hover:bg-slate-900 text-white font-bold shadow-lg text-xs"
+                                            className="flex-[2] h-12 bg-slate-900 hover:bg-slate-800 text-white font-bold shadow-lg text-base rounded-xl" // Rule 1: 48px
                                         >
                                             הגש דוח סופי
                                         </Button>
                                     </div>
                                 </>
                             ) : (
-                                <Button
-                                    variant="outline"
+                                <button
                                     onClick={() => upsertReport({ submitted_at: null as any })}
-                                    isLoading={isReportLoading}
-                                    className="w-full border-dashed border-slate-300 text-slate-500 hover:text-slate-800 hover:border-slate-400"
+                                    disabled={isReportLoading}
+                                    className="w-full h-12 border-2 border-dashed border-slate-300 text-slate-600 hover:text-slate-900 hover:border-slate-500 rounded-xl font-bold flex items-center justify-center gap-2 transition-all" // Rule 1: 48px
                                 >
-                                    <Pencil size={12} className="mr-1.5" /> ערוך דוח (בטל הגשה)
-                                </Button>
+                                    <Pencil size={16} /> <span>ערוך דוח (בטל הגשה)</span>
+                                </button>
                             )}
                         </div>
                     )}

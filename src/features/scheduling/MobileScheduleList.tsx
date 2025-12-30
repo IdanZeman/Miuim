@@ -64,7 +64,7 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
 
     // 3. Render
     return (
-        <div className="flex flex-col pb-20 -mx-4">
+        <div className="flex flex-col pb-24 -mx-4"> {/* Rule 5: Bottom safe area padding */}
             {/* Negative margin to bleed to edges if parent has padding, or just ensure parent has no padding for this view */}
 
             {sortedTasks.map(task => {
@@ -111,79 +111,103 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                     const end = new Date(shift.endTime);
                                     const isCancelled = shift.isCancelled;
                                     const isEmpty = assigned.length === 0;
-
-                                    // Status Color (Strip)
-                                    const statusColor = isCancelled ? '#94a3b8' : (isEmpty ? '#f97316' : '#22c55e');
+                                    const hasReport = missionReports.some(r => r.shift_id === shift.id);
 
                                     return (
                                         <div
                                             key={shift.id}
                                             onClick={() => onSelectShift(shift)}
-                                            className="relative flex items-center min-h-[64px] bg-white active:bg-slate-50 transition-colors cursor-pointer"
+                                            className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-3 mx-4 active:scale-[0.98] transition-all cursor-pointer"
                                         >
-                                            {/* Status Strip */}
-                                            <div
-                                                className="absolute right-0 top-0 bottom-0 w-1.5"
-                                                style={{ backgroundColor: statusColor }}
-                                            ></div>
-
-                                            <div className="flex-1 flex items-center justify-between pr-4 pl-4 py-3">
-
-                                                {/* Left: Time & Info */}
-                                                <div className="flex flex-col gap-0.5">
-                                                    <div className={`text-base font-semibold font-mono tracking-tight ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                                            {/* Header: Time & Status */}
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`text-lg font-bold font-mono tracking-tight ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
                                                         {start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                         <span className="mx-1 text-slate-300">-</span>
                                                         {end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                     </div>
-                                                    {isCancelled && <span className="text-xs text-red-500 font-bold">מבוטל</span>}
-
-                                                    {/* Report Status / Button */}
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        {missionReports.some(r => r.shift_id === shift.id) ? (
-                                                            <div className="flex items-center gap-1 text-blue-500">
-                                                                <FileText size={12} />
-                                                                <span className="text-[10px] font-bold">קיים דוח</span>
-                                                            </div>
-                                                        ) : (
-                                                            /* Show Add Report button only if assigned or relevant (for now just show if not viewer ?) */
-                                                            /* Actually, let's just create a button area specifically */
-                                                            null
-                                                        )}
-
-                                                        {/* Always show report button to open modal */}
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); onReportClick(shift); }}
-                                                            className="text-slate-400 hover:text-blue-600 p-1 -m-1"
-                                                        >
-                                                            <FileText size={14} />
-                                                        </button>
-                                                    </div>
                                                 </div>
 
-                                                {/* Center/Right: People or CTA */}
-                                                <div className="flex items-center justify-end gap-2 flex-1 pl-2">
-                                                    {isEmpty ? (
-                                                        <div className="flex items-center gap-2 text-orange-500 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50">
-                                                            <span className="text-sm font-bold">שבץ אותי</span>
-                                                            <div className="w-6 h-6 rounded-full border-2 border-orange-300 border-dashed flex items-center justify-center">
-                                                                <Plus size={14} strokeWidth={3} />
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex -space-x-2 space-x-reverse overflow-hidden py-1">
+                                                {/* Status Badge */}
+                                                {isCancelled ? (
+                                                    <span className="px-2 py-1.5 rounded-md bg-slate-100 text-slate-500 text-sm font-bold flex items-center gap-1"> {/* Rule 2: min 14px text */}
+                                                        <Ban size={14} /> מבוטל
+                                                    </span>
+                                                ) : isEmpty ? (
+                                                    <span className="px-2 py-1.5 rounded-md bg-orange-50 text-orange-600 text-sm font-bold border border-orange-100">
+                                                        לא מאויש
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2 py-1.5 rounded-md bg-green-50 text-green-600 text-sm font-bold border border-green-100 flex items-center gap-1">
+                                                        <CheckCircle size={14} /> מאויש
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Body: Person Info */}
+                                            <div className="mb-4">
+                                                {assigned.length > 0 ? (
+                                                    assigned.length > 2 ? (
+                                                        <div className="flex -space-x-3 space-x-reverse overflow-hidden py-1 px-1">
                                                             {assigned.map(person => (
                                                                 <div key={person.id} className="relative group">
-                                                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs text-white font-bold ring-2 ring-white ${person.color} shadow-sm`}>
+                                                                    <div
+                                                                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm text-white font-bold ring-2 ring-white ${person.color} shadow-sm transition-transform hover:scale-110 hover:z-10`}
+                                                                        title={`${person.name}`}
+                                                                    >
                                                                         {getPersonInitials(person.name)}
                                                                     </div>
                                                                 </div>
                                                             ))}
                                                         </div>
-                                                    )}
+                                                    ) : (
+                                                        /* Detailed View: Avatar + Name */
+                                                        <div className="flex items-center gap-3 overflow-x-auto pb-1 no-scrollbar">
+                                                            {assigned.map(person => (
+                                                                <div key={person.id} className="flex items-center gap-3 min-w-fit bg-slate-50 pr-3 pl-1 py-1 rounded-full border border-slate-100 shrink-0 flex-row-reverse">
+                                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm text-white font-bold ring-2 ring-white ${person.color} shadow-sm shrink-0`}>
+                                                                        {getPersonInitials(person.name)}
+                                                                    </div>
+                                                                    <div className="flex flex-col text-right">
+                                                                        <span className="text-base font-bold text-slate-800 whitespace-nowrap">{person.name}</span> {/* Rule 2: 16px body font */}
+                                                                        <span className="text-sm text-slate-500">לוחם</span> {/* Rule 2: 14px metadata */}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )
+                                                ) : (
+                                                    <div className="flex items-center gap-3 text-slate-400 w-full">
+                                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 border-dashed">
+                                                            <User size={20} className="opacity-50" />
+                                                        </div>
+                                                        <span className="text-sm font-medium">טרם שובץ לוחם</span>
 
-                                                    {!isEmpty && <ChevronRight size={18} className="text-slate-300 mr-1" />}
-                                                </div>
+                                                        {/* Quick Assign CTA */}
+                                                        <div className="mr-auto">
+                                                            <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
+                                                                <Plus size={18} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="pt-3 border-t border-slate-50">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onReportClick(shift);
+                                                    }}
+                                                    className={`w-full h-12 rounded-xl flex items-center justify-center gap-2 font-bold text-base transition-colors ${hasReport // Rule 1: 48px height, Rule 2: 16px text
+                                                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                                        }`}
+                                                >
+                                                    <FileText size={20} className={hasReport ? "fill-blue-700" : ""} />
+                                                    {hasReport ? "צפה בדוח משימה" : "מלא דוח משימה"}
+                                                </button>
                                             </div>
                                         </div>
                                     );

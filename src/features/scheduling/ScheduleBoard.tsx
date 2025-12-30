@@ -8,6 +8,7 @@ import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, MissionReport } 
 import { generateShiftsForTask } from '../../utils/shiftUtils';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
+import { DateNavigator } from '../../components/ui/DateNavigator';
 import { RotateCcw, Sparkles, FileText } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown, Search, MoreVertical, Wand2 } from 'lucide-react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -253,7 +254,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     // FIXED HEIGHT CONTAINER to ensure internal scrolling works
     // Desktop: 100vh - header padding (32=8rem) - bottom padding (10=2.5rem) approx 11rem
     // Mobile: 100vh - header padding (32=8rem) - bottom nav (24=6rem) approx 15rem
-    const containerHeightClass = "h-[calc(100vh-15rem)] md:h-[calc(100vh-11rem)]";
+    const containerHeightClass = "h-auto md:h-[calc(100vh-11rem)]";
 
     // Auto-scroll to current time on mount or date change (if Today)
     // Auto-scroll to current time on mount or date change (if Today)
@@ -352,6 +353,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     // Export Modal State
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New state for mobile action menu
 
     // Helper to resolve warnings based on prop or local state
     // If prop is provided, we can't set it locally easily without callback. 
@@ -601,79 +603,88 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     </div>
 
                     {/* Center/Left: Date Navigation & Actions */}
-                    <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+                    <div className="flex flex-row items-center gap-2 w-full md:w-auto">
 
                         {/* Date Navigation */}
-                        <div className="bg-slate-50 flex items-center p-1 rounded-lg border border-slate-200 w-full md:w-auto justify-between">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => { if (canGoPrev) { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); handleDateChange(d); } }}
-                                disabled={!canGoPrev}
-                                className="h-8 w-8 p-0 rounded-md"
-                                aria-label="יום קודם"
-                            >
-                                <ChevronRight size={18} />
-                            </Button>
-
-                            <div
-                                className="relative group cursor-pointer px-3 text-center min-w-[140px]"
-                                onClick={() => {
-                                    if (dateInputRef.current) {
-                                        if ('showPicker' in dateInputRef.current) {
-                                            (dateInputRef.current as any).showPicker();
-                                        } else {
-                                            (dateInputRef.current as HTMLInputElement).focus();
-                                            (dateInputRef.current as HTMLInputElement).click();
-                                        }
-                                    }
-                                }}
-                            >
-                                <span className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors block">
-                                    {selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
-                                </span>
-                                <input
-                                    ref={dateInputRef}
-                                    type="date"
-                                    value={selectedDate.toLocaleDateString('en-CA')}
-                                    onChange={(e) => {
-                                        if (e.target.valueAsDate) handleDateChange(e.target.valueAsDate);
-                                    }}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                />
-                            </div>
-
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => { if (canGoNext) { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); handleDateChange(d); } }}
-                                disabled={!canGoNext}
-                                className="h-8 w-8 p-0 rounded-md"
-                                aria-label="יום הבא"
-                            >
-                                <ChevronLeft size={18} />
-                            </Button>
-                        </div>
+                        <DateNavigator
+                            date={selectedDate}
+                            onDateChange={handleDateChange}
+                            canGoPrev={canGoPrev}
+                            canGoNext={canGoNext}
+                            className="flex-1 md:w-auto"
+                        />
 
                         {/* Action Buttons */}
-                        <div className="flex gap-2 w-full md:w-auto">
-                            <button onClick={() => setIsExportModalOpen(true)} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-slate-700 hover:text-blue-700 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
-                                <FileDown size={14} />
-                                <span className="hidden md:inline">ייצוא</span>
-                                <span className="md:hidden">ייצוא נתונים</span>
-                            </button>
-
-                            <button onClick={handleExportClick} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
-                                <Copy size={14} />
-                                <span>העתק</span>
-                            </button>
-
-                            {!isViewer && (
-                                <button onClick={handleClearDayClick} className="flex-1 md:flex-none flex items-center justify-center gap-1.5 text-slate-700 hover:text-red-700 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
-                                    <Trash2 size={14} />
-                                    <span>נקה</span>
+                        <div className="flex gap-2 w-auto relative">
+                            {/* Desktop Actions */}
+                            <div className="hidden md:flex gap-2">
+                                <button onClick={() => setIsExportModalOpen(true)} className="flex items-center justify-center gap-1.5 text-slate-700 hover:text-blue-700 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
+                                    <FileDown size={14} />
+                                    <span>ייצוא</span>
                                 </button>
-                            )}
+
+                                <button onClick={handleExportClick} className="flex items-center justify-center gap-1.5 text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
+                                    <Copy size={14} />
+                                    <span>העתק</span>
+                                </button>
+
+                                {!isViewer && (
+                                    <button onClick={handleClearDayClick} className="flex items-center justify-center gap-1.5 text-slate-700 hover:text-red-700 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
+                                        <Trash2 size={14} />
+                                        <span>נקה</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Mobile Actions Dropdown */}
+                            <div className="md:hidden">
+                                <button
+                                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                                    className="w-12 h-12 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm active:bg-slate-50 transition-colors" // Rule 1: 48px touch target
+                                    aria-label="More actions"
+                                >
+                                    <MoreVertical size={24} /> {/* Rule 2: Larger icon for readability */}
+                                </button>
+
+                                {isMobileMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]" onClick={() => setIsMobileMenuOpen(false)} />
+                                        <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 p-1 flex flex-col gap-1 animate-in zoom-in-95 duration-200 origin-top-left">
+                                            <button
+                                                onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
+                                                className="flex items-center gap-4 px-4 py-3.5 text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors text-right w-full" // Rule 1: Large padding for touch target
+                                            >
+                                                <div className="p-2 bg-blue-50 text-blue-600 rounded-md">
+                                                    <FileDown size={20} />
+                                                </div>
+                                                <span className="font-bold text-base">ייצוא נתונים</span> {/* Rule 2: 16px text */}
+                                            </button>
+
+                                            <button
+                                                onClick={() => { handleExportClick(); setIsMobileMenuOpen(false); }}
+                                                className="flex items-center gap-4 px-4 py-3.5 text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors text-right w-full"
+                                            >
+                                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-md">
+                                                    <Copy size={20} />
+                                                </div>
+                                                <span className="font-bold text-base">העתק לוח</span> {/* Rule 2: 16px text */}
+                                            </button>
+
+                                            {!isViewer && (
+                                                <button
+                                                    onClick={() => { handleClearDayClick(); setIsMobileMenuOpen(false); }}
+                                                    className="flex items-center gap-4 px-4 py-3.5 text-red-600 hover:bg-red-50 active:bg-red-100 rounded-lg transition-colors text-right border-t border-slate-100 mt-1 pt-3 w-full"
+                                                >
+                                                    <div className="p-2 bg-red-50 text-red-600 rounded-md">
+                                                        <Trash2 size={20} />
+                                                    </div>
+                                                    <span className="font-bold text-base">נקה יום</span> {/* Rule 2: 16px text */}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
