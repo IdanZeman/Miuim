@@ -7,7 +7,9 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { MultiSelect } from '../../components/ui/MultiSelect';
 import { Modal } from '../../components/ui/Modal';
+import { Button } from '../../components/ui/Button';
 import { PageInfo } from '../../components/ui/PageInfo';
+import { cn } from '@/lib/utils';
 
 interface ConstraintsManagerProps {
     people: Person[];
@@ -425,25 +427,41 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                 <Modal
                     isOpen={isRuleModalOpen}
                     onClose={() => setIsRuleModalOpen(false)}
-                    title={editingRuleId ? "עריכת חוק משימה" : "הוספת חוק משימה חדש"}
+                    title={
+                        <div className="flex flex-col gap-0.5">
+                            <h3 className="text-xl font-black text-slate-800 leading-tight">
+                                {editingRuleId ? 'עריכת חוק משימה' : 'הוספת חוק משימה חדש'}
+                            </h3>
+                            <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                                <ShieldAlert size={12} className="text-blue-500" />
+                                <span>הגדרת מגבלות לאלגוריתם השיבוץ</span>
+                            </div>
+                        </div>
+                    }
                     size="lg"
                     footer={
                         <div className="flex gap-3 w-full">
-                            <button onClick={() => setIsRuleModalOpen(false)} className="flex-1 py-2 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50">ביטול</button>
-                            <button onClick={handleSaveRule} className="flex-1 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-md">
-                                {editingRuleId ? 'שמור שינויים' : 'הוסף חוק'}
-                            </button>
+                            <Button
+                                variant="ghost"
+                                onClick={() => setIsRuleModalOpen(false)}
+                                className="flex-1 h-12 md:h-10 text-base md:text-sm font-bold"
+                            >
+                                ביטול
+                            </Button>
+                            <Button
+                                onClick={handleSaveRule}
+                                className="flex-1 h-12 md:h-10 text-base md:text-sm font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+                            >
+                                {editingRuleId ? 'שמור שינויים' : 'הוסף חוק למערכת'}
+                            </Button>
                         </div>
                     }
                 >
-                    <div className="space-y-6 py-2">
-                        <div>
-                            <label className="text-sm font-bold text-slate-700 mb-2 block">סוג היעד (על מי חל החוק?)</label>
-                            <div
-                                className="flex bg-slate-100 p-1 rounded-lg gap-2"
-                                role="tablist"
-                                aria-label="סוגי יעד"
-                            >
+                    <div className="flex flex-col gap-6 py-2">
+                        {/* Target Type Selector */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">סוג היעד (על מי חל החוק?)</label>
+                            <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
                                 {([['person', 'חייל', User], ['team', 'צוות', Users], ['role', 'תפקיד', Shield]] as const).map(([type, label, Icon]) => (
                                     <button
                                         key={type}
@@ -454,70 +472,88 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                                 setRuleTargetIdSingle('');
                                             }
                                         }}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${ruleTargetType === type ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                        role="tab"
-                                        aria-selected={ruleTargetType === type}
+                                        className={cn(
+                                            "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all",
+                                            ruleTargetType === type
+                                                ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200"
+                                                : "text-slate-500 hover:text-slate-700"
+                                        )}
                                     >
-                                        <Icon size={16} aria-hidden="true" />{label}
+                                        <Icon size={14} />
+                                        <span>{label}</span>
                                     </button>
                                 ))}
                             </div>
                         </div>
 
-                        <div>
-                            <label className="text-sm font-bold text-slate-700 mb-2 block">
-                                {ruleTargetType === 'person' ? 'בחר חיילים' : ruleTargetType === 'team' ? 'בחר צוות' : 'בחר תפקיד'}
+                        {/* Target Selection */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">
+                                {ruleTargetType === 'person' ? 'בחירת חיילים' : ruleTargetType === 'team' ? 'בחירת צוות' : 'בחירת תפקיד'}
                             </label>
                             {ruleTargetType === 'person' ? (
                                 <MultiSelect
                                     value={ruleTargetIds}
                                     onChange={setRuleTargetIds}
                                     options={activePeople.map(p => ({ value: p.id, label: p.name }))}
-                                    placeholder="בחר חיילים..."
+                                    placeholder="חפש ובחר חיילים..."
                                 />
                             ) : (
                                 <Select
                                     value={ruleTargetIdSingle}
                                     onChange={setRuleTargetIdSingle}
                                     options={ruleTargetType === 'team' ? teams.map(t => ({ value: t.id, label: t.name })) : roles.map(r => ({ value: r.id, label: r.name }))}
-                                    placeholder="-- בחר --"
+                                    placeholder="בחר מהרשימה..."
                                 />
                             )}
-                            {ruleTargetType === 'person' && editingRuleId && <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1"><AlertCircle size={12} /> עריכת יחיד (החלפת החייל תעדכן את החוק הזה בלבד)</p>}
+                            {ruleTargetType === 'person' && editingRuleId && (
+                                <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-bold uppercase tracking-wide px-1">
+                                    <AlertCircle size={10} />
+                                    <span>עריכת יחיד: החלפת החייל תעדכן את החוק הזה בלבד</span>
+                                </div>
+                            )}
                         </div>
 
+                        {/* Task & Rule Parameters */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-sm font-bold text-slate-700 mb-2 block">משימות (ניתן לבחור מספר משימות)</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">משימות ליישום</label>
                                 <MultiSelect
-                                    value={ruleTaskIds} // Correct state variable
+                                    value={ruleTaskIds}
                                     onChange={setRuleTaskIds}
                                     options={tasks.map(t => ({ value: t.id, label: t.name }))}
                                     placeholder="בחר משימות..."
                                 />
                             </div>
 
-                            <div>
-                                <label className="text-sm font-bold text-slate-700 mb-2 block">סוג החוק</label>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">סוג החוק</label>
                                 <Select
                                     value={ruleType}
                                     onChange={val => setRuleType(val as any)}
                                     options={[
-                                        { value: 'never_assign', label: 'לעולם לא לשבץ' },
-                                        { value: 'always_assign', label: 'שבץ רק למשימה זו' },
+                                        { value: 'never_assign', label: 'לעולם לא לשבץ (חסום)' },
+                                        { value: 'always_assign', label: 'שבץ רק למשימה זו (מובל)' },
                                     ]}
-                                    placeholder="סוג"
+                                    placeholder="בחר סוג חוק..."
                                 />
                             </div>
                         </div>
-                        <div className="bg-blue-50 p-4 rounded-xl flex gap-3 text-blue-800 text-sm">
-                            <div className="shrink-0 mt-0.5"><Briefcase size={16} /></div>
-                            <p>
-                                {ruleType === 'never_assign'
-                                    ? 'מערכת השיבוץ האוטומטית לא תשבץ את היעדים שנבחרו למשימה זו בשום מצב.'
-                                    : 'כאשר היעדים שנבחרו ישובצו במשמרת, הם ישובצו *אך ורק* למשימה זו (אם היא נדרשת).'
-                                }
-                            </p>
+
+                        {/* Information Box */}
+                        <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 flex gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                <Briefcase size={20} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-black text-blue-900 leading-tight mb-0.5">מידע על החוק הנבחר</h4>
+                                <p className="text-xs text-blue-700/80 font-bold leading-relaxed">
+                                    {ruleType === 'never_assign'
+                                        ? 'מערכת השיבוץ האוטומטית תדלג על היעדים שנבחרו ותמנע שיבוצם למשימות אלו, גם אם יש חוסר בכוח אדם.'
+                                        : 'החיילים שנבחרו ישובצו *אך ורק* למשימה זו אם הם זמינים, ותימנע מהם גישה למשימות אחרות באותו זמן.'
+                                    }
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </Modal>

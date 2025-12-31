@@ -120,67 +120,106 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
         }
     };
 
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title="ייצוא נתונים">
-            <div className="space-y-6">
+    const modalTitle = (
+        <div className="flex flex-col gap-0.5">
+            <h3 className="text-xl font-black text-slate-800 leading-tight flex items-center gap-2">
+                <FileDown className="text-blue-500" size={20} />
+                <span>ייצוא נתוני שיבוץ</span>
+            </h3>
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                <Download size={12} className="text-blue-500" />
+                <span>הפקת קובץ CSV לניתוח באקסל</span>
+            </div>
+        </div>
+    );
 
+    const modalFooter = (
+        <div className="flex gap-3 w-full">
+            <Button
+                variant="ghost"
+                onClick={onClose}
+                className="flex-1 h-12 md:h-10 text-base md:text-sm font-bold"
+            >
+                ביטול
+            </Button>
+            <Button
+                onClick={handleExport}
+                icon={FileDown}
+                className="flex-1 h-12 md:h-10 text-base md:text-sm font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+            >
+                ייצוא לאקסל
+            </Button>
+        </div>
+    );
+
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={modalTitle}
+            size="sm"
+            footer={modalFooter}
+        >
+            <div className="flex flex-col gap-6 py-2">
                 {/* Date Range */}
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                        <label className="text-sm font-bold text-slate-700">מתאריך</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">מתאריך</label>
                         <Input
                             type="date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
+                            className="bg-white"
                         />
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-sm font-bold text-slate-700">עד תאריך</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">עד תאריך</label>
                         <Input
                             type="date"
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
+                            className="bg-white"
                         />
                     </div>
                 </div>
 
                 {/* Task Selection */}
-                <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 flex justify-between">
-                        <span>סינון לפי משימות (חובה לבחור)</span>
+                <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-center px-1">
+                        <span className="text-xs font-black text-slate-500 uppercase tracking-wider">סינון משימות</span>
                         <button
                             onClick={() => setSelectedTasks([])}
-                            className="text-xs text-blue-600 hover:underline"
+                            className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline"
                         >
-                            בחר הכל (מומלץ)
+                            בחר הכל (דיפולט)
                         </button>
-                    </label>
-                    <div className="border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 bg-slate-50">
+                    </div>
+
+                    <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                         {tasks.map(task => (
-                            <label key={task.id} className="flex items-center gap-2 p-1.5 hover:bg-white rounded cursor-pointer transition-colors">
+                            <label
+                                key={task.id}
+                                className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer group hover:shadow-md ${selectedTasks.length === 0 || selectedTasks.includes(task.id) ? 'bg-white border-blue-100 ring-1 ring-blue-50/30' : 'bg-slate-50 border-slate-100 opacity-60 grayscale'}`}
+                            >
                                 <input
                                     type="checkbox"
                                     checked={selectedTasks.length === 0 || selectedTasks.includes(task.id)}
                                     onChange={() => toggleTask(task.id)}
-                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"
                                 />
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: task.color }} />
-                                <span className="text-sm text-slate-700">{task.name}</span>
+                                <div
+                                    className="w-2.5 h-2.5 rounded-full shadow-sm"
+                                    style={{ backgroundColor: task.color.startsWith('border-') ? undefined : task.color }}
+                                />
+                                <span className={`text-sm font-bold ${selectedTasks.length === 0 || selectedTasks.includes(task.id) ? 'text-slate-800' : 'text-slate-400'}`}>
+                                    {task.name}
+                                </span>
                             </label>
                         ))}
                     </div>
                     {selectedTasks.length > 0 && (
-                        <p className="text-xs text-slate-500">נבחרו {selectedTasks.length} משימות</p>
+                        <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest px-1">נבחרו {selectedTasks.length} משימות ספציפיות</p>
                     )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-4 border-t">
-                    <Button onClick={onClose} variant="secondary" className="flex-1">ביטול</Button>
-                    <Button onClick={handleExport} className="flex-1 gap-2">
-                        <FileDown size={18} />
-                        ייצוא ל-CSV
-                    </Button>
                 </div>
             </div>
         </Modal>

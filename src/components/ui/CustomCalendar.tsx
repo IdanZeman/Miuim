@@ -129,13 +129,13 @@ export const CustomCalendar: React.FC<CustomCalendarProps> = ({
     const renderMonths = () => {
         const months = Array.from({ length: 12 }, (_, i) => i);
         return (
-            <div className="grid grid-cols-3 gap-3 w-full h-[240px] md:h-[220px] overflow-y-auto content-start py-2">
+            <div className="grid grid-cols-3 gap-3 w-full h-auto overflow-y-hidden overflow-x-hidden content-start py-2">
                 {months.map((m) => (
                     <button
                         key={m}
                         onClick={() => handleMonthSelect(m)}
                         className={`
-                            rounded-2xl text-xl font-black font-['Lexend'] transition-all h-16 md:h-12 flex items-center justify-center
+                            rounded-2xl text-lg font-black font-['Lexend'] transition-all h-14 md:h-12 flex items-center justify-center
                             ${currentMonth.getMonth() === m ? 'bg-blue-600 text-white shadow-lg scale-[1.02]' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'}
                         `}
                     >
@@ -149,13 +149,13 @@ export const CustomCalendar: React.FC<CustomCalendarProps> = ({
     const renderYears = () => {
         const years = Array.from({ length: 12 }, (_, i) => yearRangeStart + i);
         return (
-            <div className="grid grid-cols-3 gap-3 w-full h-[240px] md:h-[220px] overflow-y-auto content-start py-2">
+            <div className="grid grid-cols-3 gap-3 w-full h-auto overflow-y-hidden overflow-x-hidden content-start py-2">
                 {years.map((y) => (
                     <button
                         key={y}
                         onClick={() => handleYearSelect(y)}
                         className={`
-                            rounded-2xl text-xl font-black font-['Lexend'] transition-all h-16 md:h-12 flex items-center justify-center
+                            rounded-2xl text-lg font-black font-['Lexend'] transition-all h-14 md:h-12 flex items-center justify-center
                             ${currentMonth.getFullYear() === y ? 'bg-blue-600 text-white shadow-lg scale-[1.02]' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'}
                         `}
                     >
@@ -168,7 +168,7 @@ export const CustomCalendar: React.FC<CustomCalendarProps> = ({
 
     return (
         <div
-            className="flex flex-col bg-white rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 p-8 md:p-8 w-[94vw] max-w-[450px] md:w-[420px] gap-6 select-none z-[9999]"
+            className="flex flex-col bg-white rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 p-6 md:p-8 w-[96vw] max-w-[500px] md:w-[480px] gap-6 select-none z-[9999]"
             onClick={(e) => e.stopPropagation()}
         >
             {/* Header */}

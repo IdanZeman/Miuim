@@ -1,5 +1,5 @@
 import React from 'react';
-import { Footprints, Car, AlertTriangle, User } from 'lucide-react';
+import { Footprints, Car, AlertTriangle, User, History as HistoryIcon, UserPlus, LogOut } from 'lucide-react';
 import { GateLog } from '../../hooks/useGateSystem';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -25,97 +25,134 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
         });
     };
 
+    const modalTitle = (
+        <div className="flex flex-col">
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">פרטי דיווח שער</h3>
+            <div className="flex items-center gap-2 mt-1">
+                <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
+                    {log.entry_type === 'pedestrian' ? <Footprints size={14} /> : <Car size={14} />}
+                </div>
+                <span className="text-[10px] font-bold text-slate-400 font-mono uppercase tracking-widest">
+                    {log.entry_type === 'pedestrian' ? 'הולך רגל' : 'רכב ממונע'}
+                </span>
+            </div>
+        </div>
+    );
+
+    const modalFooter = (
+        <Button
+            onClick={onClose}
+            variant="secondary"
+            className="w-full h-12 md:h-10 rounded-xl font-bold bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200"
+        >
+            סגור
+        </Button>
+    );
+
     return (
         <Modal
             isOpen={!!log}
             onClose={onClose}
-            title="פרטי דיווח שער"
-            size="md"
+            title={modalTitle}
+            footer={modalFooter}
+            size="sm"
         >
-            <div className="space-y-6">
-                {/* Header Info */}
-                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div className={`p-3 rounded-2xl ${log.entry_type === 'pedestrian' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
-                        {log.entry_type === 'pedestrian' ? <Footprints size={24} /> : <Car size={24} />}
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-black text-slate-800 tracking-tight">{log.plate_number}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${log.status === 'inside' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
-                                {log.status === 'inside' ? 'בתוך הבסיס' : 'יצא'}
+            <div className="space-y-6 py-2">
+                {/* Plate / Main ID Card */}
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="p-4 flex items-center justify-between bg-slate-50/50 border-b border-slate-50">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">מספר זיהוי</span>
+                            <span className="text-2xl font-black text-slate-900 tracking-tighter">{log.plate_number}</span>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5">
+                            <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase shadow-sm ${log.status === 'inside' ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                                {log.status === 'inside' ? 'בתוך הבסיס' : 'יצא מהבסיס'}
                             </span>
                             {log.is_exceptional && (
-                                <span className="text-[10px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">חריג</span>
+                                <span className="text-[10px] font-black bg-rose-100 text-rose-700 px-3 py-1 rounded-lg border border-rose-200 shadow-sm">
+                                    דיווח חריג
+                                </span>
                             )}
                         </div>
                     </div>
-                </div>
 
-                {/* Timeline */}
-                <div className="space-y-4 relative pr-4">
-                    <div className="absolute right-[7px] top-2 bottom-2 w-0.5 bg-slate-100" />
-
-                    {/* Entry Event */}
-                    <div className="relative pr-6">
-                        <div className="absolute right-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white bg-blue-500 shadow-sm" />
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">כניסה</span>
-                            <div className="flex items-baseline gap-2 mt-1">
-                                <span className="text-lg font-black text-slate-800">{formatTime(log.entry_time)}</span>
-                                <span className="text-xs text-slate-500 font-medium">{formatDate(log.entry_time)}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-2 bg-slate-50 self-start px-2 py-1 rounded-lg border border-slate-100/50">
-                                <User size={12} className="text-slate-400" />
-                                <span className="text-[10px] font-bold text-slate-600">ש.ג: {log.entry_reporter?.full_name || 'לא ידוע'}</span>
-                            </div>
+                    <div className="p-4 grid grid-cols-2 gap-4">
+                        <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">נהג / מדווח</span>
+                            <span className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <User size={14} className="text-slate-400" />
+                                {log.driver_name}
+                            </span>
+                        </div>
+                        <div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">שיוך יחידה</span>
+                            <span className="text-sm font-bold text-slate-800 truncate">
+                                {log.organizations?.name || 'ללא שיוך'}
+                            </span>
                         </div>
                     </div>
+                </div>
 
-                    {/* Exit Event */}
-                    {log.exit_time && !(Math.abs(new Date(log.entry_time).getTime() - new Date(log.exit_time).getTime()) < 2000) && (
-                        <div className="relative pr-6 mt-6">
-                            <div className="absolute right-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white bg-slate-400 shadow-sm" />
-                            <div className="flex flex-col">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">יציאה</span>
-                                <div className="flex items-baseline gap-2 mt-1">
-                                    <span className="text-lg font-black text-slate-800">{formatTime(log.exit_time)}</span>
-                                    <span className="text-xs text-slate-500 font-medium">{formatDate(log.exit_time)}</span>
+                {/* Timeline Section */}
+                <div className="px-1">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <HistoryIcon size={14} /> ציר זמן דיווחים
+                    </h4>
+
+                    <div className="space-y-6 relative mr-2">
+                        <div className="absolute right-[7px] top-2 bottom-2 w-0.5 bg-slate-100" />
+
+                        {/* Entry Event */}
+                        <div className="relative pr-6">
+                            <div className="absolute right-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white bg-blue-500 shadow-md ring-2 ring-blue-100" />
+                            <div className="flex flex-col bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                                <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">רישום כניסה</span>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-lg font-black text-slate-800">{formatTime(log.entry_time)}</span>
+                                    <span className="text-xs text-slate-500 font-bold">{formatDate(log.entry_time)}</span>
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-2 bg-slate-50 self-start px-2 py-1 rounded-lg border border-slate-100/50">
-                                    <User size={12} className="text-slate-400" />
-                                    <span className="text-[10px] font-bold text-slate-600">ש.ג: {log.exit_reporter?.full_name || 'לא ידוע'}</span>
+                                <div className="mt-2 flex items-center gap-1.5 text-slate-400 group">
+                                    <UserPlus size={12} className="group-hover:text-blue-500 transition-colors" />
+                                    <span className="text-[10px] font-bold text-slate-500">
+                                        מדווח: <span className="text-slate-700">{log.entry_reporter?.full_name || 'מערכת'}</span>
+                                    </span>
                                 </div>
                             </div>
                         </div>
-                    )}
-                </div>
 
-                {/* Additional Details */}
-                <div className="grid grid-cols-2 gap-3 pb-2">
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100/50">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">נהג / בעל רכב</span>
-                        <span className="text-sm font-bold text-slate-700 block">{log.driver_name}</span>
-                    </div>
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100/50">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">יחידה משוייכת</span>
-                        <span className="text-sm font-bold text-slate-700 block truncate">{log.organizations?.name || 'ללא שיוך'}</span>
+                        {/* Exit Event */}
+                        {log.exit_time && !(Math.abs(new Date(log.entry_time).getTime() - new Date(log.exit_time).getTime()) < 2000) && (
+                            <div className="relative pr-6">
+                                <div className="absolute right-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white bg-amber-500 shadow-md ring-2 ring-amber-100" />
+                                <div className="flex flex-col bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                                    <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">רישום יציאה</span>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-lg font-black text-slate-800">{formatTime(log.exit_time)}</span>
+                                        <span className="text-xs text-slate-500 font-bold">{formatDate(log.exit_time)}</span>
+                                    </div>
+                                    <div className="mt-2 flex items-center gap-1.5 text-slate-400 group">
+                                        <LogOut size={12} className="group-hover:text-amber-500 transition-colors" />
+                                        <span className="text-[10px] font-bold text-slate-500">
+                                            מדווח: <span className="text-slate-700">{log.exit_reporter?.full_name || 'מערכת'}</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {log.notes && (
-                    <div className="p-4 bg-amber-50 rounded-xl border border-amber-100/50">
-                        <span className="text-[10px] font-bold text-amber-600 uppercase block mb-1 flex items-center gap-1">
-                            <AlertTriangle size={12} /> הערות
+                    <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100 ring-4 ring-amber-50/30">
+                        <span className="text-[10px] font-black text-amber-600 uppercase block mb-1.5 flex items-center gap-2">
+                            <AlertTriangle size={14} /> הערות ש.ג
                         </span>
-                        <p className="text-sm text-amber-900 leading-relaxed font-medium">{log.notes}</p>
+                        <p className="text-sm text-slate-700 leading-relaxed font-bold italic">
+                            "{log.notes}"
+                        </p>
                     </div>
                 )}
-
-                <div className="pt-2">
-                    <Button onClick={onClose} variant="outline" className="w-full h-12 rounded-2xl font-bold border-slate-200 text-slate-600">
-                        סגור
-                    </Button>
-                </div>
             </div>
         </Modal>
     );

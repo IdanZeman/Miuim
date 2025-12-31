@@ -110,14 +110,16 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
             isOpen={isOpen}
             onClose={onClose}
             title={
-                <div className="flex flex-col">
-                    <span className="flex items-center gap-2">
-                        <Shield className="text-blue-600" size={20} />
-                        עריכת הרשאות מתקדמת
-                    </span>
-                    <span className="text-sm font-normal text-slate-500 mt-1">
-                        עבור המשתמש: <span className="font-bold text-slate-700">{targetUser.full_name || targetUser.email}</span>
-                    </span>
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                        <Shield size={24} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-slate-800">עריכת הרשאות מתקדמת</h2>
+                        <p className="text-sm font-bold text-slate-400">
+                            עבור המשתמש: <span className="text-slate-600">{targetUser.full_name || targetUser.email}</span>
+                        </p>
+                    </div>
                 </div>
             }
             size="2xl"
@@ -126,6 +128,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                     <Button
                         variant="ghost"
                         onClick={onClose}
+                        className="font-bold text-slate-500 hover:text-slate-700"
                     >
                         ביטול
                     </Button>
@@ -134,6 +137,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                         onClick={handleSave}
                         isLoading={saving}
                         icon={Save}
+                        className="shadow-lg shadow-blue-200"
                     >
                         שמור שינויים
                     </Button>

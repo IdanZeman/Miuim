@@ -7,6 +7,7 @@ import { Trophy, Users, RefreshCw, Shuffle, Dices, Check, Settings2, X, ChevronD
 import { PageInfo } from '@/components/ui/PageInfo';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 
 interface LotteryProps {
     people: Person[];
@@ -465,12 +466,20 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                         </h1>
                         <p className="text-slate-500 text-xs font-bold">סובב את הגלגל וגלה מי הזוכה!</p>
                     </div>
-                    <button
-                        onClick={() => setShowHistory(!showHistory)}
-                        className={`p-3 rounded-xl border transition-all ${showHistory ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
-                    >
-                        <Trophy size={20} aria-hidden="true" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setIsSettingsOpen(true)}
+                            className={`p-3 rounded-xl border bg-slate-50 border-slate-200 text-slate-500 hover:text-indigo-600 transition-all`}
+                        >
+                            <Settings2 size={20} aria-hidden="true" />
+                        </button>
+                        <button
+                            onClick={() => setShowHistory(!showHistory)}
+                            className={`p-3 rounded-xl border transition-all ${showHistory ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                        >
+                            <Trophy size={20} aria-hidden="true" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -552,30 +561,43 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                                 {isSpinning ? <RefreshCw className="animate-spin" size={24} /> : <Dices size={24} />}
                                 {isSpinning ? 'מסתובב...' : 'סובב את הגלגל!'}
                             </button>
-
-                            {/* Collapsible Settings */}
-                            <div className="mt-auto border-t border-slate-100 pt-4">
-                                <button
-                                    onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                                    className="flex items-center justify-between w-full p-3 bg-slate-50 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-100 transition-colors"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <Settings2 size={16} />
-                                        הגדרות הגרלה
-                                    </span>
-                                    {isSettingsOpen ? <ChevronUp size={16} /> : <div className="bg-slate-200 px-2 py-0.5 rounded text-xs">{candidates.length} משתתפים</div>}
-                                </button>
-
-                                {isSettingsOpen && (
-                                    <div className="mt-4 animate-fade-in pb-8">
-                                        {ConfigPanelContent()}
-                                    </div>
-                                )}
-                            </div>
                         </>
                     )}
                 </div>
             </div>
+
+            {/* Mobile Settings Modal */}
+            <Modal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                title={
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <Settings2 size={20} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black text-slate-800">הגדרות הגרלה</h3>
+                            <p className="text-sm font-bold text-slate-400">ניהול משתתפים ואפשרויות</p>
+                        </div>
+                    </div>
+                }
+                footer={
+                    <div className="w-full">
+                        <Button
+                            onClick={() => setIsSettingsOpen(false)}
+                            className="w-full h-12 text-lg font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200"
+                        >
+                            שמור וסגור
+                        </Button>
+                    </div>
+                }
+                className="md:hidden"
+            >
+                <div className="space-y-6 pt-2">
+                    {ConfigPanelContent()}
+                </div>
+            </Modal>
+
 
             {/* ================= DESKTOP VIEW (hidden md:flex) ================= */}
             <div className="hidden md:flex h-full p-0 flex-1 overflow-hidden">

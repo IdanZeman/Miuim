@@ -6,10 +6,14 @@ import { useToast } from '../../contexts/ToastContext';
 import { Loader2, Plus, Trash2, Edit2, Save, X, Megaphone, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { Button } from '@/components/ui/Button';
+import { useConfirmation } from '@/hooks/useConfirmation';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
 export const SystemMessagesManager: React.FC = () => {
     const { organization } = useAuth();
     const { showToast } = useToast();
+    const { confirm, modalProps } = useConfirmation();
     const [messages, setMessages] = useState<SystemMessage[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -31,7 +35,6 @@ export const SystemMessagesManager: React.FC = () => {
         try {
             const { data, error } = await supabase
                 .from('system_messages')
-                .select('*')
                 .select('*')
                 .eq('organization_id', organization?.id)
                 .eq('message_type', 'POPUP')
@@ -86,21 +89,27 @@ export const SystemMessagesManager: React.FC = () => {
     };
 
     const handleDelete = async (id: string) => {
-        if (!window.confirm('האם אתה בטוח שברצונך למחוק הודעה זו?')) return;
+        confirm({
+            title: 'מחיקת הודעה',
+            message: 'האם אתה בטוח שברצונך למחוק הודעה זו?',
+            confirmText: 'מחק',
+            type: 'danger',
+            onConfirm: async () => {
+                try {
+                    const { error } = await supabase
+                        .from('system_messages')
+                        .delete()
+                        .eq('id', id);
 
-        try {
-            const { error } = await supabase
-                .from('system_messages')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
-            showToast('ההודעה נמחקה בהצלחה', 'success');
-            setMessages(prev => prev.filter(m => m.id !== id));
-        } catch (error) {
-            console.error('Error deleting message:', error);
-            showToast('שגיאה במחיקת ההודעה', 'error');
-        }
+                    if (error) throw error;
+                    showToast('ההודעה נמחקה בהצלחה', 'success');
+                    setMessages(prev => prev.filter(m => m.id !== id));
+                } catch (error) {
+                    console.error('Error deleting message:', error);
+                    showToast('שגיאה במחיקת ההודעה', 'error');
+                }
+            }
+        });
     };
 
     const handleEdit = (msg: SystemMessage) => {
@@ -127,13 +136,13 @@ export const SystemMessagesManager: React.FC = () => {
                     הודעות מערכת (פופאפים)
                 </h2>
                 {!isEditing && (
-                    <button
+                    <Button
                         onClick={() => setIsEditing(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                        variant="primary"
+                        icon={Plus}
                     >
-                        <Plus size={18} />
                         הודעה חדשה
-                    </button>
+                    </Button>
                 )}
             </div>
 
@@ -172,20 +181,20 @@ export const SystemMessagesManager: React.FC = () => {
                             </label>
                         </div>
                         <div className="flex gap-3 mt-2">
-                            <button
+                            <Button
                                 onClick={handleSave}
-                                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                                variant="primary"
+                                icon={Save}
                             >
-                                <Save size={18} />
                                 {editingId ? 'עדכן' : 'שמור'}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 onClick={resetForm}
-                                className="flex items-center gap-2 px-6 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition"
+                                variant="secondary"
+                                icon={X}
                             >
-                                <X size={18} />
                                 ביטול
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -241,20 +250,20 @@ export const SystemMessagesManager: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    <button
+                                                    <Button
                                                         onClick={() => handleEdit(msg)}
-                                                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                                        title="ערוך"
-                                                    >
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                    <button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        icon={Edit2}
+                                                        className="text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                                                    />
+                                                    <Button
                                                         onClick={() => handleDelete(msg.id)}
-                                                        className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                                                        title="מחק"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        icon={Trash2}
+                                                        className="text-slate-500 hover:text-red-500 hover:bg-red-50"
+                                                    />
                                                 </div>
                                             </td>
                                         </tr>
@@ -292,20 +301,24 @@ export const SystemMessagesManager: React.FC = () => {
                                     </div>
 
                                     <div className="flex justify-end gap-3 pt-2 border-t border-slate-50">
-                                        <button
+                                        <Button
                                             onClick={() => handleEdit(msg)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 text-blue-600 bg-blue-50 rounded-lg text-sm font-medium active:scale-95 transition-transform"
+                                            variant="secondary"
+                                            size="sm"
+                                            icon={Edit2}
+                                            className="text-blue-600 bg-blue-50 border-blue-100"
                                         >
-                                            <Edit2 size={14} />
                                             ערוך
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button
                                             onClick={() => handleDelete(msg.id)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 bg-red-50 rounded-lg text-sm font-medium active:scale-95 transition-transform"
+                                            variant="secondary"
+                                            size="sm"
+                                            icon={Trash2}
+                                            className="text-red-600 bg-red-50 border-red-100"
                                         >
-                                            <Trash2 size={14} />
                                             מחק
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             ))}
@@ -313,6 +326,7 @@ export const SystemMessagesManager: React.FC = () => {
                     </>
                 )}
             </div>
+            <ConfirmationModal {...modalProps} />
         </div>
     );
 };

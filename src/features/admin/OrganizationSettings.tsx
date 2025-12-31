@@ -138,7 +138,7 @@ const RoleTemplateManager: React.FC<{
                     <div key={tmp.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-blue-300 transition-all group shadow-sm">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="font-black text-slate-800 text-lg">{tmp.name}</h3>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1">
                                 <Button variant="ghost" size="sm" icon={Pencil} onClick={() => setEditingTemplate(tmp)} />
                                 <Button variant="ghost" size="sm" icon={Trash2} className="text-red-500 hover:bg-red-50" onClick={() => handleDeleteTemplate(tmp.id)} />
                             </div>
@@ -190,7 +190,28 @@ const TemplateEditorModal: React.FC<{
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={template ? 'עריכת תבנית' : 'יצירת תבנית חדשה'} size="2xl">
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                        <Shield size={24} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-slate-800">{template ? 'עריכת תבנית' : 'יצירת תבנית חדשה'}</h2>
+                        <p className="text-sm font-bold text-slate-400">הגדרת הרשאות ותפקידים</p>
+                    </div>
+                </div>
+            }
+            footer={
+                <div className="flex justify-end gap-3 w-full">
+                    <Button variant="ghost" onClick={onClose} className="font-bold text-slate-500 hover:text-slate-700">ביטול</Button>
+                    <Button variant="primary" icon={Save} onClick={handleSave} disabled={!name.trim()} className="shadow-lg shadow-indigo-200">שמור תבנית</Button>
+                </div>
+            }
+            size="2xl"
+        >
             <div className="space-y-6">
                 <Input
                     label="שם התבנית"
@@ -206,11 +227,6 @@ const TemplateEditorModal: React.FC<{
                         setPermissions={setPermissions}
                         teams={teams}
                     />
-                </div>
-
-                <div className="flex justify-end gap-3 mt-8">
-                    <Button variant="ghost" onClick={onClose}>ביטול</Button>
-                    <Button variant="primary" icon={Save} onClick={handleSave} disabled={!name.trim()}>שמור תבנית</Button>
                 </div>
             </div>
         </Modal>

@@ -42,7 +42,6 @@ export const useGateSystem = () => {
     // State for Battalion Data (Gate Only)
     const [battalionOrganizations, setBattalionOrganizations] = useState<{ id: string; name: string }[]>([]);
     const [battalionTeams, setBattalionTeams] = useState<{ id: string; name: string; organization_id: string }[]>([]); // New State
-    const [battalionPeople, setBattalionPeople] = useState<{ id: string; name: string; phone?: string; organization_id: string; team_id?: string }[]>([]);
 
     // Fetches all data (logs, vehicles, organization structure)
     const fetchData = useCallback(async () => {
@@ -54,58 +53,56 @@ export const useGateSystem = () => {
         setError(null);
 
         try {
-            // 1. Fetch Active Logs (status = 'inside') for the WHOLE BATTALION
-            let logsQuery = supabase
-                .from('gate_logs')
-                .select('*, organizations!inner(name, battalion_id), entry_reporter:profiles!entry_reported_by(full_name), exit_reporter:profiles!exit_reported_by(full_name)') 
-                .eq('status', 'inside')
-                .order('entry_time', { ascending: false });
+            // Run independent queries in parallel
+            const [logsRes, vehiclesRes, orgsRes] = await Promise.all([
+                // 1. Fetch Active Logs
+                (() => {
+                    let q = supabase
+                        .from('gate_logs')
+                        .select('*, organizations!inner(name, battalion_id), entry_reporter:profiles!entry_reported_by(full_name), exit_reporter:profiles!exit_reported_by(full_name)') 
+                        .eq('status', 'inside')
+                        .order('entry_time', { ascending: false });
+                    
+                    if (battalionId) q = q.eq('organizations.battalion_id', battalionId);
+                    else q = q.eq('organization_id', organization.id);
+                    return q;
+                })(),
 
-            if (battalionId) {
-                logsQuery = logsQuery.eq('organizations.battalion_id', battalionId);
-            } else {
-                logsQuery = logsQuery.eq('organization_id', organization.id);
-            }
+                // 2. Fetch Authorized Vehicles
+                (() => {
+                    let q = supabase
+                        .from('gate_authorized_vehicles')
+                        .select('*, organizations!inner(name, battalion_id)');
+                    
+                    if (battalionId) q = q.eq('organizations.battalion_id', battalionId);
+                    else q = q.eq('organization_id', organization.id);
+                    return q;
+                })(),
 
-            const { data: logs, error: logsError } = await logsQuery;
-            if (logsError) throw logsError;
+                // 3. Fetch Battalion Organizations
+                (async () => {
+                    if (battalionId) {
+                        return supabase
+                            .from('organizations')
+                            .select('id, name')
+                            .eq('battalion_id', battalionId);
+                    } else {
+                        return { data: [{ id: organization.id, name: organization.name }], error: null };
+                    }
+                })()
+            ]);
 
-            setActiveLogs((logs as any) || []);
+            if (logsRes.error) throw logsRes.error;
+            if (vehiclesRes.error) throw vehiclesRes.error;
+            if (orgsRes.error) throw orgsRes.error;
 
-            // 2. Fetch Authorized Vehicles
-            let vehicleQuery = supabase
-                .from('gate_authorized_vehicles')
-                .select('*, organizations!inner(name, battalion_id)');
+            setActiveLogs((logsRes.data as any) || []);
+            setAuthorizedVehicles((vehiclesRes.data as any) || []);
+            setBattalionOrganizations(orgsRes.data || []);
 
-            if (battalionId) {
-                vehicleQuery = vehicleQuery.eq('organizations.battalion_id', battalionId);
-            } else {
-                vehicleQuery = vehicleQuery.eq('organization_id', organization.id);
-            }
+            const orgsIds = orgsRes.data?.map(o => o.id) || [];
 
-            const { data: vehicles, error: vehiclesError } = await vehicleQuery;
-            if (vehiclesError) throw vehiclesError;
-            
-            setAuthorizedVehicles((vehicles as any) || []);
-
-            // 3. Fetch Battalion Organizations & Teams
-            let orgsIds: string[] = [];
-            
-            if (battalionId) {
-                const { data: orgs, error: orgsError } = await supabase
-                    .from('organizations')
-                    .select('id, name')
-                    .eq('battalion_id', battalionId);
-                
-                if (orgsError) throw orgsError;
-                setBattalionOrganizations(orgs || []);
-                orgsIds = orgs?.map(o => o.id) || [];
-            } else {
-                setBattalionOrganizations([{ id: organization.id, name: organization.name }]);
-                orgsIds = [organization.id];
-            }
-
-            // 3.5 Fetch Teams for these Organizations
+            // 3.5 Fetch Teams for these Organizations (Second stage if needed)
             if (orgsIds.length > 0) {
                 const { data: teams, error: teamsError } = await supabase
                     .from('teams')
@@ -116,29 +113,13 @@ export const useGateSystem = () => {
                 setBattalionTeams(teams || []);
             }
 
-            // 4. Fetch Battalion People (for Pedestrian Search)
-            let peopleQuery = supabase
-                .from('people')
-                .select('id, name, phone, organization_id, team_id, organizations!inner(battalion_id)');
-            
-            if (battalionId) {
-                peopleQuery = peopleQuery.eq('organizations.battalion_id', battalionId);
-            } else {
-                peopleQuery = peopleQuery.eq('organization_id', organization.id);
-            }
-
-            const { data: people, error: peopleError } = await peopleQuery;
-            if (peopleError) throw peopleError;
-            
-            setBattalionPeople(people || []);
-
         } catch (err: any) {
             console.error('Error fetching gate data:', err);
             setError(err.message);
         } finally {
             setIsLoading(false);
         }
-    }, [organization?.id, organization?.battalion_id]);
+    }, [organization?.id, organization?.battalion_id, organization?.name]);
 
     // Initial Load
     useEffect(() => {
@@ -196,7 +177,35 @@ export const useGateSystem = () => {
         };
     }, [organization?.id, battalionOrganizations, fetchData]);
 
-    // Enhanced Check Vehicle: Checks loaded auth vehicles AND People table
+    // Dynamic search for people (Used for Pedestrian Entry)
+    const searchPeople = useCallback(async (query: string) => {
+        if (!organization?.id || query.length < 2) return [];
+
+        const battalionId = organization.battalion_id;
+
+        try {
+            let q = supabase
+                .from('people')
+                .select('id, name, phone, organization_id, team_id, organizations!inner(battalion_id)')
+                .ilike('name', `%${query}%`)
+                .limit(10);
+            
+            if (battalionId) {
+                q = q.eq('organizations.battalion_id', battalionId);
+            } else {
+                q = q.eq('organization_id', organization.id);
+            }
+
+            const { data, error } = await q;
+            if (error) throw error;
+            return data || [];
+        } catch (err) {
+            console.error('Error searching people:', err);
+            return [];
+        }
+    }, [organization?.id, organization?.battalion_id]);
+
+    // Enhanced Check Vehicle: Checks loaded auth vehicles
     const checkVehicle = useCallback(async (plateNumber: string) => {
         // 1. Check loaded authorized vehicles (Fast/Client-side)
         const now = new Date();
@@ -438,7 +447,7 @@ export const useGateSystem = () => {
         activeLogs,
         battalionOrganizations,
         battalionTeams,
-        battalionPeople, // Export it
+        searchPeople, // New search function
         isLoading,
         error,
         registerEntry,

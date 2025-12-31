@@ -1036,90 +1036,88 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 </div>
             </div>
 
-            {/* SHARED: Mobile Overlays for Filters and More Menu (Fixed for Mobile Bug) */}
-            {typeof document !== 'undefined' && (
-                <>
-                    {/* More Menu Sheet */}
-                    {showMoreMenu && createPortal(
-                        <>
-                            <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm" onClick={() => setShowMoreMenu(false)} />
-                            <div className="fixed bottom-0 inset-x-0 z-[101] bg-white rounded-t-[2.5rem] shadow-2xl p-6 pb-20 animate-in slide-in-from-bottom duration-300">
-                                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
-                                <h3 className="text-xl font-black text-slate-900 mb-6 text-center">אפשרויות נוספות</h3>
-                                <div className="space-y-3">
-                                    {activeTab === 'people' && canEdit && (
-                                        <button onClick={() => { setIsImportWizardOpen(true); setShowMoreMenu(false); }} className="w-full text-right px-5 py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-sm font-black flex items-center gap-4 text-slate-700 transition-colors">
-                                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                                                <FileSpreadsheet size={20} strokeWidth={2.5} />
-                                            </div>
-                                            ייבוא מאקסל
-                                        </button>
-                                    )}
-                                    {canEdit && (
-                                        <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-5 py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-sm font-black flex items-center gap-4 text-slate-700 transition-colors">
-                                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                                                <Download size={20} strokeWidth={2.5} />
-                                            </div>
-                                            ייצוא נתונים
-                                        </button>
-                                    )}
-                                    <div className="px-5 py-4 bg-slate-50 rounded-2xl flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
-                                                <X size={20} strokeWidth={2.5} />
-                                            </div>
-                                            <span className="text-sm font-black text-slate-700">הצג לא פעילים</span>
-                                        </div>
-                                        <div
-                                            onClick={() => setShowInactive(!showInactive)}
-                                            className={`w-12 h-6 rounded-full transition-all relative cursor-pointer ${showInactive ? 'bg-indigo-500' : 'bg-slate-200'}`}
-                                        >
-                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showInactive ? 'left-1' : 'left-7'}`} />
-                                        </div>
-                                    </div>
+            {/* SHARED: Mobile Modals (Hidden on Desktop) */}
+            <div className="md:hidden">
+                {/* More Menu Modal */}
+                <Modal
+                    isOpen={showMoreMenu}
+                    onClose={() => setShowMoreMenu(false)}
+                    title="אפשרויות נוספות"
+                    footer={
+                        <Button variant="secondary" onClick={() => setShowMoreMenu(false)} className="w-full">
+                            סגור
+                        </Button>
+                    }
+                >
+                    <div className="space-y-3 pb-2">
+                        {activeTab === 'people' && canEdit && (
+                            <button onClick={() => { setIsImportWizardOpen(true); setShowMoreMenu(false); }} className="w-full text-right px-4 py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-sm font-black flex items-center gap-4 text-slate-700 transition-colors">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                    <FileSpreadsheet size={20} strokeWidth={2.5} />
                                 </div>
-                                <Button onClick={() => setShowMoreMenu(false)} className="w-full mt-6 h-14 rounded-2xl font-black text-lg">סגור</Button>
+                                ייבוא מאקסל
+                            </button>
+                        )}
+                        {canEdit && (
+                            <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-4 py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-sm font-black flex items-center gap-4 text-slate-700 transition-colors">
+                                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                    <Download size={20} strokeWidth={2.5} />
+                                </div>
+                                ייצוא נתונים
+                            </button>
+                        )}
+                        <div className="px-5 py-3 bg-slate-50 rounded-2xl flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+                                    <X size={20} strokeWidth={2.5} />
+                                </div>
+                                <span className="text-sm font-black text-slate-700">הצג לא פעילים</span>
                             </div>
-                        </>,
-                        document.body
-                    )}
+                            <div
+                                onClick={() => setShowInactive(!showInactive)}
+                                className={`w-12 h-6 rounded-full transition-all relative cursor-pointer ${showInactive ? 'bg-indigo-500' : 'bg-slate-200'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showInactive ? 'left-1' : 'left-7'}`} />
+                            </div>
+                        </div>
+                    </div>
+                </Modal>
 
-                    {/* Filter Sheet */}
-                    {showFilters && createPortal(
-                        <>
-                            <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
-                            <div className="fixed bottom-0 inset-x-0 z-[101] bg-white rounded-t-[2.5rem] shadow-2xl p-6 pb-20 animate-in slide-in-from-bottom duration-300">
-                                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
-                                <h3 className="text-xl font-black text-slate-900 mb-6 text-center">סינון ותצוגה</h3>
-                                <div className="space-y-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">סינון לפי צוות</label>
-                                        <Select
-                                            value={filterTeamId}
-                                            onChange={(val) => setFilterTeamId(val)}
-                                            options={[{ value: 'all', label: 'כל הצוותים' }, { value: 'no-team', label: 'ללא צוות' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
-                                            placeholder="בחר צוות"
-                                            className="bg-slate-50 border-transparent rounded-[1.25rem] h-14 font-bold"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">סינון לפי תפקיד</label>
-                                        <Select
-                                            value={filterRoleId}
-                                            onChange={(val) => setFilterRoleId(val)}
-                                            options={[{ value: 'all', label: 'כל התפקידים' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
-                                            placeholder="בחר תפקיד"
-                                            className="bg-slate-50 border-transparent rounded-[1.25rem] h-14 font-bold"
-                                        />
-                                    </div>
-                                </div>
-                                <Button onClick={() => setShowFilters(false)} className="w-full mt-8 h-14 rounded-2xl font-black text-lg bg-indigo-600">החל סינון</Button>
-                            </div>
-                        </>,
-                        document.body
-                    )}
-                </>
-            )}
+                {/* Filter Modal */}
+                <Modal
+                    isOpen={showFilters}
+                    onClose={() => setShowFilters(false)}
+                    title="סינון ותצוגה"
+                    footer={
+                        <Button onClick={() => setShowFilters(false)} className="w-full bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20">
+                            החל סינון
+                        </Button>
+                    }
+                >
+                    <div className="space-y-6 pb-2">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">סינון לפי צוות</label>
+                            <Select
+                                value={filterTeamId}
+                                onChange={(val) => setFilterTeamId(val)}
+                                options={[{ value: 'all', label: 'כל הצוותים' }, { value: 'no-team', label: 'ללא צוות' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                                placeholder="בחר צוות"
+                                className="bg-slate-50 border-transparent rounded-xl h-12 font-bold"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">סינון לפי תפקיד</label>
+                            <Select
+                                value={filterRoleId}
+                                onChange={(val) => setFilterRoleId(val)}
+                                options={[{ value: 'all', label: 'כל התפקידים' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
+                                placeholder="בחר תפקיד"
+                                className="bg-slate-50 border-transparent rounded-xl h-12 font-bold"
+                            />
+                        </div>
+                    </div>
+                </Modal>
+            </div>
 
             {/* Filters Panel - Desktop Only */}
             {showFilters && (

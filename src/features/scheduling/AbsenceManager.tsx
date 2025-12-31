@@ -1150,11 +1150,56 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
             </div>
 
             {/* Add/Edit Modal */}
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingAbsence ? 'עריכת היעדרות' : 'בקשת יציאה חדשה'} size="md">
-                <div className="space-y-4">
+            <Modal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title={
+                    <div className="flex flex-col gap-0.5">
+                        <h3 className="text-lg font-black text-slate-800 leading-tight">
+                            {editingAbsence ? 'עריכת היעדרות' : 'בקשת יציאה חדשה'}
+                        </h3>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                            <Tag size={12} className="text-blue-500" />
+                            <span>{editingAbsence ? 'עדכון פרטי בקשה' : 'דיווח אילוץ או חופשה'}</span>
+                        </div>
+                    </div>
+                }
+                size="md"
+                footer={
+                    <div className="flex items-center justify-between w-full">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsModalOpen(false)}
+                            className="h-12 md:h-10 text-base md:text-sm font-bold text-slate-500 hover:text-slate-700"
+                        >
+                            ביטול
+                        </Button>
+                        <div className="flex items-center gap-3">
+                            {canManage && editingAbsence && (
+                                <Button
+                                    variant="ghost"
+                                    className="text-red-600 hover:bg-red-50 h-12 md:h-10 text-base md:text-sm font-bold"
+                                    onClick={() => { setIsModalOpen(false); setDeleteConfirmId(editingAbsence.id); }}
+                                    icon={Trash2}
+                                >
+                                    מחק
+                                </Button>
+                            )}
+                            <Button
+                                onClick={handleSave}
+                                icon={Check}
+                                className="bg-blue-600 hover:bg-blue-700 text-white h-12 md:h-10 text-base md:text-sm font-black shadow-lg shadow-blue-200"
+                            >
+                                שלח בקשה
+                            </Button>
+                        </div>
+                    </div>
+                }
+            >
+                <div className="space-y-4 py-2">
                     {!selectedPersonId && !editingAbsence && (
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">חייל</label>
+                            <label className="block text-sm font-black text-slate-700 mb-1.5 px-1">חייל</label>
                             <Select
                                 value={formPersonId}
                                 onChange={(val) => setFormPersonId(val)}
@@ -1164,30 +1209,30 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                         </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <DatePicker label="תאריך יציאה (משוער)" value={formStartDate} onChange={setFormStartDate} />
-                        <DatePicker label="תאריך חזרה (משוער)" value={formEndDate} onChange={setFormEndDate} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <DatePicker label="תאריך יציאה" value={formStartDate} onChange={setFormStartDate} />
+                        <DatePicker label="תאריך חזרה" value={formEndDate} onChange={setFormEndDate} />
                     </div>
 
-                    <div className="flex items-center gap-2 py-1">
+                    <div className="flex items-center gap-3 py-2 px-1 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                         <input
                             type="checkbox"
                             id="isFullDay"
                             checked={isFullDay}
                             onChange={(e) => setIsFullDay(e.target.checked)}
-                            className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                            className="w-5 h-5 text-blue-600 rounded-lg border-slate-300 focus:ring-blue-500 transition-all"
                         />
-                        <label htmlFor="isFullDay" className="text-sm font-medium text-slate-700">כל היום (התעלם משעות)</label>
+                        <label htmlFor="isFullDay" className="text-sm font-bold text-slate-600 cursor-pointer select-none">יום שלם (מתחילת היום עד סופו)</label>
                     </div>
 
                     {!isFullDay && (
-                        <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2">
+                        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                             <TimePicker label="שעת יציאה" value={formStartTime} onChange={setFormStartTime} />
                             <TimePicker label="שעת חזרה" value={formEndTime} onChange={setFormEndTime} />
                         </div>
                     )}
 
-                    <div>
+                    <div className="pt-2">
                         <Input
                             label="סיבה / הערה"
                             value={formReason}
@@ -1195,16 +1240,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             placeholder="לדוגמה: חופשה שנתית, מחלה, הפנייה רפואית..."
                             icon={FileText}
                         />
-                    </div>
-
-                    <div className="flex justify-end gap-3 mt-6">
-                        {canManage && editingAbsence && (
-                            <Button variant="ghost" className="text-red-600 hover:bg-red-50 mr-auto" onClick={() => { setIsModalOpen(false); setDeleteConfirmId(editingAbsence.id); }} icon={Trash2}>
-                                מחק
-                            </Button>
-                        )}
-                        <Button variant="ghost" onClick={() => setIsModalOpen(false)}>ביטול</Button>
-                        <Button variant="primary" onClick={handleSave} icon={Check}>שלח בקשה</Button>
                     </div>
                 </div>
             </Modal>
@@ -1214,19 +1249,45 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 isOpen={isApprovalModalOpen}
                 onClose={() => setIsApprovalModalOpen(false)}
                 title={
-                    <div className="flex items-center gap-2 text-green-700">
-                        <ShieldCheck size={24} />
-                        <span>אישור יציאה</span>
+                    <div className="flex flex-col gap-0.5">
+                        <h3 className="text-lg font-black text-green-800 leading-tight flex items-center gap-2">
+                            <ShieldCheck size={20} className="text-green-600" />
+                            <span>אישור בקשת יציאה</span>
+                        </h3>
+                        <div className="flex items-center gap-2 text-xs text-green-600 font-bold uppercase tracking-wider">
+                            <span>תאום שעות יציאה וחזרה סופיות</span>
+                        </div>
                     </div>
                 }
                 size="sm"
+                footer={
+                    <div className="flex justify-end gap-3 w-full">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsApprovalModalOpen(false)}
+                            className="flex-1 h-12 md:h-10 text-base md:text-sm font-bold text-slate-500"
+                        >
+                            ביטול
+                        </Button>
+                        <Button
+                            onClick={handleConfirmApproval}
+                            icon={Check}
+                            className="flex-1 h-12 md:h-10 text-base md:text-sm font-black bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200"
+                        >
+                            אשר יציאה
+                        </Button>
+                    </div>
+                }
             >
-                <div className="space-y-4">
-                    <p className="text-slate-600 text-sm">
-                        אנא אשר את שעות היציאה והחזרה הסופיות. ימים אלו יסומנו כ"בית" ביומן.
-                    </p>
+                <div className="space-y-5 py-2">
+                    <div className="bg-green-50 p-4 rounded-xl border border-green-100 flex items-start gap-3">
+                        <div className="mt-0.5 text-green-600"><Info size={18} /></div>
+                        <p className="text-green-900 text-sm font-medium leading-relaxed">
+                            אנא אשר את שעות היציאה והחזרה הסופיות. ימים אלו יסומנו אוטומטית כ<span className="font-bold">"בית"</span> ביומן הנוכחות של החייל.
+                        </p>
+                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 mb-2">
+                    <div className="grid grid-cols-2 gap-4">
                         <DatePicker
                             label="תאריך יציאה"
                             value={approvalStartDate}
@@ -1241,22 +1302,15 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
                     <div className="grid grid-cols-2 gap-4">
                         <TimePicker
-                            label="שעת יציאה בפועל"
+                            label="שעת יציאה"
                             value={approvalDepartureTime}
                             onChange={setApprovalDepartureTime}
                         />
                         <TimePicker
-                            label="שעת חזרה בפועל"
+                            label="שעת חזרה"
                             value={approvalReturnTime}
                             onChange={setApprovalReturnTime}
                         />
-                    </div>
-
-                    <div className="flex justify-end gap-3 mt-6">
-                        <Button variant="ghost" onClick={() => setIsApprovalModalOpen(false)}>ביטול</Button>
-                        <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleConfirmApproval} icon={Check}>
-                            אשר יציאה
-                        </Button>
                     </div>
                 </div>
             </Modal>

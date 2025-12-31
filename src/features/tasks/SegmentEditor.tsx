@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { SchedulingSegment, Role, FrequencyType } from '@/types';
-import { SheetModal } from '@/components/ui/SheetModal';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button'; // Keeping Button if needed, or remove if unused in updated code
-import { Plus, Minus, Clock, Users, Calendar, Sparkles, Shield, RotateCcw } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Plus, Minus, Users, RotateCcw, LayoutTemplate, Clock, CalendarDays } from 'lucide-react';
 import { ROLE_ICONS } from '@/constants';
-import { Select } from '@/components/ui/Select';
+import { cn } from '@/lib/utils';
 
 interface SegmentEditorProps {
     isOpen: boolean;
@@ -132,39 +131,59 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
     if (!isOpen) return null;
 
     return (
-        <SheetModal
+        <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={initialSegment ? 'עריכת מקטע משמרת' : 'הוספת מקטע משמרת'}
-            onSave={handleSave}
-            saveLabel={initialSegment ? 'עדכן מקטע' : 'הוסף מקטע'}
-            closeIcon="back"
+            title={
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                        <LayoutTemplate size={24} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-slate-800">{initialSegment ? 'עריכת מקטע משמרת' : 'הוספת מקטע משמרת'}</h2>
+                        <p className="text-sm font-bold text-slate-400">{initialSegment ? 'עדכון פרטי המקטע' : 'הגדרת זמנים ודרישות'}</p>
+                    </div>
+                </div>
+            }
+            footer={
+                <Button onClick={handleSave} className="w-full bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20">
+                    {initialSegment ? 'עדכן מקטע' : 'צור מקטע חדש'}
+                </Button>
+            }
         >
             <div className="space-y-6">
                 {/* 1. Basic Info */}
-                <div className="space-y-2">
-                    <h3 className="text-xs font-bold text-slate-500 px-2">כללי ותדירות</h3>
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
-                        <div className="flex items-center px-4 py-3">
-                            <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">שם המקטע</div>
+                <div className="space-y-3">
+                    <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">כללי ותדירות</h3>
+                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden divide-y divide-slate-100">
+                        <div className="flex items-center px-5 py-4 group">
+                            <div className="w-20 shrink-0 font-black text-slate-500 text-sm">שם המקטע</div>
                             <input
                                 value={name}
                                 onChange={e => setName(e.target.value)}
-                                placeholder="לדוגמה: בוקר"
-                                className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right font-medium placeholder:text-slate-300 h-full w-full"
+                                placeholder="לדוגמה: בוקר, סיור ערב..."
+                                className="flex-1 bg-transparent border-none outline-none text-slate-900 font-bold text-base placeholder:text-slate-300 w-full"
                             />
                         </div>
 
                         {/* Frequency Toggles */}
-                        <div className="p-3 bg-slate-50">
-                            <div className="flex bg-white rounded-lg p-1 border border-slate-200">
+                        <div className="p-4 bg-slate-50/50">
+                            <div className="flex bg-slate-200/50 rounded-xl p-1.5 gap-1">
                                 {(['daily', 'weekly', 'specific_date'] as FrequencyType[]).map(f => (
                                     <button
                                         key={f}
                                         onClick={() => setFrequency(f)}
-                                        className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${frequency === f ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
+                                        className={cn(
+                                            "flex-1 py-2.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-2",
+                                            frequency === f
+                                                ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5"
+                                                : "text-slate-500 hover:bg-white/50 hover:text-slate-700"
+                                        )}
                                     >
-                                        {f === 'daily' ? 'כל יום' : f === 'weekly' ? 'ימי השבוע' : 'תאריך ספציפי'}
+                                        {f === 'daily' && <Clock size={14} strokeWidth={2.5} />}
+                                        {f === 'weekly' && <CalendarDays size={14} strokeWidth={2.5} />}
+                                        {f === 'specific_date' && <LayoutTemplate size={14} strokeWidth={2.5} />}
+                                        <span>{f === 'daily' ? 'כל יום' : f === 'weekly' ? 'ימי השבוע' : 'תאריך'}</span>
                                     </button>
                                 ))}
                             </div>
@@ -172,12 +191,17 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
 
                         {/* Date Logic */}
                         {frequency === 'weekly' && (
-                            <div className="p-3 flex justify-center gap-2 flex-wrap">
+                            <div className="p-5 flex justify-center gap-3 flex-wrap bg-white">
                                 {DAYS_HEBREW.map(d => (
                                     <button
                                         key={d.id}
                                         onClick={() => toggleDay(d.id)}
-                                        className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${daysOfWeek.includes(d.id) ? 'bg-blue-600 text-white shadow-md scale-105' : 'bg-white border border-slate-200 text-slate-400 hover:border-blue-300'}`}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl text-sm font-black transition-all flex items-center justify-center",
+                                            daysOfWeek.includes(d.id)
+                                                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20 scale-105"
+                                                : "bg-slate-50 text-slate-400 hover:bg-slate-100"
+                                        )}
                                     >
                                         {d.label}
                                     </button>
@@ -185,42 +209,38 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                             </div>
                         )}
                         {frequency === 'specific_date' && (
-                            <div className="flex items-center px-4 py-3">
-                                <div className="w-24 shrink-0 font-bold text-slate-700 text-sm">תאריך</div>
+                            <div className="flex items-center px-5 py-4 group">
+                                <div className="w-20 shrink-0 font-black text-slate-500 text-sm">תאריך</div>
                                 <input
                                     type="date"
                                     value={specificDate}
                                     onChange={e => setSpecificDate(e.target.value)}
-                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right font-medium"
+                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 font-bold text-base w-full"
                                 />
                             </div>
                         )}
                     </div>
 
                     {/* Continuous Cycle Toggle */}
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 flex items-center justify-between">
+                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm px-5 py-4 flex items-center justify-between cursor-pointer active:bg-slate-50 transition-colors"
+                        onClick={() => setIsRepeat(!isRepeat)}>
                         <div>
                             <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                <RotateCcw size={16} className="text-idf-yellow" />
+                                <RotateCcw size={18} className="text-amber-500" strokeWidth={2.5} />
                                 מחזור רציף (24/7)
                             </div>
-                            <div className="text-xs text-slate-500 mt-0.5">
-                                יצירת רצף משמרת לכל אורך היממה (לדוגמה: חמ"ל, סיור)
-                            </div>
+                            <p className="text-[11px] font-bold text-slate-400 mt-1">יצירת רצף משמרות לכל אורך היממה</p>
                         </div>
-                        <button
-                            onClick={() => setIsRepeat(!isRepeat)}
-                            className={`w-12 h-7 rounded-full transition-colors relative ${isRepeat ? 'bg-idf-yellow' : 'bg-slate-300'}`}
-                        >
-                            <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${isRepeat ? 'left-1' : 'left-6'}`}></div>
-                        </button>
+                        <div className={cn("w-12 h-7 rounded-full transition-all relative", isRepeat ? "bg-amber-500" : "bg-slate-200")}>
+                            <div className={cn("absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm", isRepeat ? "left-1" : "left-6")} />
+                        </div>
                     </div>
                 </div>
 
                 {/* 2. Timing Controls (Counters) */}
-                <div className="space-y-2">
-                    <h3 className="text-xs font-bold text-slate-500 px-2">זמנים</h3>
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                    <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">זמנים והגבלות</h3>
+                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 grid grid-cols-2 gap-4">
                         {/* Start Time */}
                         <div className="col-span-2 flex items-center justify-between border-b border-slate-100 pb-4 mb-2">
                             <div className="font-bold text-slate-700 text-sm">שעת התחלה</div>
@@ -229,7 +249,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                                     type="time"
                                     value={startTime}
                                     onChange={e => setStartTime(e.target.value)}
-                                    className="bg-slate-100 border-none rounded-lg px-3 py-1.5 text-lg font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                                    className="bg-slate-50 border-none rounded-xl px-4 py-2 text-xl font-black text-slate-900 focus:ring-2 focus:ring-blue-500/20 outline-none w-32 text-center"
                                 />
                             </div>
                         </div>
@@ -237,19 +257,19 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                         {/* Duration Counter */}
                         <div className="flex flex-col items-center gap-2">
                             <span className="text-xs font-bold text-slate-500">משך (שעות)</span>
-                            <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-1">
+                            <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-1.5">
                                 <button
                                     onClick={() => setDuration(Math.max(1, duration - 1))}
-                                    className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-transform"
+                                    className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
                                 >
-                                    <Minus size={16} />
+                                    <Minus size={18} strokeWidth={2.5} />
                                 </button>
-                                <span className="w-6 text-center font-bold text-lg">{duration}</span>
+                                <span className="w-8 text-center font-black text-xl text-slate-800">{duration}</span>
                                 <button
                                     onClick={() => setDuration(duration + 1)}
-                                    className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-transform"
+                                    className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
                                 >
-                                    <Plus size={16} />
+                                    <Plus size={18} strokeWidth={2.5} />
                                 </button>
                             </div>
                         </div>
@@ -257,19 +277,19 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                         {/* Rest Counter */}
                         <div className="flex flex-col items-center gap-2">
                             <span className="text-xs font-bold text-slate-500">מנוחה נדרשת</span>
-                            <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-1">
+                            <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-1.5">
                                 <button
                                     onClick={() => setMinRest(Math.max(0, minRest - 1))}
-                                    className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-transform"
+                                    className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
                                 >
-                                    <Minus size={16} />
+                                    <Minus size={18} strokeWidth={2.5} />
                                 </button>
-                                <span className="w-6 text-center font-bold text-lg">{minRest}</span>
+                                <span className="w-8 text-center font-black text-xl text-slate-800">{minRest}</span>
                                 <button
                                     onClick={() => setMinRest(minRest + 1)}
-                                    className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-transform"
+                                    className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
                                 >
-                                    <Plus size={16} />
+                                    <Plus size={18} strokeWidth={2.5} />
                                 </button>
                             </div>
                         </div>
@@ -277,10 +297,10 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                 </div>
 
                 {/* 3. Workforce Requirements (Role Grid) */}
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center px-2">
-                        <h3 className="text-xs font-bold text-slate-500">דרישות תפקיד</h3>
-                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold">
+                <div className="space-y-3">
+                    <div className="flex justify-between items-center px-4">
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">דרישות תפקיד</h3>
+                        <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-black tracking-tight">
                             סה"כ: {roleComposition.reduce((sum, rc) => sum + rc.count, 0)}
                         </span>
                     </div>
@@ -288,31 +308,38 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                     <div className="grid grid-cols-2 gap-3">
                         {roles.map(role => {
                             const count = getRoleCount(role.id);
-                            const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
+                            // @ts-ignore
+                            const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Users;
 
                             return (
-                                <div key={role.id} className={`bg-white border rounded-xl p-3 flex flex-col gap-2 transition-all ${count > 0 ? 'border-blue-300 shadow-sm' : 'border-slate-200'}`}>
-                                    <div className="flex items-center gap-2">
-                                        <div className={`p-1.5 rounded-lg ${role.color || 'bg-slate-100'}`}>
-                                            <Icon size={14} className="text-slate-600" />
+                                <div key={role.id} className={cn(
+                                    "bg-white border rounded-2xl p-3 flex flex-col gap-3 transition-all",
+                                    count > 0 ? "border-indigo-200 shadow-md shadow-indigo-100/50" : "border-slate-200/60 shadow-sm"
+                                )}>
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={cn("p-2 rounded-xl", role.color || 'bg-slate-100')}>
+                                            <Icon size={16} className="text-slate-600" strokeWidth={2.5} />
                                         </div>
-                                        <span className="text-sm font-bold text-slate-800 truncate flex-1">{role.name}</span>
+                                        <span className="text-sm font-black text-slate-800 truncate flex-1 leading-tight">{role.name}</span>
                                     </div>
 
-                                    <div className="flex items-center justify-between bg-slate-50 rounded-lg p-1">
+                                    <div className="flex items-center justify-between bg-slate-50/80 rounded-xl p-1">
                                         <button
                                             onClick={() => updateRoleCount(role.id, -1)}
-                                            className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${count > 0 ? 'bg-white shadow-sm text-slate-700 hover:text-red-500' : 'text-slate-300'}`}
+                                            className={cn(
+                                                "w-8 h-8 flex items-center justify-center rounded-lg transition-all active:scale-90",
+                                                count > 0 ? "bg-white shadow-sm text-slate-700 hover:text-red-500" : "text-slate-300 cursor-not-allowed"
+                                            )}
                                             disabled={count === 0}
                                         >
-                                            <Minus size={14} />
+                                            <Minus size={16} strokeWidth={2.5} />
                                         </button>
-                                        <span className={`font-bold ${count > 0 ? 'text-blue-600' : 'text-slate-300'}`}>{count}</span>
+                                        <span className={cn("font-black text-lg", count > 0 ? "text-indigo-600" : "text-slate-300")}>{count}</span>
                                         <button
                                             onClick={() => updateRoleCount(role.id, 1)}
-                                            className="w-7 h-7 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-700 hover:text-green-600 transition-colors"
+                                            className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-700 hover:text-green-600 active:scale-90 transition-all"
                                         >
-                                            <Plus size={14} />
+                                            <Plus size={16} strokeWidth={2.5} />
                                         </button>
                                     </div>
                                 </div>
@@ -320,14 +347,15 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                         })}
 
                         {roles.length === 0 && (
-                            <div className="col-span-2 text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-slate-400 text-sm">
-                                לא הוגדרו תפקידים במערכת
+                            <div className="col-span-2 text-center py-6 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-slate-400">
+                                <Users size={32} className="mx-auto mb-2 opacity-20" />
+                                <span className="text-sm font-bold">לא הוגדרו תפקידים במערכת</span>
                             </div>
                         )}
                     </div>
                 </div>
                 <div className="h-4" />
             </div>
-        </SheetModal>
+        </Modal>
     );
 };

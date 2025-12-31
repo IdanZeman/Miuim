@@ -43,21 +43,32 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
         onClose();
     };
 
-    const footerContent = (
+    const modalTitle = (
+        <div className="flex flex-col pr-2 text-right">
+            <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">הגדרות סבב - {team.name}</h2>
+            <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wider">
+                <Settings size={14} className="text-slate-400" />
+                <span>ניהול מחזוריות צוותית</span>
+            </div>
+        </div>
+    );
+
+    const modalFooter = (
         <div className="flex justify-between items-center gap-4 w-full">
             {existing ? (
                 <Button
                     onClick={() => onDeleteRotation?.(existing.id)}
                     variant="danger"
                     icon={Trash2}
+                    className="font-bold opacity-80 hover:opacity-100"
                 >
                     מחק סבב
                 </Button>
-            ) : <div></div>}
+            ) : <div />}
 
             <div className="flex gap-3">
-                <Button onClick={onClose} variant="ghost">ביטול</Button>
-                <Button onClick={handleSave} variant="primary" icon={Save}>שמור הגדרות</Button>
+                <Button onClick={onClose} variant="ghost" className="font-bold text-slate-500">ביטול</Button>
+                <Button onClick={handleSave} variant="primary" icon={Save} className="font-bold px-8 shadow-lg shadow-blue-200">שמור הגדרות</Button>
             </div>
         </div>
     );
@@ -66,32 +77,35 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
         <Modal
             isOpen={true}
             onClose={onClose}
-            title={`הגדרות סבב - ${team.name}`}
+            title={modalTitle}
             size="lg"
-            footer={footerContent}
+            footer={modalFooter}
         >
             <div className="space-y-6">
                 {/* Guidance Note */}
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-sm text-blue-800 flex items-start gap-3">
-                    <CalendarDays className="shrink-0 mt-0.5 text-blue-600" size={20} />
+                <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 text-sm text-blue-800 flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                        <CalendarDays className="text-blue-600" size={20} />
+                    </div>
                     <div>
-                        <strong className="block text-blue-900 mb-1">הגדרת סבב יציאות:</strong>
-                        <p className="opacity-90 leading-relaxed">
+                        <strong className="block text-blue-900 mb-1 font-black">הגדרת סבב יציאות:</strong>
+                        <p className="opacity-90 leading-relaxed font-bold text-xs md:text-sm">
                             כאן מגדירים את המחזוריות הקבועה של הצוות. המערכת תחשב אוטומטית מי נמצא ומי בבית.<br />
-                            <strong>ימים בבסיס:</strong> כולל יום ההגעה עד יום היציאה.<br />
-                            <strong>תאריך התחלה:</strong> יום ההגעה הראשון שממנו מתחילים לספור את המחזור עבור *כל* הצוות.
+                            <span className="text-blue-600">ימים בבסיס:</span> כולל יום ההגעה עד יום היציאה.<br />
+                            <span className="text-blue-600">תאריך התחלה:</span> יום ההגעה הראשון שממנו מתחילים לספור את המחזור עבור *כל* הצוות.
                         </p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
                         <Input
                             label="ימים בבסיס"
                             type="number"
                             value={daysOn}
                             onChange={e => setDaysOn(parseInt(e.target.value))}
                             placeholder="11"
+                            className="bg-slate-50/50 border-slate-200"
                         />
                         <Input
                             label="ימים בבית"
@@ -99,10 +113,11 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
                             value={daysOff}
                             onChange={e => setDaysOff(parseInt(e.target.value))}
                             placeholder="3"
+                            className="bg-slate-50/50 border-slate-200"
                         />
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         <div>
                             <Input
                                 type="date"
@@ -110,7 +125,7 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
                                 value={anchorDate}
                                 onChange={e => setAnchorDate(e.target.value)}
                                 icon={CalendarDays}
-                                className="w-full"
+                                className="w-full bg-slate-50/50 border-slate-200"
                             />
                         </div>
                         <div>
@@ -120,13 +135,13 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
                                 value={endDate}
                                 onChange={e => setEndDate(e.target.value)}
                                 icon={CalendarDays}
-                                className="w-full"
+                                className="w-full bg-slate-50/50 border-slate-200"
                                 placeholder="ללא סיום"
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-6 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
                             <Input
                                 type="time"
@@ -134,7 +149,7 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
                                 value={arrTime}
                                 onChange={e => setArrTime(e.target.value)}
                                 icon={Clock}
-                                className="w-full"
+                                className="w-full bg-slate-50/50 border-slate-200"
                             />
                         </div>
                         <div>
@@ -144,7 +159,7 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
                                 value={depTime}
                                 onChange={e => setDepTime(e.target.value)}
                                 icon={Clock}
-                                className="w-full"
+                                className="w-full bg-slate-50/50 border-slate-200"
                             />
                         </div>
                     </div>

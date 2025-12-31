@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Equipment, EquipmentStatus, Team } from '@/types';
-import { Package, Search, Plus, User, CheckCircle2, AlertCircle, History, QrCode, ClipboardCheck, Trash2, Edit3, Filter, Tag, ChevronRight, Users, ChevronLeft, Calendar as CalendarIcon, Hammer } from 'lucide-react';
+import { Package, Search, Plus, User, CheckCircle2, AlertCircle, History, QrCode, ClipboardCheck, Trash2, Edit3, Filter, Tag, ChevronRight, Users, ChevronLeft, Calendar as CalendarIcon, Hammer, Check } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -117,6 +118,8 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [showMobileTypeFilter, setShowMobileTypeFilter] = useState(false);
+    const [showMobileStatusFilter, setShowMobileStatusFilter] = useState(false);
 
     // Date Navigation State
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -363,30 +366,20 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                             />
                         </div>
                         <div className="w-[42px] shrink-0">
-                            <Select
-                                value={filterType}
-                                onChange={setFilterType}
-                                options={[{ value: 'all', label: 'כל הסוגים' }, ...equipmentTypes.map(t => ({ value: t, label: t }))]}
-                                triggerMode="icon"
-                                icon={Tag}
-                                className="bg-slate-50 border-slate-200"
-                            />
+                            <button
+                                className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl border transition-colors ${filterType !== 'all' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                                onClick={() => setShowMobileTypeFilter(true)}
+                            >
+                                <Tag size={18} />
+                            </button>
                         </div>
                         <div className="w-[42px] shrink-0">
-                            <Select
-                                value={filterStatus}
-                                onChange={setFilterStatus}
-                                options={[
-                                    { value: 'all', label: 'כל הסטטוסים' },
-                                    { value: 'present', label: 'נמצא' },
-                                    { value: 'missing', label: 'חסר' },
-                                    { value: 'damaged', label: 'תקול' },
-                                    { value: 'lost', label: 'אבד' }
-                                ]}
-                                triggerMode="icon"
-                                icon={Filter}
-                                className="bg-slate-50 border-slate-200"
-                            />
+                            <button
+                                className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl border transition-colors ${filterStatus !== 'all' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                                onClick={() => setShowMobileStatusFilter(true)}
+                            >
+                                <Filter size={18} />
+                            </button>
                         </div>
                         {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
                             <button
@@ -755,15 +748,36 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
             <Modal
                 isOpen={isAddEditModalOpen}
                 onClose={() => setIsAddEditModalOpen(false)}
-                title={editingItem?.id ? 'עריכת פריט' : 'הוספת פריט חדש'}
+                title={
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <Package size={24} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-slate-800">{editingItem?.id ? 'עריכת פריט' : 'הוספת פריט חדש'}</h2>
+                            <p className="text-sm font-bold text-slate-400">{editingItem?.id ? 'עדכון פרטי ציוד קיים' : 'רישום ציוד חדש למערכת'}</p>
+                        </div>
+                    </div>
+                }
                 footer={
-                    <div className="flex justify-end gap-3 w-full">
-                        <button onClick={() => setIsAddEditModalOpen(false)} className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold transition-colors">ביטול</button>
-                        <button onClick={handleSaveItem} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition-all active:scale-95">שמור פריט</button>
+                    <div className="flex justify-between items-center w-full gap-3">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsAddEditModalOpen(false)}
+                            className="font-bold text-slate-500 hover:text-slate-700"
+                        >
+                            ביטול
+                        </Button>
+                        <Button
+                            onClick={handleSaveItem}
+                            icon={Check}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-lg shadow-indigo-200 px-8"
+                        >
+                            שמור פריט
+                        </Button>
                     </div>
                 }
             >
-                {/* Existing Modal Content - Copied exactly from view, reused here for brevity in logic description, included in full Replacement */}
                 <div className="space-y-6 text-right">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5 text-right">
@@ -819,6 +833,111 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                             onChange={(e) => setEditingItem({ ...editingItem, notes: e.target.value })}
                         />
                     </div>
+                </div>
+            </Modal>
+
+            {/* Mobile Type Filter Modal */}
+            <Modal
+                isOpen={showMobileTypeFilter}
+                onClose={() => setShowMobileTypeFilter(false)}
+                title={
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <Tag size={20} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black text-slate-800">סינון לפי סוג</h3>
+                            <p className="text-sm font-bold text-slate-400">הצג פריטים מסוג מסוים בלבד</p>
+                        </div>
+                    </div>
+                }
+                footer={
+                    <div className="w-full">
+                        <Button variant="ghost" className="w-full font-bold text-slate-500" onClick={() => setShowMobileTypeFilter(false)}>סגור</Button>
+                    </div>
+                }
+                className="md:hidden"
+            >
+                <div className="grid grid-cols-2 gap-3 p-1">
+                    <button
+                        onClick={() => { setFilterType('all'); setShowMobileTypeFilter(false); }}
+                        className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${filterType === 'all'
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                    >
+                        <span className="font-black">הכל</span>
+                    </button>
+                    {equipmentTypes.map(type => (
+                        <button
+                            key={type}
+                            onClick={() => { setFilterType(type); setShowMobileTypeFilter(false); }}
+                            className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${filterType === type
+                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                }`}
+                        >
+                            <span className="font-bold text-sm text-center">{type}</span>
+                        </button>
+                    ))}
+                </div>
+            </Modal>
+
+            {/* Mobile Status Filter Modal */}
+            <Modal
+                isOpen={showMobileStatusFilter}
+                onClose={() => setShowMobileStatusFilter(false)}
+                title={
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <Filter size={20} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black text-slate-800">סינון לפי סטטוס</h3>
+                            <p className="text-sm font-bold text-slate-400">סינון לפי מצב הציוד</p>
+                        </div>
+                    </div>
+                }
+                footer={
+                    <div className="w-full">
+                        <Button variant="ghost" className="w-full font-bold text-slate-500" onClick={() => setShowMobileStatusFilter(false)}>סגור</Button>
+                    </div>
+                }
+                className="md:hidden"
+            >
+                <div className="space-y-2 p-1">
+                    <button
+                        onClick={() => { setFilterStatus('all'); setShowMobileStatusFilter(false); }}
+                        className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all ${filterStatus === 'all'
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                    >
+                        <span className="font-black">כל הסטטוסים</span>
+                        {filterStatus === 'all' && <Check size={16} />}
+                    </button>
+                    {[
+                        { value: 'present', label: 'נמצא', color: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+                        { value: 'missing', label: 'חסר', color: 'bg-rose-50 text-rose-600 border-rose-200' },
+                        { value: 'damaged', label: 'תקול', color: 'bg-amber-50 text-amber-600 border-amber-200' },
+                        { value: 'lost', label: 'אבד', color: 'bg-slate-100 text-slate-600 border-slate-300' }
+                    ].map(status => (
+                        <button
+                            key={status.value}
+                            onClick={() => { setFilterStatus(status.value); setShowMobileStatusFilter(false); }}
+                            className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all ${filterStatus === status.value
+                                ? 'bg-slate-800 border-slate-800 text-white shadow-md'
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className={`px-2 py-0.5 rounded text-xs font-bold border ${status.color}`}>
+                                    {status.label}
+                                </span>
+                            </div>
+                            {filterStatus === status.value && <Check size={16} />}
+                        </button>
+                    ))}
                 </div>
             </Modal>
         </div>

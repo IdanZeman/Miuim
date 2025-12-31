@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, ArrowRight, Plus, Trash2, Calendar as CalendarIcon, X } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { logger } from '@/services/loggingService';
 import { AvailabilitySlot } from '@/types';
 
@@ -239,31 +240,41 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
         );
     };
 
+    const modalTitle = (
+        <div className="flex flex-col gap-0.5">
+            <h3 className="text-lg font-black text-slate-800 leading-tight">ערוך סטטוס יומי</h3>
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                <CalendarIcon size={12} className="text-blue-500" />
+                <span>{personName} • {date}</span>
+            </div>
+        </div>
+    );
+
+    const modalFooter = (
+        <div className="flex gap-3 w-full">
+            <Button
+                variant="ghost"
+                onClick={onClose}
+                className="flex-1 h-12 md:h-10 text-base md:text-sm font-bold"
+            >
+                ביטול
+            </Button>
+            <Button
+                onClick={handleApply}
+                className="flex-1 h-12 md:h-10 text-base md:text-sm font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+            >
+                שמור שינויים
+            </Button>
+        </div>
+    );
+
     return (
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={
-                <div className="flex flex-col">
-                    <span className="text-base font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                        ערוך סטטוס
-                    </span>
-                    <span className="text-xs text-slate-400 font-bold">{personName} • {date}</span>
-                </div>
-            }
+            title={modalTitle}
             size="sm"
-            closeIcon="close"
-            footer={
-                <div className="flex gap-3 w-full">
-                    <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold hover:bg-slate-200 transition-colors">ביטול</button>
-                    <button
-                        onClick={handleApply}
-                        className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-sm font-black hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20"
-                    >
-                        שמור שינויים
-                    </button>
-                </div>
-            }
+            footer={modalFooter}
         >
             <div className="flex flex-col gap-1 w-full">
                 {!customType ? (

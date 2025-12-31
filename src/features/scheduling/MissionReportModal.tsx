@@ -3,8 +3,8 @@ import { Shift, TaskTemplate, Person, Role } from '../../types';
 import { Modal as GenericModal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import {
-    X, Clock, Calendar as CalendarIcon, History, MessageSquare, Send,
-    FileText, CheckCircle, Users, Shield, AlertTriangle, Info, MessageCircle, ChevronDown, ChevronUp, Pencil, Printer
+    Clock, Calendar as CalendarIcon, History, MessageSquare, Send,
+    FileText, CheckCircle, Users, Shield, AlertTriangle, Info, MessageCircle, Pencil, Printer
 } from 'lucide-react';
 import { useMissionReports } from '../../hooks/useMissionReports';
 import { useToast } from '../../contexts/ToastContext';
@@ -42,6 +42,7 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
 
     // Mobile Tabs State
     const [activeMobileTab, setActiveMobileTab] = useState<'timeline' | 'report'>('timeline');
+    const [isSubmitLoading, setIsSubmitLoading] = useState(false);
 
     // Fetch report on mount
     useEffect(() => {
@@ -81,12 +82,17 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
     };
 
     const handleSubmitReport = async () => {
-        await upsertReport({
-            ...reportForm,
-            submitted_at: new Date().toISOString()
-        });
-        showToast('דוח משימה הוגש בהצלחה', 'success');
-        onRefreshData?.();
+        setIsSubmitLoading(true);
+        try {
+            await upsertReport({
+                ...reportForm,
+                submitted_at: new Date().toISOString()
+            });
+            showToast('דוח משימה הוגש בהצלחה', 'success');
+            onRefreshData?.();
+        } finally {
+            setIsSubmitLoading(false);
+        }
     };
 
     // Auto-scroll to bottom of log
@@ -98,18 +104,100 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
     }, [report?.ongoing_log, activeMobileTab]);
 
 
+    // --- UI HELPERS FOR UNIFIED MODAL ---
+    const modalTitle = (
+        <div className="flex flex-col gap-1 pr-2">
+            <div className="flex items-center gap-3">
+                <span className="truncate">{task.name}</span>
+                {report?.submitted_at ? (
+                    <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full text-[10px] md:text-xs font-black border border-emerald-100 uppercase tracking-wider shrink-0">
+                        <CheckCircle size={12} />
+                        <span>הוגש</span>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full text-[10px] md:text-xs font-black border border-blue-100 animate-pulse uppercase tracking-wider shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                        <span>פעיל</span>
+                    </div>
+                )}
+            </div>
+            <div className="flex items-center gap-3 text-xs md:text-sm text-slate-500 font-bold whitespace-nowrap overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <CalendarIcon size={14} className="text-slate-400" />
+                    <span>{new Date(shift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</span>
+                </div>
+                <span className="text-slate-200">|</span>
+                <div className="flex items-center gap-1.5 font-mono shrink-0">
+                    <Clock size={14} className="text-slate-400" />
+                    <span>
+                        {new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                        -
+                        {new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+
+    const modalHeaderActions = (
+        <button
+            onClick={() => window.print()}
+            className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
+            title="הדפס / יצא ל-PDF"
+        >
+            <Printer size={20} />
+        </button>
+    );
+
+    const modalFooter = (
+        <div className="flex flex-col md:flex-row items-center justify-between w-full gap-4">
+            {/* Mobile Tab Switcher in Footer for better reach */}
+            <div className="md:hidden flex bg-slate-100/50 p-1 rounded-xl border border-slate-200/50 w-full mb-1">
+                <button
+                    onClick={() => setActiveMobileTab('timeline')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${activeMobileTab === 'timeline' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                >
+                    <History size={16} />
+                    <span>ציר זמן</span>
+                </button>
+                <button
+                    onClick={() => setActiveMobileTab('report')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${activeMobileTab === 'report' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                >
+                    <FileText size={16} />
+                    <span>דוח סיכום</span>
+                </button>
+            </div>
+
+            <div className="flex items-center justify-between w-full">
+                <Button variant="ghost" onClick={onClose} className="font-bold text-slate-500">ביטול</Button>
+                {!isViewer && (
+                    <Button
+                        variant="primary"
+                        icon={Send}
+                        onClick={handleSubmitReport}
+                        disabled={isSubmitLoading}
+                        className="font-bold shadow-md shadow-blue-200 px-8"
+                    >
+                        {report?.submitted_at ? 'עדכן הגשה' : 'הגש דוח'}
+                    </Button>
+                )}
+            </div>
+        </div>
+    );
+
     if (!task) return null;
 
     return (
         <GenericModal
             isOpen={true}
             onClose={onClose}
-            closeIcon="back"
-            title={null}
-            hideDefaultHeader={true}
+            title={modalTitle}
+            headerActions={modalHeaderActions}
+            footer={modalFooter}
             size="2xl"
             scrollableContent={false}
-            className="p-0 overflow-hidden flex flex-col h-[90vh] md:h-[85vh] md:max-h-[85vh] print:fixed print:inset-0 print:max-h-none print:h-full print:m-0 print:rounded-none print:shadow-none print:z-[99999]" // Rule 5: Uniform height & Print fix
+            className="p-0 overflow-hidden flex flex-col h-[90vh] md:h-[85vh] md:max-h-[85vh] print:fixed print:inset-0 print:max-h-none print:h-full print:m-0 print:rounded-none print:shadow-none print:z-[99999]"
         >
             <style dangerouslySetInnerHTML={{
                 __html: `
@@ -223,87 +311,6 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
 
                 <div className="mt-8 text-center text-xs text-slate-400">
                     הופק ע"י המערכת בתאריך {new Date().toLocaleString('he-IL')}
-                </div>
-            </div>
-
-            {/* --- CUSTOM HEADER (Sticky) - Screen Only --- */}
-            <div className="bg-white border-b border-slate-200 p-3.5 md:p-4 shrink-0 z-40 shadow-sm flex flex-col gap-3 print:hidden">
-                {/* Row 1: Title, Status and Close */}
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-none truncate">
-                            {task.name}
-                        </h2>
-
-                        {/* Status Badge */}
-                        <div className="shrink-0">
-                            {report?.submitted_at ? (
-                                <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-[10px] md:text-xs font-black border border-emerald-100 uppercase tracking-wider">
-                                    <CheckCircle size={14} />
-                                    <span>הוגש</span>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[10px] md:text-xs font-black border border-blue-100 animate-pulse uppercase tracking-wider">
-                                    <span className="w-2 h-2 rounded-full bg-blue-600" />
-                                    <span>פעיל</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Standard Modal Close Button (Ghost Style) */}
-                    <button
-                        onClick={onClose}
-                        className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all active:scale-90 shrink-0"
-                        title="סגור"
-                    >
-                        <X size={26} />
-                    </button>
-                </div>
-
-                {/* Row 2: Metadata, Tabs and Print */}
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-3 md:gap-4 text-sm md:text-lg text-slate-500 font-bold whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                            <CalendarIcon size={18} className="text-slate-400" />
-                            <span>{new Date(shift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</span>
-                        </div>
-                        <span className="text-slate-200">|</span>
-                        <div className="flex items-center gap-2 font-mono">
-                            <Clock size={18} className="text-slate-400" />
-                            <span>
-                                {new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                -
-                                {new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 md:gap-3">
-                        {/* Mobile Tabs Switcher */}
-                        <div className="md:hidden flex bg-slate-100 p-1 rounded-xl items-center border border-slate-200/50">
-                            <button
-                                onClick={() => setActiveMobileTab('timeline')}
-                                className={`w-10 h-9 flex items-center justify-center rounded-lg transition-all ${activeMobileTab === 'timeline' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-                            >
-                                <History size={18} />
-                            </button>
-                            <button
-                                onClick={() => setActiveMobileTab('report')}
-                                className={`w-10 h-9 flex items-center justify-center rounded-lg transition-all ${activeMobileTab === 'report' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-                            >
-                                <FileText size={18} />
-                            </button>
-                        </div>
-
-                        {/* Print Button */}
-                        <button
-                            onClick={() => window.print()}
-                            className="w-10 h-9 md:w-11 md:h-11 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-500 hover:text-slate-900 transition-all shadow-sm active:scale-95"
-                        >
-                            <Printer size={20} className="md:w-6 md:h-6" />
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -521,38 +528,6 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                             />
                         </div>
                     </div>
-
-                    {!isViewer && !isReportLoading && (
-                        <div className="p-4 bg-white border-t border-slate-200 z-10 shadow-[0_-4px_12px_-2px_rgba(0,0,0,0.1)]">
-                            {!report?.submitted_at ? (
-                                <div className="flex gap-3">
-                                    <Button
-                                        variant="secondary"
-                                        onClick={() => upsertReport({ ...reportForm })} // Save without submitting
-                                        isLoading={isReportLoading}
-                                        className="flex-1 h-12 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-base font-bold shadow-sm rounded-xl"
-                                    >
-                                        שמור טיוטה
-                                    </Button>
-                                    <Button
-                                        onClick={handleSubmitReport}
-                                        isLoading={isReportLoading}
-                                        className="flex-[2] h-12 bg-slate-900 hover:bg-slate-800 text-white font-bold shadow-lg text-base rounded-xl"
-                                    >
-                                        הגש דוח סופי
-                                    </Button>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={() => upsertReport({ submitted_at: null as any })}
-                                    disabled={isReportLoading}
-                                    className="w-full h-12 border-2 border-dashed border-slate-300 text-slate-600 hover:text-slate-900 hover:border-slate-500 rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
-                                >
-                                    <Pencil size={16} /> <span>ערוך דוח (בטל הגשה)</span>
-                                </button>
-                            )}
-                        </div>
-                    )}
                 </div>
             </div>
         </GenericModal>

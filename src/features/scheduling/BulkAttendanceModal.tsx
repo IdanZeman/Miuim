@@ -6,6 +6,7 @@ import { Select } from '@/components/ui/Select';
 import { Switch } from '@/components/ui/Switch';
 import { Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { logger } from '@/services/loggingService';
+import { cn } from '@/lib/utils';
 
 interface BulkAttendanceModalProps {
     isOpen: boolean;
@@ -44,36 +45,81 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
         onClose();
     };
 
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`עריכה קבוצתית (${selectedCount} נבחרים)`}>
-            <form onSubmit={handleSubmit} className="space-y-6">
+    const modalTitle = (
+        <div className="flex flex-col gap-0.5">
+            <h3 className="text-xl font-black text-slate-800 leading-tight">עריכה קבוצתית</h3>
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                <CheckCircle2 size={12} className="text-blue-500" />
+                <span>עדכון סטטוס עבור {selectedCount} משתמשים</span>
+            </div>
+        </div>
+    );
 
+    const modalFooter = (
+        <div className="flex gap-3 w-full">
+            <Button
+                type="button"
+                variant="ghost"
+                onClick={onClose}
+                className="flex-1 h-12 md:h-10 text-base md:text-sm font-bold"
+            >
+                ביטול
+            </Button>
+            <Button
+                type="submit"
+                form="bulk-attendance-form"
+                className="flex-1 h-12 md:h-10 text-base md:text-sm font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+            >
+                החל שינויים
+            </Button>
+        </div>
+    );
+
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={modalTitle}
+            size="sm"
+            footer={modalFooter}
+        >
+            <form id="bulk-attendance-form" onSubmit={handleSubmit} className="flex flex-col gap-6 py-2">
                 {/* Status Selection */}
                 <div className="grid grid-cols-2 gap-4">
                     <button
                         type="button"
                         onClick={() => setStatus('available')}
-                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${status === 'available' ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-200 hover:border-slate-300 text-slate-500'}`}
+                        className={cn(
+                            "flex flex-col items-center justify-center p-5 rounded-2xl border-2 transition-all group",
+                            status === 'available'
+                                ? "border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm ring-2 ring-emerald-50"
+                                : "border-slate-100 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-500"
+                        )}
                     >
-                        <CheckCircle2 size={32} className="mb-2" />
-                        <span className="font-bold">נוכח / זמין</span>
+                        <CheckCircle2 size={32} className={cn("mb-2 transition-transform group-hover:scale-110", status === 'available' ? "text-emerald-600" : "text-slate-200")} />
+                        <span className="font-black text-[10px] uppercase tracking-widest">נוכח / זמין</span>
                     </button>
                     <button
                         type="button"
                         onClick={() => setStatus('away')}
-                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${status === 'away' ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-200 hover:border-slate-300 text-slate-500'}`}
+                        className={cn(
+                            "flex flex-col items-center justify-center p-5 rounded-2xl border-2 transition-all group",
+                            status === 'away'
+                                ? "border-red-500 bg-red-50 text-red-700 shadow-sm ring-2 ring-red-50"
+                                : "border-slate-100 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-500"
+                        )}
                     >
-                        <XCircle size={32} className="mb-2" />
-                        <span className="font-bold">לא נוכח / חופש</span>
+                        <XCircle size={32} className={cn("mb-2 transition-transform group-hover:scale-110", status === 'away' ? "text-red-600" : "text-slate-200")} />
+                        <span className="font-black text-[10px] uppercase tracking-widest">לא נוכח / חופש</span>
                     </button>
                 </div>
 
                 {/* Date Range */}
-                <div className="bg-slate-50 p-4 rounded-xl space-y-4 border border-slate-100">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                        <Calendar size={18} />
-                        טווח תאריכים
-                    </h3>
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-2 px-1">
+                        <Calendar size={14} className="text-blue-500" />
+                        <h3 className="font-black text-[10px] text-slate-400 uppercase tracking-widest">טווח תאריכים</h3>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <Input
                             type="date"
@@ -81,6 +127,7 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
                             required
+                            className="bg-white"
                         />
                         <Input
                             type="date"
@@ -88,17 +135,18 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
                             required
+                            className="bg-white"
                         />
                     </div>
                 </div>
 
-                {/* Hours Configuration (Only if Available) */}
+                {/* Hours Configuration */}
                 {status === 'available' && (
-                    <div className="bg-slate-50 p-4 rounded-xl space-y-4 border border-slate-100 animate-in fade-in slide-in-from-top-2">
-                        <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                            <Clock size={18} />
-                            שעות זמינות
-                        </h3>
+                    <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center gap-2 px-1">
+                            <Clock size={14} className="text-blue-500" />
+                            <h3 className="font-black text-[10px] text-slate-400 uppercase tracking-widest">שעות זמינות</h3>
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                             <Input
                                 type="time"
@@ -106,6 +154,7 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
                                 value={startHour}
                                 onChange={(e) => setStartHour(e.target.value)}
                                 required
+                                className="bg-white"
                             />
                             <Input
                                 type="time"
@@ -113,15 +162,11 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
                                 value={endHour}
                                 onChange={(e) => setEndHour(e.target.value)}
                                 required
+                                className="bg-white"
                             />
                         </div>
                     </div>
                 )}
-
-                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                    <Button type="button" variant="ghost" onClick={onClose}>ביטול</Button>
-                    <Button type="submit" variant="primary">החל שינויים</Button>
-                </div>
             </form>
         </Modal>
     );

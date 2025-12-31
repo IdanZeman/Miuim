@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
 import { logger } from '@/services/loggingService';
+import { getPersonInitials } from '@/utils/nameUtils';
 
 interface PersonalAttendanceCalendarProps {
     person: Person;
@@ -210,115 +211,128 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         return days;
     };
 
-    return (
-        <Modal isOpen={true} onClose={onClose} title={person.name} size="xl">
-            <div className="flex flex-col h-full max-h-[calc(90dvh-100px)]">
-                {/* Sub-Header with Avatar and subtitle - Styled as part of content */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} text-lg`}>
-                            {person.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-slate-700">לוח נוכחות אישי</h3>
-                            <p className="text-sm text-slate-500">צפה וערוך את הנוכחות החודשית</p>
-                        </div>
+    // --- UNIFIED MODAL UTILS ---
+    const modalTitle = (
+        <div className="flex items-center gap-3 pr-2 text-right">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} text-sm shrink-0`}>
+                {getPersonInitials(person.name)}
+            </div>
+            <div className="flex flex-col gap-0.5">
+                <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">{person.name}</h2>
+                <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wider">
+                    <CalendarIcon size={14} className="text-slate-400" />
+                    <span>לוח נוכחות אישי</span>
+                </div>
+            </div>
+        </div>
+    );
+
+    const modalHeaderActions = (
+        <div className="flex items-center gap-2">
+            <button
+                onClick={() => {
+                    const csvHeader = 'תאריך,סטטוס,שעות\n';
+                    const rows = [];
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const date = new Date(year, month, d);
+                        const avail = getDisplayAvailability(date);
+                        const dateStr = date.toLocaleDateString('he-IL');
+                        const status = avail.isAvailable ? 'נמצא' : 'בבית';
+                        const hours = avail.isAvailable ? `${avail.startHour} - ${avail.endHour}` : '-';
+                        rows.push(`${dateStr},${status},${hours}`);
+                    }
+                    const csvContent = csvHeader + rows.join('\n');
+                    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `attendance_${person.name}_${month + 1}_${year}.csv`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    logger.info('EXPORT', `Exported attendance data for ${person.name}`, { month: month + 1, year });
+                }}
+                className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
+                title="ייצוא ל-CSV"
+            >
+                <Download size={20} />
+            </button>
+            {!isViewer && (
+                <button
+                    onClick={() => setShowRotationSettings(true)}
+                    className="w-10 h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                    title="הגדרת סבב אישי"
+                >
+                    <RotateCcw size={20} />
+                </button>
+            )}
+        </div>
+    );
+
+    const modalFooter = (() => {
+        let daysOnBase = 0;
+        let daysAtHome = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month, d);
+            const avail = getDisplayAvailability(date);
+            const status = (avail as any).status;
+
+            if (!avail.isAvailable) {
+                daysAtHome++;
+            } else if (status === 'departure') {
+                daysAtHome++; // Departure counts as Home
+            } else {
+                daysOnBase++; // Arrival, Base, Full
+            }
+        }
+        return (
+            <div className="flex items-center justify-between w-full">
+                <div className="flex gap-6 items-center">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                        <span className="text-sm font-bold text-slate-600">בבסיס: <span className="text-emerald-700">{daysOnBase} ימים</span></span>
                     </div>
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            icon={Download} // Requires import
-                            onClick={() => {
-                                const csvHeader = 'תאריך,סטטוס,שעות\n';
-                                const rows = [];
-                                for (let d = 1; d <= daysInMonth; d++) {
-                                    const date = new Date(year, month, d);
-                                    const avail = getDisplayAvailability(date);
-                                    const dateStr = date.toLocaleDateString('he-IL');
-                                    const status = avail.isAvailable ? 'נמצא' : 'בבית';
-                                    const hours = avail.isAvailable ? `${avail.startHour} - ${avail.endHour}` : '-';
-                                    rows.push(`${dateStr},${status},${hours}`);
-                                }
-                                const csvContent = csvHeader + rows.join('\n');
-                                const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-                                const url = URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = `attendance_${person.name}_${month + 1}_${year}.csv`;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                logger.log({
-                                    action: 'EXPORT',
-                                    entityType: 'attendance',
-                                    entityName: person.name,
-                                    category: 'data',
-                                    metadata: { month: month + 1, year }
-                                });
-                            }}
-                        >
-                            ייצוא
-                        </Button>
-                        {!isViewer && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                icon={RotateCcw}
-                                onClick={() => setShowRotationSettings(true)}
-                            >
-                                הגדרת סבב אישי
-                            </Button>
-                        )}
+                    <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                        <span className="text-sm font-bold text-slate-600">בבית: <span className="text-slate-800">{daysAtHome} ימים</span></span>
                     </div>
                 </div>
+                <div className="text-[10px] md:text-xs text-slate-400 font-bold italic">
+                    * יום יציאה נספר כיום בבית
+                </div>
+            </div>
+        );
+    })();
 
+    return (
+        <Modal
+            isOpen={true}
+            onClose={onClose}
+            title={modalTitle}
+            headerActions={modalHeaderActions}
+            footer={modalFooter}
+            size="2xl"
+        >
+            <div className="flex flex-col h-full">
                 {/* Calendar Controls */}
-                <div className="p-4 flex items-center justify-between bg-slate-50 rounded-t-xl border border-slate-200 border-b-0">
+                <div className="flex items-center justify-between mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
                     <Button onClick={handlePrevMonth} variant="ghost" size="icon" icon={ChevronRight} />
-                    <h3 className="text-lg font-bold text-slate-700">{monthName}</h3>
+                    <h3 className="text-lg font-black text-slate-800 tracking-tight">{monthName}</h3>
                     <Button onClick={handleNextMonth} variant="ghost" size="icon" icon={ChevronLeft} />
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar border border-slate-200 rounded-b-xl">
-                    <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
-                        {['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'].map(day => (
-                            <div key={day} className="py-2 text-center text-xs font-bold text-slate-500">
+                <div className="flex-1 overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-sm flex flex-col">
+                    <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
+                        {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(day => (
+                            <div key={day} className="py-2.5 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                 {day}
                             </div>
                         ))}
                     </div>
-                    <div className="grid grid-cols-7">
+                    <div className="grid grid-cols-7 flex-1">
                         {renderCalendarDays()}
                     </div>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
-                    {(() => {
-                        let daysOnBase = 0;
-                        let daysAtHome = 0;
-                        for (let d = 1; d <= daysInMonth; d++) {
-                            const date = new Date(year, month, d);
-                            const avail = getDisplayAvailability(date);
-                            const status = (avail as any).status;
-
-                            if (!avail.isAvailable) {
-                                daysAtHome++;
-                            } else if (status === 'departure') {
-                                daysAtHome++; // Departure counts as Home
-                            } else {
-                                daysOnBase++; // Arrival, Base, Full
-                            }
-                        }
-                        return (
-                            <div className="flex gap-4">
-                                <span className="font-bold">סיכום חודשי:</span>
-                                <span className="text-green-600">ימים בבסיס: {daysOnBase}</span>
-                                <span className="text-red-600">ימים בבית: {daysAtHome}</span>
-                            </div>
-                        );
-                    })()}
-                    <div>* יום יציאה נספר כיום בבית</div>
                 </div>
             </div>
 

@@ -486,47 +486,40 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 relative isolate z-10 overflow-hidden
             `}>
                 {/* Mobile Header - Premium Design */}
-                <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-4 pt-4 pb-4">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex flex-col">
-                            <h1 className="text-xl font-black text-slate-900 tracking-tight">יומן נוכחות</h1>
-                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none mt-0.5">ניהול זמינות</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            {!isViewer && (
-                                <button
-                                    onClick={() => setShowRotaWizard(true)}
-                                    className="w-12 h-12 flex items-center justify-center bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 shadow-sm active:scale-90 transition-all"
-                                    title="מחולל סבבים"
-                                >
-                                    <Sparkles size={22} strokeWidth={2.5} />
-                                </button>
-                            )}
+                <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 pt-3 pb-3">
+                    <div className="flex items-center gap-2 mb-3">
+                        {/* Compact Segmented Control - Merged with buttons row as requested */}
+                        <div className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 h-11">
                             <button
-                                onClick={handleExport}
-                                className="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-600 rounded-2xl border border-slate-100 shadow-sm active:scale-90 transition-all"
+                                onClick={() => setViewMode('calendar')}
+                                className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                             >
-                                <Download size={22} />
+                                <CalendarDays size={16} strokeWidth={viewMode === 'calendar' ? 2.5 : 2} />
+                                <span className="text-xs">חודשי</span>
+                            </button>
+                            <button
+                                onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
+                                className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'day_detail' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
+                            >
+                                <ListChecks size={16} strokeWidth={viewMode === 'day_detail' ? 2.5 : 2} />
+                                <span className="text-xs">יומי</span>
                             </button>
                         </div>
-                    </div>
 
-                    {/* Premium Segmented Control */}
-                    <div className="flex items-center p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/50 mb-4 h-14"> {/* Rule 1: 48px+ height */}
+                        {!isViewer && (
+                            <button
+                                onClick={() => setShowRotaWizard(true)}
+                                className="w-11 h-11 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shadow-sm active:scale-95 transition-all shrink-0"
+                                title="מחולל סבבים"
+                            >
+                                <Sparkles size={20} strokeWidth={2.5} />
+                            </button>
+                        )}
                         <button
-                            onClick={() => setViewMode('calendar')}
-                            className={`flex-1 flex items-center justify-center gap-2 h-full rounded-xl transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
+                            onClick={handleExport}
+                            className="w-11 h-11 flex items-center justify-center bg-slate-50 text-slate-600 rounded-xl border border-slate-100 shadow-sm active:scale-95 transition-all shrink-0"
                         >
-                            <CalendarDays size={18} strokeWidth={viewMode === 'calendar' ? 2.5 : 2} />
-                            <span className="text-sm">חודשי</span>
-                        </button>
-                        <button
-                            onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
-                            className={`flex-1 flex items-center justify-center gap-2 h-full rounded-xl transition-all duration-300 ${viewMode === 'day_detail' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
-                        >
-                            <ListChecks size={18} strokeWidth={viewMode === 'day_detail' ? 2.5 : 2} />
-                            <span className="text-sm">יומי</span>
+                            <Download size={20} />
                         </button>
                     </div>
 

@@ -7,7 +7,8 @@ import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, Schedul
 import { generateRoster, RosterGenerationResult, PersonHistory } from '@/utils/rotaGenerator';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Search, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock, Calculator, Info, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Wand2, Calendar, AlertTriangle, CheckCircle, Save, X, Filter, ArrowLeft, Download, Search, ArrowRight, Users, ChevronDown, ChevronUp, XCircle, Clock, Calculator, Info, Sparkles, RotateCcw, Maximize2, Minimize2, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect';
 import { useToast } from '@/contexts/ToastContext';
@@ -65,6 +66,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     const [showTaskAnalysis, setShowTaskAnalysis] = useState(false);
     const [selectedPreviewDate, setSelectedPreviewDate] = useState<string | null>(null);
     const [selectedTeamId, setSelectedTeamId] = useState<string>('all');
+    const [isTableFullscreen, setIsTableFullscreen] = useState(false);
+    const [showMobileSearch, setShowMobileSearch] = useState(false);
     // Config State
     const [targetTeamIds, setTargetTeamIds] = useState<string[]>([]); // Empty = All (or handle explicit 'all')
     const [customMinStaff, setCustomMinStaff] = useState(() => Math.floor(people.length / 2) || 5);
@@ -89,6 +92,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     const [searchQuery, setSearchQuery] = useState(''); // NEW: Search for matrix view
     const [showConstraintDetails, setShowConstraintDetails] = useState(false);
     const [showStatsDetails, setShowStatsDetails] = useState(false);
+    const [showExplanation, setShowExplanation] = useState(false);
 
     // Feature: Collapsible Teams
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
@@ -870,15 +874,19 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     }, [absences, startDate, endDate]);
 
     const configFooter = (
-        <div className="flex gap-3 w-full justify-between">
-            <Button variant="ghost" onClick={onClose} className="w-32 justify-center">ביטול</Button>
+        <div className="flex flex-col gap-3 w-full p-2 md:p-0">
             <Button
                 onClick={handleGenerate}
                 disabled={generating}
                 isLoading={generating}
-                className="w-40 justify-center font-bold"
+                className="w-full h-14 md:h-10 justify-center text-lg md:text-sm font-black shadow-lg rounded-2xl md:rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
             >
-                {generating ? 'מייצר סבב...' : 'צור סבב יציאות'}
+                {generating ? 'מייצר סבב...' : (
+                    <div className="flex items-center gap-2">
+                        <Wand2 size={22} className="md:w-5 md:h-5" />
+                        <span>צור סבב יציאות</span>
+                    </div>
+                )}
             </Button>
         </div>
     );
@@ -886,59 +894,70 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
 
     const previewFooter = (
-        <div className="flex gap-2 w-full justify-between items-center select-none">
-            {/* Left Side: Buttons */}
-            <div className="flex gap-2 items-center flex-1">
-                <Button variant="ghost" onClick={() => setStep('config')} className="h-10 px-0 md:px-4 text-slate-400">
-                    <ArrowRight size={20} />
-                </Button>
-
-                {/* Info Buttons (Mobile Optimized) */}
-                <div className="flex items-center gap-2">
-                    {/* Stats Info Button - Updated Label */}
-                    <button
-                        onClick={() => setShowStatsDetails(true)}
-                        className="h-9 px-3 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-600 active:bg-slate-100 text-xs font-bold gap-2 whitespace-nowrap"
+        <div className="flex flex-row gap-2 w-full justify-between items-center select-none p-2 md:p-0">
+            {/* Right Group: Back Button & Stats (Start in RTL) */}
+            <div className="flex flex-row gap-2 md:gap-3 flex-1 md:flex-initial items-center order-first">
+                <div className="flex-1 md:flex-initial">
+                    <Button
+                        variant="secondary"
+                        size="icon"
+                        onClick={() => setStep('config')}
+                        className="h-10 w-full md:w-10 rounded-xl shadow-sm border-slate-200"
+                        title="חזרה להגדרות"
                     >
-                        <span>ממוצע ללוחם - לחץ לפירוט</span>
-                    </button>
+                        <ArrowRight size={20} strokeWidth={3} className="text-slate-950" />
+                    </Button>
+                </div>
 
-                    {/* Constraints Status Button */}
-                    {result && result.stats.constraintStats && (
-                        <button
+                <div className="flex-1 md:flex-initial">
+                    <Button
+                        variant="secondary"
+                        onClick={() => setShowStatsDetails(true)}
+                        className="h-10 w-full md:w-auto md:px-4 rounded-xl shadow-sm border-slate-200 gap-2"
+                    >
+                        <Calculator size={18} className="text-blue-500" />
+                        <span className="hidden md:inline text-xs font-black text-slate-600">ממוצע ללוחם</span>
+                    </Button>
+                </div>
+
+                {result && result.stats.constraintStats && (
+                    <div className="flex-1 md:flex-initial">
+                        <Button
                             onClick={() => setShowConstraintDetails(true)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all ${result.stats.constraintStats.percentage === 100
-                                ? 'bg-green-50 border-green-200 text-green-700'
-                                : 'bg-amber-50 border-amber-200 text-amber-700'
-                                }`}
+                            variant="secondary"
+                            className={cn(
+                                "flex items-center justify-center gap-1.5 h-10 w-full md:w-auto md:px-4 rounded-xl border font-black transition-all shadow-sm",
+                                result.stats.constraintStats.percentage === 100
+                                    ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                                    : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                            )}
                         >
                             {result.stats.constraintStats.percentage === 100 ? (
-                                <CheckCircle size={14} className="shrink-0" />
+                                <CheckCircle size={18} className="shrink-0" />
                             ) : (
-                                <AlertTriangle size={14} className="shrink-0" />
+                                <AlertTriangle size={18} className="shrink-0" />
                             )}
-                            <span className="truncate max-w-[80px] hidden md:inline">
-                                {result.stats.constraintStats.percentage === 100 ? 'הכל תקין' : 'יש חריגות'}
-                            </span>
-                            <span className="md:hidden">
+                            <span className="hidden md:inline text-xs">אילוצים</span>
+                            <span className="bg-white/60 px-1 py-0.5 rounded-lg text-[10px] tabular-nums">
                                 {result.stats.constraintStats.met}/{result.stats.constraintStats.total}
                             </span>
-                        </button>
-                    )}
-                </div>
+                        </Button>
+                    </div>
+                )}
             </div>
 
-            {/* Right Side: Actions */}
-            <div className="flex gap-2 items-center">
-                <Button variant="ghost" onClick={onClose} className="h-10 text-xs md:text-sm px-2 text-slate-500">ביטול</Button>
+            {/* Left Side: Save Button (End in RTL) */}
+            <div className="flex-[1.5] md:flex-initial order-last">
                 <Button
                     onClick={handleSave}
                     isLoading={saving}
-                    icon={Save}
+                    fullWidth={true}
+                    className="bg-amber-500 hover:bg-amber-600 text-white shadow-lg h-10 px-2 md:px-8 text-sm font-black whitespace-nowrap rounded-xl md:rounded-lg flex items-center justify-center gap-2"
                     data-testid="rota-wizard-save-btn"
-                    className="bg-green-600 text-white hover:bg-green-700 shadow-md h-10 px-4 text-xs md:text-sm font-black whitespace-nowrap"
                 >
-                    שמור שיבוץ
+                    <Save size={18} className="shrink-0" />
+                    <span className="hidden md:inline">שמור שיבוץ</span>
+                    <span className="md:hidden">שמור</span>
                 </Button>
             </div>
         </div>
@@ -1063,276 +1082,453 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         showToast('הקובץ ירד בהצלחה', 'success');
     };
 
-    return (
-        <>
-            <Modal
-                isOpen={isOpen}
-                onClose={onClose}
-                title={
-                    <div className="flex flex-col">
-                        <span className="text-lg md:text-2xl font-black text-slate-800">מחולל סבבים</span>
-                    </div>
-                }
-                size={step === 'preview' ? 'full' : 'xl'} // tight for config, full for preview
-                scrollableContent={step === 'config'}
-                footer={step === 'preview' ? previewFooter : configFooter}
+    const modalTitle = (
+        <div className="flex items-center justify-between w-full pr-2">
+            <div className="flex flex-col gap-0.5">
+                <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">מחולל סבבים</h2>
+                <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wider">
+                    <Wand2 size={14} className="text-blue-500" />
+                    <span>{step === 'config' ? 'הגדרת פרמטרים' : 'תצוגת שיבוץ מוקדמת'}</span>
+                </div>
+            </div>
+            <button
+                onClick={() => setShowExplanation(true)}
+                className="md:hidden w-10 h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
             >
-                <div className={`flex flex-col h-full ${step === 'preview' ? 'h-[80vh] md:h-[75vh] shrink min-h-0' : ''}`}>
-                    {step === 'config' ? (
-                        <>
-                            <div className="flex justify-between items-center mb-4 px-1">
-                                <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">הגדרה</span>
-                            </div>
+                <Info size={24} />
+            </button>
+        </div>
+    );
 
-                            {showAnalysis ? (
-                                <StaffingAnalysis tasks={tasks} totalPeople={people.length} />
-                            ) : (
-                                <div className="space-y-4 animate-in fade-in duration-300 max-w-2xl mx-auto w-full">
-                                    {/* ... config content ... */}
+    const renderWizardContent = () => {
+        return (
+            <>
+                <Modal
+                    isOpen={isOpen}
+                    onClose={onClose}
+                    title={modalTitle}
+                    size={step === 'preview' ? 'full' : 'xl'} // tight for config, full for preview
+                    scrollableContent={step === 'config'}
+                    footer={step === 'preview' ? previewFooter : configFooter}
+                >
+                    <div className={`flex flex-col h-full ${step === 'preview' ? 'h-[80vh] md:h-[75vh] shrink min-h-0' : ''}`}>
+                        {step === 'config' ? (
+                            <>
+                                {showAnalysis ? (
+                                    <StaffingAnalysis tasks={tasks} totalPeople={people.length} />
+                                ) : (
+                                    <div className="space-y-4 animate-in fade-in duration-300 max-w-2xl mx-auto w-full">
+                                        {/* ... config content ... */}
 
 
-                                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex items-center gap-3">
-                                        <Sparkles className="text-blue-600 shrink-0" size={20} />
-                                        <div className="text-sm text-blue-900 leading-tight">
-                                            <span className="font-bold">מחולל סבבים אוטומטי: </span>
-                                            המערכת תייצר לוח נוכחות אופטימלי בהתבסס על מחזורי יציאות, אילוצים אישיים ושמירה על סד״כ מינימלי בבסיס.
+                                        <div className="hidden md:flex bg-blue-50 p-3 rounded-lg border border-blue-100 items-center gap-3">
+                                            <Sparkles className="text-blue-600 shrink-0" size={20} />
+                                            <div className="text-sm text-blue-900 leading-tight">
+                                                <span className="font-bold">מחולל סבבים אוטומטי: </span>
+                                                המערכת תייצר לוח נוכחות אופטימלי בהתבסס על מחזורי יציאות, אילוצים אישיים ושמירה על סד״כ מינימלי בבסיס.
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <div className="mt-4">
-                                        <MultiSelect
-                                            label="עבור צוותים"
-                                            value={targetTeamIds}
-                                            onChange={setTargetTeamIds}
-                                            options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                            placeholder="כל הצוותים (כלל הארגון)"
-                                        />
-                                    </div>
+                                        <div className="mt-4">
+                                            <MultiSelect
+                                                label="עבור צוותים"
+                                                value={targetTeamIds}
+                                                onChange={setTargetTeamIds}
+                                                options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                                placeholder="כל הצוותים (כלל הארגון)"
+                                            />
+                                        </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
-                                        <DatePicker label="תאריך התחלה" value={startDate} onChange={setStartDate} />
-                                        <DatePicker label="תאריך סיום" value={endDate} onChange={setEndDate} />
-                                    </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
+                                            <DatePicker label="תאריך התחלה" value={startDate} onChange={setStartDate} />
+                                            <DatePicker label="תאריך סיום" value={endDate} onChange={setEndDate} />
+                                        </div>
 
-                                    <div className="mt-6">
-                                        <label className="text-sm font-bold text-slate-700 block mb-3">מטרת השיבוץ (בחר אחת)</label>
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <button
-                                                onClick={() => setOptimizationMode('ratio')}
-                                                className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 ${optimizationMode === 'ratio'
-                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
-                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                                                    }`}
-                                            >
-                                                {optimizationMode === 'ratio' && (
-                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600" />
-                                                )}
-                                                <span className="text-sm font-bold">שמירה על יחס יציאות</span>
-                                                <span className="text-[10px] opacity-80 leading-tight">חלוקה הוגנת (11-3)</span>
-                                            </button>
+                                        <div className="mt-8">
+                                            <label className="text-base md:text-sm font-black text-slate-800 block mb-4">מטרת השיבוץ (בחר אחת)</label>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-3">
+                                                <button
+                                                    onClick={() => setOptimizationMode('ratio')}
+                                                    className={`relative p-5 md:p-3 rounded-2xl md:rounded-xl border-2 transition-all flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 text-right md:text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 shadow-sm active:scale-[0.98] ${optimizationMode === 'ratio'
+                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200'
+                                                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                                                        }`}
+                                                >
+                                                    <div className="flex md:flex-col items-center gap-4 md:gap-2 text-right md:text-center">
+                                                        <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${optimizationMode === 'ratio' ? 'bg-white/20' : 'bg-slate-100'}`}>
+                                                            <RotateCcw size={20} className={optimizationMode === 'ratio' ? 'text-white' : 'text-slate-400'} />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-base md:text-sm font-black leading-tight">שמירה על יחס יציאות</span>
+                                                            <span className={`text-xs md:text-[10px] opacity-80 leading-tight block mt-0.5 ${optimizationMode === 'ratio' ? 'text-blue-50' : ''}`}>חלוקה הוגנת (11-3)</span>
+                                                        </div>
+                                                    </div>
+                                                    {optimizationMode === 'ratio' && (
+                                                        <CheckCircle size={24} className="text-white md:hidden" />
+                                                    )}
+                                                </button>
 
-                                            <button
-                                                onClick={() => setOptimizationMode('min_staff')}
-                                                className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 ${optimizationMode === 'min_staff'
-                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
-                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                                                    }`}
-                                            >
-                                                {optimizationMode === 'min_staff' && (
-                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600" />
-                                                )}
-                                                <span className="text-sm font-bold">סד״כ מינימלי</span>
-                                                <span className="text-[10px] opacity-80 leading-tight">מקסימום בבית</span>
-                                            </button>
+                                                <button
+                                                    onClick={() => setOptimizationMode('min_staff')}
+                                                    className={`relative p-5 md:p-3 rounded-2xl md:rounded-xl border-2 transition-all flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 text-right md:text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 shadow-sm active:scale-[0.98] ${optimizationMode === 'min_staff'
+                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200'
+                                                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                                                        }`}
+                                                >
+                                                    <div className="flex md:flex-col items-center gap-4 md:gap-2 text-right md:text-center">
+                                                        <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${optimizationMode === 'min_staff' ? 'bg-white/20' : 'bg-slate-100'}`}>
+                                                            <Users size={20} className={optimizationMode === 'min_staff' ? 'text-white' : 'text-slate-400'} />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-base md:text-sm font-black leading-tight">סד״כ מינימלי</span>
+                                                            <span className={`text-xs md:text-[10px] opacity-80 leading-tight block mt-0.5 ${optimizationMode === 'min_staff' ? 'text-blue-50' : ''}`}>מקסימום לוחמים בבית</span>
+                                                        </div>
+                                                    </div>
+                                                    {optimizationMode === 'min_staff' && (
+                                                        <CheckCircle size={24} className="text-white md:hidden" />
+                                                    )}
+                                                </button>
 
-                                            <button
-                                                onClick={() => setOptimizationMode('tasks')}
-                                                className={`relative p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 ${optimizationMode === 'tasks'
-                                                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
-                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
-                                                    }`}
-                                            >
-                                                {optimizationMode === 'tasks' && (
-                                                    <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600" />
-                                                )}
-                                                <div className="flex items-center gap-1.5 z-10">
-                                                    <span className="text-sm font-bold">נגזרת משימות</span>
-                                                    <div
+                                                <button
+                                                    onClick={() => setOptimizationMode('tasks')}
+                                                    className={`relative p-5 md:p-3 rounded-2xl md:rounded-xl border-2 transition-all flex flex-row md:flex-col items-center justify-between md:justify-center gap-4 text-right md:text-center outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 shadow-sm active:scale-[0.98] ${optimizationMode === 'tasks'
+                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200'
+                                                        : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+                                                        }`}
+                                                >
+                                                    <div className="flex md:flex-col items-center gap-4 md:gap-2 text-right md:text-center">
+                                                        <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${optimizationMode === 'tasks' ? 'bg-white/20' : 'bg-slate-100'}`}>
+                                                            <Wand2 size={20} className={optimizationMode === 'tasks' ? 'text-white' : 'text-slate-400'} />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-base md:text-sm font-black leading-tight">נגזרת משימות</span>
+                                                            <span className={`text-xs md:text-[10px] opacity-80 leading-tight block mt-0.5 ${optimizationMode === 'tasks' ? 'text-blue-50' : ''}`}>איוש כל המשימות</span>
+                                                        </div>
+                                                    </div>
+                                                    {optimizationMode === 'tasks' && (
+                                                        <CheckCircle size={24} className="text-white md:hidden" />
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {optimizationMode === 'min_staff' && (
+                                            <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <Input
+                                                    type="number"
+                                                    label="יעד סד״כ (כמה חיילים נדרשים בכל יום?)"
+                                                    min="0"
+                                                    value={customMinStaff}
+                                                    onChange={e => setCustomMinStaff(Number(e.target.value))}
+                                                    icon={Users}
+                                                    className="border-blue-300 ring-2 ring-blue-50"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {optimizationMode === 'ratio' && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <Input
+                                                    type="number"
+                                                    label="ימי בסיס (סבב)"
+                                                    min="1"
+                                                    value={daysBase}
+                                                    onChange={e => setDaysBase(Number(e.target.value))}
+                                                />
+                                                <Input
+                                                    type="number"
+                                                    label="ימי בית (סבב)"
+                                                    min="1"
+                                                    value={daysHome}
+                                                    onChange={e => setDaysHome(Number(e.target.value))}
+                                                />
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-3 mt-4">
+                                            <TimePicker label="שעת הגעה" value={userArrivalHour} onChange={setUserArrivalHour} />
+                                            <TimePicker label="שעת יציאה" value={userDepartureHour} onChange={setUserDepartureHour} />
+                                        </div>
+
+                                        {optimizationMode === 'tasks' && (
+                                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <div className="flex items-center gap-2 text-blue-800">
+                                                    <Users size={16} />
+                                                    <span className="text-sm font-bold">דרישת סד״כ מחושבת:</span>
+                                                    <span className="text-sm bg-white px-2 py-0.5 rounded border border-blue-200">
+                                                        {(() => {
+                                                            let maxDaily = 0;
+                                                            const start = new Date(startDate);
+                                                            const end = new Date(endDate);
+                                                            const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+                                                            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                                                let dailySum = 0;
+                                                                const checkDate = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+                                                                tasks.forEach(t => {
+                                                                    // Check Task Validity Range
+                                                                    const tStart = t.startDate ? t.startDate : '1900-01-01';
+                                                                    const tEnd = t.endDate ? t.endDate : '2100-01-01';
+
+                                                                    if (checkDate >= tStart && checkDate <= tEnd) {
+                                                                        t.segments?.forEach(seg => {
+                                                                            let isActive = false;
+                                                                            if (seg.frequency === 'daily') {
+                                                                                isActive = true;
+                                                                            } else if (seg.frequency === 'specific_date') {
+                                                                                if (seg.specificDate === checkDate) isActive = true;
+                                                                            } else if (seg.frequency === 'weekly') {
+                                                                                const dayName = dayMap[d.getDay()];
+                                                                                if (seg.daysOfWeek?.includes(dayName)) isActive = true;
+                                                                            }
+
+                                                                            if (isActive) {
+                                                                                dailySum += seg.requiredPeople;
+                                                                            }
+                                                                        });
+                                                                    }
+                                                                });
+                                                                if (dailySum > maxDaily) maxDaily = dailySum;
+                                                            }
+
+                                                            return `עד ${maxDaily}`;
+                                                        })()} חיילים (משתנה)
+                                                    </span>
+                                                    <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setShowTaskAnalysis(true);
                                                         }}
-                                                        className="flex items-center justify-center bg-slate-800 text-white rounded-full w-4 h-4 hover:bg-black transition-colors shadow-sm cursor-help"
-                                                        title="לחץ לצפייה בפירוט המשימות"
+                                                        className="p-1 hover:bg-white rounded-full transition-colors text-blue-500 hover:text-blue-700"
+                                                        title="פירוט משימות יומי"
                                                     >
-                                                        <span className="font-serif italic font-bold text-[9px] leading-none">i</span>
+                                                        <Info size={16} />
+                                                    </button>
+                                                </div>
+
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                {/* Filters & Actions - Mobile Combined View */}
+                                <div className="md:hidden flex flex-col gap-2 mb-4 px-1">
+                                    <div className={`flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200 shadow-sm transition-all ${isTableFullscreen ? 'fixed top-4 left-4 right-4 z-[5001] bg-white/95 backdrop-blur-sm' : ''}`}>
+                                        {/* Legend Labels - Scrollable on Mobile */}
+                                        {!showMobileSearch && (
+                                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth pl-2 border-l border-slate-200 shrink-0">
+                                                <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-100 rounded-lg shrink-0">
+                                                    <div className="w-2.5 h-2.5 bg-red-100 rounded-full border border-red-200 shadow-sm" />
+                                                    <span className={`${isTableFullscreen ? 'inline' : 'hidden'} text-[10px] font-black text-slate-500`}>בית</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-100 rounded-lg shrink-0">
+                                                    <div className="w-2.5 h-2.5 bg-green-100 rounded-full border border-green-200 shadow-sm" />
+                                                    <span className={`${isTableFullscreen ? 'inline' : 'hidden'} text-[10px] font-black text-slate-500`}>בסיס</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-100 rounded-lg shrink-0">
+                                                    <div className="w-2.5 h-2.5 bg-amber-50 rounded-full border border-amber-200 shadow-sm" />
+                                                    <span className={`${isTableFullscreen ? 'inline' : 'hidden'} text-[10px] font-black text-slate-500`}>יציאה</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-100 rounded-lg shrink-0">
+                                                    <div className="w-2.5 h-2.5 bg-emerald-50 rounded-full border border-emerald-100 shadow-sm" />
+                                                    <span className={`${isTableFullscreen ? 'inline' : 'hidden'} text-[10px] font-black text-slate-500`}>הגעה</span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Icons Row */}
+                                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                            {showMobileSearch ? (
+                                                <div className="flex items-center gap-2 w-full animate-in slide-in-from-left-2 duration-200">
+                                                    <div className="relative flex-1">
+                                                        <input
+                                                            value={searchQuery}
+                                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                                            placeholder="חיפוש..."
+                                                            autoFocus
+                                                            className="h-10 w-full pr-9 pl-3 text-sm border-slate-200 rounded-xl bg-white shadow-inner focus:ring-2 focus:ring-blue-500/20"
+                                                        />
+                                                        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => { setShowMobileSearch(false); setSearchQuery(''); }}
+                                                        className="w-10 h-10 flex items-center justify-center text-slate-400 bg-white border border-slate-200 rounded-xl shrink-0"
+                                                    >
+                                                        <X size={18} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 w-full justify-between">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button
+                                                            onClick={handleExport}
+                                                            className="h-10 w-10 flex items-center justify-center text-green-600 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
+                                                        >
+                                                            <Download size={18} />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={handleToggleAllTeams}
+                                                            className="h-10 w-10 flex items-center justify-center text-slate-600 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
+                                                        >
+                                                            <ChevronDown size={18} className={`transition-transform duration-300 ${Array.from(collapsedTeams).length > 0 ? 'rotate-180' : '0'}`} />
+                                                        </button>
+
+                                                        <Select
+                                                            value={selectedTeamId}
+                                                            onChange={(val) => setSelectedTeamId(val)}
+                                                            options={[{ value: 'all', label: 'כל הצוותים' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                                                            placeholder="צוות"
+                                                            triggerMode="icon"
+                                                            icon={Filter}
+                                                            className="h-10 w-10 bg-white border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
+                                                        />
+
+                                                        <button
+                                                            onClick={() => setShowMobileSearch(true)}
+                                                            className="h-10 w-10 flex items-center justify-center text-slate-600 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
+                                                        >
+                                                            <Search size={18} />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Fullscreen Toggle */}
+                                                    <button
+                                                        onClick={() => setIsTableFullscreen(!isTableFullscreen)}
+                                                        className={`h-10 w-10 flex items-center justify-center rounded-xl shadow-md transition-all active:scale-90 
+                                                        ${isTableFullscreen ? 'bg-amber-100 border-amber-200 text-amber-700 font-bold' : 'bg-blue-600 text-white shadow-blue-200'}`}
+                                                    >
+                                                        {isTableFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Desktop Filters & Actions */}
+                                <div className="hidden md:flex flex-row items-center justify-between mb-4 px-1 gap-4">
+                                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0">
+                                        <button
+                                            onClick={handleExport}
+                                            className="h-10 w-10 flex items-center justify-center text-green-600 bg-white hover:bg-green-50 rounded-lg transition-all border border-green-200 shadow-sm shrink-0"
+                                            title="ייצוא לאקסל"
+                                        >
+                                            <Download size={20} />
+                                        </button>
+                                        <button
+                                            onClick={handleToggleAllTeams}
+                                            className="h-10 px-3 text-slate-600 bg-white hover:bg-slate-50 rounded-lg transition-all border border-slate-200 flex items-center gap-2 shadow-sm shrink-0"
+                                            title="כיווץ/הרחבת הכל"
+                                        >
+                                            <div className={`transition-transform duration-300 ${Array.from(collapsedTeams).some(id => teams.some(t => t.id === id)) ? 'rotate-180' : 'rotate-0'}`}>
+                                                <ChevronDown size={20} className="md:w-5 md:h-5" />
+                                            </div>
+                                            <span className="text-sm md:text-xs font-black">כיווץ/הרחבה</span>
+                                        </button>
+                                        <div className="h-8 w-px bg-slate-200 mx-1 shrink-0"></div>
+                                        <div className="shrink-0">
+                                            <Select
+                                                value={selectedTeamId}
+                                                onChange={(val) => setSelectedTeamId(val)}
+                                                options={[{ value: 'all', label: 'כל הצוותים' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                                                placeholder="צוות"
+                                                className="h-9 py-0 pl-3 pr-9 text-sm w-[180px] rounded-lg"
+                                                icon={Filter}
+                                                triggerMode="default"
+                                            />
+                                        </div>
+                                        {/* Search Input */}
+                                        <div className="relative shrink-0">
+                                            <input
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                placeholder="חיפוש..."
+                                                className="h-9 pr-10 pl-3 text-sm border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 w-[140px] transition-all focus:w-[180px] shadow-sm md:shadow-none"
+                                            />
+                                            <div className="absolute top-0 bottom-0 right-3.5 flex items-center pointer-events-none text-slate-400">
+                                                <Search size={14} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-xs font-black text-slate-500">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-red-100 rounded border border-red-200 shadow-sm"></div>
+                                            <span>בית</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-green-100 rounded border border-green-200 shadow-sm"></div>
+                                            <span>בבסיס</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-amber-50 rounded border border-amber-100 shadow-sm"></div>
+                                            <span>יציאה</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 bg-emerald-50 rounded border border-emerald-100 shadow-sm"></div>
+                                            <span>הגעה</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Matrix View Wrapper - Flex 1 to take remaining space */}
+                                <div className="flex-1 min-h-0 border rounded-xl bg-white shadow-sm overflow-hidden relative">
+                                    {isTableFullscreen ? createPortal(
+                                        <div className="fixed inset-0 z-[60000] bg-white flex flex-col animate-in slide-in-from-bottom duration-300" dir="rtl">
+                                            {/* Fullscreen Header */}
+                                            <div className="flex items-center justify-between p-4 bg-slate-50 border-b border-slate-200 shrink-0 shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <button
+                                                        onClick={() => setIsTableFullscreen(false)}
+                                                        className="h-12 px-4 flex items-center justify-center gap-2 text-slate-600 bg-white border border-slate-200 rounded-2xl shadow-sm active:scale-95 transition-all hover:bg-slate-50"
+                                                    >
+                                                        <Minimize2 size={24} />
+                                                        <span className="hidden md:inline font-black text-sm">יציאה ממסך מלא</span>
+                                                        <span className="md:hidden font-black text-sm">חזרה</span>
+                                                    </button>
+                                                    <div className="hidden sm:flex flex-col">
+                                                        <span className="text-lg font-black text-slate-900 leading-tight">תצוגת שיבוץ</span>
+                                                        <span className="text-xs text-slate-500 font-bold">מסך מלא • {teams.find(t => t.id === selectedTeamId)?.name || 'כל הצוותים'}</span>
                                                     </div>
                                                 </div>
-                                                <span className="text-[10px] opacity-80 leading-tight">איוש כל המשימות</span>
-                                            </button>
-                                        </div>
-                                    </div>
 
-                                    {optimizationMode === 'min_staff' && (
-                                        <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <Input
-                                                type="number"
-                                                label="יעד סד״כ (כמה חיילים נדרשים בכל יום?)"
-                                                min="0"
-                                                value={customMinStaff}
-                                                onChange={e => setCustomMinStaff(Number(e.target.value))}
-                                                icon={Users}
-                                                className="border-blue-300 ring-2 ring-blue-50"
-                                            />
-                                        </div>
-                                    )}
-
-                                    {optimizationMode === 'ratio' && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <Input
-                                                type="number"
-                                                label="ימי בסיס (סבב)"
-                                                min="1"
-                                                value={daysBase}
-                                                onChange={e => setDaysBase(Number(e.target.value))}
-                                            />
-                                            <Input
-                                                type="number"
-                                                label="ימי בית (סבב)"
-                                                min="1"
-                                                value={daysHome}
-                                                onChange={e => setDaysHome(Number(e.target.value))}
-                                            />
-                                        </div>
-                                    )}
-
-                                    <div className="grid grid-cols-2 gap-3 mt-4">
-                                        <TimePicker label="שעת הגעה" value={userArrivalHour} onChange={setUserArrivalHour} />
-                                        <TimePicker label="שעת יציאה" value={userDepartureHour} onChange={setUserDepartureHour} />
-                                    </div>
-
-                                    {optimizationMode === 'tasks' && (
-                                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
-                                            <div className="flex items-center gap-2 text-blue-800">
-                                                <Users size={16} />
-                                                <span className="text-sm font-bold">דרישת סד״כ מחושבת:</span>
-                                                <span className="text-sm bg-white px-2 py-0.5 rounded border border-blue-200">
-                                                    {(() => {
-                                                        let maxDaily = 0;
-                                                        const start = new Date(startDate);
-                                                        const end = new Date(endDate);
-                                                        const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-
-                                                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                                                            let dailySum = 0;
-                                                            const checkDate = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
-
-                                                            tasks.forEach(t => {
-                                                                // Check Task Validity Range
-                                                                const tStart = t.startDate ? t.startDate : '1900-01-01';
-                                                                const tEnd = t.endDate ? t.endDate : '2100-01-01';
-
-                                                                if (checkDate >= tStart && checkDate <= tEnd) {
-                                                                    t.segments?.forEach(seg => {
-                                                                        let isActive = false;
-                                                                        if (seg.frequency === 'daily') {
-                                                                            isActive = true;
-                                                                        } else if (seg.frequency === 'specific_date') {
-                                                                            if (seg.specificDate === checkDate) isActive = true;
-                                                                        } else if (seg.frequency === 'weekly') {
-                                                                            const dayName = dayMap[d.getDay()];
-                                                                            if (seg.daysOfWeek?.includes(dayName)) isActive = true;
-                                                                        }
-
-                                                                        if (isActive) {
-                                                                            dailySum += seg.requiredPeople;
-                                                                        }
-                                                                    });
-                                                                }
-                                                            });
-                                                            if (dailySum > maxDaily) maxDaily = dailySum;
-                                                        }
-
-                                                        return `עד ${maxDaily}`;
-                                                    })()} חיילים (משתנה)
-                                                </span>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setShowTaskAnalysis(true);
-                                                    }}
-                                                    className="p-1 hover:bg-white rounded-full transition-colors text-blue-500 hover:text-blue-700"
-                                                    title="פירוט משימות יומי"
-                                                >
-                                                    <Info size={16} />
-                                                </button>
+                                                {/* Full Legend in Fullscreen Header */}
+                                                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-[50%] bg-white/50 p-1.5 rounded-xl border border-slate-200 shadow-inner">
+                                                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white rounded-lg border border-slate-100 shadow-sm shrink-0">
+                                                        <div className="w-2.5 h-2.5 bg-red-100 rounded-full border border-red-200 shadow-sm" />
+                                                        <span className="text-[10px] font-black text-slate-500">בית</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white rounded-lg border border-slate-100 shadow-sm shrink-0">
+                                                        <div className="w-2.5 h-2.5 bg-green-100 rounded-full border border-green-200 shadow-sm" />
+                                                        <span className="text-[10px] font-black text-slate-500">בסיס</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white rounded-lg border border-slate-100 shadow-sm shrink-0">
+                                                        <div className="w-2.5 h-2.5 bg-amber-50 rounded-full border border-amber-200 shadow-sm" />
+                                                        <span className="text-[10px] font-black text-slate-500">יציאה</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white rounded-lg border border-slate-100 shadow-sm shrink-0">
+                                                        <div className="w-2.5 h-2.5 bg-emerald-50 rounded-full border border-emerald-100 shadow-sm" />
+                                                        <span className="text-[10px] font-black text-slate-500">הגעה</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <p className="text-[10px] text-blue-600 mt-1 mr-6">המערכת תחשב את הסד״כ המדויק לכל יום בנפרד במהלך יצירת השיבוץ.</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <>
-                            {/* Filters & Actions */}
-                            <div className="flex items-center justify-between mb-2 px-1">
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={handleExport}
-                                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200"
-                                        title="ייצוא לאקסל"
-                                    >
-                                        <Download size={20} />
-                                    </button>
-                                    <button
-                                        onClick={handleToggleAllTeams}
-                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200 flex items-center gap-2"
-                                        title="כיווץ/הרחבת הכל"
-                                    >
-                                        <div className={`transition-transform duration-300 ${Array.from(collapsedTeams).some(id => teams.some(t => t.id === id)) ? 'rotate-180' : 'rotate-0'}`}>
-                                            <ChevronDown size={20} />
-                                        </div>
-                                        <span className="text-xs font-bold hidden md:inline">כיווץ/הרחבה</span>
-                                    </button>
-                                    <div className="h-6 w-px bg-slate-200 mx-1"></div>
-                                    <Select
-                                        value={selectedTeamId}
-                                        onChange={(val) => setSelectedTeamId(val)}
-                                        options={[{ value: 'all', label: 'כל הצוותים' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
-                                        placeholder="סינון לפי צוות"
-                                        className="py-1.5 pl-3 pr-9 text-sm w-[180px]" // Increased width
-                                        icon={Filter}
-                                        triggerMode="default"
-                                    />
-                                    {/* Search Input */}
-                                    <div className="relative">
-                                        <input
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder="חיפוש..."
-                                            className="h-9 pr-9 pl-3 text-sm border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 w-[140px] transition-all focus:w-[180px]"
-                                        />
-                                        <div className="absolute top-0 bottom-0 right-3 flex items-center pointer-events-none text-slate-400">
-                                            <Search size={14} />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs text-slate-500">
-                                    <div className="flex items-center gap-1">
-                                        <div className="w-3 h-3 bg-red-100 rounded border border-red-200"></div>
-                                        <span>בית</span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <div className="w-3 h-3 bg-green-100 rounded border border-green-200"></div>
-                                        <span>בבסיס</span>
-                                    </div>
-                                </div>
-                            </div>
 
-                            {/* Matrix View Wrapper - Flex 1 to take remaining space */}
-                            <div className="flex-1 min-h-0 border rounded-xl bg-white shadow-sm overflow-hidden relative">
-                                <style>{`
+                                            {/* Matrix Content Area */}
+                                            <div className="flex-1 overflow-hidden relative">
+                                                {renderMatrix()}
+                                            </div>
+
+                                            {/* Mobile Fullscreen Footer Tip */}
+                                            <div className="md:hidden p-3 text-center bg-slate-50 border-t border-slate-200 shrink-0">
+                                                <p className="text-[10px] font-bold text-slate-400 italic">לחץ על לוחם לעריכה ידנית • חזור כשתסיים לשמור את השיבוץ</p>
+                                            </div>
+                                        </div>,
+                                        document.body
+                                    ) : renderMatrix()}
+                                    <style>{`
                                 .force-scrolling {
                                     scrollbar-width: auto;
                                     scrollbar-color: #64748b #f1f5f9;
@@ -1357,653 +1553,643 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                     background: transparent;
                                 }
                             `}</style>
-                                <div className="absolute inset-0 overflow-scroll force-scrolling" dir="rtl">
-                                    <div className="min-w-max">
-                                        {/* Summary Header */}
-                                        <div className="sticky top-0 z-50 bg-white border-b border-slate-200">
-                                            {/* Date Header Row */}
-                                            <div className="flex h-10">
-                                                <div className="w-32 shrink-0 p-2 font-bold bg-slate-50 border-l sticky right-0 z-40 flex items-center border-b border-slate-200">
-                                                    תאריך
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </Modal>
+            </>
+        );
+    };
+
+    function renderMatrix() {
+        return (
+            <div className="absolute inset-0 overflow-scroll force-scrolling" dir="rtl">
+                <div className="min-w-max">
+                    {/* Summary Header */}
+                    <div className="sticky top-0 z-50 bg-white border-b border-slate-200">
+                        {/* Date Header Row */}
+                        <div className="flex h-10">
+                            <div className="w-32 shrink-0 p-2 font-bold bg-slate-50 border-l sticky right-0 z-40 flex items-center border-b border-slate-200">
+                                תאריך
+                            </div>
+                            <div className="flex">
+                                {(() => {
+                                    const start = new Date(startDate);
+                                    const end = new Date(endDate);
+                                    const headers = [];
+                                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                        const dateKey = d.toLocaleDateString('en-CA');
+                                        headers.push(
+                                            <div key={dateKey} className="shrink-0 w-24 p-2 text-center border-l border-slate-100 bg-slate-50">
+                                                <div className="text-xs font-bold text-slate-700">
+                                                    {d.toLocaleDateString('he-IL')}
                                                 </div>
-                                                <div className="flex">
-                                                    {(() => {
-                                                        const start = new Date(startDate);
-                                                        const end = new Date(endDate);
-                                                        const headers = [];
-                                                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                                                            const dateKey = d.toLocaleDateString('en-CA');
-                                                            headers.push(
-                                                                <div key={dateKey} className="shrink-0 w-24 p-2 text-center border-l border-slate-100 bg-slate-50">
-                                                                    <div className="text-xs font-bold text-slate-700">
-                                                                        {d.toLocaleDateString('he-IL')}
-                                                                    </div>
-                                                                    <div className="text-[10px] text-slate-500">
-                                                                        {d.toLocaleDateString('he-IL', { weekday: 'short' })}
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        }
-                                                        // Summary Column Header
-                                                        headers.push(
-                                                            <div key="summary-header" className="shrink-0 w-24 p-2 text-center border-l border-slate-100 bg-slate-50 flex items-center justify-center sticky left-0 z-50 shadow-sm">
-                                                                <div className="text-xs font-bold text-slate-700">סיכום</div>
-                                                            </div>
-                                                        );
-                                                        return headers;
-                                                    })()}
+                                                <div className="text-[10px] text-slate-500">
+                                                    {d.toLocaleDateString('he-IL', { weekday: 'short' })}
                                                 </div>
                                             </div>
+                                        );
+                                    }
+                                    // Summary Column Header
+                                    headers.push(
+                                        <div key="summary-header" className="shrink-0 w-24 p-2 text-center border-l border-slate-100 bg-slate-50 flex items-center justify-center sticky left-0 z-50 shadow-sm">
+                                            <div className="text-xs font-bold text-slate-700">סיכום</div>
+                                        </div>
+                                    );
+                                    return headers;
+                                })()}
+                            </div>
+                        </div>
 
-                                            {/* Total Assigned Row */}
-                                            <div className="flex h-8 bg-indigo-50 border-b border-indigo-100">
-                                                <div className="w-32 shrink-0 px-3 py-1 text-xs font-bold text-indigo-800 bg-indigo-50 border-l border-indigo-200 sticky right-0 z-40 flex items-center">
-                                                    סה״כ מאוישים
+                        {/* Total Assigned Row */}
+                        <div className="flex h-8 bg-indigo-50 border-b border-indigo-100">
+                            <div className="w-32 shrink-0 px-3 py-1 text-xs font-bold text-indigo-800 bg-indigo-50 border-l border-indigo-200 sticky right-0 z-40 flex items-center">
+                                סה״כ מאוישים
+                            </div>
+                            <div className="flex">
+                                {(() => {
+                                    const start = new Date(startDate);
+                                    const end = new Date(endDate);
+                                    const relevantPeople = targetTeamIds.length > 0 ? activePeople.filter(p => targetTeamIds.includes(p.teamId)) : activePeople;
+                                    const cells = [];
+                                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                        const dateKey = d.toLocaleDateString('en-CA');
+                                        let presentCount = 0;
+                                        relevantPeople.forEach(p => {
+                                            // Check for Override
+                                            const override = manualOverrides[`${p.id}-${dateKey}`];
+                                            let status = 'base';
+
+                                            if (override) {
+                                                status = override.status;
+                                            } else {
+                                                status = result?.personStatuses?.[dateKey]?.[p.id] || 'base';
+                                            }
+
+                                            // Count as present if Base, Arrival, or Departure
+                                            if (status === 'base' || status === 'arrival') {
+                                                presentCount++;
+                                            }
+                                        });
+
+                                        const minStaff = customMinStaff;
+                                        const isUnderstaffed = customMinStaff > 0 && presentCount < minStaff;
+
+                                        cells.push(
+                                            <div key={`total-${dateKey}`} className={`shrink-0 w-24 flex items-center justify-center border-l border-indigo-100 text-xs font-bold ${isUnderstaffed ? 'text-amber-600 bg-amber-50' : 'text-indigo-600'}`}>
+                                                {relevantPeople.length} / {presentCount}
+                                            </div>
+                                        );
+                                    }
+                                    cells.push(<div key="total-summary-pad" className="shrink-0 w-24 bg-indigo-50 border-l border-indigo-100 flex items-center justify-center text-indigo-300 text-[10px] sticky left-0 z-40">-</div>);
+                                    return cells;
+                                })()}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Table Body */}
+                    <div>
+                        {teams.map(team => {
+                            // Filter members for this team
+                            const teamMembers = activePeople
+                                .filter(p => p.teamId === team.id)
+                                .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId)) // Config filter
+                                .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId)) // Dropdown filter
+                                .filter(p => !searchQuery || p.name.includes(searchQuery)); // Search filter
+
+                            if (teamMembers.length === 0) return null;
+
+                            const isCollapsed = collapsedTeams.has(team.id);
+
+                            return (
+                                <div key={team.id}>
+                                    {/* Team Header */}
+                                    <div
+                                        className="flex items-center h-8 bg-slate-50 border-b border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors"
+                                        onClick={() => toggleTeam(team.id)}
+                                    >
+                                        <div className="w-32 shrink-0 sticky right-0 bg-slate-50 border-l border-slate-200 z-20 flex items-center px-2 py-1 gap-1">
+                                            <div className="w-1 h-4 rounded-full" style={{ backgroundColor: team.color || '#cbd5e1' }} />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="font-bold text-xs text-slate-600 truncate max-w-[80px]">{team.name}</div>
+                                                    <div className="text-[10px] text-slate-400 font-medium">({teamMembers.length})</div>
                                                 </div>
+                                            </div>
+                                            <div className={`text-slate-400 transition-transform ${isCollapsed ? 'rotate-[-90deg]' : 'rotate-0'}`}>
+                                                <ChevronDown size={14} />
+                                            </div>
+                                        </div>
+
+                                        {/* Daily Stats Cells */}
+                                        <div className="flex">
+                                            {(() => {
+                                                const start = new Date(startDate);
+                                                const end = new Date(endDate);
+                                                const cells = [];
+                                                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                                                    const dateKey = d.toLocaleDateString('en-CA');
+                                                    let presentCount = 0;
+                                                    teamMembers.forEach(p => {
+                                                        const override = manualOverrides[`${p.id}-${dateKey}`];
+                                                        let status = 'base';
+                                                        if (override) {
+                                                            status = override.status;
+                                                        } else {
+                                                            status = result?.personStatuses?.[dateKey]?.[p.id] || 'base';
+                                                        }
+                                                        if (status === 'base' || status === 'arrival' || status === 'departure') {
+                                                            presentCount++;
+                                                        }
+                                                    });
+
+                                                    const isFull = presentCount === teamMembers.length;
+                                                    const isEmpty = presentCount === 0;
+
+                                                    cells.push(
+                                                        <div key={`team-${team.id}-${dateKey}`} className={`shrink-0 w-24 flex items-center justify-center border-l border-slate-100 text-[10px] font-bold ${isFull ? 'text-green-600' : isEmpty ? 'text-red-400' : 'text-slate-600'}`}>
+                                                            {teamMembers.length} / {presentCount}
+                                                        </div>
+                                                    );
+                                                }
+                                                // Summary Column Placeholder
+                                                cells.push(
+                                                    <div key={`team-${team.id}-summary`} className="shrink-0 w-24 bg-slate-50 border-l border-slate-100 sticky left-0 z-10" />
+                                                );
+                                                return cells;
+                                            })()}
+                                        </div>
+                                    </div>
+
+                                    {/* Team Members */}
+                                    <div className={`${isCollapsed ? 'hidden' : 'block'}`}>
+                                        {teamMembers.map((person, idx) => (
+                                            <div key={person.id} className={`flex border-b border-slate-50 hover:bg-slate-50 transition-colors h-14 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                                                {/* Sticky Name Column */}
+                                                <div className={`w-32 shrink-0 p-2 border-l sticky right-0 z-20 flex items-center gap-2 border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                                    <div
+                                                        className="hidden md:flex w-8 h-8 rounded-full items-center justify-center text-xs font-bold shrink-0 shadow-sm border border-slate-200 text-slate-700"
+                                                        style={{
+                                                            backgroundColor: team.color || '#f1f5f9'
+                                                        }}
+                                                    >
+                                                        {person.name.charAt(0)}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="text-sm font-bold text-slate-700 truncate">{person.name}</div>
+                                                        <div className="text-[10px] text-slate-400 truncate">{team.name}</div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Days Cells */}
                                                 <div className="flex">
                                                     {(() => {
                                                         const start = new Date(startDate);
                                                         const end = new Date(endDate);
-                                                        const relevantPeople = targetTeamIds.length > 0 ? activePeople.filter(p => targetTeamIds.includes(p.teamId)) : activePeople;
                                                         const cells = [];
                                                         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                                                             const dateKey = d.toLocaleDateString('en-CA');
-                                                            let presentCount = 0;
-                                                            relevantPeople.forEach(p => {
-                                                                // Check for Override
-                                                                const override = manualOverrides[`${p.id}-${dateKey}`];
-                                                                let status = 'base';
+                                                            const prevDate = new Date(d);
+                                                            prevDate.setDate(prevDate.getDate() - 1);
+                                                            const prevDateKey = prevDate.toLocaleDateString('en-CA');
 
-                                                                if (override) {
-                                                                    status = override.status;
+                                                            const nextDate = new Date(d);
+                                                            nextDate.setDate(nextDate.getDate() + 1);
+                                                            const nextDateKey = nextDate.toLocaleDateString('en-CA');
+
+                                                            const resolveStatus = (key: string, pId: string = person.id) => {
+                                                                const ov = manualOverrides[`${pId}-${key}`];
+                                                                if (ov) return ov.status;
+                                                                if (d.getTime() >= end.getTime() && key === nextDateKey) return 'base';
+                                                                const resStatus = result?.personStatuses?.[key]?.[pId];
+                                                                if (resStatus) return resStatus;
+                                                                const dbAvail = person.dailyAvailability?.[key];
+                                                                if (dbAvail) {
+                                                                    if (dbAvail.status) return dbAvail.status;
+                                                                    return dbAvail.isAvailable ? 'base' : 'home';
+                                                                }
+                                                                return 'base';
+                                                            };
+
+                                                            const status = resolveStatus(dateKey);
+                                                            const prevStatus = resolveStatus(prevDateKey);
+                                                            const nextStatus = resolveStatus(nextDateKey);
+
+                                                            let content = null;
+                                                            let cellClass = "bg-white";
+
+                                                            if (status === 'home' || status === 'unavailable') {
+                                                                const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
+                                                                const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
+
+                                                                if (!isOverridden && prevStatus === 'base' && status !== 'unavailable' && !absenceReason) {
+                                                                    cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
+                                                                    content = (
+                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                            <span className="font-bold mb-0.5">יציאה</span>
+                                                                            <span className="text-[9px]">{userDepartureHour}</span>
+                                                                        </div>
+                                                                    );
                                                                 } else {
-                                                                    status = result?.personStatuses?.[dateKey]?.[p.id] || 'base';
+                                                                    cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
+                                                                    const isConstraint = status === 'unavailable' || !!absenceReason;
+                                                                    content = (
+                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
+                                                                            <span className="text-red-900">בית</span>
+                                                                            {isConstraint && (
+                                                                                <span className="text-[9px] font-bold truncate max-w-full px-0.5" title={absenceReason || 'בקשת יציאה'}>
+                                                                                    {absenceReason ? (absenceReason === 'EMPTY_REASON' ? 'בקשת יציאה' : absenceReason) : 'בקשת יציאה'}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    );
                                                                 }
+                                                            } else if (status === 'arrival') {
+                                                                const ov = manualOverrides[`${person.id}-${dateKey}`];
+                                                                const time = ov?.startTime || userArrivalHour;
+                                                                cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
+                                                                content = (
+                                                                    <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                        <span className="font-bold mb-0.5">הגעה</span>
+                                                                        <span className="text-[9px]">{time}</span>
+                                                                    </div>
+                                                                );
+                                                            } else if (status === 'departure') {
+                                                                const ov = manualOverrides[`${person.id}-${dateKey}`];
+                                                                const time = ov?.endTime || userDepartureHour;
+                                                                cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
+                                                                content = (
+                                                                    <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                        <span className="font-bold mb-0.5">יציאה</span>
+                                                                        <span className="text-[9px]">{time}</span>
+                                                                    </div>
+                                                                );
+                                                            } else if (status === 'base') {
+                                                                const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
+                                                                const isPrevHome = prevStatus === 'home' || prevStatus === 'unavailable';
+                                                                const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
 
-                                                                // Count as present if Base, Arrival, or Departure
-                                                                // (Departure is leaving, so was present part of day. Arrival is arriving, so present part.)
-                                                                // "Home" and "Unavailable" are absent.
-                                                                if (status === 'base' || status === 'arrival') {
-                                                                    presentCount++;
+                                                                if (!isOverridden && isPrevHome && !absenceReason) {
+                                                                    cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
+                                                                    content = (
+                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                            <span className="font-bold mb-0.5">הגעה</span>
+                                                                            <span className="text-[9px]">{userArrivalHour}</span>
+                                                                        </div>
+                                                                    );
+                                                                } else {
+                                                                    let label = "בבסיס";
+                                                                    let subLabel = "";
+                                                                    if (isOverridden && isOverridden.status === 'base' && isOverridden.startTime && isOverridden.endTime) {
+                                                                        if (isOverridden.startTime !== '00:00' || isOverridden.endTime !== '23:59') {
+                                                                            subLabel = `${isOverridden.startTime}-${isOverridden.endTime}`;
+                                                                        }
+                                                                    }
+                                                                    cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
+                                                                    content = (
+                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center relative">
+                                                                            {absenceReason && <div className="absolute top-[1px] left-[1px] text-red-600 animate-pulse"><AlertTriangle size={10} strokeWidth={3} /></div>}
+                                                                            <span className="font-bold">{label}</span>
+                                                                            {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
+                                                                        </div>
+                                                                    );
                                                                 }
-                                                            });
-
-                                                            const minStaff = customMinStaff;
-                                                            const isUnderstaffed = customMinStaff > 0 && presentCount < minStaff;
+                                                            }
 
                                                             cells.push(
-                                                                <div key={`total-${dateKey}`} className={`shrink-0 w-24 flex items-center justify-center border-l border-indigo-100 text-xs font-bold ${isUnderstaffed ? 'text-amber-600 bg-amber-50' : 'text-indigo-600'}`}>
-                                                                    {relevantPeople.length} / {presentCount}
+                                                                <div
+                                                                    key={`${person.id}-${dateKey}`}
+                                                                    className={`w-24 shrink-0 p-1 border-l border-slate-100 h-12 flex items-center justify-center transition-colors cursor-pointer hover:ring-1 hover:ring-blue-300 ${cellClass}`}
+                                                                    onClick={(e) => handleCellClick(e, person.id, dateKey)}
+                                                                >
+                                                                    {content}
                                                                 </div>
                                                             );
                                                         }
-                                                        cells.push(<div key="total-summary-pad" className="shrink-0 w-24 bg-indigo-50 border-l border-indigo-100 flex items-center justify-center text-indigo-300 text-[10px] sticky left-0 z-40">-</div>);
+
+                                                        let homeCount = 0;
+                                                        let baseCount = 0;
+                                                        const startD = new Date(startDate);
+                                                        const endD = new Date(endDate);
+                                                        const dateRange: string[] = [];
+                                                        for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+                                                            dateRange.push(d.toLocaleDateString('en-CA'));
+                                                        }
+                                                        const getStatusForDate = (dateKey: string) => {
+                                                            if (manualOverrides[`${person.id}-${dateKey}`]) return manualOverrides[`${person.id}-${dateKey}`].status;
+                                                            const resStatus = result?.personStatuses?.[dateKey]?.[person.id];
+                                                            if (resStatus) return resStatus;
+                                                            return 'base';
+                                                        };
+                                                        dateRange.forEach(k => {
+                                                            const currentStatus = getStatusForDate(k);
+                                                            if (currentStatus === 'home' || currentStatus === 'unavailable' || currentStatus === 'departure') homeCount++; else baseCount++;
+                                                        });
+                                                        const ratioStr = getArmyRatio(baseCount, homeCount);
+                                                        cells.push(
+                                                            <div key="summary-cell" className={`shrink-0 w-24 border-l border-slate-100 flex flex-col items-center justify-center sticky left-0 z-30 border-r border-slate-200/50 shadow-[1px_0_3px_rgba(0,0,0,0.05)] h-14 overflow-hidden border-b border-slate-300 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                                                                <div className="text-[10px] font-bold text-slate-600 leading-tight">בסיס: <span className="text-green-600">{baseCount}</span></div>
+                                                                <div className="text-[10px] font-bold text-slate-600 leading-tight">בית: <span className="text-orange-600">{homeCount}</span></div>
+                                                                <div className="text-[10px] font-bold text-slate-600 border-t border-slate-200/50 w-full text-center mt-0.5 pt-0.5 leading-tight">יחס: <span dir="ltr" className="text-blue-600">{ratioStr}</span></div>
+                                                            </div>
+                                                        );
                                                         return cells;
                                                     })()}
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        {/* Table Body */}
-                                        <div>
-                                            {teams.map(team => {
-                                                // Filter members for this team
-                                                const teamMembers = activePeople
-                                                    .filter(p => p.teamId === team.id)
-                                                    .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId)) // Config filter
-                                                    .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId)) // Dropdown filter
-                                                    .filter(p => !searchQuery || p.name.includes(searchQuery)); // Search filter
-
-                                                if (teamMembers.length === 0) return null;
-
-                                                const isCollapsed = collapsedTeams.has(team.id);
-
-                                                return (
-                                                    <div key={team.id}>
-                                                        {/* Team Header */}
-                                                        {/* Team Header */}
-                                                        <div
-                                                            className="flex items-center h-8 bg-slate-50 border-b border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors"
-                                                            onClick={() => toggleTeam(team.id)}
-                                                        >
-                                                            <div className="w-32 shrink-0 sticky right-0 bg-slate-50 border-l border-slate-200 z-20 flex items-center px-2 py-1 gap-1">
-                                                                <div className="w-1 h-4 rounded-full" style={{ backgroundColor: team.color || '#cbd5e1' }} />
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div className="font-bold text-xs text-slate-600 truncate max-w-[80px]">{team.name}</div>
-                                                                        <div className="text-[10px] text-slate-400 font-medium">({teamMembers.length})</div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className={`text-slate-400 transition-transform ${isCollapsed ? 'rotate-[-90deg]' : 'rotate-0'}`}>
-                                                                    <ChevronDown size={14} />
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Daily Stats Cells */}
-                                                            <div className="flex">
-                                                                {(() => {
-                                                                    const start = new Date(startDate);
-                                                                    const end = new Date(endDate);
-                                                                    const cells = [];
-                                                                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                                                                        const dateKey = d.toLocaleDateString('en-CA');
-                                                                        let presentCount = 0;
-                                                                        teamMembers.forEach(p => {
-                                                                            const override = manualOverrides[`${p.id}-${dateKey}`];
-                                                                            let status = 'base';
-                                                                            if (override) {
-                                                                                status = override.status;
-                                                                            } else {
-                                                                                status = result?.personStatuses?.[dateKey]?.[p.id] || 'base';
-                                                                            }
-                                                                            if (status === 'base' || status === 'arrival' || status === 'departure') {
-                                                                                presentCount++;
-                                                                            }
-                                                                        });
-
-                                                                        const isFull = presentCount === teamMembers.length;
-                                                                        const isEmpty = presentCount === 0;
-
-                                                                        cells.push(
-                                                                            <div key={`team-${team.id}-${dateKey}`} className={`shrink-0 w-24 flex items-center justify-center border-l border-slate-100 text-[10px] font-bold ${isFull ? 'text-green-600' : isEmpty ? 'text-red-400' : 'text-slate-600'}`}>
-                                                                                {teamMembers.length} / {presentCount}
-                                                                            </div>
-                                                                        );
-                                                                    }
-                                                                    // Summary Column Placeholder
-                                                                    cells.push(
-                                                                        <div key={`team-${team.id}-summary`} className="shrink-0 w-24 bg-slate-50 border-l border-slate-100 sticky left-0 z-10" />
-                                                                    );
-                                                                    return cells;
-                                                                })()}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Team Members */}
-                                                        <div className={`${isCollapsed ? 'hidden' : 'block'}`}>
-                                                            {teamMembers.map((person, idx) => (
-                                                                <div key={person.id} className={`flex border-b border-slate-50 hover:bg-slate-50 transition-colors h-14 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
-                                                                    {/* Sticky Name Column */}
-                                                                    <div className={`w-32 shrink-0 p-2 border-l sticky right-0 z-20 flex items-center gap-2 border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                                                        <div
-                                                                            className="hidden md:flex w-8 h-8 rounded-full items-center justify-center text-xs font-bold shrink-0 shadow-sm border border-slate-200 text-slate-700"
-                                                                            style={{
-                                                                                backgroundColor: team.color || '#f1f5f9'
-                                                                            }}
-                                                                        >
-                                                                            {person.name.charAt(0)}
-                                                                        </div>
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <div className="text-sm font-bold text-slate-700 truncate">{person.name}</div>
-                                                                            <div className="text-[10px] text-slate-400 truncate">{team.name}</div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Days Cells */}
-                                                                    <div className="flex">
-                                                                        {(() => {
-                                                                            const start = new Date(startDate);
-                                                                            const end = new Date(endDate);
-                                                                            const cells = [];
-                                                                            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                                                                                const dateKey = d.toLocaleDateString('en-CA');
-                                                                                // const status = result?.personStatuses?.[dateKey]?.[person.id]; // Removed to avoid conflict
-
-                                                                                // Look back for Departure definition: Current=Home && Prev=Base
-                                                                                const prevDate = new Date(d);
-                                                                                prevDate.setDate(prevDate.getDate() - 1);
-                                                                                const prevDateKey = prevDate.toLocaleDateString('en-CA');
-
-                                                                                const nextDate = new Date(d);
-                                                                                nextDate.setDate(nextDate.getDate() + 1);
-                                                                                const nextDateKey = nextDate.toLocaleDateString('en-CA');
-                                                                                const overrideKey = `${person.id}-${dateKey}`;
-
-                                                                                // Helper to resolve status (Override > Result > Existing DB)
-                                                                                const resolveStatus = (key: string, pId: string = person.id) => {
-                                                                                    // Check for Manual Override FIRST
-                                                                                    const ov = manualOverrides[`${pId}-${key}`];
-                                                                                    if (ov) return ov.status;
-
-                                                                                    if (d.getTime() >= end.getTime() && key === nextDateKey) return 'base'; // End of roster = Base
-
-                                                                                    const resStatus = result?.personStatuses?.[key]?.[pId];
-                                                                                    if (resStatus) return resStatus;
-                                                                                    const dbAvail = person.dailyAvailability?.[key];
-                                                                                    if (dbAvail) {
-                                                                                        if (dbAvail.status) return dbAvail.status;
-                                                                                        return dbAvail.isAvailable ? 'base' : 'home';
-                                                                                    }
-                                                                                    return 'base'; // Default
-                                                                                };
-
-                                                                                // Current Status (Override aware)
-                                                                                const status = resolveStatus(dateKey);
-                                                                                const prevStatus = resolveStatus(prevDateKey);
-                                                                                const nextStatus = resolveStatus(nextDateKey);
-
-                                                                                let content = null;
-                                                                                let cellClass = "bg-white";
-
-                                                                                if (status === 'home' || status === 'unavailable') {
-                                                                                    // Check for Implicit Departure (Home day following Base)
-                                                                                    // ONLY if not explicitly overridden to Home/Unavailable
-                                                                                    const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
-                                                                                    const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
-
-                                                                                    if (!isOverridden && prevStatus === 'base' && status !== 'unavailable' && !absenceReason) {
-                                                                                        // DEPARTURE (Home day following Base)
-                                                                                        cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
-                                                                                        content = (
-                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                                <span className="font-bold mb-0.5">יציאה</span>
-                                                                                                <span className="text-[9px]">{userDepartureHour}</span>
-                                                                                            </div>
-                                                                                        );
-                                                                                    } else {
-                                                                                        // Standard Home Day (Explicit or Middle of Home Block)
-                                                                                        cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
-                                                                                        const isConstraint = status === 'unavailable' || !!absenceReason;
-
-                                                                                        content = (
-                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
-                                                                                                <span className="text-red-900">בית</span>
-                                                                                                {isConstraint && (
-                                                                                                    <span className="text-[9px] font-bold truncate max-w-full px-0.5" title={absenceReason || 'בקשת יציאה'}>
-                                                                                                        {absenceReason
-                                                                                                            ? (absenceReason === 'EMPTY_REASON' ? 'בקשת יציאה' : absenceReason)
-                                                                                                            : 'בקשת יציאה'
-                                                                                                        }
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        );
-                                                                                    }
-                                                                                } else if (status === 'arrival') {
-                                                                                    // Explicit Arrival
-                                                                                    const ov = manualOverrides[`${person.id}-${dateKey}`];
-                                                                                    const time = ov?.startTime || userArrivalHour;
-                                                                                    const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
-
-                                                                                    cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
-                                                                                    content = (
-                                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                            <span className="font-bold mb-0.5">הגעה</span>
-                                                                                            <span className="text-[9px]">{time}</span>
-                                                                                            {absenceReason && (
-                                                                                                <span className="text-[9px] font-bold truncate max-w-full px-0.5 mt-0.5 block opacity-100" title={absenceReason}>
-                                                                                                    {absenceReason === 'EMPTY_REASON' ? 'בקשת יציאה' : absenceReason}
-                                                                                                </span>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    );
-                                                                                } else if (status === 'departure') {
-                                                                                    // Explicit Departure
-                                                                                    const ov = manualOverrides[`${person.id}-${dateKey}`];
-                                                                                    const time = ov?.endTime || userDepartureHour;
-                                                                                    const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
-
-                                                                                    cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
-                                                                                    content = (
-                                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                            <span className="font-bold mb-0.5">יציאה</span>
-                                                                                            <span className="text-[9px]">{time}</span>
-                                                                                            {absenceReason && (
-                                                                                                <span className="text-[9px] font-bold truncate max-w-full px-0.5 mt-0.5 block opacity-100" title={absenceReason}>
-                                                                                                    {absenceReason === 'EMPTY_REASON' ? 'בקשת יציאה' : absenceReason}
-                                                                                                </span>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    );
-                                                                                } else if (status === 'base') {
-                                                                                    // Base Day 
-                                                                                    // Check for Implicit Arrival (Base day following Home/Unavailable)
-                                                                                    const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
-                                                                                    const isPrevHome = prevStatus === 'home' || prevStatus === 'unavailable';
-                                                                                    const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
-
-                                                                                    if (!isOverridden && isPrevHome && !absenceReason) {
-                                                                                        // ARRIVAL (Base day following Home)
-                                                                                        cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
-                                                                                        content = (
-                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
-                                                                                                <span className="font-bold mb-0.5">הגעה</span>
-                                                                                                <span className="text-[9px]">{userArrivalHour}</span>
-                                                                                            </div>
-                                                                                        );
-                                                                                    } else {
-                                                                                        // Full Base
-                                                                                        // Check for Custom Times override
-                                                                                        let label = "בבסיס";
-                                                                                        let subLabel = "";
-
-                                                                                        if (isOverridden && isOverridden.status === 'base' && isOverridden.startTime && isOverridden.endTime) {
-                                                                                            if (isOverridden.startTime !== '00:00' || isOverridden.endTime !== '23:59') {
-                                                                                                subLabel = `${isOverridden.startTime}-${isOverridden.endTime}`;
-                                                                                            }
-                                                                                        }
-
-                                                                                        cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
-                                                                                        content = (
-                                                                                            <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center relative">
-                                                                                                {absenceReason && (
-                                                                                                    <div className="absolute top-[1px] left-[1px] text-red-600 animate-pulse">
-                                                                                                        <AlertTriangle size={10} strokeWidth={3} />
-                                                                                                    </div>
-                                                                                                )}
-                                                                                                <span className="font-bold">{label}</span>
-                                                                                                {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
-                                                                                                {absenceReason && (
-                                                                                                    <span className="text-[9px] font-bold truncate max-w-full px-0.5 mt-0.5 block text-green-900" title={absenceReason}>
-                                                                                                        {absenceReason === 'EMPTY_REASON' ? 'בקשת יציאה' : absenceReason}
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        );
-                                                                                    }
-                                                                                }
-
-                                                                                cells.push(
-                                                                                    <div
-                                                                                        key={`${person.id}-${dateKey}`}
-                                                                                        className={`w-24 shrink-0 p-1 border-l border-slate-100 h-12 flex items-center justify-center transition-colors cursor-pointer hover:ring-1 hover:ring-blue-300 ${cellClass}`}
-                                                                                        onClick={(e) => handleCellClick(e, person.id, dateKey)}
-                                                                                    >
-                                                                                        {content}
-                                                                                    </div>
-                                                                                );
-                                                                            }
-
-                                                                            // Calculate Summary for this person
-                                                                            let homeCount = 0;
-                                                                            let baseCount = 0;
-                                                                            const startD = new Date(startDate);
-                                                                            const endD = new Date(endDate);
-
-                                                                            // Create Range array
-                                                                            const dateRange: string[] = [];
-                                                                            for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-                                                                                dateRange.push(d.toLocaleDateString('en-CA'));
-                                                                            }
-
-                                                                            // Helper to resolve status for any date
-                                                                            const getStatusForDate = (dateKey: string) => {
-                                                                                // Check overrides first
-                                                                                // Check overrides first
-                                                                                if (manualOverrides[`${person.id}-${dateKey}`]) return manualOverrides[`${person.id}-${dateKey}`].status;
-                                                                                const resStatus = result?.personStatuses?.[dateKey]?.[person.id];
-                                                                                if (resStatus) return resStatus;
-                                                                                const dbAvail = person.dailyAvailability?.[dateKey];
-                                                                                if (dbAvail) return dbAvail.isAvailable ? 'base' : 'home';
-                                                                                return 'base'; // Default
-                                                                            };
-
-                                                                            // Use full dateRange (No Trimming)
-                                                                            // Use full dateRange (No Trimming)
-                                                                            dateRange.forEach(k => {
-                                                                                const currentStatus = getStatusForDate(k);
-                                                                                if (currentStatus === 'home' || currentStatus === 'unavailable' || currentStatus === 'departure') {
-                                                                                    homeCount++;
-                                                                                } else {
-                                                                                    baseCount++;
-                                                                                }
-                                                                            });
-
-                                                                            const ratioStr = getArmyRatio(baseCount, homeCount);
-                                                                            cells.push(
-                                                                                <div key="summary-cell" className={`shrink-0 w-24 border-l border-slate-100 flex flex-col items-center justify-center sticky left-0 z-30 border-r border-slate-200/50 shadow-[1px_0_3px_rgba(0,0,0,0.05)] h-14 overflow-hidden border-b border-slate-300 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                                                                                    <div className="text-[10px] font-bold text-slate-600 leading-tight">
-                                                                                        בסיס: <span className="text-green-600">{baseCount}</span>
-                                                                                    </div>
-                                                                                    <div className="text-[10px] font-bold text-slate-600 leading-tight">
-                                                                                        בית: <span className="text-orange-600">{homeCount}</span>
-                                                                                    </div>
-                                                                                    <div className="text-[10px] font-bold text-slate-600 border-t border-slate-200/50 w-full text-center mt-0.5 pt-0.5 leading-tight">
-                                                                                        יחס: <span dir="ltr" className="text-blue-600">{ratioStr}</span>
-                                                                                    </div>
-                                                                                </div>
-                                                                            );
-
-                                                                            return cells;
-                                                                        })()}
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                        ))}
                                     </div>
                                 </div>
-                            </div>
-                        </>
-                    )}
-                </div>
-            </Modal>
-
-            {/* Manual Edit Popover */}
-            {/* Status Edit Modal (Replaces old Popover) */}
-            {editingCell && (
-                <StatusEditModal
-                    isOpen={!!editingCell}
-                    onClose={() => setEditingCell(null)}
-                    date={editingCell.date}
-                    personName={people.find(p => p.id === editingCell.personId)?.name}
-                    defaultArrivalHour={userArrivalHour}
-                    defaultDepartureHour={userDepartureHour}
-                    disableJournal={true}
-                    currentAvailability={(() => {
-                        const pid = editingCell.personId;
-                        const date = editingCell.date;
-                        // 1. Check Manual Overrides
-                        const ov = manualOverrides[`${pid}-${date}`];
-                        if (ov) {
-                            // Fix: Ensure we only pass 'base' | 'home' to the modal prop
-                            const rawStatus = ov.status;
-                            const isBaseOrArrival = rawStatus === 'base' || rawStatus === 'arrival' || rawStatus === 'departure';
-                            return {
-                                date,
-                                status: isBaseOrArrival ? 'base' : 'home',
-                                isAvailable: isBaseOrArrival,
-                                startHour: ov.startTime,
-                                endHour: ov.endTime
-                            };
-                        }
-
-                        // 2. Check Result (Generated Status)
-                        // If generated status exists, we might want to respect it as initial state
-                        const resStatus = result?.personStatuses?.[date]?.[pid];
-                        if (resStatus) {
-                            const isBase = resStatus === 'base' || resStatus === 'arrival';
-                            return {
-                                date,
-                                status: isBase ? 'base' : 'home',
-                                isAvailable: isBase,
-                                startHour: '00:00', // We don't track exact times in simple result string unless we dive deeper
-                                endHour: '23:59'
-                            };
-                        }
-
-                        // 3. Check DB Availability
-                        const p = people.find(x => x.id === pid);
-                        const dbAvail = p?.dailyAvailability?.[date];
-                        if (dbAvail) return dbAvail;
-
-                        // Default Base
-                        return { date, isAvailable: true, status: 'base' };
-                    })()}
-                    onApply={(status, times, blocks) => {
-                        if (!editingCell) return;
-                        let finalStatus = status as string;
-
-                        // Logic to infer 'arrival'/'departure' from time overrides
-                        if (status === 'base') {
-                            if (times && times.start !== '00:00' && times.start !== '10:00') {
-                                finalStatus = 'arrival';
-                            }
-                            if (times && times.end !== '23:59') {
-                                finalStatus = 'departure';
-                            }
-                        }
-
-                        // Strict time checks
-                        if (times && times.start > '00:00' && times.end === '23:59') finalStatus = 'arrival';
-                        if (times && times.end < '23:59' && times.start === '00:00') finalStatus = 'departure';
-
-                        const override = {
-                            status: finalStatus,
-                            startTime: times?.start || '00:00',
-                            endTime: times?.end || '23:59'
-                        };
-
-                        const key = `${editingCell.personId}-${editingCell.date}`;
-                        setManualOverrides(prev => ({
-                            ...prev,
-                            [key]: override
-                        }));
-                        setEditingCell(null);
-                    }}
-                />
-            )}
-
-            {/* Staffing Analysis Modal */}
-            <Modal
-                isOpen={showTaskAnalysis}
-                onClose={() => setShowTaskAnalysis(false)}
-                title={
-                    <div className="flex items-center gap-2">
-                        <Calculator size={20} className="text-blue-600" />
-                        <span>ניתוח נגזרות משימה</span>
+                            );
+                        })}
                     </div>
-                }
-                size="xl"
-            >
-                <div className="py-4">
-                    <StaffingAnalysis
-                        tasks={tasks}
-                        totalPeople={people.length}
-                        viewStartDate={new Date(startDate)}
-                        viewEndDate={new Date(endDate)}
-                    />
                 </div>
-            </Modal>
+            </div>
+        );
+    }
 
-            {/* Warning Modal */}
-            <Modal
-                isOpen={warningModal.isOpen}
-                onClose={() => setWarningModal(prev => ({ ...prev, isOpen: false }))}
-                title="שים לב: חריגות בשיבוץ"
-                size="md"
-                footer={
-                    <div className="flex justify-end gap-3 w-full">
-                        <Button variant="ghost" onClick={() => setWarningModal(prev => ({ ...prev, isOpen: false }))}>תקן שיבוץ</Button>
-                        <Button onClick={performSave} className="bg-amber-600 hover:bg-amber-700 text-white">שמור למרות החריגות</Button>
-                    </div>
+    const renderModals = () => {
+        return (
+            <>
+                {
+                    editingCell && (
+                        <StatusEditModal
+                            isOpen={!!editingCell}
+                            onClose={() => setEditingCell(null)}
+                            date={editingCell.date}
+                            personName={people.find(p => p.id === editingCell.personId)?.name}
+                            defaultArrivalHour={userArrivalHour}
+                            defaultDepartureHour={userDepartureHour}
+                            disableJournal={true}
+                            currentAvailability={(() => {
+                                const pid = editingCell.personId;
+                                const date = editingCell.date;
+                                // 1. Check Manual Overrides
+                                const ov = manualOverrides[`${pid}-${date}`];
+                                if (ov) {
+                                    // Fix: Ensure we only pass 'base' | 'home' to the modal prop
+                                    const rawStatus = ov.status;
+                                    const isBaseOrArrival = rawStatus === 'base' || rawStatus === 'arrival' || rawStatus === 'departure';
+                                    return {
+                                        date,
+                                        status: isBaseOrArrival ? 'base' : 'home',
+                                        isAvailable: isBaseOrArrival,
+                                        startHour: ov.startTime,
+                                        endHour: ov.endTime
+                                    };
+                                }
+
+                                // 2. Check Result (Generated Status)
+                                // If generated status exists, we might want to respect it as initial state
+                                const resStatus = result?.personStatuses?.[date]?.[pid];
+                                if (resStatus) {
+                                    const isBase = resStatus === 'base' || resStatus === 'arrival';
+                                    return {
+                                        date,
+                                        status: isBase ? 'base' : 'home',
+                                        isAvailable: isBase,
+                                        startHour: '00:00', // We don't track exact times in simple result string unless we dive deeper
+                                        endHour: '23:59'
+                                    };
+                                }
+
+                                // 3. Check DB Availability
+                                const p = people.find(x => x.id === pid);
+                                const dbAvail = p?.dailyAvailability?.[date];
+                                if (dbAvail) return dbAvail;
+
+                                // Default Base
+                                return { date, isAvailable: true, status: 'base' };
+                            })()}
+                            onApply={(status, times, blocks) => {
+                                if (!editingCell) return;
+                                let finalStatus = status as string;
+
+                                // Logic to infer 'arrival'/'departure' from time overrides
+                                if (status === 'base') {
+                                    if (times && times.start !== '00:00' && times.start !== '10:00') {
+                                        finalStatus = 'arrival';
+                                    }
+                                    if (times && times.end !== '23:59') {
+                                        finalStatus = 'departure';
+                                    }
+                                }
+
+                                // Strict time checks
+                                if (times && times.start > '00:00' && times.end === '23:59') finalStatus = 'arrival';
+                                if (times && times.end < '23:59' && times.start === '00:00') finalStatus = 'departure';
+
+                                const override = {
+                                    status: finalStatus,
+                                    startTime: times?.start || '00:00',
+                                    endTime: times?.end || '23:59'
+                                };
+
+                                const key = `${editingCell.personId}-${editingCell.date}`;
+                                setManualOverrides(prev => ({
+                                    ...prev,
+                                    [key]: override
+                                }));
+                                setEditingCell(null);
+                            }}
+                        />
+                    )
                 }
-            >
-                <div className="p-4 space-y-4">
-                    <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 text-amber-900 text-sm">
-                        <p className="font-bold mb-2 flex items-center gap-2">
-                            ⚠️ נמצאו חריגות בתנאים שהוגדרו:
+
+                {/* Staffing Analysis Modal */}
+                <Modal
+                    isOpen={showTaskAnalysis}
+                    onClose={() => setShowTaskAnalysis(false)}
+                    title={
+                        <div className="flex items-center gap-2">
+                            <Calculator size={20} className="text-blue-600" />
+                            <span>ניתוח נגזרות משימה</span>
+                        </div>
+                    }
+                    size="xl"
+                >
+                    <div className="py-4">
+                        <StaffingAnalysis
+                            tasks={tasks}
+                            totalPeople={people.length}
+                            viewStartDate={new Date(startDate)}
+                            viewEndDate={new Date(endDate)}
+                        />
+                    </div>
+                </Modal>
+
+                {/* Warning Modal */}
+                <Modal
+                    isOpen={warningModal.isOpen}
+                    onClose={() => setWarningModal(prev => ({ ...prev, isOpen: false }))}
+                    title="שים לב: חריגות בשיבוץ"
+                    size="md"
+                    footer={
+                        <div className="flex flex-col md:flex-row justify-end gap-3 w-full p-2 md:p-0">
+                            <Button variant="ghost" onClick={() => setWarningModal(prev => ({ ...prev, isOpen: false }))} className="h-14 md:h-10 text-base md:text-sm font-bold">תקן שיבוץ</Button>
+                            <Button onClick={performSave} className="bg-amber-600 hover:bg-amber-700 text-white h-14 md:h-10 text-base md:text-sm font-black shadow-lg">שמור למרות החריגות</Button>
+                        </div>
+                    }
+                >
+                    <div className="p-4 space-y-4">
+                        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 text-amber-900 text-sm">
+                            <p className="font-bold mb-2 flex items-center gap-2">
+                                ⚠️ נמצאו חריגות בתנאים שהוגדרו:
+                            </p>
+                            <ul className="list-disc list-inside space-y-1">
+                                {warningModal.issues.map((issue, idx) => (
+                                    <li key={idx}>{issue}</li>
+                                ))}
+                            </ul>
+                        </div>
+                        <p className="text-sm text-slate-500">
+                            האם ברצונך לשמור את הלוח כפי שהוא, או לחזור ולתקן את החריגות?
                         </p>
-                        <ul className="list-disc list-inside space-y-1">
-                            {warningModal.issues.map((issue, idx) => (
-                                <li key={idx}>{issue}</li>
-                            ))}
-                        </ul>
                     </div>
-                    <p className="text-sm text-slate-500">
-                        האם ברצונך לשמור את הלוח כפי שהוא, או לחזור ולתקן את החריגות?
-                    </p>
-                </div>
-            </Modal>
+                </Modal>
 
-            {/* Constraints Details Modal */}
-            <Modal
-                isOpen={showConstraintDetails}
-                onClose={() => setShowConstraintDetails(false)}
-                title="פירוט אילוצים וחריגות"
-                size="md"
-                footer={<Button variant="ghost" className="w-full" onClick={() => setShowConstraintDetails(false)}>סגור</Button>}
-            >
-                <div className="p-4 space-y-4">
-                    {result && result.stats.constraintStats && (
-                        <div className={`p-4 rounded-xl border flex flex-col items-center text-center gap-2 ${result.stats.constraintStats.percentage === 100 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-                            {result.stats.constraintStats.percentage === 100 ? (
-                                <CheckCircle size={48} className="text-green-500 mb-2" />
-                            ) : (
-                                <AlertTriangle size={48} className="text-amber-500 mb-2" />
-                            )}
-                            <div className="text-2xl font-black">
-                                {result.stats.constraintStats.percentage}%
+                {/* Constraints Details Modal */}
+                <Modal
+                    isOpen={showConstraintDetails}
+                    onClose={() => setShowConstraintDetails(false)}
+                    title="פירוט אילוצים וחריגות"
+                    size="md"
+                    footer={<Button variant="ghost" className="w-full h-14 md:h-10 text-base md:text-sm font-bold" onClick={() => setShowConstraintDetails(false)}>סגור</Button>}
+                >
+                    <div className="p-4 space-y-4">
+                        {result && result.stats.constraintStats && (
+                            <div className={`p-4 rounded-xl border flex flex-col items-center text-center gap-2 ${result.stats.constraintStats.percentage === 100 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                                {result.stats.constraintStats.percentage === 100 ? (
+                                    <CheckCircle size={48} className="text-green-500 mb-2" />
+                                ) : (
+                                    <AlertTriangle size={48} className="text-amber-500 mb-2" />
+                                )}
+                                <div className="text-2xl font-black">
+                                    {result.stats.constraintStats.percentage}%
+                                </div>
+                                <div className="text-slate-600 font-bold">
+                                    יעד עמידה באילוצים
+                                </div>
+                                <div className="text-sm text-slate-500">
+                                    המערכת הצליחה למלא {result.stats.constraintStats.met} מתוך {result.stats.constraintStats.total} אילוצים אישיים שדווחו.
+                                </div>
                             </div>
-                            <div className="text-slate-600 font-bold">
-                                יעד עמידה באילוצים
-                            </div>
-                            <div className="text-sm text-slate-500">
-                                המערכת הצליחה למלא {result.stats.constraintStats.met} מתוך {result.stats.constraintStats.total} אילוצים אישיים שדווחו.
-                            </div>
-                        </div>
-                    )}
+                        )}
 
-                    {result?.unfulfilledConstraints && result.unfulfilledConstraints.length > 0 ? (
-                        <div className="space-y-2">
-                            <h4 className="font-bold text-slate-800 text-sm">חריגות שנמצאו:</h4>
-                            <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
-                                {result.unfulfilledConstraints.map((c, idx) => {
-                                    const p = people.find(p => p.id === c.personId);
-                                    return (
-                                        <div key={idx} className="p-3 flex gap-3 bg-white">
-                                            <div className="mt-1"><XCircle size={16} className="text-red-500" /></div>
-                                            <div>
-                                                <div className="font-bold text-slate-800 text-sm">{p?.name || 'לוחם לא ידוע'}</div>
-                                                <div className="text-xs text-slate-500">{new Date(c.date).toLocaleDateString('he-IL')} • {c.reason}</div>
+                        {result?.unfulfilledConstraints && result.unfulfilledConstraints.length > 0 ? (
+                            <div className="space-y-2">
+                                <h4 className="font-bold text-slate-800 text-sm">חריגות שנמצאו:</h4>
+                                <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
+                                    {result.unfulfilledConstraints.map((c, idx) => {
+                                        const p = people.find(p => p.id === c.personId);
+                                        return (
+                                            <div key={idx} className="p-3 flex gap-3 bg-white">
+                                                <div className="mt-1"><XCircle size={16} className="text-red-500" /></div>
+                                                <div>
+                                                    <div className="font-bold text-slate-800 text-sm">{p?.name || 'לוחם לא ידוע'}</div>
+                                                    <div className="text-xs text-slate-500">{new Date(c.date).toLocaleDateString('he-IL')} • {c.reason}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-slate-400">
+                                לא נמצאו חריגות. כל הלוחמים שובצו בהתאם לאילוצים שלהם.
+                            </div>
+                        )}
+                    </div>
+                </Modal>
+
+                {/* Stats Details Modal */}
+                <Modal
+                    isOpen={showStatsDetails}
+                    onClose={() => setShowStatsDetails(false)}
+                    title="סטטיסטיקות שיבוץ (ממוצע ללוחם)"
+                    size="sm"
+                    footer={<Button variant="ghost" className="w-full h-14 md:h-10 text-base md:text-sm font-bold" onClick={() => setShowStatsDetails(false)}>סגור</Button>}
+                >
+                    <div className="p-6 space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center text-center gap-1">
+                                <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">ימים בבסיס</div>
+                                <div className="text-3xl font-black text-emerald-600">{rosterStats.avgBase}</div>
+                                <div className="text-[10px] text-emerald-800/60">ממוצע לתקופה</div>
+                            </div>
+                            <div className="bg-rose-50 p-4 rounded-xl border border-rose-100 flex flex-col items-center text-center gap-1">
+                                <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">ימים בבית</div>
+                                <div className="text-3xl font-black text-rose-600">{rosterStats.avgHome}</div>
+                                <div className="text-[10px] text-rose-800/60">ממוצע לתקופה</div>
                             </div>
                         </div>
-                    ) : (
-                        <div className="text-center py-8 text-slate-400">
-                            לא נמצאו חריגות. כל הלוחמים שובצו בהתאם לאילוצים שלהם.
-                        </div>
-                    )}
-                </div>
-            </Modal>
 
-            {/* Stats Details Modal */}
-            <Modal
-                isOpen={showStatsDetails}
-                onClose={() => setShowStatsDetails(false)}
-                title="סטטיסטיקות שיבוץ (ממוצע ללוחם)"
-                size="sm"
-                footer={<Button variant="ghost" className="w-full" onClick={() => setShowStatsDetails(false)}>סגור</Button>}
-            >
-                <div className="p-6 space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex flex-col items-center text-center gap-1">
-                            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">ימים בבסיס</div>
-                            <div className="text-3xl font-black text-emerald-600">{rosterStats.avgBase}</div>
-                            <div className="text-[10px] text-emerald-800/60">ממוצע לתקופה</div>
-                        </div>
-                        <div className="bg-rose-50 p-4 rounded-xl border border-rose-100 flex flex-col items-center text-center gap-1">
-                            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">ימים בבית</div>
-                            <div className="text-3xl font-black text-rose-600">{rosterStats.avgHome}</div>
-                            <div className="text-[10px] text-rose-800/60">ממוצע לתקופה</div>
+                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col items-center text-center gap-2">
+                            <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">יחס כולל (תקן)</div>
+                            <div className="text-4xl font-black text-blue-600" dir="ltr">{rosterStats.ratioStr}</div>
+                            <div className="text-xs text-blue-800/60 max-w-[200px]">
+                                יחס זה מייצג את הממוצע הכולל של כלל הלוחמים בצוותים שנבחרו
+                            </div>
                         </div>
                     </div>
+                </Modal >
 
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col items-center text-center gap-2">
-                        <div className="text-slate-500 text-xs font-bold uppercase tracking-wider">יחס כולל (תקן)</div>
-                        <div className="text-4xl font-black text-blue-600" dir="ltr">{rosterStats.ratioStr}</div>
-                        <div className="text-xs text-blue-800/60 max-w-[200px]">
-                            יחס זה מייצג את הממוצע הכולל של כלל הלוחמים בצוותים שנבחרו
+                {/* Explanation Modal for Mobile */}
+                <Modal
+                    isOpen={showExplanation}
+                    onClose={() => setShowExplanation(false)}
+                    title="על מחולל הסבבים"
+                >
+                    <div className="p-4 space-y-4">
+                        <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex flex-col items-center text-center gap-4">
+                            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                                <Sparkles size={32} />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-lg font-black text-blue-900">מחולל סבבים אוטומטי</h3>
+                                <p className="text-blue-800/80 leading-relaxed text-sm">
+                                    המערכת תייצר לוח נוכחות אופטימלי בהתבסס על מחזורי יציאות, אילוצים אישיים ושמירה על סד״כ מינימלי בבסיס.
+                                </p>
+                            </div>
                         </div>
+
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-bold text-slate-800">איך זה עובד?</h4>
+                            <ul className="space-y-2">
+                                {[
+                                    'התחשבות בפרמטר הנבחר: סבבי יציאות/מינימום סד"כ/נגזרת משימות)',
+                                    'כיבוד אילוצי "בית" שאושרו במערכת',
+                                    'פיזור אופטימלי למניעת מחסור בכוח אדם',
+                                    'תעדוף אוטומטי לפי עומס אישי'
+                                ].map((step, i) => (
+                                    <li key={i} className="flex items-center gap-3 text-sm text-slate-600">
+                                        <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0">
+                                            {i + 1}
+                                        </div>
+                                        {step}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <Button
+                            className="w-full mt-4 h-12 rounded-2xl"
+                            onClick={() => setShowExplanation(false)}
+                        >
+                            הבנתי, תודה
+                        </Button>
                     </div>
-                </div>
-            </Modal>
+                </Modal>
+            </>
+        );
+    };
+
+    return (
+        <>
+            {renderWizardContent()}
+            {renderModals()}
         </>
     );
 };

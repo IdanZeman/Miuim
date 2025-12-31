@@ -522,7 +522,21 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                     <Modal
                         isOpen={viewMode === 'add' || viewMode === 'edit'}
                         onClose={() => { setViewMode('list'); resetForm(); }}
-                        title={viewMode === 'edit' ? 'עריכת מורשה' : 'הוספת מורשה חדש'}
+                        title={
+                            <div className="flex flex-col">
+                                <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                                    {viewMode === 'edit' ? 'עריכת מורשה' : 'הוספת מורשה חדש'}
+                                </h2>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <div className="p-1 rounded-lg bg-blue-50 text-blue-600">
+                                        <Car size={14} />
+                                    </div>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        {viewMode === 'edit' ? 'עדכון פרטי רכב' : 'רישום רכב למאגר'}
+                                    </span>
+                                </div>
+                            </div>
+                        }
                         size="lg"
                         footer={renderAddVehicleButtons()}
                     >
@@ -570,20 +584,26 @@ interface ManageAuthorizedVehiclesModalProps {
 }
 
 export const ManageAuthorizedVehiclesModal: React.FC<ManageAuthorizedVehiclesModalProps> = ({ isOpen, onClose }) => {
-    if (!isOpen) return null;
-
-    return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-2xl max-h-[85vh] animate-in zoom-in-95 duration-200 relative">
-                <button
-                    onClick={onClose}
-                    className="absolute -top-12 right-0 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
-                >
-                    <X size={24} />
-                </button>
-                <AuthorizedVehiclesContent className="h-[80vh] bg-white rounded-2xl shadow-xl border border-slate-200" />
+    const modalTitle = (
+        <div className="flex flex-col">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">רכבים מורשים</h2>
+            <div className="flex items-center gap-2 mt-1">
+                <ShieldCheck size={14} className="text-blue-600" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול מאגר מורשי כניסה</span>
             </div>
-        </div>,
-        document.body
+        </div>
+    );
+
+    return (
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={modalTitle}
+            size="lg"
+        >
+            <div className="h-[80vh] md:h-auto md:min-h-[500px]">
+                <AuthorizedVehiclesContent className="h-full bg-transparent p-0" />
+            </div>
+        </Modal>
     );
 };

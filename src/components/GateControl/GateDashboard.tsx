@@ -25,7 +25,7 @@ export const GateDashboard: React.FC = () => {
         authorizedVehicles,
         battalionOrganizations,
         battalionTeams,
-        battalionPeople,
+        searchPeople, // New search function
         addAuthorizedVehicle,
         fetchGateHistory,
         isLoading
@@ -101,7 +101,7 @@ export const GateDashboard: React.FC = () => {
 
     // Autocomplete Logic
     React.useEffect(() => {
-        if (!plateInput) {
+        if (!plateInput || plateInput.length < 2) {
             setFilteredDrivers([]);
             setFilteredPedestrians([]);
             return;
@@ -114,27 +114,21 @@ export const GateDashboard: React.FC = () => {
             setFilteredDrivers(matches);
             setFilteredPedestrians([]);
         } else {
-            // Pedestrian Search (Hierarchical)
-            const lowerInput = plateInput.toLowerCase();
-            const matches = battalionPeople
-                .filter(p => p.name.toLowerCase().includes(lowerInput))
-                .map(p => {
+            // Pedestrian Search (Now Async/SearchPeople)
+            const performPedestrianSearch = async () => {
+                const results = await searchPeople(plateInput);
+                const enriched = results.map(p => {
                     const org = battalionOrganizations.find(o => o.id === p.organization_id);
                     const team = battalionTeams.find(t => t.id === p.team_id);
                     return { ...p, orgName: org?.name || '', teamName: team?.name || '' };
-                })
-                .sort((a, b) => {
-                    // Sort by Org -> Team -> Name
-                    if (a.orgName !== b.orgName) return a.orgName.localeCompare(b.orgName);
-                    if (a.teamName !== b.teamName) return a.teamName.localeCompare(b.teamName);
-                    return a.name.localeCompare(b.name);
-                })
-                .slice(0, 50);
+                });
+                setFilteredPedestrians(enriched);
+            };
 
-            setFilteredPedestrians(matches);
-            setFilteredDrivers([]);
+            const timer = setTimeout(performPedestrianSearch, 300);
+            return () => clearTimeout(timer);
         }
-    }, [plateInput, authorizedVehicles, battalionPeople, entryType, battalionOrganizations, battalionTeams]);
+    }, [plateInput, authorizedVehicles, searchPeople, entryType, battalionOrganizations, battalionTeams]);
 
     // Check if vehicle is already inside
     const isAlreadyInside = useMemo(() => {
@@ -303,7 +297,7 @@ export const GateDashboard: React.FC = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleRegisterEntry} className="space-y-6">
+                <form id="gate-entry-form" onSubmit={handleRegisterEntry} className="space-y-6">
                     {/* Direction Toggle - Enhanced for Mobile Focus */}
                     <div className={`grid grid-cols-2 gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/50 ${isModal ? 'h-14' : 'h-12'}`}>
                         <button
@@ -390,6 +384,7 @@ export const GateDashboard: React.FC = () => {
                         <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                             <div className={`p-4 rounded-2xl border-2 flex items-center gap-4 transition-all ${match
                                 ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                                    .replace('bg-emerald-50', 'bg-emerald-50') // dummy replace to keep logic same
                                 : isLoading ? 'bg-slate-50 border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-800'
                                 }`}>
                                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${match ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-200 text-white'}`}>
@@ -520,23 +515,25 @@ export const GateDashboard: React.FC = () => {
                     </div>
 
                     <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className={`
+                        {!isModal && (
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className={`
                                 w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3
                                 ${isSubmitting ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white shadow-blue-500/30 hover:shadow-blue-500/40'}
                             `}
-                        >
-                            {isSubmitting ? <LoadingSpinner size={24} /> : (
-                                <>
-                                    <span>{direction === 'entry' ? 'אישור כניסה' : 'אישור יציאה'}</span>
-                                    <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                                        {direction === 'entry' ? <LogOut className="rotate-180" size={18} /> : <LogOut size={18} />}
-                                    </div>
-                                </>
-                            )}
-                        </button>
+                            >
+                                {isSubmitting ? <LoadingSpinner size={24} /> : (
+                                    <>
+                                        <span>{direction === 'entry' ? 'אישור כניסה' : 'אישור יציאה'}</span>
+                                        <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                                            {direction === 'entry' ? <LogOut className="rotate-180" size={18} /> : <LogOut size={18} />}
+                                        </div>
+                                    </>
+                                )}
+                            </button>
+                        )}
 
                         <div className="flex flex-col gap-2 text-center mt-4 min-h-[20px]">
                             {direction === 'entry' && entryType === 'vehicle' && !match && plateInput.length >= 3 && !isExceptional && (
@@ -716,8 +713,8 @@ export const GateDashboard: React.FC = () => {
                                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
                                     }`}
                             >
-                                <RefreshCw size={14} className={currentTab === 'control' ? 'animate-spin-slow' : ''} />
-                                <span>דיווח</span>
+                                <Car size={16} strokeWidth={2.5} />
+                                <span>תנועה</span>
                             </button>
                             {canManageAuthorized && (
                                 <button
@@ -749,7 +746,41 @@ export const GateDashboard: React.FC = () => {
                         <Modal
                             isOpen={isReportModalOpen}
                             onClose={() => setIsReportModalOpen(false)}
-                            title={direction === 'entry' ? 'דיווח כניסה' : 'דיווח יציאה'}
+                            title={
+                                <div className="flex flex-col">
+                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                                        {direction === 'entry' ? 'דיווח כניסה' : 'דיווח יציאה'}
+                                    </h2>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <div className={`p-1 rounded-lg ${direction === 'entry' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
+                                            {direction === 'entry' ? <LogOut className="rotate-180" size={14} /> : <LogOut size={14} />}
+                                        </div>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                            {direction === 'entry' ? 'רישום כניסה בזמן אמת' : 'רישום יציאה מהבסיס'}
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                            footer={
+                                <Button
+                                    type="submit"
+                                    form="gate-entry-form"
+                                    disabled={isSubmitting}
+                                    className={`
+                                        w-full h-12 rounded-xl font-black text-lg transition-all shadow-lg active:scale-95 flex items-center justify-center gap-3
+                                        ${isSubmitting ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white shadow-blue-500/30'}
+                                    `}
+                                >
+                                    {isSubmitting ? <LoadingSpinner size={24} /> : (
+                                        <>
+                                            <span>{direction === 'entry' ? 'אישור כניסה' : 'אישור יציאה'}</span>
+                                            <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
+                                                {direction === 'entry' ? <LogOut className="rotate-180" size={16} /> : <LogOut size={16} />}
+                                            </div>
+                                        </>
+                                    )}
+                                </Button>
+                            }
                             size="lg"
                         >
                             <div className="pb-4">
