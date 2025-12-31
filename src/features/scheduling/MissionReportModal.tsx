@@ -36,7 +36,8 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
         summary: '',
         exceptional_events: '',
         points_to_preserve: '',
-        points_to_improve: ''
+        points_to_improve: '',
+        cumulative_info: ''
     });
 
     // Mobile Tabs State
@@ -56,7 +57,8 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                 summary: report.summary || '',
                 exceptional_events: report.exceptional_events || '',
                 points_to_preserve: report.points_to_preserve || '',
-                points_to_improve: report.points_to_improve || ''
+                points_to_improve: report.points_to_improve || '',
+                cumulative_info: report.cumulative_info || ''
             });
         }
     }, [report]);
@@ -211,6 +213,11 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                             <div className="bg-amber-50 px-3 py-1.5 font-bold border-b border-amber-200 text-amber-800 text-xs uppercase">שיפור</div>
                             <div className="p-3 min-h-[40px] whitespace-pre-wrap">{reportForm.points_to_improve || '-'}</div>
                         </div>
+                    </div>
+
+                    <div className="border border-slate-300 rounded-lg overflow-hidden break-inside-avoid">
+                        <div className="bg-blue-50 px-3 py-1.5 font-bold border-b border-blue-200 text-blue-800 text-xs uppercase">מידע מצטבר</div>
+                        <div className="p-3 min-h-[40px] whitespace-pre-wrap">{reportForm.cumulative_info || '-'}</div>
                     </div>
                 </div>
 
@@ -506,6 +513,7 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                                     onChange={e => setReportForm({ ...reportForm, points_to_preserve: e.target.value })}
                                     disabled={!!report?.submitted_at}
                                     className="w-full text-base p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 focus:ring-2 focus:ring-emerald-500 min-h-[100px] text-emerald-900 shadow-sm disabled:opacity-70"
+                                    placeholder="נקודות לשימור..."
                                 />
                             </div>
                             <div className="space-y-1.5">
@@ -515,39 +523,48 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                                     onChange={e => setReportForm({ ...reportForm, points_to_improve: e.target.value })}
                                     disabled={!!report?.submitted_at}
                                     className="w-full text-base p-3 rounded-xl border border-amber-200 bg-amber-50/50 focus:ring-2 focus:ring-amber-500 min-h-[100px] text-amber-900 shadow-sm disabled:opacity-70"
+                                    placeholder="נקודות לשיפור..."
                                 />
                             </div>
                         </div>
 
+                        <div className="space-y-1.5 pt-2">
+                            <label className="text-sm font-bold text-slate-600 uppercase px-1">מידע מצטבר</label>
+                            <textarea
+                                value={reportForm.cumulative_info}
+                                onChange={e => setReportForm({ ...reportForm, cumulative_info: e.target.value })}
+                                disabled={!!report?.submitted_at}
+                                className="w-full text-base p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 min-h-[100px] shadow-sm disabled:bg-slate-50 disabled:text-slate-500"
+                                placeholder="מידע שעשוי לצבור ערך למשמרות הבאות..."
+                            />
+                        </div>
                     </div>
 
                     {!isViewer && !isReportLoading && (
                         <div className="p-4 bg-white border-t border-slate-200 z-10 shadow-[0_-4px_12px_-2px_rgba(0,0,0,0.1)]">
                             {!report?.submitted_at ? (
-                                <>
-                                    <div className="flex gap-3">
-                                        <Button
-                                            variant="secondary"
-                                            onClick={() => upsertReport({ ...reportForm })} // Save without submitting
-                                            isLoading={isReportLoading}
-                                            className="flex-1 h-12 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-base font-bold shadow-sm rounded-xl" // Rule 1: 48px
-                                        >
-                                            שמור טיוטה
-                                        </Button>
-                                        <Button
-                                            onClick={handleSubmitReport}
-                                            isLoading={isReportLoading}
-                                            className="flex-[2] h-12 bg-slate-900 hover:bg-slate-800 text-white font-bold shadow-lg text-base rounded-xl" // Rule 1: 48px
-                                        >
-                                            הגש דוח סופי
-                                        </Button>
-                                    </div>
-                                </>
+                                <div className="flex gap-3">
+                                    <Button
+                                        variant="secondary"
+                                        onClick={() => upsertReport({ ...reportForm })} // Save without submitting
+                                        isLoading={isReportLoading}
+                                        className="flex-1 h-12 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-base font-bold shadow-sm rounded-xl"
+                                    >
+                                        שמור טיוטה
+                                    </Button>
+                                    <Button
+                                        onClick={handleSubmitReport}
+                                        isLoading={isReportLoading}
+                                        className="flex-[2] h-12 bg-slate-900 hover:bg-slate-800 text-white font-bold shadow-lg text-base rounded-xl"
+                                    >
+                                        הגש דוח סופי
+                                    </Button>
+                                </div>
                             ) : (
                                 <button
                                     onClick={() => upsertReport({ submitted_at: null as any })}
                                     disabled={isReportLoading}
-                                    className="w-full h-12 border-2 border-dashed border-slate-300 text-slate-600 hover:text-slate-900 hover:border-slate-500 rounded-xl font-bold flex items-center justify-center gap-2 transition-all" // Rule 1: 48px
+                                    className="w-full h-12 border-2 border-dashed border-slate-300 text-slate-600 hover:text-slate-900 hover:border-slate-500 rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
                                 >
                                     <Pencil size={16} /> <span>ערוך דוח (בטל הגשה)</span>
                                 </button>
@@ -556,7 +573,6 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                     )}
                 </div>
             </div>
-
-        </GenericModal >
+        </GenericModal>
     );
 };

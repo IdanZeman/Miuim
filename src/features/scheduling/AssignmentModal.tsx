@@ -392,76 +392,77 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             />
 
             {/* --- CUSTOM HEADER (Sticky) --- */}
-            <div className="bg-white border-b border-slate-200 p-3 md:p-4 flex flex-col gap-3 shrink-0 z-40 shadow-sm relative">
+            <div className="bg-white border-b border-slate-200 p-4 md:p-4 flex flex-col gap-4 md:gap-3 shrink-0 z-40 shadow-sm relative">
                 <div className="flex justify-between items-start">
-                    <div className="flex flex-col gap-0.5">
-                        <h2 className="text-lg md:text-xl font-black text-slate-800 leading-none">{task.name}</h2>
+                    <div className="flex flex-col gap-1.5 md:gap-0.5">
+                        <h2 className="text-xl md:text-xl font-black text-slate-800 leading-tight">{task.name}</h2>
 
                         {/* Time & Date Display/Edit */}
-                        <div className="flex items-center gap-3 text-xs md:text-sm text-slate-500 font-medium">
-                            <div className="flex items-center gap-1.5">
-                                <CalendarIcon size={14} className="text-slate-400" />
+                        <div className="flex items-center gap-4 md:gap-3 text-sm md:text-sm text-slate-500 font-bold">
+                            <div className="flex items-center gap-2">
+                                <CalendarIcon size={16} className="text-slate-400 md:w-3.5 md:h-3.5" />
                                 {new Date(selectedShift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
                             </div>
                             <span className="text-slate-300">|</span>
                             {!isEditingTime ? (
                                 <button
                                     onClick={() => !isViewer && setIsEditingTime(true)}
-                                    className={`flex items-center gap-1.5 font-mono ${!isViewer ? 'hover:text-blue-600 cursor-pointer' : ''}`}
+                                    className={`flex items-center gap-1.5 font-mono text-base md:text-sm ${!isViewer ? 'hover:text-blue-600 cursor-pointer active:scale-95 transition-transform' : ''}`}
                                 >
                                     {new Date(selectedShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                     -
                                     {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                    {!isViewer && <Pencil size={12} className="opacity-50" />}
+                                    {!isViewer && <Pencil size={14} className="opacity-50 md:w-3 md:h-3" />}
                                 </button>
                             ) : (
-                                <div className="flex items-center gap-1 animate-in fade-in">
-                                    <input type="time" value={newStart} onChange={e => setNewStart(e.target.value)} className="w-20 px-1 py-0.5 text-xs border rounded" />
+                                <div className="flex items-center gap-2 animate-in fade-in">
+                                    <input type="time" value={newStart} onChange={e => setNewStart(e.target.value)} className="w-24 md:w-20 px-2 py-1 md:py-0.5 text-sm md:text-xs border rounded-lg" />
                                     <span>-</span>
-                                    <input type="time" value={newEnd} onChange={e => setNewEnd(e.target.value)} className="w-20 px-1 py-0.5 text-xs border rounded" />
-                                    <button onClick={handleSaveTime} className="p-1 bg-green-100 text-green-700 rounded hover:bg-green-200"><CheckCircle size={14} /></button>
-                                    <button onClick={() => setIsEditingTime(false)} className="p-1 bg-slate-100 text-slate-700 rounded hover:bg-slate-200"><X size={14} /></button>
+                                    <input type="time" value={newEnd} onChange={e => setNewEnd(e.target.value)} className="w-24 md:w-20 px-2 py-1 md:py-0.5 text-sm md:text-xs border rounded-lg" />
+                                    <button onClick={handleSaveTime} className="p-2 md:p-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"><CheckCircle size={18} className="md:w-3.5 md:h-3.5" /></button>
+                                    <button onClick={() => setIsEditingTime(false)} className="p-2 md:p-1 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200"><X size={18} className="md:w-3.5 md:h-3.5" /></button>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Progress / Smart Suggest */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                         {!isViewer && (
                             <button
                                 onClick={() => {
                                     const found = handleSuggestBest();
                                     if (found) showToast('נמצא שיבוץ מומלץ', 'success');
                                 }}
-                                className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full hover:bg-blue-100 transition-colors"
+                                className="flex items-center gap-2 p-2.5 md:px-4 md:py-2 bg-blue-50 text-blue-700 text-sm md:text-xs font-black rounded-full hover:bg-blue-100 transition-all active:scale-95 shadow-sm"
                             >
-                                <Wand2 size={14} /> שיבוץ חכם
+                                <Wand2 size={18} className="md:w-3.5 md:h-3.5" />
+                                <span className="hidden md:inline">שיבוץ חכם</span>
                             </button>
                         )}
-                        <Button variant="ghost" size="sm" onClick={onClose} className="md:hidden">
-                            <X size={20} />
+                        <Button variant="ghost" size="sm" onClick={onClose} className="md:hidden h-10 w-10 p-0 text-slate-400">
+                            <X size={28} />
                         </Button>
                     </div>
                 </div>
 
                 {/* Requirements Slots */}
                 {roleComposition.length > 0 && (
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
+                    <div className="flex flex-wrap gap-x-6 gap-y-3 mt-1">
                         {roleComposition.map((rc) => {
                             const taken = allocationMap.get(rc.roleId) || 0;
                             const total = rc.count;
                             const roleName = roles.find(r => r.id === rc.roleId)?.name || 'תפקיד';
 
                             return (
-                                <div key={rc.roleId} className="flex items-center gap-2 text-xs">
-                                    <span className={`font-semibold ${taken >= total ? 'text-emerald-600' : 'text-slate-500'}`}>{roleName}</span>
-                                    <div className="flex gap-1">
+                                <div key={rc.roleId} className="flex items-center gap-3 md:gap-2 text-sm md:text-xs">
+                                    <span className={`font-black tracking-tight ${taken >= total ? 'text-emerald-600' : 'text-slate-500'}`}>{roleName}</span>
+                                    <div className="flex gap-1.5 md:gap-1">
                                         {Array.from({ length: total }).map((_, i) => (
                                             <div
                                                 key={i}
-                                                className={`w-3 h-4 rounded-sm border ${i < taken
-                                                    ? 'bg-emerald-500 border-emerald-600'
+                                                className={`w-4 h-5 md:w-3 md:h-4 rounded-md md:rounded-sm border-2 md:border ${i < taken
+                                                    ? 'bg-emerald-500 border-emerald-600 shadow-sm'
                                                     : 'bg-slate-50 border-slate-300 border-dashed'
                                                     }`}
                                             />
@@ -475,16 +476,23 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
                 {/* Suggestion Alert (Inline) */}
                 {currentSuggestion && (
-                    <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs animate-in slide-in-from-top-2">
-                        <div className="flex items-center gap-2">
-                            <span className="font-bold text-blue-800">המלצה:</span>
-                            <span className="font-bold">{currentSuggestion.person.name}</span>
-                            <span className="text-slate-500 truncate max-w-[150px] md:max-w-xs">- {currentSuggestion.reason}</span>
+                    <div className="flex items-center justify-between bg-blue-600 border border-blue-500 rounded-2xl p-3 md:p-2 text-white shadow-lg animate-in slide-in-from-top-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                                <Sparkles size={16} className="text-white" />
+                            </div>
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-black">{currentSuggestion.person.name}</span>
+                                    <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded uppercase font-bold tracking-widest leading-none">המלצה</span>
+                                </div>
+                                <span className="text-xs text-blue-100 font-bold truncate max-w-[180px] md:max-w-xs">{currentSuggestion.reason}</span>
+                            </div>
                         </div>
-                        <div className="flex gap-1">
-                            <button onClick={() => handleAttemptAssign(currentSuggestion.person.id)} className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold">שבץ</button>
-                            <button onClick={handleNextSuggestion} className="p-1 hover:bg-blue-100 rounded text-blue-600"><RotateCcw size={14} /></button>
-                            <button onClick={() => setSuggestedCandidates([])} className="p-1 hover:bg-blue-100 rounded text-slate-500"><X size={14} /></button>
+                        <div className="flex gap-2">
+                            <button onClick={() => handleAttemptAssign(currentSuggestion.person.id)} className="px-4 py-2 bg-white text-blue-600 rounded-xl hover:bg-blue-50 font-black text-sm active:scale-95 transition-all shadow-sm">שבץ</button>
+                            <button onClick={handleNextSuggestion} className="p-2 hover:bg-white/10 rounded-xl transition-colors"><RotateCcw size={20} className="md:w-3.5 md:h-3.5" /></button>
+                            <button onClick={() => setSuggestedCandidates([])} className="p-2 hover:bg-white/10 rounded-xl transition-colors"><X size={20} className="md:w-3.5 md:h-3.5" /></button>
                         </div>
                     </div>
                 )}
@@ -494,25 +502,25 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative">
 
                 {/* 1. LEFT COLUMN: FILTERS (Desktop: 20%, Mobile: Horizontal Bar) */}
-                <div className="md:w-[20%] md:min-w-[180px] bg-slate-50 md:border-l border-b md:border-b-0 border-slate-200 p-2 md:p-3 flex md:flex-col gap-2 md:overflow-y-auto shrink-0 z-30">
+                <div className="md:w-[20%] md:min-w-[180px] bg-slate-50 md:border-l border-b md:border-b-0 border-slate-200 p-3 md:p-3 flex md:flex-col gap-3 md:gap-2 md:overflow-y-auto shrink-0 z-30 overflow-hidden">
                     {/* Search */}
-                    <div className="relative w-full md:w-auto shrink-0">
-                        <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                    <div className="relative w-[45%] md:w-auto shrink-0 touch-none">
+                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                             type="text"
-                            placeholder="חיפוש חייל..."
+                            placeholder="חפש חייל..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-2 pr-8 py-1.5 text-xs border border-slate-200 rounded-md focus:border-blue-500 focus:outline-none"
+                            className="w-full pl-3 pr-10 py-3 md:py-1.5 text-sm md:text-xs border border-slate-200 rounded-xl focus:border-blue-500 focus:outline-none shadow-sm md:shadow-none"
                         />
                     </div>
 
                     {/* Filters (Desktop Vertical, Mobile Horizontal Scroll) */}
-                    <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible no-scrollbar">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden md:block mt-2 mb-1">תפקידים</div>
+                    <div className="flex md:flex-col gap-2 md:gap-1.5 overflow-x-auto md:overflow-visible no-scrollbar pb-1 md:pb-0">
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:block mt-2 mb-1">תפקידים</div>
                         <button
                             onClick={() => setSelectedRoleFilter('')}
-                            className={`whitespace-nowrap px-2.5 py-1 rounded-md text-xs font-medium text-right transition-colors ${!selectedRoleFilter ? 'bg-blue-100 text-blue-700 font-bold' : 'hover:bg-slate-200 text-slate-600'}`}
+                            className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1 rounded-xl md:rounded-md text-sm md:text-xs font-black text-right transition-all active:scale-95 ${!selectedRoleFilter ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600'}`}
                         >
                             הכל
                         </button>
@@ -520,21 +528,21 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                             <button
                                 key={r.id}
                                 onClick={() => setSelectedRoleFilter(selectedRoleFilter === r.id ? '' : r.id)}
-                                className={`whitespace-nowrap px-2.5 py-1 rounded-md text-xs font-medium text-right transition-colors ${selectedRoleFilter === r.id ? 'bg-blue-100 text-blue-700 font-bold' : 'hover:bg-slate-200 text-slate-600'}`}
+                                className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1 rounded-xl md:rounded-md text-sm md:text-xs font-black text-right transition-all active:scale-95 ${selectedRoleFilter === r.id ? 'bg-blue-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600'}`}
                             >
                                 {r.name}
                             </button>
                         ))}
 
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hidden md:block mt-4 mb-1">צוותים</div>
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden md:block mt-4 mb-1">צוותים</div>
                         {teams.map(t => (
                             <button
                                 key={t.id}
                                 onClick={() => setSelectedTeamFilter(selectedTeamFilter === t.id ? '' : t.id)}
-                                className={`whitespace-nowrap px-2.5 py-1 rounded-md text-xs font-medium text-right transition-colors flex items-center justify-between group ${selectedTeamFilter === t.id ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-200 text-slate-600'}`}
+                                className={`whitespace-nowrap px-4 py-2.5 md:px-2.5 md:py-1 rounded-xl md:rounded-md text-sm md:text-xs font-black text-right transition-all active:scale-95 flex items-center justify-between gap-3 ${selectedTeamFilter === t.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-white md:bg-transparent border border-slate-200 md:border-none text-slate-600'}`}
                             >
                                 <span>{t.name}</span>
-                                <div className={`w-1.5 h-1.5 rounded-full ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
+                                <div className={`w-2 h-2 rounded-full border border-white/20 ${t.color?.replace('border-', 'bg-') || 'bg-slate-300'}`}></div>
                             </button>
                         ))}
                     </div>
@@ -543,11 +551,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 {/* 2. MIDDLE COLUMN: POOL (Desktop: 50%, Mobile: Flex-1) */}
                 <div className="flex-1 bg-white md:bg-white flex flex-col min-h-0 overflow-hidden relative">
                     {/* Header for Pool */}
-                    <div className="p-2 border-b border-slate-100 flex justify-between items-center text-xs bg-white sticky top-0 z-20">
-                        <span className="font-bold text-slate-700">מאגר זמין ({availablePeople.length})</span>
+                    <div className="p-3 md:p-2 border-b border-slate-100 flex justify-between items-center text-sm md:text-xs bg-white sticky top-0 z-20">
+                        <span className="font-black text-slate-900 tracking-tight">מאגר זמין ({availablePeople.length})</span>
                     </div>
 
-                    <div className="overflow-y-auto flex-1 p-2 md:p-3 space-y-1">
+                    <div className="overflow-y-auto flex-1 p-3 md:p-2 space-y-3 md:space-y-1">
                         {availablePeople.map(p => {
                             const availability = getEffectiveAvailability(p, selectedDate, teamRotations);
                             // Determine status color logic briefly
@@ -557,45 +565,45 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                 <div
                                     key={p.id}
                                     onClick={() => handleAttemptAssign(p.id)}
-                                    className="group flex items-center justify-between p-2 rounded-lg border border-slate-100 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-all active:scale-[0.99] bg-white"
+                                    className="group flex items-center justify-between p-4 md:p-2 rounded-2xl md:rounded-lg border border-slate-100 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-all active:scale-[0.97] bg-white shadow-sm md:shadow-none"
                                 >
-                                    <div className="flex items-center gap-2.5">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm ${p.color} shrink-0`}>
+                                    <div className="flex items-center gap-4 md:gap-2.5">
+                                        <div className={`w-12 h-12 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-sm md:text-[10px] font-black shadow-md md:shadow-sm ${p.color} shrink-0`}>
                                             {getPersonInitials(p.name)}
                                         </div>
                                         <div className="flex flex-col">
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="text-sm font-bold text-slate-800">{p.name}</span>
+                                            <div className="flex items-baseline gap-3 md:gap-2">
+                                                <span className="text-base md:text-sm font-black text-slate-800 tracking-tight">{p.name}</span>
                                                 {/* Role Tags */}
-                                                <div className="flex gap-1">
+                                                <div className="flex gap-1.5 md:gap-1">
                                                     {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => (
-                                                        <span key={r.id} className="text-[9px] px-1 bg-slate-100 text-slate-500 rounded">{r.name}</span>
+                                                        <span key={r.id} className="text-[10px] md:text-[9px] px-2 py-0.5 md:px-1 md:py-0 bg-slate-100 text-slate-500 rounded font-bold">{r.name}</span>
                                                     ))}
                                                 </div>
                                             </div>
 
                                             {/* Metadata row */}
-                                            <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                                                <span className="flex items-center gap-1">
-                                                    <Shield size={10} />
+                                            <div className="flex items-center gap-2 text-xs md:text-[10px] text-slate-400 font-bold">
+                                                <span className="flex items-center gap-1.5 md:gap-1">
+                                                    <Shield size={12} className="md:w-2.5 md:h-2.5 text-slate-300" />
                                                     {teams.find(t => t.id === p.teamId)?.name}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm">
-                                            <Plus size={14} />
+                                    <div className="md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                        <div className="w-10 h-10 md:w-6 md:h-6 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-lg md:shadow-sm">
+                                            <Plus size={20} className="md:w-3.5 md:h-3.5" />
                                         </div>
                                     </div>
                                 </div>
                             );
                         })}
                         {availablePeople.length === 0 && (
-                            <div className="flex flex-col items-center justify-center py-10 text-slate-400 opacity-60">
-                                <Users size={32} strokeWidth={1.5} className="mb-2" />
-                                <span className="text-xs">לא נמצאו חיילים זמינים</span>
+                            <div className="flex flex-col items-center justify-center py-16 md:py-10 text-slate-400 opacity-60">
+                                <Users size={48} strokeWidth={1.5} className="mb-3 md:mb-2" />
+                                <span className="text-sm md:text-xs font-bold">לא נמצאו חיילים זמינים</span>
                             </div>
                         )}
                     </div>
@@ -604,17 +612,18 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 {/* 3. RIGHT COLUMN: ASSIGNED (Desktop: 30% Sticky, Mobile: Drawer) */}
 
                 {/* Mobile Drawer Toggle / Summary Bar */}
-                <div className="md:hidden border-t border-slate-200 bg-white p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50 shrink-0 flex items-center justify-between">
+                <div className="md:hidden border-t border-slate-100 bg-white p-4 pb-8 shadow-[0_-10px_30px_-5px_rgba(0,0,0,0.1)] z-50 shrink-0 flex items-center justify-between">
                     <div
-                        className="flex items-center gap-2 cursor-pointer"
+                        className="flex items-center gap-3 cursor-pointer p-2 -m-2"
                         onClick={() => setIsMobileDrawerOpen(!isMobileDrawerOpen)}
                     >
-                        <div className="bg-slate-900 text-white text-xs font-bold px-2 py-1 rounded-md">
+                        <div className="bg-slate-900 text-white text-sm font-black px-4 py-2 rounded-2xl shadow-lg flex items-center gap-2">
+                            <Users size={16} />
                             {assignedPeople.length} משובצים
                         </div>
-                        <ChevronUp size={16} className={`transition-transform text-slate-500 ${isMobileDrawerOpen ? 'rotate-180' : ''}`} />
+                        <ChevronUp size={24} className={`transition-transform text-slate-400 ${isMobileDrawerOpen ? 'rotate-180' : ''}`} />
                     </div>
-                    <Button onClick={onClose} size="md" className="px-6 h-9 font-bold">
+                    <Button onClick={onClose} size="lg" className="px-8 h-12 rounded-2xl font-black text-base shadow-xl active:scale-95 transition-all">
                         סיום
                     </Button>
                 </div>
@@ -627,27 +636,27 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     ${isMobileDrawerOpen ? 'h-[60vh] border-t shadow-2xl' : 'h-0 overflow-hidden md:h-auto md:overflow-visible'}
                     md:flex md:flex-col transition-all duration-300 ease-in-out z-40
                 `}>
-                    <div className="p-3 border-b border-slate-200/50 flex justify-between items-center bg-slate-50/95 backdrop-blur sticky top-0 z-10">
-                        <h4 className="font-black text-slate-600 text-xs uppercase tracking-wider">משובצים ({assignedPeople.length})</h4>
+                    <div className="p-4 border-b border-slate-200/50 flex justify-between items-center bg-slate-50/95 backdrop-blur sticky top-0 z-10">
+                        <h4 className="font-black text-slate-700 text-sm uppercase tracking-widest">משובצים ({assignedPeople.length})</h4>
                         {isMobileDrawerOpen && (
-                            <button onClick={() => setIsMobileDrawerOpen(false)} className="md:hidden p-1 bg-slate-200 rounded-full">
-                                <ChevronDown size={14} />
+                            <button onClick={() => setIsMobileDrawerOpen(false)} className="md:hidden p-2 bg-white shadow-sm border border-slate-200 rounded-full">
+                                <ChevronDown size={20} className="text-slate-500" />
                             </button>
                         )}
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                    <div className="flex-1 overflow-y-auto p-4 md:p-2 space-y-3 md:space-y-2">
                         {assignedPeople.map(p => (
-                            <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-white border border-slate-200 shadow-sm">
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[9px] font-bold ${p.color}`}>
+                            <div key={p.id} className="flex items-center justify-between p-4 md:p-2 rounded-2xl md:rounded-md bg-white border border-slate-100 md:border-slate-200 shadow-sm">
+                                <div className="flex items-center gap-3 md:gap-2">
+                                    <div className={`w-10 h-10 md:w-7 md:h-7 rounded-full flex items-center justify-center text-white text-xs md:text-[9px] font-black shadow-sm ${p.color}`}>
                                         {getPersonInitials(p.name)}
                                     </div>
                                     <div className="flex flex-col leading-tight">
-                                        <span className="text-xs font-bold text-slate-800">{p.name}</span>
+                                        <span className="text-sm md:text-xs font-black text-slate-800 tracking-tight">{p.name}</span>
                                         <div className="flex gap-1 flex-wrap">
                                             {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => (
-                                                <span key={r.id} className="text-[9px] text-slate-500">{r.name}</span>
+                                                <span key={r.id} className="text-[10px] md:text-[9px] text-slate-400 font-bold">{r.name}</span>
                                             ))}
                                         </div>
                                     </div>
@@ -655,9 +664,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                 {!isViewer && (
                                     <button
                                         onClick={() => onUnassign(selectedShift.id, p.id)}
-                                        className="text-slate-300 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-colors"
+                                        className="text-slate-300 hover:text-red-500 p-2 md:p-1 hover:bg-red-50 rounded-xl transition-all active:scale-95"
                                     >
-                                        <X size={14} />
+                                        <X size={20} className="md:w-3.5 md:h-3.5" />
                                     </button>
                                 )}
                             </div>

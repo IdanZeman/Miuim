@@ -338,6 +338,7 @@ export interface MissionReport {
   exceptional_events?: string;
   points_to_preserve?: string;
   points_to_improve?: string;
+  cumulative_info?: string;
   ongoing_log: OngoingNote[];
   submitted_by?: string;
   last_editor_id?: string;
