@@ -4,7 +4,7 @@ import { Modal as GenericModal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import {
     X, Clock, Calendar as CalendarIcon, History, MessageSquare, Send,
-    FileText, CheckCircle, Users, Shield, AlertTriangle, Info, MessageCircle, ChevronDown, ChevronUp, Pencil
+    FileText, CheckCircle, Users, Shield, AlertTriangle, Info, MessageCircle, ChevronDown, ChevronUp, Pencil, Printer
 } from 'lucide-react';
 import { useMissionReports } from '../../hooks/useMissionReports';
 import { useToast } from '../../contexts/ToastContext';
@@ -227,101 +227,83 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
             </div>
 
             {/* --- CUSTOM HEADER (Sticky) - Screen Only --- */}
-            <div className="bg-white border-b border-slate-200 p-3 md:p-4 shrink-0 z-40 shadow-sm flex justify-between items-center print:hidden">
-                <div className="flex flex-col gap-1"> {/* Rule 2: spacing */}
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-none flex items-center gap-2"> {/* Rule 2: font size */}
+            <div className="bg-white border-b border-slate-200 p-3.5 md:p-4 shrink-0 z-40 shadow-sm flex flex-col gap-3 print:hidden">
+                {/* Row 1: Title, Status and Close */}
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-none truncate">
                             {task.name}
                         </h2>
 
-                        {/* Status Badge in Header */}
-                        {report?.submitted_at ? (
-                            <div className="flex items-center gap-2 bg-emerald-100 border border-emerald-200 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm"> {/* Rule 2: visible badge */}
-                                <CheckCircle size={14} />
-                                <span>הוגש</span>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2 bg-blue-100 border border-blue-200 text-blue-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm animate-pulse">
-                                <span className="w-2 h-2 rounded-full bg-blue-600" />
-                                <span>פעיל</span>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-4 text-base md:text-lg text-slate-600 font-bold"> {/* Rule 2: 16px+ for core metadata */}
-                        <div className="flex items-center gap-2">
-                            <CalendarIcon size={18} className="text-slate-400" />
-                            {new Date(shift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}
-                        </div>
-                        <span className="text-slate-300">|</span>
-                        <div className="flex items-center gap-2 font-mono">
-                            <Clock size={18} className="text-slate-400" />
-                            {new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                            -
-                            {new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-1 md:gap-2"> {/* Rule 5: tighter for mobile space */}
-                    {/* Desktop Print Button */}
-                    <button
-                        onClick={() => window.print()}
-                        className="hidden md:flex w-12 h-12 items-center justify-center hover:bg-slate-100 rounded-xl text-slate-500 hover:text-slate-800 transition-colors group" // Rule 1: 48px target
-                        title="הדפס / יצא ל-PDF"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                    </button>
-
-                    <div className="hidden md:block h-8 w-px bg-slate-200 mx-1" />
-
-                    {/* Mobile Tabs Switcher */}
-                    <div className="md:hidden flex bg-slate-100 p-1 rounded-xl items-center">
-                        <button
-                            onClick={() => setActiveMobileTab('timeline')}
-                            className={`w-11 h-10 flex items-center justify-center rounded-lg transition-all ${activeMobileTab === 'timeline' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500'}`}
-                        >
-                            <History size={20} />
-                        </button>
-                        <button
-                            onClick={() => setActiveMobileTab('report')}
-                            className={`w-11 h-10 flex items-center justify-center rounded-lg transition-all ${activeMobileTab === 'report' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500'}`}
-                        >
-                            <FileText size={20} />
-                        </button>
-                    </div>
-
-                    {/* Mobile More Actions (3 dots) */}
-                    <div className="md:hidden relative group">
-                        <button
-                            className="w-12 h-12 flex items-center justify-center hover:bg-slate-100 rounded-xl text-slate-500 focus:outline-none" // Rule 1: 48px target
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
-                        </button>
-                        <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl w-48 opacity-0 pointer-events-none group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-all z-[60]">
-                            <button
-                                onClick={() => window.print()}
-                                className="w-full flex items-center gap-3 px-4 py-4 text-base font-bold text-slate-700 hover:bg-slate-50 border-b border-slate-100" // Rule 1 & 2
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                                <span>הדפס / יצא ל-PDF</span>
-                            </button>
-                            <button
-                                onClick={onClose}
-                                className="w-full flex items-center gap-3 px-4 py-4 text-base font-bold text-red-600 hover:bg-red-50 rounded-b-xl" // Rule 1 & 2
-                            >
-                                <X size={18} />
-                                <span>סגור מודל</span>
-                            </button>
+                        {/* Status Badge */}
+                        <div className="shrink-0">
+                            {report?.submitted_at ? (
+                                <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-[10px] md:text-xs font-black border border-emerald-100 uppercase tracking-wider">
+                                    <CheckCircle size={14} />
+                                    <span>הוגש</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[10px] md:text-xs font-black border border-blue-100 animate-pulse uppercase tracking-wider">
+                                    <span className="w-2 h-2 rounded-full bg-blue-600" />
+                                    <span>פעיל</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
+                    {/* Standard Modal Close Button (Ghost Style) */}
                     <button
                         onClick={onClose}
-                        className="hidden md:flex w-12 h-12 items-center justify-center hover:bg-slate-100 rounded-xl text-slate-500 hover:text-red-600 transition-colors" // Desktop close
+                        className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all active:scale-90 shrink-0"
+                        title="סגור"
                     >
-                        <X size={28} />
+                        <X size={26} />
                     </button>
+                </div>
+
+                {/* Row 2: Metadata, Tabs and Print */}
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-3 md:gap-4 text-sm md:text-lg text-slate-500 font-bold whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                            <CalendarIcon size={18} className="text-slate-400" />
+                            <span>{new Date(shift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</span>
+                        </div>
+                        <span className="text-slate-200">|</span>
+                        <div className="flex items-center gap-2 font-mono">
+                            <Clock size={18} className="text-slate-400" />
+                            <span>
+                                {new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                -
+                                {new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 md:gap-3">
+                        {/* Mobile Tabs Switcher */}
+                        <div className="md:hidden flex bg-slate-100 p-1 rounded-xl items-center border border-slate-200/50">
+                            <button
+                                onClick={() => setActiveMobileTab('timeline')}
+                                className={`w-10 h-9 flex items-center justify-center rounded-lg transition-all ${activeMobileTab === 'timeline' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                            >
+                                <History size={18} />
+                            </button>
+                            <button
+                                onClick={() => setActiveMobileTab('report')}
+                                className={`w-10 h-9 flex items-center justify-center rounded-lg transition-all ${activeMobileTab === 'report' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                            >
+                                <FileText size={18} />
+                            </button>
+                        </div>
+
+                        {/* Print Button */}
+                        <button
+                            onClick={() => window.print()}
+                            className="w-10 h-9 md:w-11 md:h-11 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-500 hover:text-slate-900 transition-all shadow-sm active:scale-95"
+                        >
+                            <Printer size={20} className="md:w-6 md:h-6" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
