@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Accessibility, Mail, Phone, CheckCircle2, Shield } from 'lucide-react';
+import { ArrowRight as ArrowRightIcon, Wheelchair as AccessibilityIcon, Envelope as MailIcon, Phone as PhoneIcon, CheckCircle as CheckCircleIcon, Shield as ShieldIcon } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 
 export const AccessibilityStatement: React.FC = () => {
@@ -12,7 +12,7 @@ export const AccessibilityStatement: React.FC = () => {
                 <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
-                            <Accessibility size={20} aria-hidden="true" />
+                            <AccessibilityIcon size={20} aria-hidden="true" weight="duotone" />
                         </div>
                         <div className="hidden md:block">
                             <h1 className="font-bold text-lg leading-tight text-slate-900">הצהרת נגישות</h1>
@@ -25,7 +25,7 @@ export const AccessibilityStatement: React.FC = () => {
                         className="group flex items-center gap-2 text-slate-500 hover:text-blue-600 font-bold transition-all bg-slate-50 hover:bg-blue-50 px-4 py-2 rounded-xl"
                         aria-label="חזרה לדף הבית"
                     >
-                        <ArrowRight size={18} aria-hidden="true" className="group-hover:-translate-x-1 transition-transform" />
+                        <ArrowRightIcon size={18} aria-hidden="true" className="group-hover:-translate-x-1 transition-transform" weight="bold" />
                         <span>חזרה למערכת</span>
                     </button>
                 </div>
@@ -53,7 +53,7 @@ export const AccessibilityStatement: React.FC = () => {
                             <div className="absolute top-0 left-0 w-2 h-full bg-blue-600"></div>
                             <div className="flex items-start gap-4 relatie z-10">
                                 <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
-                                    <Shield size={24} aria-hidden="true" />
+                                    <ShieldIcon size={24} aria-hidden="true" weight="duotone" />
                                 </div>
                                 <div className="space-y-3">
                                     <h3 className="text-xl font-bold text-slate-900">תקינה וסטנדרטים</h3>
@@ -84,7 +84,7 @@ export const AccessibilityStatement: React.FC = () => {
                                     'ביטול הבהובים ותוכן מרצד'
                                 ].map((item, idx) => (
                                     <div key={idx} className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100/50 hover:bg-white hover:shadow-sm hover:border-slate-200 transition-all">
-                                        <CheckCircle2 size={18} className="text-emerald-500 shrink-0" aria-hidden="true" />
+                                        <CheckCircleIcon size={18} className="text-emerald-500 shrink-0" aria-hidden="true" weight="bold" />
                                         <span className="text-slate-700 font-medium text-sm">{item}</span>
                                     </div>
                                 ))}
@@ -104,16 +104,7 @@ export const AccessibilityStatement: React.FC = () => {
                                 אנחנו כאן כדי לעזור. אם מצאת רכיב שאינו נגיש או שנתקלת בקושי, אנא צור קשר ונטפל בפנייתך בהקדם.
                             </p>
 
-                            <div className="space-y-4 relative z-10">
-                                <div>
-                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">רכז נגישות</span>
-                                    <div className="text-lg font-bold mt-1">דואר אלקטרוני</div>
-                                    <a href="mailto:support@miuim.app" className="flex items-center gap-2 text-blue-300 hover:text-white transition-colors mt-1 group">
-                                        <Mail size={16} />
-                                        <span className="group-hover:underline">support@miuim.app</span>
-                                    </a>
-                                </div>
-                            </div>
+
                         </div>
 
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 text-center">

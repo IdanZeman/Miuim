@@ -4,12 +4,13 @@ import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../features/auth/AuthContext';
 import { 
     Person, Shift, TaskTemplate, Role, Team, 
-    SchedulingConstraint, TeamRotation, Absence, Equipment, MissionReport 
+    SchedulingConstraint, TeamRotation, Absence, Equipment, MissionReport, PermissionTemplate, EquipmentDailyCheck
 } from '../types';
 import { 
     mapPersonFromDB, mapShiftFromDB, mapTaskFromDB, 
     mapRoleFromDB, mapTeamFromDB, mapConstraintFromDB, 
-    mapRotationFromDB, mapAbsenceFromDB, mapEquipmentFromDB, mapHourlyBlockageFromDB, mapMissionReportFromDB
+    mapRotationFromDB, mapAbsenceFromDB, mapEquipmentFromDB, mapHourlyBlockageFromDB, mapMissionReportFromDB,
+    mapEquipmentDailyCheckFromDB
 } from '../services/supabaseClient';
 
 // Helper to calculate data scoping (Duplicated from App.tsx for safety)
@@ -18,20 +19,58 @@ const applyDataScoping = (
     user: any, 
     people: Person[], 
     shifts: Shift[], 
-    equipment: Equipment[]
+    equipment: Equipment[],
+    permissionTemplates: PermissionTemplate[] = []
 ) => {
-    const dataScope = profile?.permissions?.dataScope || 'organization';
-    const allowedTeamIds = profile?.permissions?.allowedTeamIds || [];
+    // 1. Identify "Me"
+    const myPerson = people.find(p => p.userId === user?.id || (p as any).email === user?.email);
+    
+    // Resolve Permissions (Dynamic vs Snapshot)
+    let permissions = profile?.permissions;
+    if (profile?.permission_template_id) {
+        const template = permissionTemplates.find(t => t.id === profile.permission_template_id);
+        if (template) {
+            permissions = template.permissions;
+            // console.log('Using Dynamic Permissions from Template:', template.name);
+        }
+    }
 
-    if (dataScope === 'organization') {
+    // 2. Determine effective scope
+    let dataScope = permissions?.dataScope || 'organization';
+    let allowedTeamIds = Array.isArray(permissions?.allowedTeamIds) 
+        ? permissions.allowedTeamIds 
+        : [];
+    
+    // Debug helper for team scope issues
+    if (dataScope === 'team' && allowedTeamIds.length === 0) {
+        console.warn('WarRoom: Team data scope active but no AllowedTeamIds found. User may see only themselves.');
+    }
+
+    // Elevation: If I am a commander, I can see my team's data even if scope is personal
+    if (dataScope === 'personal' && myPerson?.isCommander && myPerson.teamId) {
+        dataScope = 'team';
+        allowedTeamIds = Array.from(new Set([...allowedTeamIds, myPerson.teamId]));
+    }
+
+    // Handle 'my_team' scope: Automatically add user's teamId to allowed list
+    if (dataScope === 'my_team') {
+        if (myPerson?.teamId) {
+            dataScope = 'team';
+            allowedTeamIds = Array.from(new Set([...allowedTeamIds, myPerson.teamId]));
+        } else {
+            // Fallback: If user has no team, they see only themselves (Personal)
+            dataScope = 'personal';
+        }
+    }
+
+    if (dataScope === 'organization' || profile?.is_super_admin) {
         return { scopedPeople: people, scopedShifts: shifts, scopedEquipment: equipment };
     } 
     
     if (dataScope === 'team') {
         const scopedPeople = people.filter(p =>
             (p.teamId && allowedTeamIds.includes(p.teamId)) ||
-            p.userId === user?.id ||
-            (p as any).email === user?.email
+            p.id === myPerson?.id
         );
         const visiblePersonIds = scopedPeople.map(p => p.id);
         const scopedShifts = shifts.filter(s =>
@@ -45,7 +84,6 @@ const applyDataScoping = (
     } 
     
     if (dataScope === 'personal') {
-        const myPerson = people.find(p => p.userId === user?.id || (p as any).email === user?.email);
         if (myPerson) {
             return {
                 scopedPeople: [myPerson],
@@ -74,7 +112,8 @@ export const useOrganizationData = () => {
             const [
                 peopleRes, tasksRes, rolesRes, teamsRes, settingsRes,
                 constraintsRes, rotationsRes, absencesRes, equipmentRes,
-                hourlyBlockagesRes, shiftsRes, missionReportsRes
+                hourlyBlockagesRes, shiftsRes, missionReportsRes, permissionTemplatesRes,
+                equipmentDailyChecksRes
             ] = await Promise.all([
                 supabase.from('people').select('*').eq('organization_id', organization.id),
                 supabase.from('task_templates').select('*').eq('organization_id', organization.id),
@@ -91,7 +130,12 @@ export const useOrganizationData = () => {
                     .eq('organization_id', organization.id)
                     .eq('organization_id', organization.id)
                     .gte('start_time', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-                supabase.from('mission_reports').select('*').eq('organization_id', organization.id)
+                supabase.from('mission_reports').select('*').eq('organization_id', organization.id),
+                supabase.from('permission_templates').select('*').eq('organization_id', organization.id),
+                // Fetch equipment daily checks for last 30 days
+                supabase.from('equipment_daily_checks').select('*')
+                    .eq('organization_id', organization.id)
+                    .gte('check_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
             ]);
 
             return {
@@ -106,11 +150,13 @@ export const useOrganizationData = () => {
                 absences: absencesRes.data || [],
                 equipment: equipmentRes.data || [],
                 hourlyBlockages: hourlyBlockagesRes.data || [],
-                missionReports: missionReportsRes.data || []
+                missionReports: missionReportsRes.data || [],
+                permissionTemplates: permissionTemplatesRes.data || [],
+                equipmentDailyChecks: equipmentDailyChecksRes.data || []
             };
         },
         enabled: isEnabled,
-        staleTime: 1000 * 60 * 5, // 5 Minutes
+        staleTime: 1000 * 30, // 30 Seconds - Reduced for better responsiveness
     });
 
     // 2. Map & Scope Data (Memoized)
@@ -122,7 +168,7 @@ export const useOrganizationData = () => {
         const rawEquipment = (data.equipment || []).map(mapEquipmentFromDB);
 
         const { scopedPeople, scopedShifts, scopedEquipment } = applyDataScoping(
-            profile, user, rawPeople, rawShifts, rawEquipment
+            profile, user, rawPeople, rawShifts, rawEquipment, (data.permissionTemplates || [])
         );
 
         return {
@@ -138,7 +184,8 @@ export const useOrganizationData = () => {
             absences: (data.absences || []).map(mapAbsenceFromDB),
             hourlyBlockages: (data.hourlyBlockages || []).map(mapHourlyBlockageFromDB),
             missionReports: (data.missionReports || []).map(mapMissionReportFromDB),
-            equipment: scopedEquipment
+            equipment: scopedEquipment,
+            equipmentDailyChecks: (data.equipmentDailyChecks || []).map(mapEquipmentDailyCheckFromDB)
         };
     }, [data, profile, user]);
 
@@ -157,6 +204,7 @@ export const useOrganizationData = () => {
         absences: processedData?.absences || [],
         missionReports: processedData?.missionReports || [],
         equipment: processedData?.equipment || [],
+        equipmentDailyChecks: processedData?.equipmentDailyChecks || [],
         isLoading,
         error,
         refetch

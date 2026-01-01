@@ -2,14 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { Person, Team, SchedulingConstraint, TaskTemplate, Role } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
-import { Search, Filter, ShieldAlert, Briefcase, User, Users, Shield, Ban, Pin, Trash2, Plus, Edit2, AlertCircle } from 'lucide-react';
+import { MagnifyingGlass as Search, Funnel as Filter, ShieldWarning as ShieldAlert, Briefcase, User, Users, Shield, Prohibit as Ban, PushPin as Pin, Trash as Trash2, Plus, PencilSimple as Edit2, WarningCircle as AlertCircle } from '@phosphor-icons/react';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { MultiSelect } from '../../components/ui/MultiSelect';
-import { Modal } from '../../components/ui/Modal';
+import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { cn } from '@/lib/utils';
+import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
 
 interface ConstraintsManagerProps {
     people: Person[];
@@ -310,265 +311,274 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] overflow-hidden">
-            {/* Top Control Bar */}
-            <div className="bg-white p-4 md:p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
-                <h2 className="text-lg font-bold text-slate-800 px-2 flex items-center gap-2">
-                    <ShieldAlert className="text-blue-600" size={24} />
-                    <span className="hidden md:inline">ניהול אילוצים</span>
-                    <PageInfo
-                        title="ניהול אילוצים"
-                        description={
-                            <>
-                                <p className="mb-2">כאן ניתן להגדיר כללים ומגבלות על השיבוץ האוטומטי.</p>
-                                <p className="font-bold mb-1">סוגי אילוצים:</p>
-                                <ul className="list-disc list-inside space-y-1 mb-2 text-right">
-                                    <li><b>לא לשבץ לעולם:</b> מונע מהמערכת לשבץ את האדם/הצוות למשימה ספציפית.</li>
-                                    <li><b>שבץ רק למשימה זו:</b> כאשר האדם משובץ, הוא ישובץ <b>רק</b> למשימה זו (מונע שיבוץ למשימות אחרות באותו זמן).</li>
-                                </ul>
-                                <p className="text-sm bg-red-50 p-2 rounded text-red-800">
-                                    <b>שים לב:</b> שימוש מוגזם באילוצים עלול לגרום לכך שהמערכת לא תמצא פתרון שיבוץ תקין.
-                                </p>
-                            </>
-                        }
-                    />
-                    <span className="md:hidden">אילוצים</span>
-                </h2>
-                <div className="text-xs text-slate-500 font-medium bg-slate-100 px-3 py-1 rounded-md">
-                    אילוצי משימות בלבד
+        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-11rem)] md:h-[calc(100vh-8rem)] overflow-hidden relative">
+            {/* Header Section */}
+            <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col gap-4 bg-white/50 backdrop-blur-sm z-10 shrink-0">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <ShieldAlert className="text-blue-600" size={32} weight="duotone" />
+                        <div>
+                            <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-none">ניהול אילוצים</h2>
+                            <p className="text-xs md:text-sm font-bold text-slate-400 mt-1">
+                                {taskConstraintsGrouped.length} חוקים פעילים
+                            </p>
+                        </div>
+                    </div>
+                    {/* Add Button - Desktop Only (Legacy/Alternative position, but we prefer FAB usually. Keeping hidden to rely on FAB or show for specific desktop preference if needed. For now, FAB is the standard) */}
+                    {/* Actually, Golden Standard uses FAB for primary action. We'll stick to FAB. */}
+                </div>
+
+                {/* Search Bar */}
+                <div className="w-full">
+                    <div className="relative group">
+                        <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} weight="duotone" />
+                        <input
+                            type="text"
+                            placeholder="חיפוש חוק לפי שם משימה, חייל או תפקיד..."
+                            value={rulesSearch}
+                            onChange={(e) => setRulesSearch(e.target.value)}
+                            className="w-full h-12 pr-12 pl-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 placeholder:font-medium"
+                        />
+                    </div>
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col overflow-hidden relative">
-                <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-slate-800">הגדרת חוקי משימות</h3>
-                    {!isViewer && (
-                        <button
-                            onClick={() => openRuleModal()}
-                            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-sm transition-colors text-sm"
-                            aria-label="הוסף חוק חדש"
-                        >
-                            <Plus size={18} />
-                            <span className="hidden md:inline">הוסף חוק חדש</span>
-                            <span className="md:hidden">חדש</span>
-                        </button>
-                    )}
-                </div>
+            {/* Content List */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 relative scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                {taskConstraintsGrouped.length > 0 ? (
+                    taskConstraintsGrouped.map(group => {
+                        const { name, icon: Icon, type } = getTargetNameFromGroup(group);
+                        const taskNames = group.taskIds
+                            .map(tid => tasks.find(t => t.id === tid)?.name)
+                            .filter(Boolean)
+                            .join(', ');
 
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/50">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
-                        <h4 className="font-bold text-slate-700">רשימת חוקים פעילים ({taskConstraintsGrouped.length})</h4>
-                        <div className="w-full md:w-64"><Input placeholder="חיפוש חוקים..." value={rulesSearch} onChange={(e) => setRulesSearch(e.target.value)} icon={Search} /></div>
-                    </div>
-                    <div className="space-y-3">
-                        {taskConstraintsGrouped.map(group => {
-                            const { name, icon: Icon, type } = getTargetNameFromGroup(group);
-                            const taskNames = group.taskIds
-                                .map(tid => tasks.find(t => t.id === tid)?.name)
-                                .filter(Boolean)
-                                .join(', ');
-
-                            return (
-                                <div key={group.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row items-start md:items-center gap-4 group">
-                                    <div className="flex items-center gap-4 w-full md:w-auto">
-                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${type === 'person' ? 'bg-blue-100 text-blue-600' : type === 'team' ? 'bg-purple-100 text-purple-600' : 'bg-orange-100 text-orange-600'}`}>
-                                            <Icon size={20} />
-                                        </div>
-                                        <div className="md:hidden flex-1">
-                                            <div className="text-xs font-bold text-slate-400 uppercase">{type === 'person' ? 'חייל' : type === 'team' ? 'צוות' : 'תפקיד'}</div>
-                                            <div className="font-bold text-slate-800 text-lg">{name}</div>
-                                        </div>
-                                        {/* Mobile Actions */}
-                                        {!isViewer && (
-                                            <div className="flex md:hidden gap-2">
-                                                <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg" aria-label={`ערוך חוק עבור ${name}`}><Edit2 size={18} /></button>
-                                                <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg" aria-label={`מחק חוק עבור ${name}`}><Trash2 size={18} /></button>
-                                            </div>
-                                        )}
+                        return (
+                            <div key={group.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group relative overflow-hidden">
+                                <div className="flex flex-col md:flex-row items-start md:items-center gap-4 relative z-10">
+                                    {/* Icon Box */}
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${type === 'person' ? 'bg-blue-50 text-blue-600' : type === 'team' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'}`}>
+                                        <Icon size={24} weight="duotone" />
                                     </div>
 
-                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
-                                        <div className="hidden md:block">
-                                            <div className="text-xs font-bold text-slate-400 uppercase">{type === 'person' ? 'חייל' : type === 'team' ? 'צוות' : 'תפקיד'}</div>
-                                            <div className="font-bold text-slate-800 text-lg truncate">{name}</div>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <div className={`h-1 w-8 rounded-full hidden md:block ${group.type === 'never_assign' ? 'bg-red-200' : 'bg-green-200'}`} />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-xs font-bold text-slate-400 uppercase">משימות ({group.taskIds.length})</div>
-                                                <div className="font-bold text-slate-700 truncate" title={taskNames}>{taskNames || '---'}</div>
+                                    {/* Main Content */}
+                                    <div className="flex-1 min-w-0 w-full">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md">
+                                                        {type === 'person' ? 'חייל' : type === 'team' ? 'צוות' : 'תפקיד'}
+                                                    </span>
+                                                    {isViewer && <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">צפייה בלבד</span>}
+                                                </div>
+                                                <h3 className="text-lg font-black text-slate-800 leading-tight truncate">{name}</h3>
                                             </div>
-                                        </div>
 
-                                        <div className="flex items-center justify-between md:justify-start">
-                                            <span className={`px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2 w-fit ${group.type === 'never_assign' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                                                {group.type === 'never_assign' ? <Ban size={14} /> : <Pin size={14} />}
-                                                {group.type === 'never_assign' ? 'לא לשבץ לעולם' : 'שבץ רק למשימה זו'}
+                                            {/* Badge */}
+                                            <span className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 w-fit ${group.type === 'never_assign' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                {group.type === 'never_assign' ? <Ban size={14} weight="duotone" /> : <Pin size={14} weight="duotone" />}
+                                                {group.type === 'never_assign' ? 'לעולם לא לשבץ' : 'שבץ רק לזה'}
                                             </span>
                                         </div>
+
+                                        <div className="flex items-start gap-3 bg-slate-50/50 p-3 rounded-xl border border-slate-100/50">
+                                            <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${group.type === 'never_assign' ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                                            <div>
+                                                <span className="text-xs font-bold text-slate-400 block mb-0.5">משימות ({group.taskIds.length})</span>
+                                                <p className="text-sm font-medium text-slate-600 leading-relaxed line-clamp-2 md:line-clamp-1" title={taskNames}>
+                                                    {taskNames || '---'}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    {/* Desktop Actions */}
+                                    {/* Actions */}
                                     {!isViewer && (
-                                        <div className="hidden md:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => openRuleModal(group)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" aria-label={`ערוך חוק עבור ${name}`}><Edit2 size={20} /></button>
-                                            <button onClick={() => handleDeleteGroup(group)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" aria-label={`מחק חוק עבור ${name}`}><Trash2 size={20} /></button>
+                                        <div className="flex md:flex-col gap-2 shrink-0 w-full md:w-auto mt-2 md:mt-0 border-t md:border-t-0 p-2 md:p-0 border-slate-50">
+                                            <button
+                                                onClick={() => openRuleModal(group)}
+                                                className="flex-1 md:flex-none p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                                title="ערוך חוק"
+                                            >
+                                                <Edit2 size={18} className="mx-auto" weight="duotone" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteGroup(group)}
+                                                className="flex-1 md:flex-none p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                                title="מחק חוק"
+                                            >
+                                                <Trash2 size={18} className="mx-auto" weight="duotone" />
+                                            </button>
                                         </div>
                                     )}
                                 </div>
-                            );
-                        })}
-                        {taskConstraintsGrouped.length === 0 && <div className="text-center py-12 text-slate-400"><Shield size={48} className="mx-auto mb-4 opacity-20" /><p>לא נמצאו חוקים פעילים</p></div>}
+                            </div>
+                        );
+                    })
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
+                        <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-4">
+                            <Shield className="text-slate-200" size={40} weight="duotone" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-400">לא נמצאו חוקים פעילים</h3>
+                        <p className="text-sm text-slate-400 max-w-xs mt-2">השתמש בכפתור הפלוס כדי להוסיף אילוצי שיבוץ למערכת</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Standard FAB */}
+            <FloatingActionButton
+                show={!isViewer && !isRuleModalOpen}
+                onClick={() => openRuleModal()}
+                icon={Plus}
+                ariaLabel="הוסף חוק חדש"
+            />
+
+            {/* Task Rule Modal */}
+            <GenericModal
+                isOpen={isRuleModalOpen}
+                onClose={() => setIsRuleModalOpen(false)}
+                title={
+                    <div className="flex flex-col gap-0.5">
+                        <h3 className="text-xl font-black text-slate-800 leading-tight">
+                            {editingRuleId ? 'עריכת חוק משימה' : 'הוספת חוק משימה חדש'}
+                        </h3>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                            <ShieldAlert size={12} className="text-blue-500" weight="duotone" />
+                            <span>הגדרת מגבלות לאלגוריתם השיבוץ</span>
+                        </div>
+                    </div>
+                }
+                size="lg"
+                footer={
+                    <div className="flex gap-3 w-full">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsRuleModalOpen(false)}
+                            className="flex-1 h-12 md:h-10 text-base md:text-sm font-bold"
+                        >
+                            ביטול
+                        </Button>
+                        <Button
+                            onClick={handleSaveRule}
+                            className="flex-1 h-12 md:h-10 text-base md:text-sm font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+                        >
+                            {editingRuleId ? 'שמור שינויים' : 'הוסף חוק למערכת'}
+                        </Button>
+                    </div>
+                }
+            >
+                <div className="flex flex-col gap-6 py-2">
+                    {/* Target Type Selector */}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">סוג היעד (על מי חל החוק?)</label>
+                        <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
+                            {([['person', 'חייל', User], ['team', 'צוות', Users], ['role', 'תפקיד', Shield]] as const).map(([type, label, Icon]) => (
+                                <button
+                                    key={type}
+                                    onClick={() => {
+                                        if (type !== ruleTargetType) {
+                                            setRuleTargetType(type);
+                                            setRuleTargetIds([]);
+                                            setRuleTargetIdSingle('');
+                                        }
+                                    }}
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all",
+                                        ruleTargetType === type
+                                            ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200"
+                                            : "text-slate-500 hover:text-slate-700"
+                                    )}
+                                >
+                                    <Icon size={14} weight="duotone" />
+                                    <span>{label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Target Selection */}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">
+                            {ruleTargetType === 'person' ? 'בחירת חיילים' : ruleTargetType === 'team' ? 'בחירת צוות' : 'בחירת תפקיד'}
+                        </label>
+                        {ruleTargetType === 'person' ? (
+                            <MultiSelect
+                                value={ruleTargetIds}
+                                onChange={setRuleTargetIds}
+                                options={activePeople.map(p => ({ value: p.id, label: p.name }))}
+                                placeholder="חפש ובחר חיילים..."
+                            />
+                        ) : (
+                            <Select
+                                value={ruleTargetIdSingle}
+                                onChange={setRuleTargetIdSingle}
+                                options={ruleTargetType === 'team' ? teams.map(t => ({ value: t.id, label: t.name })) : roles.map(r => ({ value: r.id, label: r.name }))}
+                                placeholder="בחר מהרשימה..."
+                            />
+                        )}
+                        {ruleTargetType === 'person' && editingRuleId && (
+                            <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-bold uppercase tracking-wide px-1">
+                                <AlertCircle size={10} weight="duotone" />
+                                <span>עריכת יחיד: החלפת החייל תעדכן את החוק הזה בלבד</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Task & Rule Parameters */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">משימות ליישום</label>
+                            <MultiSelect
+                                value={ruleTaskIds}
+                                onChange={setRuleTaskIds}
+                                options={tasks.map(t => ({ value: t.id, label: t.name }))}
+                                placeholder="בחר משימות..."
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">סוג החוק</label>
+                            <Select
+                                value={ruleType}
+                                onChange={val => setRuleType(val as any)}
+                                options={[
+                                    { value: 'never_assign', label: 'לעולם לא לשבץ (חסום)' },
+                                    { value: 'always_assign', label: 'שבץ רק למשימה זו (מובל)' },
+                                ]}
+                                placeholder="בחר סוג חוק..."
+                            />
+                        </div>
+                    </div>
+
+                    {/* Information Box */}
+                    <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 flex gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                            <Briefcase size={20} weight="duotone" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-black text-blue-900 leading-tight mb-0.5">מידע על החוק הנבחר</h4>
+                            <p className="text-xs text-blue-700/80 font-bold leading-relaxed">
+                                {ruleType === 'never_assign'
+                                    ? 'מערכת השיבוץ האוטומטית תדלג על היעדים שנבחרו ותמנע שיבוצם למשימות אלו, גם אם יש חוסר בכוח אדם.'
+                                    : 'החיילים שנבחרו ישובצו *אך ורק* למשימה זו אם הם זמינים, ותימנע מהם גישה למשימות אחרות באותו זמן.'
+                                }
+                            </p>
+                        </div>
                     </div>
                 </div>
+            </GenericModal>
 
-                {/* Task Rule Modal */}
-                <Modal
-                    isOpen={isRuleModalOpen}
-                    onClose={() => setIsRuleModalOpen(false)}
-                    title={
-                        <div className="flex flex-col gap-0.5">
-                            <h3 className="text-xl font-black text-slate-800 leading-tight">
-                                {editingRuleId ? 'עריכת חוק משימה' : 'הוספת חוק משימה חדש'}
-                            </h3>
-                            <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                                <ShieldAlert size={12} className="text-blue-500" />
-                                <span>הגדרת מגבלות לאלגוריתם השיבוץ</span>
-                            </div>
-                        </div>
-                    }
-                    size="lg"
-                    footer={
-                        <div className="flex gap-3 w-full">
-                            <Button
-                                variant="ghost"
-                                onClick={() => setIsRuleModalOpen(false)}
-                                className="flex-1 h-12 md:h-10 text-base md:text-sm font-bold"
-                            >
-                                ביטול
-                            </Button>
-                            <Button
-                                onClick={handleSaveRule}
-                                className="flex-1 h-12 md:h-10 text-base md:text-sm font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
-                            >
-                                {editingRuleId ? 'שמור שינויים' : 'הוסף חוק למערכת'}
-                            </Button>
-                        </div>
-                    }
-                >
-                    <div className="flex flex-col gap-6 py-2">
-                        {/* Target Type Selector */}
-                        <div className="flex flex-col gap-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">סוג היעד (על מי חל החוק?)</label>
-                            <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
-                                {([['person', 'חייל', User], ['team', 'צוות', Users], ['role', 'תפקיד', Shield]] as const).map(([type, label, Icon]) => (
-                                    <button
-                                        key={type}
-                                        onClick={() => {
-                                            if (type !== ruleTargetType) {
-                                                setRuleTargetType(type);
-                                                setRuleTargetIds([]);
-                                                setRuleTargetIdSingle('');
-                                            }
-                                        }}
-                                        className={cn(
-                                            "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all",
-                                            ruleTargetType === type
-                                                ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200"
-                                                : "text-slate-500 hover:text-slate-700"
-                                        )}
-                                    >
-                                        <Icon size={14} />
-                                        <span>{label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Target Selection */}
-                        <div className="flex flex-col gap-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">
-                                {ruleTargetType === 'person' ? 'בחירת חיילים' : ruleTargetType === 'team' ? 'בחירת צוות' : 'בחירת תפקיד'}
-                            </label>
-                            {ruleTargetType === 'person' ? (
-                                <MultiSelect
-                                    value={ruleTargetIds}
-                                    onChange={setRuleTargetIds}
-                                    options={activePeople.map(p => ({ value: p.id, label: p.name }))}
-                                    placeholder="חפש ובחר חיילים..."
-                                />
-                            ) : (
-                                <Select
-                                    value={ruleTargetIdSingle}
-                                    onChange={setRuleTargetIdSingle}
-                                    options={ruleTargetType === 'team' ? teams.map(t => ({ value: t.id, label: t.name })) : roles.map(r => ({ value: r.id, label: r.name }))}
-                                    placeholder="בחר מהרשימה..."
-                                />
-                            )}
-                            {ruleTargetType === 'person' && editingRuleId && (
-                                <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-bold uppercase tracking-wide px-1">
-                                    <AlertCircle size={10} />
-                                    <span>עריכת יחיד: החלפת החייל תעדכן את החוק הזה בלבד</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Task & Rule Parameters */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">משימות ליישום</label>
-                                <MultiSelect
-                                    value={ruleTaskIds}
-                                    onChange={setRuleTaskIds}
-                                    options={tasks.map(t => ({ value: t.id, label: t.name }))}
-                                    placeholder="בחר משימות..."
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">סוג החוק</label>
-                                <Select
-                                    value={ruleType}
-                                    onChange={val => setRuleType(val as any)}
-                                    options={[
-                                        { value: 'never_assign', label: 'לעולם לא לשבץ (חסום)' },
-                                        { value: 'always_assign', label: 'שבץ רק למשימה זו (מובל)' },
-                                    ]}
-                                    placeholder="בחר סוג חוק..."
-                                />
-                            </div>
-                        </div>
-
-                        {/* Information Box */}
-                        <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 flex gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                                <Briefcase size={20} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-black text-blue-900 leading-tight mb-0.5">מידע על החוק הנבחר</h4>
-                                <p className="text-xs text-blue-700/80 font-bold leading-relaxed">
-                                    {ruleType === 'never_assign'
-                                        ? 'מערכת השיבוץ האוטומטית תדלג על היעדים שנבחרו ותמנע שיבוצם למשימות אלו, גם אם יש חוסר בכוח אדם.'
-                                        : 'החיילים שנבחרו ישובצו *אך ורק* למשימה זו אם הם זמינים, ותימנע מהם גישה למשימות אחרות באותו זמן.'
-                                    }
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </Modal>
-
-                <ConfirmationModal
-                    isOpen={!!groupToDelete}
-                    title="מחיקת חוקים"
-                    message="האם אתה בטוח שברצונך למחוק את החוקים לקבוצה זו?"
-                    confirmText="מחק"
-                    cancelText="ביטול"
-                    type="danger"
-                    onConfirm={confirmDelete}
-                    onCancel={() => setGroupToDelete(null)}
-                />
-            </div>
+            <ConfirmationModal
+                isOpen={!!groupToDelete}
+                title="מחיקת חוקים"
+                message="האם אתה בטוח שברצונך למחוק את החוקים לקבוצה זו?"
+                confirmText="מחק"
+                cancelText="ביטול"
+                type="danger"
+                onConfirm={confirmDelete}
+                onCancel={() => setGroupToDelete(null)}
+            />
         </div>
     );
 };

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../features/auth/AuthContext';
 import { SystemMessage } from '../../types';
-import { X, Bell } from 'lucide-react';
+import { X, Bell } from '@phosphor-icons/react';
 
 export const SystemMessagePopup: React.FC = () => {
     const { organization, user } = useAuth();
@@ -87,7 +87,7 @@ export const SystemMessagePopup: React.FC = () => {
                 <div className="bg-blue-600 p-6 text-white relative overflow-hidden">
                     <div className="relative z-10 flex items-start gap-4">
                         <div className="p-3 bg-white/20 rounded-xl backdrop-blur-md">
-                            <Bell size={32} className="text-white" />
+                            <Bell size={32} className="text-white" weight="duotone" />
                         </div>
                         <div>
                             <h3 className="text-xl font-bold">הודעת מערכת</h3>

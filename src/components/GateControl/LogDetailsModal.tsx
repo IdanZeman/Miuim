@@ -1,8 +1,8 @@
 import React from 'react';
-import { Footprints, Car, AlertTriangle, User, History as HistoryIcon, UserPlus, LogOut } from 'lucide-react';
+import { Footprints as FootprintsIcon, Car as CarIcon, Warning as AlertTriangleIcon, User as UserIcon, ClockCounterClockwise as HistoryIcon, UserPlus as UserPlusIcon, SignOut as LogOutIcon } from '@phosphor-icons/react';
 import { GateLog } from '../../hooks/useGateSystem';
 import { Button } from '../ui/Button';
-import { Modal } from '../ui/Modal';
+import { GenericModal } from '../ui/GenericModal';
 
 interface LogDetailsModalProps {
     log: GateLog;
@@ -30,7 +30,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
             <h3 className="text-xl font-black text-slate-800 tracking-tight">פרטי דיווח שער</h3>
             <div className="flex items-center gap-2 mt-1">
                 <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
-                    {log.entry_type === 'pedestrian' ? <Footprints size={14} /> : <Car size={14} />}
+                    {log.entry_type === 'pedestrian' ? <FootprintsIcon size={14} weight="duotone" /> : <CarIcon size={14} weight="duotone" />}
                 </div>
                 <span className="text-[10px] font-bold text-slate-400 font-mono uppercase tracking-widest">
                     {log.entry_type === 'pedestrian' ? 'הולך רגל' : 'רכב ממונע'}
@@ -50,7 +50,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
     );
 
     return (
-        <Modal
+        <GenericModal
             isOpen={!!log}
             onClose={onClose}
             title={modalTitle}
@@ -81,7 +81,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
                         <div>
                             <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">נהג / מדווח</span>
                             <span className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <User size={14} className="text-slate-400" />
+                                <UserIcon size={14} className="text-slate-400" weight="duotone" />
                                 {log.driver_name}
                             </span>
                         </div>
@@ -97,7 +97,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
                 {/* Timeline Section */}
                 <div className="px-1">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <HistoryIcon size={14} /> ציר זמן דיווחים
+                        <HistoryIcon size={14} weight="duotone" /> ציר זמן דיווחים
                     </h4>
 
                     <div className="space-y-6 relative mr-2">
@@ -113,7 +113,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
                                     <span className="text-xs text-slate-500 font-bold">{formatDate(log.entry_time)}</span>
                                 </div>
                                 <div className="mt-2 flex items-center gap-1.5 text-slate-400 group">
-                                    <UserPlus size={12} className="group-hover:text-blue-500 transition-colors" />
+                                    <UserPlusIcon size={12} className="group-hover:text-blue-500 transition-colors" weight="duotone" />
                                     <span className="text-[10px] font-bold text-slate-500">
                                         מדווח: <span className="text-slate-700">{log.entry_reporter?.full_name || 'מערכת'}</span>
                                     </span>
@@ -132,7 +132,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
                                         <span className="text-xs text-slate-500 font-bold">{formatDate(log.exit_time)}</span>
                                     </div>
                                     <div className="mt-2 flex items-center gap-1.5 text-slate-400 group">
-                                        <LogOut size={12} className="group-hover:text-amber-500 transition-colors" />
+                                        <LogOutIcon size={12} className="group-hover:text-amber-500 transition-colors" weight="bold" />
                                         <span className="text-[10px] font-bold text-slate-500">
                                             מדווח: <span className="text-slate-700">{log.exit_reporter?.full_name || 'מערכת'}</span>
                                         </span>
@@ -146,7 +146,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
                 {log.notes && (
                     <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100 ring-4 ring-amber-50/30">
                         <span className="text-[10px] font-black text-amber-600 uppercase block mb-1.5 flex items-center gap-2">
-                            <AlertTriangle size={14} /> הערות ש.ג
+                            <AlertTriangleIcon size={14} weight="bold" /> הערות ש.ג
                         </span>
                         <p className="text-sm text-slate-700 leading-relaxed font-bold italic">
                             "{log.notes}"
@@ -154,6 +154,6 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
                     </div>
                 )}
             </div>
-        </Modal>
+        </GenericModal>
     );
 };

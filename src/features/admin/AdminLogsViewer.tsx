@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../features/auth/AuthContext';
-import { Shield, Search, RefreshCw, Filter, Download } from 'lucide-react';
+import { Shield as ShieldIcon, MagnifyingGlass as SearchIcon, ArrowsClockwise as RefreshIcon, Funnel as FilterIcon, DownloadSimple as DownloadIcon } from '@phosphor-icons/react';
 import type { LogLevel } from '../../services/loggingService';
 import { Select } from '../../components/ui/Select';
-import { GlobalStats } from './GlobalStats';
 
 interface LogEntry {
     id: string;
@@ -164,7 +163,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
     if (!profile?.is_super_admin) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
-                <Shield size={64} className="mb-4 opacity-20" />
+                <ShieldIcon size={64} className="mb-4 opacity-20" weight="duotone" />
                 <h2 className="text-xl font-bold">Access Denied</h2>
                 <p>This area is restricted to system administrators.</p>
             </div>
@@ -172,206 +171,233 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
     }
 
     return (
-        <div className="space-y-4">
-            {/* Log Management Toolbar */}
-            <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-                <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                        <Shield size={20} />
+        <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative z-20">
+            {/* Premium Header */}
+            <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shadow-blue-100">
+                        <ShieldIcon size={24} weight="duotone" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-black text-slate-800">יומן פעילות מערכתי</h3>
-                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">System Activity Stream (Raw Data)</p>
+                        <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">יומן פעילות מערכתי</h1>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">System Activity Stream (Raw Data)</p>
                     </div>
                 </div>
-                <button
-                    onClick={exportToCSV}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-all text-xs font-bold shadow-sm active:scale-95"
-                >
-                    <Download size={14} />
-                    <span>Export CSV</span>
-                </button>
+
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    <button
+                        onClick={exportToCSV}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-all text-xs font-bold shadow-lg shadow-slate-200 active:scale-95"
+                    >
+                        <DownloadIcon size={16} weight="bold" />
+                        <span>Export CSV</span>
+                    </button>
+                </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                {/* Filters */}
-                <div className="p-4 border-b border-slate-100 flex flex-col gap-3 bg-slate-50/50">
-                    <div className="flex flex-wrap gap-3 items-center">
-                        {/* Search */}
-                        <div className="relative flex-1 w-full md:w-auto md:min-w-[300px]">
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input
-                                type="text"
-                                placeholder="חיפוש לפי פעולה, משתמש, ארגון או קומפוננטה..."
-                                value={filter}
-                                onChange={(e) => setFilter(e.target.value)}
-                                className="w-full pr-10 pl-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+            {/* Filters Bar */}
+            <div className="p-4 md:px-8 md:py-5 border-b border-slate-100 bg-slate-50/50 shrink-0">
+                <div className="flex flex-col md:flex-row gap-4 items-center">
+                    {/* Search - Growing */}
+                    <div className="relative w-full md:flex-1">
+                        <SearchIcon className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} weight="bold" />
+                        <input
+                            type="text"
+                            placeholder="חיפוש לפי פעולה, משתמש, ארגון או קומפוננטה..."
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                            className="w-full h-12 pr-12 pl-4 rounded-2xl border border-slate-200 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-base font-medium placeholder:text-slate-400 bg-white"
+                        />
+                    </div>
+
+                    {/* Quick Filters - Fixed Widths or Auto */}
+                    <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
+                        <div className="min-w-[140px]">
+                            <Select
+                                value={levelFilter}
+                                onChange={(val) => setLevelFilter(val as LogLevel | 'ALL')}
+                                options={[
+                                    { value: 'ALL', label: 'כל הרמות' },
+                                    { value: 'TRACE', label: '🔍 TRACE' },
+                                    { value: 'DEBUG', label: '🐛 DEBUG' },
+                                    { value: 'INFO', label: 'ℹ️ INFO' },
+                                    { value: 'WARN', label: '⚠️ WARN' },
+                                    { value: 'ERROR', label: '❌ ERROR' },
+                                    { value: 'FATAL', label: '💀 FATAL' }
+                                ]}
+                                placeholder="סינון רמה"
+                                className="bg-white border-slate-200 h-11"
                             />
                         </div>
 
-                        {/* Quick Filters */}
-                        <div className="flex flex-wrap gap-2 items-center">
-                            <div className="w-[140px]">
-                                <Select
-                                    value={levelFilter}
-                                    onChange={(val) => setLevelFilter(val as LogLevel | 'ALL')}
-                                    options={[
-                                        { value: 'ALL', label: 'כל הרמות' },
-                                        { value: 'TRACE', label: '🔍 TRACE' },
-                                        { value: 'DEBUG', label: '🐛 DEBUG' },
-                                        { value: 'INFO', label: 'ℹ️ INFO' },
-                                        { value: 'WARN', label: '⚠️ WARN' },
-                                        { value: 'ERROR', label: '❌ ERROR' },
-                                        { value: 'FATAL', label: '💀 FATAL' }
-                                    ]}
-                                    placeholder="סינון רמה"
-                                    className="bg-white border-slate-200"
-                                />
-                            </div>
+                        <button
+                            onClick={() => setHideMyLogs(!hideMyLogs)}
+                            className={`h-12 px-5 rounded-2xl border text-xs font-bold transition-all whitespace-nowrap shadow-sm ${hideMyLogs
+                                ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200'
+                                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                                }`}
+                        >
+                            {hideMyLogs ? 'מציג לוגים של אחרים' : 'מציג גם פעולות שלי'}
+                        </button>
 
-                            <button
-                                onClick={() => setHideMyLogs(!hideMyLogs)}
-                                className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${hideMyLogs
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                                    }`}
-                            >
-                                {hideMyLogs ? 'מציג לוגים של אחרים' : 'מציג גם פעולות שלי'}
-                            </button>
-
-                            <div className="w-[130px]">
-                                <Select
-                                    value={limit.toString()}
-                                    onChange={(val) => setLimit(Number(val))}
-                                    options={[
-                                        { value: '100', label: '100 אחרונים' },
-                                        { value: '500', label: '500 אחרונים' },
-                                        { value: '1000', label: '1000 אחרונים' },
-                                        { value: '2000', label: '2000 אחרונים' }
-                                    ]}
-                                    placeholder="כמות"
-                                    className="bg-white border-slate-200"
-                                />
-                            </div>
-
-                            <button
-                                onClick={fetchLogs}
-                                className="p-2 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 rounded-xl text-slate-600 transition-all active:scale-95"
-                                title="רענן"
-                            >
-                                <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-                            </button>
+                        <div className="min-w-[150px]">
+                            <Select
+                                value={limit.toString()}
+                                onChange={(val) => setLimit(Number(val))}
+                                options={[
+                                    { value: '100', label: '100 אחרונים' },
+                                    { value: '500', label: '500 אחרונים' },
+                                    { value: '1000', label: '1000 אחרונים' },
+                                    { value: '2000', label: '2000 אחרונים' }
+                                ]}
+                                placeholder="כמות"
+                                className="bg-white border-slate-200 h-11"
+                            />
                         </div>
+
+                        <button
+                            onClick={fetchLogs}
+                            className="h-12 w-12 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl text-slate-600 transition-all active:scale-95 shadow-sm shrink-0"
+                            title="רענן"
+                        >
+                            <RefreshIcon size={20} className={loading ? 'animate-spin' : ''} weight="bold" />
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                {/* Table */}
-                <div className="overflow-x-auto hidden md:block">
+            {/* Content Area - Scrollable */}
+            <div className="flex-1 overflow-hidden relative flex flex-col">
+                {/* Desktop Table */}
+                <div className="hidden md:block flex-1 overflow-y-auto custom-scrollbar">
                     <table className="w-full text-sm text-right">
-                        <thead className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-100 uppercase text-[10px] tracking-wider">
+                        <thead className="bg-slate-50/90 backdrop-blur sticky top-0 z-10 text-slate-500 font-bold border-b border-slate-100 uppercase text-[10px] tracking-wider shadow-sm">
                             <tr>
-                                <th className="px-4 py-4 w-32">זמן</th>
-                                <th className="px-4 py-4 w-20">רמה</th>
-                                <th className="px-4 py-4 w-32">סוג אירוע</th>
+                                <th className="px-6 py-4 w-40">זמן</th>
+                                <th className="px-4 py-4 w-24">רמה</th>
+                                <th className="px-4 py-4 w-40">סוג אירוע</th>
                                 <th className="px-4 py-4">תיאור</th>
-                                <th className="px-4 py-4 w-40">משתמש</th>
+                                <th className="px-4 py-4 w-48">משתמש</th>
                                 <th className="px-4 py-4 w-32">ארגון</th>
                                 <th className="px-4 py-4 w-32">קומפוננטה</th>
-                                <th className="px-4 py-4 w-20">⏱️</th>
+                                <th className="px-4 py-4 w-24 text-center">⏱️</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {filteredLogs.map((log) => (
                                 <React.Fragment key={log.id}>
                                     <tr
-                                        className={`hover:bg-blue-50/30 transition-colors group cursor-pointer ${expandedRow === log.id ? 'bg-blue-50/50' : ''}`}
+                                        className={`hover:bg-blue-50/40 transition-all duration-200 group cursor-pointer ${expandedRow === log.id ? 'bg-blue-50/60' : ''}`}
                                         onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
                                     >
-                                        <td className="px-4 py-4 text-slate-500" dir="ltr">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-slate-700 text-xs">
+                                        <td className="px-6 py-4 text-slate-500" dir="ltr">
+                                            <div className="flex flex-col items-end">
+                                                <span className="font-bold text-slate-700 text-xs tabular-nums">
                                                     {new Date(log.created_at).toLocaleDateString('he-IL')}
                                                 </span>
-                                                <span className="text-[10px] text-slate-400 font-mono">
+                                                <span className="text-[10px] text-slate-400 font-mono tabular-nums">
                                                     {new Date(log.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-4 py-4">
-                                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase border ${getLevelColor(log.log_level)}`}>
+                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border shadow-sm ${getLevelColor(log.log_level)}`}>
                                                 {log.log_level}
                                             </span>
                                         </td>
                                         <td className="px-4 py-4 font-bold text-slate-800 text-xs">
                                             {log.event_type}
                                         </td>
-                                        <td className="px-4 py-4 text-slate-600 text-xs leading-relaxed">
-                                            {log.action_description}
+                                        <td className="px-4 py-4">
+                                            <p className="text-slate-600 text-xs leading-relaxed line-clamp-2 max-w-[400px]" title={log.action_description}>
+                                                {log.action_description}
+                                            </p>
                                         </td>
                                         <td className="px-4 py-4">
-                                            <div className="text-slate-800 font-bold text-xs truncate max-w-[150px]" title={log.user_email}>
-                                                {log.user_name || log.user_email || 'System'}
-                                            </div>
-                                            <div className="text-[9px] text-slate-400 font-mono truncate max-w-[150px]">
-                                                {log.user_email}
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-200 shrink-0">
+                                                    {(log.user_name || log.user_email || 'S').charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-800 font-bold text-xs truncate max-w-[150px]" title={log.user_email}>
+                                                        {log.user_name || log.user_email || 'System'}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-mono truncate max-w-[150px]">
+                                                        {log.user_email}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-4 py-4">
-                                            <div className="text-slate-700 text-xs font-medium truncate max-w-[120px]" title={log.org_name}>
+                                            <div className="text-slate-700 text-xs font-medium truncate max-w-[120px] bg-slate-50 px-2 py-1 rounded-lg border border-slate-100" title={log.org_name}>
                                                 {log.org_name}
                                             </div>
                                         </td>
                                         <td className="px-4 py-4">
-                                            <span className="text-[10px] text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
+                                            <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded-lg uppercase tracking-wider">
                                                 {log.component_name || '-'}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-4">
+                                        <td className="px-4 py-4 text-center">
                                             {log.performance_ms && (
-                                                <span className={`text-[10px] font-mono font-bold ${log.performance_ms > 1000 ? 'text-red-600' : log.performance_ms > 500 ? 'text-yellow-600' : 'text-green-600'}`}>
+                                                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${log.performance_ms > 1000 ? 'bg-red-50 text-red-600' : log.performance_ms > 500 ? 'bg-yellow-50 text-yellow-600' : 'bg-emerald-50 text-emerald-600'}`}>
                                                     {log.performance_ms}ms
                                                 </span>
                                             )}
                                         </td>
                                     </tr>
                                     {expandedRow === log.id && (
-                                        <tr className="bg-slate-50/80">
-                                            <td colSpan={8} className="px-6 py-6 border-y border-slate-100">
+                                        <tr className="bg-slate-50/50 shadow-inner">
+                                            <td colSpan={8} className="px-8 py-6">
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
                                                     <div className="space-y-3">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Client Environment</span>
-                                                        <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm space-y-2 text-xs">
-                                                            <div className="flex justify-between">
-                                                                <strong>Device:</strong>
-                                                                <span className="text-slate-600">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Client Environment
+                                                        </span>
+                                                        <div className="p-4 bg-white rounded-2xl border border-slate-200/60 shadow-sm space-y-3 text-xs">
+                                                            <div className="flex justify-between items-center pb-2 border-b border-slate-50">
+                                                                <span className="text-slate-500 font-medium">Device</span>
+                                                                <span className="font-bold text-slate-700">
                                                                     {(log as any).device_type || (log as any).metadata?.device_type || 'Desktop'}
                                                                 </span>
                                                             </div>
-                                                            <div className="flex justify-between">
-                                                                <strong>Location:</strong>
-                                                                <span className="text-slate-600">
+                                                            <div className="flex justify-between items-center pb-2 border-b border-slate-50">
+                                                                <span className="text-slate-500 font-medium">Location</span>
+                                                                <span className="font-bold text-slate-700">
                                                                     {(log as any).city || (log as any).metadata?.city || 'Unknown'}, {(log as any).country || (log as any).metadata?.country || 'Unknown'}
                                                                 </span>
                                                             </div>
-                                                            <div className="flex justify-between">
-                                                                <strong>IP Address:</strong>
-                                                                <span className="font-mono text-blue-600">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-slate-500 font-medium">IP Address</span>
+                                                                <span className="font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
                                                                     {(log as any).ip_address || (log as any).metadata?.ip || '0.0.0.0'}
                                                                 </span>
                                                             </div>
                                                         </div>
                                                     </div>
+
                                                     <div className="space-y-3">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Entity</span>
-                                                        <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm space-y-2 text-xs">
-                                                            <div className="flex justify-between"><strong>Type:</strong> <span className="bg-slate-100 px-1.5 rounded">{log.entity_type || 'N/A'}</span></div>
-                                                            <div><strong>ID:</strong> <div className="font-mono text-[10px] text-slate-400 mt-1 break-all bg-slate-50 p-1.5 rounded">{log.entity_id || 'N/A'}</div></div>
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Target Entity
+                                                        </span>
+                                                        <div className="p-4 bg-white rounded-2xl border border-slate-200/60 shadow-sm space-y-3 text-xs">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-slate-500 font-medium">Type</span>
+                                                                <span className="bg-slate-100 px-2 py-1 rounded-lg font-bold text-slate-700 border border-slate-200">{log.entity_type || 'N/A'}</span>
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <span className="text-slate-500 font-medium">ID</span>
+                                                                <div className="font-mono text-[10px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 break-all select-all">{log.entity_id || 'N/A'}</div>
+                                                            </div>
                                                         </div>
                                                     </div>
+
                                                     {(log.before_data || log.after_data) && (
                                                         <div className="space-y-3">
-                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Raw Data Payload</span>
-                                                            <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 shadow-inner max-h-48 overflow-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-700">
+                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Payload
+                                                            </span>
+                                                            <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 shadow-inner max-h-48 overflow-auto custom-scrollbar-dark">
                                                                 <pre className="text-[10px] font-mono text-emerald-400 leading-relaxed">{JSON.stringify({ before: log.before_data, after: log.after_data }, null, 2)}</pre>
                                                             </div>
                                                         </div>
@@ -384,10 +410,15 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                             ))}
                             {filteredLogs.length === 0 && (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-16 text-center text-slate-400">
-                                        <div className="flex flex-col items-center gap-2">
-                                            <Search size={32} className="opacity-20" />
-                                            <p className="font-medium">לא נמצאו לוגים התואמים את החיפוש</p>
+                                    <td colSpan={8} className="px-4 py-24 text-center text-slate-400">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
+                                                <SearchIcon size={32} className="opacity-40" weight="duotone" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-lg text-slate-600">לא נמצאו תוצאות</h3>
+                                                <p className="text-slate-400 text-sm">נסה לשנות את סינוני החיפוש או לנקות אותם</p>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -396,59 +427,68 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                     </table>
                 </div>
 
-                {/* Mobile List View */}
-                <div className="md:hidden divide-y divide-slate-100">
+                {/* Mobile List View - Improved */}
+                <div className="md:hidden flex-1 overflow-y-auto bg-slate-50/50 p-4 space-y-3">
                     {filteredLogs.map((log) => (
-                        <div key={log.id} className="p-4 bg-white active:bg-slate-50 transition-colors">
-                            <div className="flex justify-between items-start mb-2">
-                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${getLevelColor(log.log_level)}`}>
-                                    {log.log_level}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                    {new Date(log.created_at).toLocaleString('he-IL')}
-                                </span>
-                            </div>
-
-                            <div className="mb-2">
-                                <div className="text-sm font-bold text-slate-800">{log.event_type}</div>
-                                <div className="text-xs text-slate-600 line-clamp-2">{log.action_description}</div>
-                            </div>
-
-                            <div className="flex justify-between items-end mt-3">
-                                <div className="text-xs text-slate-500">
-                                    <span className="font-bold text-slate-700">{log.user_name || log.user_email || 'System'}</span>
-                                    {log.org_name && <span className="mx-1">• {log.org_name}</span>}
+                        <div
+                            key={log.id}
+                            onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)} // Make whole card clickable for better UX
+                            className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden active:scale-[0.99] transition-transform duration-200"
+                        >
+                            <div className="p-4">
+                                <div className="flex justify-between items-start mb-3">
+                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border shadow-sm ${getLevelColor(log.log_level)}`}>
+                                        {log.log_level}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-400 tabular-nums">
+                                        {new Date(log.created_at).toLocaleString('he-IL')}
+                                    </span>
                                 </div>
-                                <button
-                                    onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
-                                    className="text-blue-600 text-xs font-bold bg-blue-50 px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
-                                >
-                                    {expandedRow === log.id ? 'סגור פרטים' : 'פרטים מלאים'}
-                                </button>
+
+                                <div className="mb-3 space-y-1">
+                                    <div className="text-sm font-black text-slate-800">{log.event_type}</div>
+                                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{log.action_description}</p>
+                                </div>
+
+                                <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                                            {(log.user_name || log.user_email || 'S').charAt(0).toUpperCase()}
+                                        </div>
+                                        <span className="font-bold text-slate-700 truncate max-w-[120px]">{log.user_name || 'System'}</span>
+                                    </div>
+                                    <div className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
+                                        {expandedRow === log.id ? 'סגור' : 'פרטים'}
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Mobile Expanded Details */}
                             {expandedRow === log.id && (
-                                <div className="mt-4 pt-4 border-t border-slate-100 space-y-4 animate-in fade-in slide-in-from-top-1">
+                                <div className="bg-slate-50 border-t border-slate-100 p-4 space-y-4 animate-in slide-in-from-top-2">
                                     <div className="grid grid-cols-2 gap-3 text-xs">
-                                        <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                                            <div className="text-slate-400 font-bold mb-1">Component</div>
-                                            {log.component_name || '-'}
+                                        <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 shadow-sm">
+                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Component</div>
+                                            <div className="font-medium text-slate-700">{log.component_name || '-'}</div>
                                         </div>
-                                        <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                                            <div className="text-slate-400 font-bold mb-1">Entity</div>
-                                            {log.entity_type} {log.entity_id && `#${log.entity_id.slice(0, 4)}`}
+                                        <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 shadow-sm">
+                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Entity</div>
+                                            <div className="font-medium text-slate-700">{log.entity_type}</div>
                                         </div>
-                                        <div className="bg-slate-50 p-2 rounded border border-slate-100 col-span-2">
-                                            <div className="text-slate-400 font-bold mb-1">Client</div>
-                                            {(log as any).ip_address || 'IP Unknown'} • {(log as any).device_type || 'Device Unknown'}
+                                    </div>
+                                    <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm text-xs">
+                                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Location Data</div>
+                                        <div className="flex items-center gap-2 text-slate-600">
+                                            <span>{(log as any).city || 'Unknown City'}</span>
+                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                            <span className="font-mono text-[10px]">{(log as any).ip_address}</span>
                                         </div>
                                     </div>
                                     {(log.before_data || log.after_data) && (
-                                        <div className="rounded-lg border border-slate-200 overflow-hidden">
-                                            <div className="bg-slate-900 px-3 py-1 text-[10px] font-bold text-slate-400 tracking-wider">RAW DATA</div>
+                                        <div className="rounded-xl border border-slate-200/60 overflow-hidden shadow-sm">
+                                            <div className="bg-slate-900 px-3 py-1.5 text-[9px] font-black text-slate-400 tracking-wider">RAW DATA</div>
                                             <div className="bg-slate-800 p-3 max-h-40 overflow-auto">
-                                                <pre className="text-[10px] font-mono text-emerald-400 leading-relaxed whitespace-pre-wrap word-break-all">
+                                                <pre className="text-[10px] font-mono text-emerald-400 leading-relaxed whitespace-pre-wrap break-all">
                                                     {JSON.stringify({ before: log.before_data, after: log.after_data }, null, 2)}
                                                 </pre>
                                             </div>
@@ -459,8 +499,8 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                         </div>
                     ))}
                     {filteredLogs.length === 0 && (
-                        <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-2">
-                            <Search size={32} className="opacity-20" />
+                        <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-3">
+                            <SearchIcon size={40} className="opacity-20" weight="bold" />
                             <p className="font-medium text-sm">לא נמצאו לוגים</p>
                         </div>
                     )}

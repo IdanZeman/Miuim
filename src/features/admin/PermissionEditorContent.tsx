@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, Check, Shield, Users, Lock, Layout, UserCircle, Info, Anchor, Gavel, Activity, Settings, CheckCircle, Zap } from 'lucide-react';
+import { Globe, Check, Shield, Users, Lock, SquaresFour as Layout, UserCircle, Info, Anchor, Gavel, Pulse as Activity, Gear as Settings, CheckCircle, Lightning as Zap } from '@phosphor-icons/react';
 import { UserPermissions, Team, ViewMode } from '../../types';
 
 const SCREENS: { id: ViewMode; label: string; icon: any }[] = [
@@ -47,7 +47,7 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
         <div className="space-y-8">
             <section className="space-y-4">
                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <Globe size={14} />
+                    <Globe size={14} weight="duotone" />
                     היקף נתונים (Scope)
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -87,13 +87,13 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
             {/* Advanced Capabilities */}
             <section className="space-y-4">
                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <Shield size={14} />
+                    <Shield size={14} weight="duotone" />
                     יכולות מתקדמות (Capabilities)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${permissions.canApproveRequests ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'bg-white border-slate-200 hover:border-emerald-300'}`}>
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${permissions.canApproveRequests ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <CheckCircle size={20} />
+                            <CheckCircle size={20} weight="duotone" />
                         </div>
                         <div className="flex-1">
                             <div className="font-bold text-slate-800 text-sm">אישור בקשות יציאה</div>
@@ -104,7 +104,7 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
 
                     <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${permissions.canManageRotaWizard ? 'bg-orange-50 border-orange-200 shadow-sm' : 'bg-white border-slate-200 hover:border-orange-300'}`}>
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${permissions.canManageRotaWizard ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <Zap size={20} />
+                            <Zap size={20} weight="duotone" />
                         </div>
                         <div className="flex-1">
                             <div className="font-bold text-slate-800 text-sm">ניהול מחולל סבבים</div>
@@ -115,7 +115,7 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
 
                     <label className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${permissions.canManageGateAuthorized ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-300'}`}>
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${permissions.canManageGateAuthorized ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <Shield size={20} />
+                            <Shield size={20} weight="duotone" />
                         </div>
                         <div className="flex-1">
                             <div className="font-bold text-slate-800 text-sm">ניהול רכבים מורשים (ש.ג)</div>
@@ -154,7 +154,7 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
                             {SCREENS.map(screen => (
                                 <tr key={screen.id}>
                                     <td className="px-4 py-3 flex items-center gap-2 font-bold text-slate-700">
-                                        <screen.icon size={16} className="text-slate-400" />
+                                        <screen.icon size={16} weight="duotone" className="text-slate-400" />
                                         {screen.label}
                                     </td>
                                     {['none', 'view', 'edit'].map(lvl => (

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../features/auth/AuthContext';
 import { SystemMessage, Person } from '../../types';
-import { Megaphone, ChevronDown, ChevronUp } from 'lucide-react';
+import { Megaphone as MegaphoneIcon, CaretDown as ChevronDownIcon, CaretUp as ChevronUpIcon } from '@phosphor-icons/react';
 import { format } from 'date-fns';
 
 interface Props {
@@ -67,7 +67,7 @@ export const AnnouncementsWidget: React.FC<Props> = ({ myPerson }) => {
             {/* Minimal Header */}
             <div className="bg-slate-50/50 px-5 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
-                    <Megaphone size={16} className="text-indigo-600" />
+                    <MegaphoneIcon size={16} className="text-indigo-600" weight="duotone" />
                     <h2 className="text-base font-bold text-slate-800">עדכונים</h2>
                 </div>
                 <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-100">
@@ -117,9 +117,9 @@ export const AnnouncementsWidget: React.FC<Props> = ({ myPerson }) => {
                                             className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 mt-1 flex items-center gap-1 transition-colors"
                                         >
                                             {isExpanded ? (
-                                                <>הצג פחות <ChevronUp size={10} /></>
+                                                <>הצג פחות <ChevronUpIcon size={10} weight="bold" /></>
                                             ) : (
-                                                <>קרא עוד <ChevronDown size={10} /></>
+                                                <>קרא עוד <ChevronDownIcon size={10} weight="bold" /></>
                                             )}
                                         </button>
                                     )}

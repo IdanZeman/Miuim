@@ -1,13 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Search, Trash2, Car, Calendar as CalendarIcon, ShieldCheck, User, Building2, Pencil, MoreVertical, RefreshCw, ChevronDown } from 'lucide-react';
+import { X as XIcon, Plus as PlusIcon, MagnifyingGlass as SearchIcon, Trash as TrashIcon, Car as CarIcon, Calendar as CalendarIcon, ShieldCheck as ShieldCheckIcon, User as UserIcon, Buildings as Building2Icon, Pencil as PencilIcon, DotsThreeVertical as MoreVerticalIcon, ArrowsClockwise as RefreshIcon, CaretDown as ChevronDownIcon } from '@phosphor-icons/react';
 import { useGateSystem, AuthorizedVehicle } from '../../hooks/useGateSystem';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { FloatingActionButton } from '../ui/FloatingActionButton';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../features/auth/AuthContext';
-import { Modal } from '../ui/Modal';
+import { GenericModal } from '../ui/GenericModal';
+import { DateTimePicker } from '../ui/DatePicker';
+import { DashboardSkeleton } from '../ui/DashboardSkeleton';
+import { CircleNotch as Loader2 } from '@phosphor-icons/react';
 
 interface AuthorizedVehiclesContentProps {
     className?: string;
@@ -91,7 +94,6 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
         } else {
             showToast(error || 'שגיאה בשמירת רכב', 'error');
         }
-        setIsSubmitting(true); // Should be false, wait... fixing in replacement
         setIsSubmitting(false);
     };
 
@@ -153,7 +155,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                 disabled={isSubmitting}
                 className="flex-[1.5] h-14 rounded-2xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
             >
-                {isSubmitting ? <LoadingSpinner size={20} /> : (viewMode === 'edit' ? 'עדכן פרטי רכב' : 'הוסף רכב למאגר')}
+                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (viewMode === 'edit' ? 'עדכן פרטים' : 'הוסף רכב')}
             </Button>
         </div>
     );
@@ -165,7 +167,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                 <label className="block text-[11px] font-black text-blue-600 uppercase tracking-widest mb-3 px-1">מספר רכב (חובה)</label>
                 <div className="relative group">
                     <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
-                        <Car size={20} strokeWidth={2.5} />
+                        <CarIcon size={20} weight="duotone" />
                     </div>
                     <Input
                         value={plateNumber}
@@ -181,7 +183,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-2 px-1 flex items-center gap-1.5">
-                        <User size={14} className="text-slate-400" />
+                        <UserIcon size={14} className="text-slate-400" weight="duotone" />
                         שם בעל הרכב
                     </label>
                     <Input
@@ -194,7 +196,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-2 px-1 flex items-center gap-1.5">
-                        <Building2 size={14} className="text-slate-400" />
+                        <Building2Icon size={14} className="text-slate-400" weight="duotone" />
                         שיוך יחידתי
                     </label>
                     <div className="relative">
@@ -210,7 +212,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                             ))}
                         </select>
                         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400">
-                            <ChevronDown size={18} />
+                            <ChevronDownIcon size={18} weight="bold" />
                         </div>
                     </div>
                 </div>
@@ -284,35 +286,27 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
 
                 {!isPermanent ? (
                     <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter px-1">מתי?</label>
-                            <Input
-                                type="datetime-local"
-                                value={validFrom}
-                                onChange={(e) => {
-                                    setValidFrom(e.target.value);
-                                    setIsPermanent(false);
-                                }}
-                                className="h-11 text-xs rounded-xl bg-white border-slate-200 font-bold"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter px-1">עד מתי?</label>
-                            <Input
-                                type="datetime-local"
-                                value={validUntil}
-                                onChange={(e) => {
-                                    setValidUntil(e.target.value);
-                                    setIsPermanent(false);
-                                }}
-                                className="h-11 text-xs rounded-xl bg-white border-slate-200 font-bold"
-                            />
-                        </div>
+                        <DateTimePicker
+                            label="מתי?"
+                            value={validFrom}
+                            onChange={(val) => {
+                                setValidFrom(val);
+                                setIsPermanent(false);
+                            }}
+                        />
+                        <DateTimePicker
+                            label="עד מתי?"
+                            value={validUntil}
+                            onChange={(val) => {
+                                setValidUntil(val);
+                                setIsPermanent(false);
+                            }}
+                        />
                     </div>
                 ) : (
                     <div className="flex items-center gap-3 text-blue-600 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 animate-in zoom-in-95 duration-300">
                         <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-                            <ShieldCheck size={20} strokeWidth={2.5} />
+                            <ShieldCheckIcon size={20} weight="duotone" />
                         </div>
                         <div className="flex flex-col">
                             <span className="text-sm font-black tracking-tight">אישור כניסה קבוע</span>
@@ -343,7 +337,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">ניהול מאגר מורשי כניסה</span>
                 </div>
                 <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shadow-blue-100">
-                    <ShieldCheck size={24} strokeWidth={2.5} />
+                    <ShieldCheckIcon size={24} weight="duotone" />
                 </div>
             </div>
 
@@ -354,7 +348,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                         <div className="flex flex-col sm:flex-row gap-4 mb-6">
                             <div className="relative group flex-1">
                                 <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
-                                    <Search size={18} strokeWidth={2.5} />
+                                    <SearchIcon size={18} weight="bold" />
                                 </div>
                                 <input
                                     type="text"
@@ -368,22 +362,17 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                 onClick={() => setViewMode('add')}
                                 className="hidden md:flex shrink-0 items-center gap-2 h-12 rounded-2xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 font-black px-6"
                             >
-                                <Plus size={20} strokeWidth={2.5} />
+                                <PlusIcon size={20} weight="bold" />
                                 <span>הוסף רכב</span>
                             </Button>
                         </div>
 
                         {/* List - Premium Cards */}
                         {isLoading ? (
-                            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                                <div className="animate-spin mb-4">
-                                    <RefreshCw size={32} />
-                                </div>
-                                <p className="font-bold">טוען מאגר רכבים...</p>
-                            </div>
+                            <DashboardSkeleton />
                         ) : filteredVehicles.length === 0 ? (
                             <div className="text-center py-16 text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm">
-                                <Car size={48} className="mx-auto mb-4 opacity-30" />
+                                <CarIcon size={48} className="mx-auto mb-4 opacity-30" weight="duotone" />
                                 <p className="text-lg font-bold">לא נמצאו רכבים תואמים</p>
                                 <p className="text-sm">נסה לשנות את מונחי החיפוש</p>
                             </div>
@@ -396,7 +385,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
 
                                         <div className="flex items-center gap-4 min-w-0 mr-2">
                                             <div className="w-14 h-14 bg-slate-50 group-hover:bg-blue-50 rounded-[1.25rem] flex flex-col items-center justify-center text-slate-400 group-hover:text-blue-600 border border-slate-100 transition-all shrink-0">
-                                                <Car size={20} strokeWidth={2.5} />
+                                                <CarIcon size={20} weight="duotone" />
                                                 <span className="text-[9px] font-black uppercase mt-0.5 tracking-tighter">VEHICLE</span>
                                             </div>
                                             <div className="min-w-0">
@@ -409,14 +398,14 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                                 </div>
                                                 <div className="flex items-center gap-3 text-xs text-slate-500 font-bold">
                                                     <span className="flex items-center gap-1.5 truncate">
-                                                        <User size={12} className="text-slate-400" />
+                                                        <UserIcon size={12} className="text-slate-400" weight="duotone" />
                                                         {vehicle.owner_name}
                                                     </span>
                                                     {vehicle.organizations?.name && (
                                                         <>
                                                             <div className="w-1 h-1 rounded-full bg-slate-200" />
                                                             <span className="flex items-center gap-1.5 text-blue-600/70 truncate uppercase tracking-tight">
-                                                                <Building2 size={12} />
+                                                                <Building2Icon size={12} weight="duotone" />
                                                                 {vehicle.organizations.name}
                                                             </span>
                                                         </>
@@ -425,12 +414,12 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                                 <div className="mt-2.5">
                                                     {vehicle.is_permanent || (!vehicle.valid_from && !vehicle.valid_until) ? (
                                                         <div className="inline-flex items-center gap-2 text-[10px] text-blue-700 font-black bg-blue-50 px-3 py-1 rounded-xl">
-                                                            <ShieldCheck size={12} strokeWidth={2.5} />
+                                                            <ShieldCheckIcon size={12} weight="duotone" />
                                                             תוקף קבוע
                                                         </div>
                                                     ) : (
                                                         <div className="inline-flex items-center gap-2 text-[10px] text-amber-700 font-black bg-amber-50 px-3 py-1 rounded-xl border border-amber-100/50">
-                                                            <CalendarIcon size={12} />
+                                                            <CalendarIcon size={12} weight="duotone" />
                                                             <span>עד {vehicle.valid_until ? new Date(vehicle.valid_until).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'ללא הגבלה'}</span>
                                                         </div>
                                                     )}
@@ -446,13 +435,13 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                                     onClick={() => handleEditVehicle(vehicle)}
                                                     className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all active:scale-90"
                                                 >
-                                                    <Pencil size={18} strokeWidth={2.5} />
+                                                    <PencilIcon size={18} weight="bold" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteVehicle(vehicle.id, vehicle.plate_number)}
                                                     className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90"
                                                 >
-                                                    <Trash2 size={18} strokeWidth={2.5} />
+                                                    <TrashIcon size={18} weight="bold" />
                                                 </button>
                                             </div>
 
@@ -465,7 +454,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                                     }}
                                                     className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600 bg-slate-50 rounded-xl transition-all active:scale-90"
                                                 >
-                                                    <MoreVertical size={20} />
+                                                    <MoreVerticalIcon size={20} weight="bold" />
                                                 </button>
 
                                                 {activeMenuId === vehicle.id && (
@@ -479,7 +468,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                                             className="w-full px-4 py-3 text-right text-xs font-black text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
                                                         >
                                                             <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                                                                <Pencil size={14} strokeWidth={2.5} />
+                                                                <PencilIcon size={14} weight="bold" />
                                                             </div>
                                                             עריכת פרטים
                                                         </button>
@@ -492,7 +481,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                                             className="w-full px-4 py-3 text-right text-xs font-black text-red-600 hover:bg-rose-50 flex items-center gap-3 transition-colors border-t border-slate-100"
                                                         >
                                                             <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center">
-                                                                <Trash2 size={14} strokeWidth={2.5} />
+                                                                <TrashIcon size={14} weight="bold" />
                                                             </div>
                                                             מחיקה מהמאגר
                                                         </button>
@@ -505,21 +494,20 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                             </div>
                         )}
 
-                        {/* Premium mobile FAB */}
-                        <button
+                        {/* Standardized FAB */}
+                        <FloatingActionButton
+                            show={viewMode === 'list'}
                             onClick={() => setViewMode('add')}
-                            className="md:hidden fixed bottom-28 left-6 w-16 h-16 bg-blue-600 text-white rounded-3xl shadow-[0_12px_40px_rgba(37,99,235,0.4)] hover:shadow-[0_12px_40px_rgba(37,99,235,0.6)] active:scale-90 transition-all flex items-center justify-center z-[110] group overflow-hidden"
-                            aria-label="הוסף רכב"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-tr from-blue-700 to-blue-500 opacity-100 group-hover:scale-110 transition-transform" />
-                            <Plus size={32} strokeWidth={3} className="relative z-10" />
-                        </button>
+                            icon={PlusIcon}
+                            ariaLabel="הוסף רכב"
+                            className="md:hidden"
+                        />
                     </>
                 )}
 
                 {/* Mobile Forms are in Modal (managed via viewMode switch) */}
                 <div className="md:hidden">
-                    <Modal
+                    <GenericModal
                         isOpen={viewMode === 'add' || viewMode === 'edit'}
                         onClose={() => { setViewMode('list'); resetForm(); }}
                         title={
@@ -529,7 +517,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                 </h2>
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="p-1 rounded-lg bg-blue-50 text-blue-600">
-                                        <Car size={14} />
+                                        <CarIcon size={14} weight="duotone" />
                                     </div>
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                         {viewMode === 'edit' ? 'עדכון פרטי רכב' : 'רישום רכב למאגר'}
@@ -537,13 +525,13 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                 </div>
                             </div>
                         }
-                        size="lg"
+                        size="full"
                         footer={renderAddVehicleButtons()}
                     >
                         <div className="pb-6">
                             {renderAddVehicleForm()}
                         </div>
-                    </Modal>
+                    </GenericModal>
                 </div>
 
                 {/* Desktop Forms - Premium Integration */}
@@ -561,7 +549,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                     onClick={() => { setViewMode('list'); resetForm(); }}
                                     className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all"
                                 >
-                                    <X size={20} strokeWidth={2.5} />
+                                    <XIcon size={20} weight="bold" />
                                 </button>
                             </div>
 
@@ -588,22 +576,22 @@ export const ManageAuthorizedVehiclesModal: React.FC<ManageAuthorizedVehiclesMod
         <div className="flex flex-col">
             <h2 className="text-xl font-black text-slate-900 tracking-tight">רכבים מורשים</h2>
             <div className="flex items-center gap-2 mt-1">
-                <ShieldCheck size={14} className="text-blue-600" />
+                <ShieldCheckIcon size={14} className="text-blue-600" weight="duotone" />
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול מאגר מורשי כניסה</span>
             </div>
         </div>
     );
 
     return (
-        <Modal
+        <GenericModal
             isOpen={isOpen}
             onClose={onClose}
             title={modalTitle}
-            size="lg"
+            size="2xl"
         >
             <div className="h-[80vh] md:h-auto md:min-h-[500px]">
                 <AuthorizedVehiclesContent className="h-full bg-transparent p-0" />
             </div>
-        </Modal>
+        </GenericModal>
     );
 };

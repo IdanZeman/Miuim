@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
+import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
 import { useAuth } from './AuthContext';
-import { Building2, Mail, CheckCircle, Sparkles, Shield, FileSpreadsheet, Upload, ArrowLeft, Users, Search, Loader2 } from 'lucide-react';
+import { Buildings as Building2, Envelope as Mail, CheckCircle, Sparkle as Sparkles, Shield, FileXls as FileSpreadsheet, UploadSimple as Upload, ArrowLeft, Users, MagnifyingGlass as Search, CircleNotch } from '@phosphor-icons/react';
 import { analytics } from '../../services/analytics';
 import { useToast } from '../../contexts/ToastContext';
 import { ExcelImportWizard } from '../personnel/ExcelImportWizard';
@@ -400,22 +401,11 @@ export const Onboarding: React.FC = () => {
 
     // If user is already in an organization, don't show onboarding (unless we are processing an invite explicitly?)
     if (user && profile?.organization_id) {
-        return <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-            <Loader2 className="animate-spin text-slate-400" />
-        </div>;
+        return <DashboardSkeleton />;
     }
 
     if (checkingInvite) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg mb-4 mx-auto animate-pulse overflow-hidden p-3 border border-slate-100">
-                        <img src="/favicon.png" alt="App Logo" className="w-full h-full object-contain" />
-                    </div>
-                    <p className="text-slate-600 font-medium">בודק הזמנות...</p>
-                </div>
-            </div>
-        );
+        return <DashboardSkeleton />;
     }
 
     // If user has a pending invite, show accept invite screen
@@ -441,7 +431,7 @@ export const Onboarding: React.FC = () => {
                             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400 opacity-5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                             <div className="relative z-10 text-center md:text-right">
                                 <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto md:mr-0 mb-8 border border-white/10">
-                                    <Mail size={40} className="text-amber-400" />
+                                    <Mail size={40} className="text-amber-400" weight="duotone" />
                                 </div>
                                 <h1 className="text-4xl font-black mb-4 leading-tight">קיבלת הזמנה!</h1>
                                 <p className="text-slate-400 text-lg">מישהו רוצה שתצטרף לצוות שלו.</p>
@@ -454,7 +444,7 @@ export const Onboarding: React.FC = () => {
                                 <div className="bg-slate-50 border-2 border-slate-100 rounded-3xl p-8 text-center md:text-right">
                                     <div className="flex items-center justify-center md:justify-start gap-4 mb-6">
                                         <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-200">
-                                            <Building2 size={24} className="text-slate-900" />
+                                            <Building2 size={24} className="text-slate-900" weight="duotone" />
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">ארגון</p>
@@ -464,7 +454,7 @@ export const Onboarding: React.FC = () => {
 
                                     <div className="bg-white rounded-2xl p-6 border border-slate-200 flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <Shield size={20} className="text-amber-500" />
+                                            <Shield size={20} className="text-amber-500" weight="duotone" />
                                             <span className="text-lg font-bold text-slate-700">
                                                 {pendingInvite.role === 'admin' && 'מנהל מערכת'}
                                                 {pendingInvite.role === 'editor' && 'עורך'}
@@ -485,10 +475,10 @@ export const Onboarding: React.FC = () => {
                                         className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 px-8 rounded-2xl transition-all shadow-xl shadow-slate-900/10 hover:shadow-slate-900/20 hover:-translate-y-1 flex items-center justify-center gap-4 text-xl disabled:opacity-50 disabled:translate-y-0 active:scale-95"
                                     >
                                         {loading ? (
-                                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <CircleNotch size={24} className="animate-spin text-white" weight="bold" />
                                         ) : (
                                             <>
-                                                <CheckCircle size={24} />
+                                                <CheckCircle size={24} weight="bold" />
                                                 קבל הזמנה והצטרף
                                             </>
                                         )}
@@ -546,7 +536,7 @@ export const Onboarding: React.FC = () => {
                         <div className="relative z-10 flex flex-col h-full justify-center md:justify-start">
                             <div className="flex items-center gap-4 mb-2 md:mb-8">
                                 <div className="w-10 h-10 md:w-16 md:h-16 bg-white/10 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center border border-white/10 shrink-0">
-                                    <Shield size={20} className="md:w-8 md:h-8 text-emerald-400" aria-hidden="true" />
+                                    <Shield size={20} className="md:w-8 md:h-8 text-emerald-400" aria-hidden="true" weight="duotone" />
                                 </div>
                                 <h1 className="text-2xl md:text-4xl font-black leading-tight md:hidden">
                                     {step === 'org_name' ? 'הקמת ארגון' : 'הגדרות'}
@@ -596,7 +586,7 @@ export const Onboarding: React.FC = () => {
                                 <form onSubmit={handleCreateOrg} className="space-y-6 md:space-y-8 flex-1 flex flex-col">
                                     <div className="space-y-4">
                                         <div className="relative">
-                                            <Building2 className="absolute right-5 top-1/2 -translate-y-1/2 text-emerald-500" size={24} />
+                                            <Building2 className="absolute right-5 top-1/2 -translate-y-1/2 text-emerald-500" size={24} weight="duotone" />
                                             <input
                                                 type="text"
                                                 value={orgName}
@@ -623,7 +613,7 @@ export const Onboarding: React.FC = () => {
                                         aria-label="יצירת ארגון והמשך לשלב הבא"
                                     >
                                         יצירת ארגון והמשך
-                                        {loading ? <Loader2 className="w-6 h-6 animate-spin" aria-hidden="true" /> : <ArrowLeft size={24} aria-hidden="true" />}
+                                        {loading ? <CircleNotch size={24} className="animate-spin text-white" weight="bold" /> : <ArrowLeft size={24} aria-hidden="true" weight="bold" />}
                                     </button>
                                 </form>
                             </div>
@@ -657,7 +647,7 @@ export const Onboarding: React.FC = () => {
                                         aria-label="בחירה במסלול הקמה ידנית"
                                     >
                                         <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-slate-900 group-hover:text-white transition-all shadow-sm" aria-hidden="true">
-                                            <Users size={28} />
+                                            <Users size={28} weight="duotone" />
                                         </div>
                                         <h3 className="text-2xl font-black text-slate-900 mb-3">הקמה ידנית</h3>
                                         <p className="text-slate-500 leading-relaxed mb-8 flex-1">
@@ -665,7 +655,7 @@ export const Onboarding: React.FC = () => {
                                         </p>
                                         <div className="flex items-center gap-2 text-slate-900 font-black group-hover:translate-x-[-10px] transition-transform">
                                             <span>התחל הקמה</span>
-                                            <ArrowLeft size={20} aria-hidden="true" />
+                                            <ArrowLeft size={20} aria-hidden="true" weight="bold" />
                                         </div>
                                     </button>
 
@@ -677,7 +667,7 @@ export const Onboarding: React.FC = () => {
                                         aria-label="בחירה במסלול ייבוא מאקסל"
                                     >
                                         <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-amber-400 group-hover:text-slate-900 transition-all shadow-sm" aria-hidden="true">
-                                            <Upload size={28} />
+                                            <Upload size={28} weight="duotone" />
                                         </div>
                                         <h3 className="text-2xl font-black text-slate-900 mb-3">ייבוא מאקסל</h3>
                                         <p className="text-slate-500 leading-relaxed mb-8 flex-1">
@@ -685,7 +675,7 @@ export const Onboarding: React.FC = () => {
                                         </p>
                                         <div className="flex items-center gap-2 text-amber-600 font-black group-hover:translate-x-[-10px] transition-transform">
                                             <span>להעלאת קובץ</span>
-                                            <ArrowLeft size={20} aria-hidden="true" />
+                                            <ArrowLeft size={20} aria-hidden="true" weight="bold" />
                                         </div>
                                     </button>
                                 </div>
@@ -706,7 +696,7 @@ export const Onboarding: React.FC = () => {
                                 </div>
 
                                 <div className="relative">
-                                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} weight="bold" />
                                     <input
                                         type="text"
                                         placeholder="חפש את השם שלך..."
@@ -739,7 +729,7 @@ export const Onboarding: React.FC = () => {
                                                         <div className="text-sm text-slate-500">{p.email || 'ללא אימייל'}</div>
                                                     </div>
                                                 </div>
-                                                {selectedClaimPerson?.id === p.id && <CheckCircle size={24} className="text-slate-900" />}
+                                                {selectedClaimPerson?.id === p.id && <CheckCircle size={24} className="text-slate-900" weight="bold" />}
                                             </button>
                                         ))}
                                 </div>
@@ -749,7 +739,7 @@ export const Onboarding: React.FC = () => {
                                     disabled={!selectedClaimPerson || loading}
                                     className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 px-8 rounded-2xl mt-6 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
-                                    {loading ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles size={24} />}
+                                    {loading ? <CircleNotch size={24} className="animate-spin text-white" weight="bold" /> : <Sparkles size={24} weight="duotone" />}
                                     סיום וכניסה למערכת
                                 </button>
                             </div>

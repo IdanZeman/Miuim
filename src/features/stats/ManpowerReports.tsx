@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Person, Team, Role } from '../../types';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Label } from 'recharts';
-import { Users, Calendar, TrendingUp, AlertCircle, CheckCircle2, XCircle, LayoutGrid, List, Search, Download, ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Users, Calendar, TrendUp as TrendingUp, WarningCircle as AlertCircle, CheckCircle as CheckCircle2, XCircle, SquaresFour as LayoutGrid, List, MagnifyingGlass as Search, DownloadSimple as Download } from '@phosphor-icons/react';
+import { DateNavigator } from '../../components/ui/DateNavigator';
 import { Select } from '../../components/ui/Select';
 import { Input } from '../../components/ui/Input';
-import { Modal } from '../../components/ui/Modal';
+import { GenericModal } from '../../components/ui/GenericModal';
 import { useToast } from '../../contexts/ToastContext';
 
 interface ManpowerReportsProps {
@@ -148,106 +149,56 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
             {/* Compact Header / Controls */}
             <div className="bg-white/80 backdrop-blur-md p-3 rounded-2xl shadow-sm border border-slate-200 sticky top-0 z-20 flex flex-col gap-3">
                 {/* Single Row Filters */}
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     {/* Left Side: View Toggle + Date */}
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {/* View Toggle - Integrated */}
-                        <div className="flex bg-slate-100 p-0.5 rounded-lg shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                        {/* View Toggle */}
+                        <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 h-9 items-center">
                             <button
                                 onClick={() => setViewMode('daily')}
-                                className={`px-2 py-1.5 rounded-[6px] text-xs font-bold transition-all ${viewMode === 'daily' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                                className={`h-7 px-3 rounded-lg text-xs font-bold transition-all flex items-center ${viewMode === 'daily' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 יומי
                             </button>
                             <button
                                 onClick={() => setViewMode('trends')}
-                                className={`px-2 py-1.5 rounded-[6px] text-xs font-bold transition-all ${viewMode === 'trends' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
+                                className={`h-7 px-3 rounded-lg text-xs font-bold transition-all flex items-center ${viewMode === 'trends' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 מגמות
                             </button>
                         </div>
 
-                        {/* Date Picker - Compact */}
-                        {/* Date Picker - Compact & Functional */}
-                        {/* Date Navigator - Integrated */}
-                        <div className="flex items-center bg-slate-50 p-1 rounded-lg border border-slate-200 gap-1">
-                            <button
-                                onClick={() => {
-                                    const next = new Date(selectedDate);
-                                    next.setDate(selectedDate.getDate() - 1);
-                                    setSelectedDate(next);
-                                }}
-                                className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
-                            >
-                                <ChevronRight size={16} />
-                            </button>
 
-                            <div className="relative group cursor-pointer flex items-center justify-center px-2">
-                                <span
-                                    onClick={() => {
-                                        const input = document.getElementById('report-date-picker') as HTMLInputElement;
-                                        if (input) input.showPicker ? input.showPicker() : input.click();
-                                    }}
-                                    className="text-sm font-black text-slate-700 min-w-[100px] text-center py-1 hover:text-blue-600 transition-colors"
-                                >
-                                    {selectedDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })}
-                                </span>
-                                <input
-                                    id="report-date-picker"
-                                    type="date"
-                                    className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
-                                    value={dateKey}
-                                    onChange={(e) => {
-                                        if (!e.target.value) return;
-                                        setSelectedDate(new Date(e.target.value));
-                                    }}
-                                />
-                            </div>
-
-                            <button
-                                onClick={() => {
-                                    const next = new Date(selectedDate);
-                                    next.setDate(selectedDate.getDate() + 1);
-                                    setSelectedDate(next);
-                                }}
-                                className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
-                            >
-                                <ChevronLeft size={16} />
-                            </button>
-
-                            <div className="w-px h-5 bg-slate-200 mx-1" />
-
-                            <button
-                                onClick={() => setSelectedDate(new Date())}
-                                className="px-2 py-0.5 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded transition-colors whitespace-nowrap"
-                            >
-                                היום
-                            </button>
-                        </div>
+                        {/* Date Navigator */}
+                        <DateNavigator
+                            date={selectedDate}
+                            onDateChange={setSelectedDate}
+                            mode="day"
+                            className="h-9 w-fit"
+                        />
                     </div>
 
-                    {/* Right Side: Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* Right Side: Actions (Grouped) */}
+                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 h-9 shrink-0">
                         {/* Filter Button */}
                         <button
                             onClick={() => setModalConfig({ isOpen: true, title: 'סינון לפי צוות', people: [], type: 'filter' })}
-                            className={`flex items-center justify-center h-8 px-2 rounded-lg transition-colors border ${!selectedTeamIds.includes('all') ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
-                            title="סינון לפי צוות"
+                            className={`flex items-center justify-center h-7 px-2 rounded-lg transition-colors ${!selectedTeamIds.includes('all') ? 'bg-blue-100 text-blue-700 font-bold' : 'text-slate-500 hover:bg-white hover:text-slate-700'}`}
+                            title={!selectedTeamIds.includes('all') ? `נבחרו ${selectedTeamIds.length} צוותים` : 'סינון לפי צוות (הכל מוצג)'}
                         >
                             {!selectedTeamIds.includes('all') ? (
-                                <span className="text-[10px] font-bold flex items-center gap-1">
-                                    <span className="bg-white/20 px-1 rounded-sm">{selectedTeamIds.length}</span>
-                                    <span>נבחרו</span>
+                                <span className="text-xs flex items-center gap-1.5">
+                                    <span className="bg-white px-1.5 rounded-md text-[10px] shadow-sm leading-tight">{selectedTeamIds.length}</span>
+                                    <List size={16} weight="bold" />
                                 </span>
                             ) : (
-                                <div className="flex items-center gap-1">
-                                    <span className="text-[10px] font-bold">כל הארגון</span>
-                                    <List size={14} />
-                                </div>
+                                <List size={18} weight="duotone" />
                             )}
                         </button>
 
-                        {/* Export Button - Outside */}
+                        <div className="w-px h-4 bg-slate-200" />
+
+                        {/* Export Button */}
                         <button
                             onClick={() => {
                                 const dateStr = selectedDate.toLocaleDateString('he-IL').replace(/\./g, '-');
@@ -272,10 +223,10 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                                 link.click();
                                 showToast('הדו"ח היומי יוצא בהצלחה', 'success');
                             }}
-                            className="flex items-center justify-center w-8 h-8 rounded-lg bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 transition-colors"
+                            className="flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-green-600 hover:bg-white transition-colors"
                             title="ייצוא לאקסל"
                         >
-                            <Download size={16} />
+                            <Download size={18} weight="duotone" />
                         </button>
                     </div>
                 </div>
@@ -306,7 +257,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         <KPICard
                             title='סד"כ כולל'
                             value={stats.dailyStats.total}
-                            icon={<Users size={20} />}
+                            icon={<Users size={20} weight="duotone" />}
                             color="blue"
                             onClick={() => setModalConfig({
                                 isOpen: true,
@@ -318,7 +269,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         <KPICard
                             title='נוכחים'
                             value={stats.dailyStats.present}
-                            icon={<CheckCircle2 size={20} />}
+                            icon={<CheckCircle2 size={20} weight="duotone" />}
                             color="green"
                             onClick={() => setModalConfig({
                                 isOpen: true,
@@ -330,7 +281,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         <KPICard
                             title='חסרים'
                             value={stats.dailyStats.absent}
-                            icon={<XCircle size={20} />}
+                            icon={<XCircle size={20} weight="duotone" />}
                             color="red"
                             onClick={() => setModalConfig({
                                 isOpen: true,
@@ -342,7 +293,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         <KPICard
                             title='כשירות'
                             value={`${stats.dailyStats.percentage}%`}
-                            icon={<TrendingUp size={20} />}
+                            icon={<TrendingUp size={20} weight="duotone" />}
                             color={stats.dailyStats.percentage > 80 ? 'emerald' : stats.dailyStats.percentage > 50 ? 'yellow' : 'red'}
                         />
                     </div>
@@ -386,7 +337,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                                 <div className="bg-white p-4 border-b border-slate-100">
                                     <div className="flex items-center justify-between gap-4">
                                         <h3 className="text-slate-800 font-bold text-lg flex items-center gap-2">
-                                            <Users size={20} className="text-emerald-500" />
+                                            <Users size={20} className="text-emerald-500" weight="duotone" />
                                             זמינות לפי תפקיד
                                         </h3>
                                         <div className="w-40">
@@ -520,20 +471,20 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         <KPICard
                             title="ממוצע נוכחות לתקופה"
                             value={`${stats.avgAttendance}%`}
-                            icon={<TrendingUp size={24} />}
+                            icon={<TrendingUp size={24} weight="duotone" />}
                             color={stats.avgAttendance > 80 ? 'green' : stats.avgAttendance > 60 ? 'yellow' : 'red'}
                             subtext={`מבוסס על ${trendPeriod} הימים האחרונים`}
                         />
                         <KPICard
                             title="יציבות כוח אדם"
                             value={stats.trendData.filter(d => d.percentage > 70).length > trendPeriod * 0.8 ? 'גבוהה' : 'בינונית'}
-                            icon={<CheckCircle2 size={24} />}
+                            icon={<CheckCircle2 size={24} weight="duotone" />}
                             color="blue"
                             subtext="עקביות במצבת הנוכחים"
                         />
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                             <h4 className="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">
-                                <AlertCircle size={16} className="text-red-500" />
+                                <AlertCircle size={16} className="text-red-500" weight="duotone" />
                                 סיכונים בתפקידי ליבה
                             </h4>
                             <div className="space-y-3">
@@ -569,7 +520,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         {/* Main Trend Chart */}
                         <div className="bg-white p-6 rounded-2xl border border-slate-100">
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                                <TrendingUp className="text-blue-500" size={20} />
+                                <TrendingUp className="text-blue-500" size={20} weight="duotone" />
                                 גרף נוכחות - {trendPeriod} ימים
                             </h3>
                             <div className="h-[300px] w-full">
@@ -605,7 +556,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         {/* Weekday Analysis */}
                         <div className="bg-white p-6 rounded-2xl border border-slate-100">
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                                <Calendar className="text-emerald-500" size={20} />
+                                <Calendar className="text-emerald-500" size={20} weight="duotone" />
                                 ניתוח נוכחות לפי ימי שבוע
                             </h3>
                             <div className="h-[300px] w-full">
@@ -639,12 +590,11 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
 
             {/* Detail Modal */}
             {modalConfig && (
-                <Modal
+                <GenericModal
                     isOpen={modalConfig.isOpen}
                     onClose={() => { setModalConfig(null); setModalSearch(''); }}
                     title={modalConfig.title}
                     size="lg"
-
                 >
                     <div className="space-y-4">
                         {modalConfig.type === 'role_risk_detail' ? (
@@ -667,7 +617,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                                             <div key={idx} className="bg-white border-2 border-red-100 rounded-xl p-4 shadow-sm">
                                                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-red-100">
                                                     <h4 className="font-bold text-slate-800 flex items-center gap-2">
-                                                        <Calendar size={16} className="text-red-500" />
+                                                        <Calendar size={16} className="text-red-500" weight="duotone" />
                                                         {dateStr}
                                                     </h4>
                                                     <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-bold">
@@ -718,14 +668,14 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                                 >
                                     <span className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selectedTeamIds.includes('all') ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
-                                            <Users size={20} />
+                                            <Users size={20} weight="duotone" />
                                         </div>
                                         <div className="text-right">
                                             <div className="text-sm font-bold">כל הארגון</div>
                                             <div className="text-xs opacity-70">הצג נתונים עבור כלל היחידה</div>
                                         </div>
                                     </span>
-                                    {selectedTeamIds.includes('all') && <CheckCircle2 size={20} className="text-blue-600" />}
+                                    {selectedTeamIds.includes('all') && <CheckCircle2 size={20} className="text-blue-600" weight="bold" />}
                                 </button>
 
                                 <div className="space-y-2 max-h-[50vh] overflow-y-auto">
@@ -766,7 +716,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                                                     </div>
                                                     <span>{team.name}</span>
                                                 </span>
-                                                {isSelected && <CheckCircle2 size={18} className="text-blue-600" />}
+                                                {isSelected && <CheckCircle2 size={18} className="text-blue-600" weight="bold" />}
                                             </button>
                                         );
                                     })}
@@ -837,7 +787,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                             </>
                         )}
                     </div>
-                </Modal>
+                </GenericModal>
             )}
         </div>
     );

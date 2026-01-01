@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Shield, Check, Info, Users, Globe, Lock, Plus } from 'lucide-react';
+import { X, FloppyDisk as Save, Shield, Check, Info, Users, Globe, Lock, Plus } from '@phosphor-icons/react';
 import { Profile, ViewMode, AccessLevel, DataScope, UserPermissions, Team, UserRole, PermissionTemplate } from '@/types';
 import { useAuth } from '@/features/auth/AuthContext';
 import { supabase } from '@/services/supabaseClient';
@@ -112,7 +112,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
             title={
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                        <Shield size={24} strokeWidth={2.5} />
+                        <Shield size={24} weight="duotone" />
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-800">עריכת הרשאות מתקדמת</h2>
@@ -148,7 +148,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                 {/* --- System Presets Area --- */}
                 <section>
                     <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2 mb-3">
-                        <Globe size={14} />
+                        <Globe size={14} weight="duotone" />
                         תבניות מערכת (קבועות)
                     </h3>
                     <div className="flex flex-wrap gap-2">
@@ -158,7 +158,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                                 onClick={() => applyRolePreset(preset.id)}
                                 className={`px-4 py-2 rounded-xl text-sm font-black border transition-all flex items-center gap-2 shadow-sm ${effectiveActiveId === preset.id ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-200' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-100'}`}
                             >
-                                {effectiveActiveId === preset.id && <Check size={14} />}
+                                {effectiveActiveId === preset.id && <Check size={14} weight="bold" />}
                                 {preset.name}
                             </button>
                         ))}
@@ -169,7 +169,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                 <section>
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                            <Shield size={14} />
+                            <Shield size={14} weight="duotone" />
                             תבניות מותאמות לארגון
                         </h3>
                         {onManageTemplates && (
@@ -192,7 +192,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                                     onClick={() => applyTemplate(tmp)}
                                     className={`px-4 py-2 rounded-xl text-sm font-black border transition-all flex items-center gap-2 shadow-sm ${effectiveActiveId === tmp.id ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-200' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-100'}`}
                                 >
-                                    {effectiveActiveId === tmp.id && <Check size={14} />}
+                                    {effectiveActiveId === tmp.id && <Check size={14} weight="bold" />}
                                     {tmp.name}
                                 </button>
                             ))}

@@ -1,24 +1,26 @@
 import React from 'react';
-import { LucideIcon } from 'lucide-react';
+import { Icon } from '@phosphor-icons/react';
 import { logger } from '../../lib/logger';
 import { analytics } from '../../services/analytics';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline' | 'action';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: ButtonVariant;
     size?: ButtonSize;
-    icon?: LucideIcon;
+    icon?: Icon;
+    iconWeight?: "bold" | "duotone" | "fill" | "light" | "regular" | "thin";
     isLoading?: boolean;
     fullWidth?: boolean;
 }
 
 const VARIANTS: Record<ButtonVariant, string> = {
-    primary: 'bg-idf-yellow hover:bg-idf-yellow-hover text-slate-900 border-transparent shadow-sm',
-    secondary: 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700 shadow-sm',
+    primary: 'bg-amber-400 hover:bg-amber-500 text-slate-900 border-transparent shadow-sm',
+    action: 'bg-indigo-600 hover:bg-indigo-700 text-white border-transparent shadow-lg shadow-indigo-100',
+    secondary: 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700 shadow-sm',
     outline: 'bg-transparent border-slate-300 hover:bg-slate-50 text-slate-700',
-    danger: 'bg-red-50 text-red-600 hover:bg-red-100 border-transparent',
+    danger: 'bg-red-600 hover:bg-red-700 text-white border-transparent shadow-lg shadow-red-100',
     ghost: 'bg-transparent hover:bg-slate-100 text-slate-600 border-transparent',
 };
 
@@ -34,6 +36,7 @@ export const Button: React.FC<ButtonProps> = ({
     variant = 'primary',
     size = 'md',
     icon: Icon,
+    iconWeight,
     isLoading = false,
     fullWidth = false,
     className = '',
@@ -41,6 +44,9 @@ export const Button: React.FC<ButtonProps> = ({
     onClick,
     ...props
 }) => {
+    // Default to 'bold' for action buttons to avoid duotone 'shadow' effect, 
+    // otherwise default to 'duotone'.
+    const effectiveIconWeight = iconWeight || (variant === 'action' ? 'bold' : 'duotone');
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         // Track the click
         let label = '';
@@ -80,7 +86,7 @@ export const Button: React.FC<ButtonProps> = ({
             {...props}
         >
             {isLoading && <span className="animate-spin mr-1">⌛</span>}
-            {!isLoading && Icon && <Icon size={size === 'sm' ? 14 : 18} />}
+            {!isLoading && Icon && <Icon size={size === 'sm' ? 14 : 18} weight={effectiveIconWeight} />}
             {children}
         </button>
     );

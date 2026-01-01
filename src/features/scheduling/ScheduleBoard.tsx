@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 
-import { Modal as GenericModal } from '../../components/ui/Modal';
+import { GenericModal } from '../../components/ui/GenericModal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
@@ -9,8 +9,8 @@ import { generateShiftsForTask } from '../../utils/shiftUtils';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
-import { RotateCcw, Sparkles, FileText } from 'lucide-react';
-import { ChevronLeft, ChevronRight, Plus, X, Check, AlertTriangle, Clock, User, MapPin, Calendar as CalendarIcon, Pencil, Save, Trash2, Copy, CheckCircle, Ban, Undo2, ChevronDown, Search, MoreVertical, Wand2 } from 'lucide-react';
+import { ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText } from '@phosphor-icons/react';
+import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2 } from '@phosphor-icons/react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -23,7 +23,7 @@ import { AssignmentModal } from './AssignmentModal';
 import { MissionReportModal } from './MissionReportModal';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { ExportScheduleModal } from './ExportScheduleModal';
-import { FileDown } from 'lucide-react';
+import { FileArrowDown as FileDown } from '@phosphor-icons/react';
 
 export interface ScheduleBoardProps {
     shifts: Shift[];
@@ -151,12 +151,12 @@ const ShiftCard: React.FC<{
 
                 <button
                     onClick={(e) => { e.stopPropagation(); onReportClick(shift); }}
-                    className={`p-0.5 rounded shadow-sm text-slate-500 hover:text-blue-600 transition-all border border-transparent hover:border-slate-200
+                    className={`p-0.5 md:p-1.5 rounded shadow-sm text-slate-500 hover:text-blue-600 transition-all border border-transparent hover:border-slate-200
                         ${missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? 'bg-blue-100 text-blue-600 border-blue-200' : 'bg-white/50 hover:bg-white'}
                     `}
                     title={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "דוח הוגש - לחץ לצפייה" : "דוח משימה"}
                 >
-                    <FileText size={12} className={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "fill-blue-600 text-blue-600" : ""} />
+                    <FileText size={14} weight={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "fill" : "duotone"} className={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "text-blue-600" : ""} />
                 </button>
                 {!isViewer && (
                     <button
@@ -164,7 +164,7 @@ const ShiftCard: React.FC<{
                         className="opacity-0 group-hover:opacity-100 p-0.5 bg-white/50 hover:bg-white rounded shadow-sm text-slate-400 hover:text-red-500 transition-all border border-transparent hover:border-slate-200"
                         title={shift.isCancelled ? 'הפעל משמרת' : 'בטל משמרת'}
                     >
-                        {shift.isCancelled ? <RotateCcw size={12} className="text-blue-500" /> : <Ban size={12} />}
+                        {shift.isCancelled ? <RotateCcw size={12} className="text-blue-500" weight="duotone" /> : <Ban size={12} weight="duotone" />}
                     </button>
                 )}
             </div>
@@ -172,18 +172,18 @@ const ShiftCard: React.FC<{
             {/* Top Row: Task Name */}
             <div className="flex font-bold truncate text-slate-800 text-[11px] md:text-sm pl-12 items-start w-full">
                 <div className="flex items-center gap-1 truncate w-full">
-                    {shift.isCancelled && <Ban size={12} className="text-red-500 mr-1 shrink-0" />}
+                    {shift.isCancelled && <Ban size={12} className="text-red-500 mr-1 shrink-0" weight="duotone" />}
 
                     {/* Inline Warnings */}
                     {hasRoleMismatch && !hasMissingRoles && (
-                        <AlertTriangle size={12} className="text-amber-500 shrink-0" />
+                        <AlertTriangle size={12} className="text-amber-500 shrink-0" weight="duotone" />
                     )}
                     {hasMissingRoles && (
-                        <AlertTriangle size={12} className="text-red-500 drop-shadow-sm shrink-0" />
+                        <AlertTriangle size={12} className="text-red-500 drop-shadow-sm shrink-0" weight="duotone" />
                     )}
                     {hasTeamMismatch && (
                         <span title="ישנם משובצים שאינם מהצוות המוגדר!">
-                            <AlertTriangle size={12} className="text-orange-500 shrink-0" />
+                            <AlertTriangle size={12} className="text-orange-500 shrink-0" weight="duotone" />
                         </span>
                     )}
 
@@ -546,7 +546,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
 
             {/* Time Grid Board Container */}
-            <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-2 flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-4 md:p-6 flex flex-col flex-1 min-h-0 overflow-hidden">
 
                 <ExportScheduleModal
                     isOpen={isExportModalOpen}
@@ -562,7 +562,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     {/* Right Side: Title, Info, Stats */}
                     <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
                         <div className="flex items-center gap-2">
-                            <h3 className="text-xl font-bold text-slate-800">מבט יומי</h3>
+                            <h3 className="text-xl font-black text-slate-800 tracking-tight">לוח שיבוצים</h3>
                             <PageInfo
                                 title="על לוח השיבוצים"
                                 description={
@@ -593,7 +593,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                             return (
                                 <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                                    <User size={14} className="text-emerald-600" />
+                                    <User size={14} className="text-emerald-600" weight="duotone" />
                                     <span className="text-xs font-bold text-emerald-700">
                                         זמינים: {availableCount}/{activePeople.length}
                                     </span>
@@ -618,19 +618,19 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         <div className="flex gap-2 w-auto relative">
                             {/* Desktop Actions */}
                             <div className="hidden md:flex gap-2">
-                                <button onClick={() => setIsExportModalOpen(true)} className="flex items-center justify-center gap-1.5 text-slate-700 hover:text-blue-700 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
-                                    <FileDown size={14} />
+                                <button onClick={() => setIsExportModalOpen(true)} className="flex items-center justify-center gap-2 text-slate-700 hover:text-blue-700 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 h-9 px-4 rounded-xl text-xs font-bold transition-all shadow-sm">
+                                    <FileDown size={14} weight="duotone" />
                                     <span>ייצוא</span>
                                 </button>
 
-                                <button onClick={handleExportClick} className="flex items-center justify-center gap-1.5 text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
-                                    <Copy size={14} />
+                                <button onClick={handleExportClick} className="flex items-center justify-center gap-2 text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 h-9 px-4 rounded-xl text-xs font-bold transition-all shadow-sm">
+                                    <Copy size={14} weight="duotone" />
                                     <span>העתק</span>
                                 </button>
 
                                 {!isViewer && (
-                                    <button onClick={handleClearDayClick} className="flex items-center justify-center gap-1.5 text-slate-700 hover:text-red-700 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm">
-                                        <Trash2 size={14} />
+                                    <button onClick={handleClearDayClick} className="flex items-center justify-center gap-2 text-slate-700 hover:text-red-700 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 h-9 px-4 rounded-xl text-xs font-bold transition-all shadow-sm">
+                                        <Trash2 size={14} weight="duotone" />
                                         <span>נקה</span>
                                     </button>
                                 )}
@@ -640,50 +640,61 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             <div className="md:hidden">
                                 <button
                                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                    className="w-12 h-12 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm active:bg-slate-50 transition-colors" // Rule 1: 48px touch target
+                                    className="w-12 h-12 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 active:bg-slate-50 transition-colors !shadow-none" // Rule 1: 48px touch target
                                     aria-label="More actions"
                                 >
-                                    <MoreVertical size={24} /> {/* Rule 2: Larger icon for readability */}
+                                    <MoreVertical size={24} weight="duotone" /> {/* Rule 2: Larger icon for readability */}
                                 </button>
 
-                                {isMobileMenuOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]" onClick={() => setIsMobileMenuOpen(false)} />
-                                        <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 p-1 flex flex-col gap-1 animate-in zoom-in-95 duration-200 origin-top-left">
-                                            <button
-                                                onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
-                                                className="flex items-center gap-4 px-4 py-3.5 text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors text-right w-full" // Rule 1: Large padding for touch target
-                                            >
-                                                <div className="p-2 bg-blue-50 text-blue-600 rounded-md">
-                                                    <FileDown size={20} />
-                                                </div>
-                                                <span className="font-bold text-base">ייצוא נתונים</span> {/* Rule 2: 16px text */}
-                                            </button>
+                                <GenericModal
+                                    isOpen={isMobileMenuOpen}
+                                    onClose={() => setIsMobileMenuOpen(false)}
+                                    title="פעולות נוספות"
+                                    size="sm"
+                                >
+                                    <div className="flex flex-col gap-2">
+                                        <button
+                                            onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
+                                            className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
+                                        >
+                                            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                                                <FileDown size={22} weight="duotone" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-base text-slate-800">ייצוא נתונים</span>
+                                                <span className="text-xs text-slate-500">הורדת סידור העבודה כקובץ</span>
+                                            </div>
+                                        </button>
 
-                                            <button
-                                                onClick={() => { handleExportClick(); setIsMobileMenuOpen(false); }}
-                                                className="flex items-center gap-4 px-4 py-3.5 text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors text-right w-full"
-                                            >
-                                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-md">
-                                                    <Copy size={20} />
-                                                </div>
-                                                <span className="font-bold text-base">העתק לוח</span> {/* Rule 2: 16px text */}
-                                            </button>
+                                        <button
+                                            onClick={() => { handleExportClick(); setIsMobileMenuOpen(false); }}
+                                            className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
+                                        >
+                                            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                                <Copy size={22} weight="duotone" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-base text-slate-800">העתק לוח</span>
+                                                <span className="text-xs text-slate-500">העתקת תמונת מצב לווצאפ</span>
+                                            </div>
+                                        </button>
 
-                                            {!isViewer && (
-                                                <button
-                                                    onClick={() => { handleClearDayClick(); setIsMobileMenuOpen(false); }}
-                                                    className="flex items-center gap-4 px-4 py-3.5 text-red-600 hover:bg-red-50 active:bg-red-100 rounded-lg transition-colors text-right border-t border-slate-100 mt-1 pt-3 w-full"
-                                                >
-                                                    <div className="p-2 bg-red-50 text-red-600 rounded-md">
-                                                        <Trash2 size={20} />
-                                                    </div>
-                                                    <span className="font-bold text-base">נקה יום</span> {/* Rule 2: 16px text */}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
+                                        {!isViewer && (
+                                            <button
+                                                onClick={() => { handleClearDayClick(); setIsMobileMenuOpen(false); }}
+                                                className="flex items-center gap-4 px-4 py-3.5 bg-red-50 text-red-700 hover:bg-red-100 active:bg-red-200 rounded-xl transition-colors text-right w-full mt-2"
+                                            >
+                                                <div className="p-2 bg-red-100 text-red-600 rounded-lg">
+                                                    <Trash2 size={22} weight="duotone" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-base text-red-700">נקה יום</span>
+                                                    <span className="text-xs text-red-500/80">מחיקת כל השיבוצים ליום זה</span>
+                                                </div>
+                                            </button>
+                                        )}
+                                    </div>
+                                </GenericModal>
                             </div>
                         </div>
                     </div>
@@ -742,15 +753,15 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         <div
                             // הכותרת נדבקת למעלה, ומאלצת את התוכן הפנימי לגלול אופקית.
                             ref={headerScrollRef}
-                            className="sticky top-0 z-30 bg-white shadow-sm border-b border-slate-200 overflow-x-auto"
+                            className="sticky top-0 z-30 bg-white shadow-sm border-b border-slate-200 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
                             style={{ height: HEADER_HEIGHT }}
                         >
                             {/* Task Headers: הרוחב המינימלי יוצר את הגלילה ב-overflow-x-auto של ההורה */}
-                            <div className="flex relative" style={{ minWidth: 'max-content' }}>
+                            <div className="flex relative min-w-full">
                                 {visibleTasks.map(task => (
                                     <div
                                         key={task.id}
-                                        className="w-[130px] md:w-[260px] flex-shrink-0 border-l border-b-2"
+                                        className="min-w-[130px] md:min-w-[260px] flex-1 border-l border-b-2"
                                         style={{
                                             height: HEADER_HEIGHT,
                                             backgroundColor: hexToRgba(task.color, 0.4), // Increased visibility
@@ -785,7 +796,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             className="relative overflow-x-auto"
                         >
                             {/* ה-min-w-max כאן חשוב כדי שכל המשמרות יכנסו */}
-                            <div className="flex relative min-w-max">
+                            <div className="flex relative min-w-full">
 
                                 {visibleTasks.map(task => {
                                     const dateKey = selectedDate.toLocaleDateString('en-CA');
@@ -805,7 +816,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     return (
                                         <div
                                             key={task.id}
-                                            className="w-[130px] md:w-[260px] flex-shrink-0 border-l border-slate-100 relative h-[1540px]"
+                                            className="min-w-[130px] md:min-w-[260px] flex-1 border-l border-slate-100 relative h-[1540px]"
                                             style={{ backgroundColor: hexToRgba(task.color, 0.2) }} // Increased visibility
                                         >
                                             {/* Grid Lines */}

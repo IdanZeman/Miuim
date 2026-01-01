@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Person, Shift, TaskTemplate, Role } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Activity, Users, CalendarCheck, UserCircle, BarChart2, Moon, Search, ClipboardList } from 'lucide-react';
+import { Pulse as Activity, Users, CalendarCheck, UserCircle, ChartBar as BarChart2, Moon, MagnifyingGlass as Search, ClipboardText as ClipboardList } from '@phosphor-icons/react';
 import { PersonalStats } from './PersonalStats';
 import { DetailedUserStats } from './DetailedUserStats';
 import { supabase } from '../../services/supabaseClient';
@@ -91,41 +91,34 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
 
     return (
         <div className="bg-transparent pb-20">
-            {/* Standard White Header - Non-sticky for dashboard */}
-            <div className="bg-white pb-6 pt-2 border-b border-slate-100">
-                <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-slate-800 text-xl font-bold flex items-center gap-2">
-                            <ClipboardList className="text-emerald-500" />
-                            דוחות משימה
-                        </h2>
-
-                        {/* Tab Switcher */}
-                        <div className="bg-slate-100 p-1 rounded-lg flex border border-slate-200">
-                            <button
-                                onClick={() => setViewMode('overview')}
-                                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'overview' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                מבט על
-                            </button>
-                            <button
-                                onClick={() => setViewMode('personal')}
-                                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'personal' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                מבט אישי
-                            </button>
-                        </div>
+            {/* Compact Header / Controls */}
+            <div className="bg-white pb-4 pt-2 border-b border-slate-100 flex flex-col gap-3 sticky top-0 z-20">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    {/* Left: Tab Switcher - Integrated */}
+                    <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 h-9 items-center">
+                        <button
+                            onClick={() => { setViewMode('overview'); setSelectedPersonId(null); }}
+                            className={`h-7 px-3 rounded-lg text-xs font-bold transition-all flex items-center ${viewMode === 'overview' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            מבט על
+                        </button>
+                        <button
+                            onClick={() => setViewMode('personal')}
+                            className={`h-7 px-3 rounded-lg text-xs font-bold transition-all flex items-center ${viewMode === 'personal' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            מבט אישי
+                        </button>
                     </div>
 
-                    {/* Search (Only in Personal Mode) */}
+                    {/* Right: Search (Only in Personal Mode) */}
                     {viewMode === 'personal' && !isViewer && (
-                        <div className="bg-slate-50 rounded-xl p-1 border border-slate-200">
+                        <div className="bg-slate-50 rounded-xl px-2 h-9 border border-slate-200 flex items-center flex-1 max-w-xs">
                             <Input
                                 placeholder="חפש חייל..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 icon={Search}
-                                className="bg-transparent border-none text-slate-800 placeholder-slate-400 focus:ring-0"
+                                className="bg-transparent border-none text-slate-800 placeholder-slate-400 focus:ring-0 h-full py-0 text-sm"
                             />
                         </div>
                     )}
@@ -208,7 +201,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                         {/* Advanced Stats: Night Leaders (Adapted) */}
                         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                             <div className="p-4 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2">
-                                <Moon className="text-indigo-500" size={18} />
+                                <Moon className="text-indigo-500" size={18} weight="duotone" />
                                 <h3 className="font-bold text-indigo-900">שיאני לילה</h3>
                             </div>
                             <div className="divide-y divide-slate-50">

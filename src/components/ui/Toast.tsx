@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle, XCircle, Info, AlertTriangle, X } from 'lucide-react';
+import { CheckCircle as CheckCircleIcon, XCircle as XCircleIcon, Info as InfoIcon, Warning as AlertTriangleIcon, X as XIcon } from '@phosphor-icons/react';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -28,25 +28,25 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
             bg: 'bg-green-50',
             border: 'border-green-200',
             text: 'text-green-800',
-            icon: <CheckCircle className="w-5 h-5 text-green-500" />,
+            icon: <CheckCircleIcon className="w-5 h-5 text-green-500" weight="duotone" />,
         },
         error: {
             bg: 'bg-red-50',
             border: 'border-red-200',
             text: 'text-red-800',
-            icon: <XCircle className="w-5 h-5 text-red-500" />,
+            icon: <XCircleIcon className="w-5 h-5 text-red-500" weight="duotone" />,
         },
         warning: {
             bg: 'bg-yellow-50',
             border: 'border-yellow-200',
             text: 'text-yellow-800',
-            icon: <AlertTriangle className="w-5 h-5 text-yellow-500" />,
+            icon: <AlertTriangleIcon className="w-5 h-5 text-yellow-500" weight="duotone" />,
         },
         info: {
             bg: 'bg-blue-50',
             border: 'border-blue-200',
             text: 'text-blue-800',
-            icon: <Info className="w-5 h-5 text-blue-500" />,
+            icon: <InfoIcon className="w-5 h-5 text-blue-500" weight="duotone" />,
         },
     };
 
@@ -64,7 +64,7 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
                 onClick={handleClose}
                 className={`p-1 rounded-full hover:bg-black/5 transition-colors ${style.text}`}
             >
-                <X size={16} />
+                <XIcon size={16} weight="bold" />
             </button>
         </div>,
         document.body

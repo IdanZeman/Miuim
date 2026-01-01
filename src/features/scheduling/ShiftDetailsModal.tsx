@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Users, AlertTriangle } from "lucide-react";
+import { X, Users } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Person, Shift, TaskTemplate, Role } from "../../types";
@@ -15,7 +15,7 @@ interface ShiftDetailsModalProps {
   teams?: import("../../types").Team[]; // NEW: Optional teams
 }
 
-import { Modal } from '../../components/ui/Modal';
+import { GenericModal } from '../../components/ui/GenericModal';
 
 export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   shift,
@@ -54,7 +54,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
     <div className="flex flex-col gap-0.5">
       <h3 className="text-xl font-black text-slate-800 leading-tight">{task.name}</h3>
       <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-        <Users size={12} className="text-blue-500" />
+        <Users size={12} className="text-blue-500" weight="duotone" />
         <span>{dateStr} • {startTimeStr} - {endTimeStr}</span>
       </div>
     </div>
@@ -73,7 +73,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   );
 
   return (
-    <Modal
+    <GenericModal
       isOpen={true}
       onClose={onClose}
       title={modalTitle}
@@ -93,7 +93,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           <div className="flex flex-col gap-2">
             {shift.assignedPersonIds.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border-2 border-dashed border-slate-100 rounded-2xl text-slate-400">
-                <Users size={32} className="mb-2 opacity-20" />
+                <Users size={32} className="mb-2 opacity-20" weight="duotone" />
                 <p className="text-sm font-bold italic">אין חיילים משובצים למשמרת זו</p>
               </div>
             ) : (
@@ -159,7 +159,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         className="p-2.5 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
                         title="הסר שיבוץ"
                       >
-                        <X size={18} />
+                        <X size={18} weight="bold" />
                       </button>
                     )}
                   </div>
@@ -169,6 +169,6 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           </div>
         </div>
       </div>
-    </Modal>
+    </GenericModal>
   );
 };

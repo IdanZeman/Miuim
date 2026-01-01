@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Person, Shift, TaskTemplate, Team } from '../../types';
-import { MapPin, Home, Briefcase, Download, Filter, Copy, ChevronDown, Users, LayoutGrid, ArrowUpDown, User, ChevronRight, ChevronLeft, Clock } from 'lucide-react';
+import { MapPin, House as Home, Briefcase, DownloadSimple as Download, Funnel as Filter, Copy, CaretDown as ChevronDown, Users, SquaresFour as LayoutGrid, ArrowsDownUp as ArrowUpDown, User, CaretRight as ChevronRight, CaretLeft as ChevronLeft, Clock } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { useToast } from '../../contexts/ToastContext';
 import { Select } from '../../components/ui/Select';
+import { DateNavigator } from '../../components/ui/DateNavigator';
+import { TimePicker } from '../../components/ui/DatePicker';
 import { logger } from '../../services/loggingService';
 
 interface LocationReportProps {
@@ -148,6 +150,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                     <ChevronDown
                         size={18}
                         className={`transition-transform duration-300 ${isSectionExpanded(key) ? 'rotate-180' : ''}`}
+                        weight="bold"
                     />
                 </div>
             );
@@ -155,7 +158,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
             return (
                 <div className="space-y-6">
                     <section>
-                        {renderSectionHeader('mission', 'במשימה', grouped.mission.length, <Briefcase size={20} className="text-rose-500" />, 'bg-rose-50/50 hover:bg-rose-50', 'border-rose-100')}
+                        {renderSectionHeader('mission', 'במשימה', grouped.mission.length, <Briefcase size={20} className="text-rose-500" weight="duotone" />, 'bg-rose-50/50 hover:bg-rose-50', 'border-rose-100')}
                         {isSectionExpanded('mission') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 {grouped.mission.map(r => <PersonCard key={r.person.id} r={r} teamName={getTeamName(r.person.teamId)} />)}
@@ -165,7 +168,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                     </section>
 
                     <section>
-                        {renderSectionHeader('base', 'בבסיס', grouped.base.length, <MapPin size={20} className="text-emerald-600" />, 'bg-emerald-50/50 hover:bg-emerald-50', 'border-emerald-100')}
+                        {renderSectionHeader('base', 'בבסיס', grouped.base.length, <MapPin size={20} className="text-emerald-600" weight="duotone" />, 'bg-emerald-50/50 hover:bg-emerald-50', 'border-emerald-100')}
                         {isSectionExpanded('base') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 {grouped.base.map(r => <PersonCard key={r.person.id} r={r} type="base" teamName={getTeamName(r.person.teamId)} />)}
@@ -175,7 +178,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                     </section>
 
                     <section>
-                        {renderSectionHeader('home', 'בבית', grouped.home.length, <Home size={20} className="text-slate-500" />, 'bg-slate-50 hover:bg-slate-100', 'border-slate-200')}
+                        {renderSectionHeader('home', 'בבית', grouped.home.length, <Home size={20} className="text-slate-500" weight="duotone" />, 'bg-slate-50 hover:bg-slate-100', 'border-slate-200')}
                         {isSectionExpanded('home') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 {grouped.home.map(r => <PersonCard key={r.person.id} r={r} type="home" teamName={getTeamName(r.person.teamId)} />)}
@@ -208,12 +211,13 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                                 className="flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 border-slate-100 bg-white hover:bg-slate-50 cursor-pointer shadow-sm transition-all"
                             >
                                 <div className="flex items-center gap-3">
-                                    <Users size={20} className="text-blue-500" />
+                                    <Users size={20} className="text-blue-500" weight="duotone" />
                                     <span className="text-base">{teamName} <span className="text-slate-400 font-black text-sm ml-1">({members.length})</span></span>
                                 </div>
                                 <ChevronDown
                                     size={18}
                                     className={`transition-transform duration-300 ${isSectionExpanded(teamName) ? 'rotate-180' : ''}`}
+                                    weight="bold"
                                 />
                             </div>
                             {isSectionExpanded(teamName) && (
@@ -239,7 +243,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                     <section>
                         <div className="flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 border-slate-100 bg-slate-50/50">
                             <div className="flex items-center gap-3">
-                                <User size={20} className="text-indigo-500" />
+                                <User size={20} className="text-indigo-500" weight="duotone" />
                                 <span className="text-base">רשימה שמית <span className="text-slate-400 font-black text-sm ml-1">({sorted.length})</span></span>
                             </div>
                         </div>
@@ -261,123 +265,16 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
 
     return (
         <div className="bg-transparent min-h-full flex flex-col">
-            <div className="bg-white p-3 border-b border-slate-100 sticky top-0 z-30 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
-                <h2 className="text-lg font-black text-slate-800 flex items-center gap-2 shrink-0">
-                    <MapPin className="text-emerald-500" size={20} />
-                    דוח מיקום כוחות
-                </h2>
+            <div className="bg-white p-3 border-b border-slate-100 sticky top-0 z-30 flex flex-col gap-3 shadow-sm">
 
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full pb-1 md:pb-0">
-                    {/* Date & Time Navigator */}
-                    <div className="flex items-center bg-slate-50 p-1 rounded-lg border border-slate-200 gap-1 shrink-0">
-                        <button
-                            onClick={() => {
-                                const next = new Date(selectedDate);
-                                next.setDate(selectedDate.getDate() - 1);
-                                setSelectedDate(next);
-                            }}
-                            className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
-                        >
-                            <ChevronRight size={16} />
-                        </button>
+                {/* Top Row: Title & Actions */}
+                <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-black text-slate-800 flex items-center gap-2 shrink-0">
+                        <MapPin className="text-emerald-500" size={20} weight="duotone" />
+                        דוח מיקום כוחות
+                    </h2>
 
-                        <div className="relative group cursor-pointer flex items-center justify-center px-2">
-                            <span
-                                onClick={() => {
-                                    const input = document.getElementById('location-report-date') as HTMLInputElement;
-                                    if (input) input.showPicker ? input.showPicker() : input.click();
-                                }}
-                                className="text-sm font-black text-slate-700 min-w-[90px] text-center hover:text-blue-600 transition-colors"
-                            >
-                                {selectedDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'short' })}
-                            </span>
-                            <input
-                                id="location-report-date"
-                                type="date"
-                                className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
-                                value={selectedDate.toISOString().split('T')[0]}
-                                onChange={e => setSelectedDate(new Date(e.target.value))}
-                            />
-                        </div>
-
-                        <button
-                            onClick={() => {
-                                const next = new Date(selectedDate);
-                                next.setDate(selectedDate.getDate() + 1);
-                                setSelectedDate(next);
-                            }}
-                            className="p-1 hover:bg-white rounded shadow-sm text-slate-500"
-                        >
-                            <ChevronLeft size={16} />
-                        </button>
-
-                        <div className="w-px h-4 bg-slate-200 mx-1" />
-
-                        {/* Time Picker */}
-                        <div
-                            className="relative flex items-center gap-1.5 px-1 group cursor-pointer hover:bg-white rounded transition-colors"
-                            onClick={() => {
-                                const input = document.getElementById('location-report-time') as HTMLInputElement;
-                                if (input) input.showPicker ? input.showPicker() : input.click();
-                            }}
-                        >
-                            <Clock size={14} className="text-slate-400 group-hover:text-blue-500" />
-                            <span className="text-xs font-bold text-slate-700 hover:text-blue-600 transition-colors">
-                                {selectedTime}
-                            </span>
-                            <input
-                                id="location-report-time"
-                                type="time"
-                                className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0"
-                                value={selectedTime}
-                                onChange={e => setSelectedTime(e.target.value)}
-                            />
-                        </div>
-
-                        {/* Today Button (Icon on mobile, text on desktop?) -> "Today" text is small enough */}
-                        <div className="w-px h-4 bg-slate-200 mx-1" />
-                        <button
-                            onClick={() => setSelectedDate(new Date())}
-                            className="px-2 py-0.5 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        >
-                            היום
-                        </button>
-                    </div>
-
-                    <div className="w-px h-6 bg-slate-100 mx-1 hidden md:block" />
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <Select
-                            triggerMode="icon"
-                            value={filterTeam}
-                            onChange={setFilterTeam}
-                            options={[
-                                { value: 'all', label: 'כל הצוותים' },
-                                ...(teams.length > 0
-                                    ? teams.map(t => ({ value: t.id, label: t.name }))
-                                    : Array.from(new Set(people.map(p => p.teamId).filter(Boolean))).map(tid => ({ value: tid!, label: tid! }))
-                                )
-                            ]}
-                            placeholder="סינון לפי צוות"
-                            icon={Filter}
-                            className="bg-slate-50 border-slate-200 h-9 w-9 p-0"
-                        />
-                        <Select
-                            triggerMode="icon"
-                            value={groupBy}
-                            onChange={(val) => setGroupBy(val as any)}
-                            options={[
-                                { value: 'status', label: 'לפי סטטוס' },
-                                { value: 'team', label: 'לפי צוות' },
-                                { value: 'alpha', label: 'לפי א-ב' }
-                            ]}
-                            placeholder="מיון תצוגה"
-                            icon={ArrowUpDown}
-                            className="bg-slate-50 border-slate-200 h-9 w-9 p-0"
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                         <button
                             onClick={() => {
                                 let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
@@ -400,9 +297,9 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                                     category: 'data'
                                 });
                             }}
-                            className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors shadow-sm"
                         >
-                            <Download size={18} />
+                            <Download size={18} weight="duotone" />
                         </button>
                         <button
                             onClick={async () => {
@@ -426,10 +323,62 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                                     });
                                 } catch (e) { showToast('שגיאה', 'error'); }
                             }}
-                            className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
                         >
-                            <Copy size={18} />
+                            <Copy size={18} weight="duotone" />
                         </button>
+                    </div>
+                </div>
+
+                {/* Controls Row */}
+                <div className="flex flex-wrap items-center gap-3">
+                    <DateNavigator
+                        date={selectedDate}
+                        onDateChange={setSelectedDate}
+                        mode="day"
+                        className="h-9 w-fit"
+                    />
+
+                    <div className="w-px h-4 bg-slate-200 mx-1" />
+
+                    <TimePicker
+                        label=""
+                        value={selectedTime}
+                        onChange={setSelectedTime}
+                        className="w-28"
+                    />
+
+                    {/* Filters Container */}
+                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 h-9 shrink-0">
+                        <Select
+                            triggerMode="icon"
+                            value={filterTeam}
+                            onChange={setFilterTeam}
+                            options={[
+                                { value: 'all', label: 'כל הצוותים' },
+                                ...(teams.length > 0
+                                    ? teams.map(t => ({ value: t.id, label: t.name }))
+                                    : Array.from(new Set(people.map(p => p.teamId).filter(Boolean))).map(tid => ({ value: tid!, label: tid! }))
+                                )
+                            ]}
+                            placeholder="סינון לפי צוות"
+                            icon={Filter}
+                            className="bg-transparent border-0 h-7 w-7 p-0 hover:bg-white rounded-lg transition-colors text-slate-500 hover:text-blue-600"
+                        />
+                        <div className="w-px h-4 bg-slate-200" />
+                        <Select
+                            triggerMode="icon"
+                            value={groupBy}
+                            onChange={(val) => setGroupBy(val as any)}
+                            options={[
+                                { value: 'status', label: 'לפי סטטוס' },
+                                { value: 'team', label: 'לפי צוות' },
+                                { value: 'alpha', label: 'לפי א-ב' }
+                            ]}
+                            placeholder="מיון תצוגה"
+                            icon={ArrowUpDown}
+                            className="bg-transparent border-0 h-7 w-7 p-0 hover:bg-white rounded-lg transition-colors text-slate-500 hover:text-blue-600"
+                        />
                     </div>
                 </div>
             </div>

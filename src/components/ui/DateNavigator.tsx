@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronRight, ChevronLeft, Calendar as CalendarIcon } from 'lucide-react';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CalendarBlank as CalendarIcon } from '@phosphor-icons/react';
 import { Button } from './Button';
 import { CustomCalendar } from './CustomCalendar';
 
@@ -133,36 +133,36 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
             <button
                 onClick={handlePrev}
                 disabled={!canGoPrev}
-                className="flex items-center justify-center h-11 w-11 rounded-md text-slate-700 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex items-center justify-center h-9 w-9 rounded-md text-slate-700 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label={mode === 'day' ? "יום קודם" : "חודש קודם"}
             >
-                <ChevronRight size={24} strokeWidth={2.5} /> {/* Rule 1: Larger icon for 48px target */}
+                <ChevronRight size={20} weight="duotone" />
             </button>
 
             <div
                 ref={triggerRef}
-                className="relative group cursor-pointer flex items-center justify-center gap-2 min-w-[140px] md:min-w-[180px] px-2 h-11" // Rule 1: h-11 (44px) min height
+                className="relative group cursor-pointer flex items-center justify-center gap-2 min-w-[120px] md:min-w-[150px] px-2 h-9"
                 onClick={() => setIsOpen(!isOpen)}
             >
-                {label && <span className="text-sm text-slate-500 font-medium hidden md:block">{label}</span>} {/* Rule 2: min 14px text */}
+                {label && <span className="text-xs text-slate-500 font-medium hidden md:block">{label}</span>}
 
                 <div className="flex items-center gap-2">
-                    <CalendarIcon size={18} className="text-slate-500 md:hidden" /> {/* Rule 2: Larger icon */}
+                    <CalendarIcon size={14} className="text-slate-500 md:hidden" weight="duotone" />
 
                     {/* Check mode for display format */}
                     {mode === 'month' ? (
-                        <span className="text-base md:text-lg font-bold text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap"> {/* Rule 2: 16px body font */}
+                        <span className="text-sm md:text-base font-bold text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap">
                             {date.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}
                         </span>
                     ) : (
                         <>
                             {/* Desktop Date Format */}
-                            <span className="hidden md:inline text-lg font-bold text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap">
+                            <span className="hidden md:inline text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap">
                                 {date.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
                             </span>
 
                             {/* Mobile Date Format (Shorter) */}
-                            <span className="md:hidden text-base font-bold text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap"> {/* Rule 2: 16px body font */}
+                            <span className="md:hidden text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap">
                                 {date.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })}
                             </span>
                         </>
@@ -173,7 +173,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                 {showTodayButton && (
                     <button
                         onClick={(e) => { e.stopPropagation(); handleToday(); }}
-                        className="text-xs font-bold text-blue-700 hover:text-blue-800 hover:underline leading-none flex items-center bg-blue-50 px-3 h-8 rounded-full transition-colors border border-blue-100" // Rule 1 & 2
+                        className="text-[10px] font-bold text-blue-700 hover:text-blue-800 hover:underline leading-none flex items-center bg-blue-50 px-2 h-6 rounded-full transition-colors border border-blue-100"
                     >
                         {mode === 'month' ? 'חודש נוכחי' : 'היום'}
                     </button>
@@ -183,10 +183,10 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
             <button
                 onClick={handleNext}
                 disabled={!canGoNext}
-                className="flex items-center justify-center h-11 w-11 rounded-md text-slate-700 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex items-center justify-center h-9 w-9 rounded-md text-slate-700 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label={mode === 'day' ? "יום הבא" : "חודש הבא"}
             >
-                <ChevronLeft size={24} strokeWidth={2.5} /> {/* Rule 1: 44-48px target area */}
+                <ChevronLeft size={20} weight="duotone" />
             </button>
 
             {/* Portal Popover / Modal */}

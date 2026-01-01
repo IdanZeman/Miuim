@@ -8,11 +8,6 @@ export const mapPersonFromDB = (p: any): Person => {
     if (typeof dailyAvailability === 'string') {
         try { dailyAvailability = JSON.parse(dailyAvailability); } catch (e) { dailyAvailability = {}; }
     }
-    
-    // Debug for first person/specific person
-    if (p.name === 'אליאור וקרולקר' || p.id === 'person-elior') {
-        console.log(`[Mapper] Parsed Availability for ${p.name}:`, dailyAvailability);
-    }
 
     let personalRotation = p.personal_rotation || undefined;
     if (typeof personalRotation === 'string') {
@@ -80,13 +75,15 @@ export const mapTeamToDB = (t: Team) => ({
 export const mapRoleFromDB = (r: any): Role => ({
     id: r.id,
     name: r.name,
-    color: r.color || 'bg-slate-200'
+    color: r.color || 'bg-slate-200',
+    icon: r.icon
 });
 
 export const mapRoleToDB = (r: Role) => ({
     id: r.id,
     name: r.name,
     color: r.color,
+    icon: r.icon,
     organization_id: (r as any).organization_id
 });
 
@@ -101,7 +98,8 @@ export const mapTaskFromDB = (dbTask: any): TaskTemplate => ({
     organization_id: dbTask.organization_id,
     is247: dbTask.is_24_7,
     segments: typeof dbTask.segments === 'string' ? JSON.parse(dbTask.segments) : (dbTask.segments || []),
-    assignedTeamId: dbTask.assigned_team_id
+    assignedTeamId: dbTask.assigned_team_id,
+    icon: dbTask.icon
 });
 
 export const mapTaskToDB = (task: TaskTemplate) => ({
@@ -114,7 +112,8 @@ export const mapTaskToDB = (task: TaskTemplate) => ({
     organization_id: task.organization_id,
     is_24_7: task.is247,
     segments: task.segments || [],
-    assigned_team_id: task.assignedTeamId
+    assigned_team_id: task.assignedTeamId,
+    icon: task.icon
 });
 
 // Shifts
@@ -246,6 +245,29 @@ export const mapEquipmentToDB = (e: Equipment) => ({
     last_verified_at: e.last_verified_at,
     status: e.status,
     notes: e.notes
+});
+
+// Equipment Daily Checks Mappers
+export const mapEquipmentDailyCheckFromDB = (c: any): import('@/types').EquipmentDailyCheck => ({
+    id: c.id,
+    equipment_id: c.equipment_id,
+    organization_id: c.organization_id,
+    check_date: c.check_date,
+    status: c.status,
+    checked_by: c.checked_by,
+    created_at: c.created_at,
+    updated_at: c.updated_at
+});
+
+export const mapEquipmentDailyCheckToDB = (c: import('@/types').EquipmentDailyCheck) => ({
+    id: c.id,
+    equipment_id: c.equipment_id,
+    organization_id: c.organization_id,
+    check_date: c.check_date,
+    status: c.status,
+    checked_by: c.checked_by,
+    created_at: c.created_at,
+    updated_at: c.updated_at
 });
 
 // Hourly Blockages

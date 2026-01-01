@@ -4,9 +4,9 @@ import { getPersonInitials } from '../../utils/nameUtils';
 import { useAuth } from '../auth/AuthContext'; // Updated path
 import { supabase } from '../../services/supabaseClient'; // Updated path
 import {
-    Clock, Calendar, Award, TrendingUp, Moon, Sun,
-    ArrowRight, CheckCircle, AlertCircle
-} from 'lucide-react';
+    Clock, Calendar, Medal as Award, TrendUp as TrendingUp, Moon, Sun,
+    ArrowRight, CheckCircle, WarningCircle as AlertCircle
+} from '@phosphor-icons/react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, AreaChart, Area
@@ -136,7 +136,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                                 onClick={onBack}
                                 className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 flex-shrink-0"
                             >
-                                <ArrowRight size={20} />
+                                <ArrowRight size={20} weight="bold" />
                             </button>
                         )}
                         {/* Avatar with Initials */}
@@ -176,7 +176,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                 {/* Weekly Activity */}
                 <div className="lg:col-span-2 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 md:mb-6 flex items-center gap-2">
-                        <TrendingUp size={18} className="text-blue-500" />
+                        <TrendingUp size={18} className="text-blue-500" weight="duotone" />
                         פעילות שבועית
                     </h3>
                     <div className="h-[200px] md:h-[300px]">
@@ -204,7 +204,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                 {/* Day/Night Distribution */}
                 <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 md:mb-6 flex items-center gap-2">
-                        <Moon size={18} className="text-indigo-500" />
+                        <Moon size={18} className="text-indigo-500" weight="duotone" />
                         יום / לילה
                     </h3>
                     <div className="h-[180px] md:h-[220px] relative">
@@ -244,7 +244,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
             {/* Task Breakdown Chart */}
             <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
                 <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 md:mb-6 flex items-center gap-2">
-                    <Award className="text-orange-500" size={18} />
+                    <Award className="text-orange-500" size={18} weight="duotone" />
                     התפלגות משימות
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center">
@@ -374,13 +374,13 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
             {/* Recent Shifts List */}
             <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
                 <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <Calendar size={18} className="text-purple-500" />
+                    <Calendar size={18} className="text-purple-500" weight="duotone" />
                     משמרות ({viewerDaysLimit} ימים קדימה)
                 </h3>
                 {stats.shifts.length === 0 ? (
                     <div className="text-center py-8 md:py-12 text-slate-400">
-                        <Calendar size={36} className="md:hidden mx-auto mb-3 opacity-50" />
-                        <Calendar size={48} className="hidden md:block mx-auto mb-3 opacity-50" />
+                        <Calendar size={36} className="md:hidden mx-auto mb-3 opacity-50" weight="duotone" />
+                        <Calendar size={48} className="hidden md:block mx-auto mb-3 opacity-50" weight="duotone" />
                         <p className="font-medium text-sm md:text-base">אין משמרות בטווח הזמן</p>
                         <p className="text-xs md:text-sm mt-1">משמרות ב-{viewerDaysLimit} ימים הקרובים יופיעו כאן</p>
                     </div>
@@ -393,7 +393,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                             return (
                                 <div key={shift.id} className="border border-slate-100 rounded-xl p-3 md:p-4 flex items-center gap-3 md:gap-4 hover:border-blue-200 transition-colors">
                                     <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${task?.difficulty && task.difficulty > 1.5 ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-                                        {task?.difficulty && task.difficulty > 1.5 ? <AlertCircle size={16} /> : <CheckCircle size={16} />}
+                                        {task?.difficulty && task.difficulty > 1.5 ? <AlertCircle size={16} weight="duotone" /> : <CheckCircle size={16} weight="duotone" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <p className="font-bold text-slate-800 text-sm md:text-base truncate">{task?.name}</p>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { supabase } from '../../services/supabaseClient';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight } from '@phosphor-icons/react';
 import { Layout } from '../../components/layout/Layout';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../services/loggingService';
@@ -38,7 +38,7 @@ export const Login: React.FC<LoginProps> = ({ onBack }) => {
                             onClick={onBack}
                             className="absolute top-8 right-8 text-slate-600 hover:text-slate-800 transition-colors flex items-center gap-2 font-medium"
                         >
-                            <ArrowRight size={20} />
+                            <ArrowRight size={20} weight="bold" />
                             <span>חזרה</span>
                         </button>
                     )}

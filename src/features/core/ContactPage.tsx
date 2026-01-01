@@ -1,5 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Mail, Phone, User, Send, MessageSquare, Upload, X, Loader2, Check, Clock, MapPin, MessageCircle } from 'lucide-react';
+import {
+    Envelope as MailIcon, Phone as PhoneIcon, User as UserIcon, PaperPlaneRight as SendIcon, Chat as MessageSquareIcon,
+    UploadSimple as UploadIcon, X as XIcon, CircleNotch as LoaderIcon, Check as CheckIcon, Clock as ClockIcon,
+    MapPin as MapPinIcon, ChatCircleDots as MessageCircleIcon
+} from '@phosphor-icons/react';
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
@@ -106,7 +110,7 @@ export const ContactPage: React.FC = () => {
             <div className="min-h-[60vh] flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl p-8 md:p-12 text-center max-w-md w-full shadow-xl animate-in fade-in zoom-in duration-300">
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Check className="text-green-600" size={40} />
+                        <CheckIcon className="text-green-600" size={40} weight="bold" />
                     </div>
                     <h3 className="text-2xl font-black text-slate-800 mb-2">ההודעה נשלחה!</h3>
                     <p className="text-slate-500 mb-8 font-medium">תודה שפנית אלינו. נחזור אליך בהקדם האפשרי.</p>
@@ -156,7 +160,7 @@ export const ContactPage: React.FC = () => {
                             required
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            icon={User}
+                            icon={UserIcon}
                             placeholder="השם שלך"
                             className="!bg-slate-50 border-slate-200 focus:bg-white"
                         />
@@ -166,7 +170,7 @@ export const ContactPage: React.FC = () => {
                             type="tel"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            icon={Phone}
+                            icon={PhoneIcon}
                             placeholder="050-0000000"
                             className="!bg-slate-50 border-slate-200 focus:bg-white text-right"
                         />
@@ -199,16 +203,16 @@ export const ContactPage: React.FC = () => {
                                     htmlFor="mobile-file-upload"
                                     className="w-full cursor-pointer flex items-center justify-center gap-2 p-4 !bg-slate-50 border border-dashed border-slate-300 rounded-xl text-slate-500 hover:bg-slate-100 transition-all active:scale-95 shadow-sm group"
                                 >
-                                    <div className="bg-white p-1.5 rounded-full shadow-sm text-indigo-500 group-hover:scale-110 transition-transform"><Upload size={16} /></div>
+                                    <div className="bg-white p-1.5 rounded-full shadow-sm text-indigo-500 group-hover:scale-110 transition-transform"><UploadIcon size={16} weight="bold" /></div>
                                     <span className="text-xs font-bold">צרף תמונה / צילום מסך</span>
                                 </label>
                                 {file && (
                                     <div className="flex items-center justify-between bg-indigo-50 text-indigo-700 px-4 py-3 rounded-xl text-xs font-bold border border-indigo-100 animate-in fade-in slide-in-from-top-1">
                                         <div className="flex items-center gap-2">
-                                            <Check size={14} className="text-indigo-500" />
+                                            <CheckIcon size={14} className="text-indigo-500" weight="bold" />
                                             <span className="truncate max-w-[200px]">{file.name}</span>
                                         </div>
-                                        <button onClick={(e) => { e.stopPropagation(); setFile(null); }} className="p-1 hover:bg-indigo-100 rounded-full transition-colors"><X size={14} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); setFile(null); }} className="p-1 hover:bg-indigo-100 rounded-full transition-colors"><XIcon size={14} weight="bold" /></button>
                                     </div>
                                 )}
                             </div>
@@ -332,14 +336,14 @@ export const ContactPage: React.FC = () => {
                                 />
                                 {file ? (
                                     <div className="flex items-center justify-center gap-2 text-green-700 font-bold">
-                                        <div className="w-8 h-8 bg-green-200 rounded-full flex items-center justify-center"><Check size={16} /></div>
+                                        <div className="w-8 h-8 bg-green-200 rounded-full flex items-center justify-center"><CheckIcon size={16} weight="bold" /></div>
                                         <span>קובץ נבחר: {file.name}</span>
-                                        <button onClick={(e) => { e.stopPropagation(); setFile(null); }} className="hover:text-red-500 p-1"><X size={16} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); setFile(null); }} className="hover:text-red-500 p-1"><XIcon size={16} weight="bold" /></button>
                                     </div>
                                 ) : (
                                     <>
                                         <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform">
-                                            <Upload size={24} />
+                                            <UploadIcon size={24} weight="bold" />
                                         </div>
                                         <p className="text-sm font-bold text-slate-600">גרור קובץ לכאן או לחץ להעלאה</p>
                                         <p className="text-xs text-slate-400 mt-1">PNG, JPG עד 5MB</p>

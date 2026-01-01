@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { TaskTemplate, SchedulingSegment } from '@/types';
-import { Users, Clock, AlertCircle } from 'lucide-react';
+import { Users, Clock, WarningCircle as AlertCircle } from '@phosphor-icons/react';
 
 interface StaffingAnalysisProps {
     tasks: TaskTemplate[];
@@ -122,7 +122,7 @@ export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, total
             <div className={`p-4 border-b flex items-center justify-between shrink-0 ${isDeficit ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-full ${isDeficit ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                        <Users size={20} />
+                        <Users size={20} weight="duotone" />
                     </div>
                     <div>
                         <h3 className={`font-black text-lg ${isDeficit ? 'text-red-900' : 'text-green-900'}`}>
@@ -168,7 +168,7 @@ export const StaffingAnalysis: React.FC<StaffingAnalysisProps> = ({ tasks, total
                                             {/* Mini date range if specific */}
                                             {(row.task.startDate || row.task.endDate) && (
                                                 <div className="text-[9px] text-slate-400 flex items-center gap-1">
-                                                    <Clock size={8} />
+                                                    <Clock size={8} weight="duotone" />
                                                     {row.task.startDate ? new Date(row.task.startDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : '∞'} -
                                                     {row.task.endDate ? new Date(row.task.endDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }) : '∞'}
                                                 </div>

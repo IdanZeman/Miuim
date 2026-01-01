@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Loader2, AlertCircle, CheckCircle, ArrowRight, Check } from 'lucide-react';
+import { CircleNotch as LoaderIcon, WarningCircle as AlertCircleIcon, CheckCircle as CheckCircleIcon, ArrowRight as ArrowRightIcon, Check as CheckIcon } from '@phosphor-icons/react';
 
 const JoinPage: React.FC = () => {
     const { token } = useParams<{ token: string }>();
@@ -84,7 +84,7 @@ const JoinPage: React.FC = () => {
     if (authLoading || loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-teal-50 to-blue-50">
-                <Loader2 className="w-10 h-10 text-teal-600 animate-spin" />
+                <LoaderIcon className="w-10 h-10 text-teal-600 animate-spin" />
             </div>
         );
     }
@@ -94,7 +94,7 @@ const JoinPage: React.FC = () => {
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 p-4">
                 <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center border-2 border-green-100 animate-in zoom-in-95 duration-300">
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                        <CheckCircle className="w-10 h-10 text-green-600" />
+                        <CheckCircleIcon className="w-10 h-10 text-green-600" weight="duotone" />
                     </div>
                     <h1 className="text-3xl font-bold text-slate-800 mb-2">הצטרפת בהצלחה!</h1>
                     <p className="text-slate-600 mb-6 text-lg">אתה מועבר למערכת...</p>
@@ -108,7 +108,7 @@ const JoinPage: React.FC = () => {
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 p-4">
                 <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center border-2 border-red-100 animate-in zoom-in-95 duration-300" role="alert">
                     <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner" aria-hidden="true">
-                        <AlertCircle className="w-10 h-10 text-red-600" />
+                        <AlertCircleIcon className="w-10 h-10 text-red-600" weight="duotone" />
                     </div>
                     <h1 className="text-2xl font-bold text-slate-800 mb-2">שגיאה</h1>
                     <p className="text-slate-600 mb-8">{error}</p>
@@ -170,13 +170,13 @@ const JoinPage: React.FC = () => {
                             <div className="relative flex items-center justify-center gap-2">
                                 {joining ? (
                                     <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <LoaderIcon className="w-5 h-5 animate-spin" />
                                         <span>מצטרף לארגון...</span>
                                     </>
                                 ) : (
                                     <>
                                         <span>אשר הצטרפות</span>
-                                        <Check className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                        <CheckIcon className="w-5 h-5 group-hover:scale-110 transition-transform" weight="bold" />
                                     </>
                                 )}
                             </div>

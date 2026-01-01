@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Person } from '@/types';
-import { Modal } from '@/components/ui/Modal';
+import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
-import { Settings } from 'lucide-react';
+import { Gear as Settings } from '@phosphor-icons/react';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 interface PersonalRotationEditorProps {
     person: Person;
@@ -39,7 +40,7 @@ export const PersonalRotationEditor: React.FC<PersonalRotationEditorProps> = ({ 
         <div className="flex flex-col pr-2 text-right">
             <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">סבב אישי - {person.name}</h2>
             <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wider">
-                <Settings size={14} className="text-slate-400" />
+                <Settings size={14} className="text-slate-400" weight="duotone" />
                 <span>הגדרת מחזוריות אישית</span>
             </div>
         </div>
@@ -48,12 +49,12 @@ export const PersonalRotationEditor: React.FC<PersonalRotationEditorProps> = ({ 
     const modalFooter = (
         <div className="flex justify-between items-center w-full">
             <Button variant="ghost" onClick={onClose} className="font-bold text-slate-500">ביטול</Button>
-            <Button variant="primary" onClick={handleSave} className="font-bold px-8 shadow-lg shadow-blue-200">שמור הגדרות</Button>
+            <Button variant="primary" onClick={handleSave} className="font-bold px-8 shadow-none">שמור הגדרות</Button>
         </div>
     );
 
     return (
-        <Modal
+        <GenericModal
             isOpen={isOpen}
             onClose={onClose}
             title={modalTitle}
@@ -93,21 +94,17 @@ export const PersonalRotationEditor: React.FC<PersonalRotationEditorProps> = ({ 
                                 />
                             </div>
                         </div>
-                        <div>
-                            <label className="text-xs font-black text-slate-400 mb-1.5 block uppercase tracking-wider">תאריך התחלת סבב</label>
-                            <input
-                                type="date"
-                                value={personalRotation.startDate}
-                                onChange={e => setPersonalRotation(prev => ({ ...prev, startDate: e.target.value }))}
-                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                            />
-                        </div>
+                        <DatePicker
+                            label="תאריך התחלת סבב"
+                            value={personalRotation.startDate}
+                            onChange={(val) => setPersonalRotation(prev => ({ ...prev, startDate: val }))}
+                        />
                         <div className="bg-blue-50/50 p-4 rounded-xl text-xs text-blue-700 font-bold border border-blue-100/50 leading-relaxed">
                             הגדרת סבב אישי תגבר על הסבב הצוותי המוגדר עבור חייל זה.
                         </div>
                     </div>
                 )}
             </div>
-        </Modal>
+        </GenericModal>
     );
 };

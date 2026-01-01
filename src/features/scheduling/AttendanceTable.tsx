@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, Absence, TaskTemplate } from '@/types';
-import { ChevronRight, ChevronLeft, ChevronDown, Calendar, Users, Home, MapPin, XCircle, Clock, Info, CheckCircle2, Search, AlertCircle } from 'lucide-react';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle } from '@phosphor-icons/react';
 import { getEffectiveAvailability, getRotationStatusForDate } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
@@ -124,162 +124,167 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         <div className="h-full flex flex-col relative" dir="rtl">
             {/* --- DAILY AGENDA VIEW (Mobile default, Desktop optional) --- */}
             {(viewMode === 'daily' || !viewMode) && (
-                <div className={`flex-1 overflow-y-auto custom-scrollbar bg-white pb-32 ${viewMode === 'daily' ? '' : 'md:hidden'}`}>
-                    <div className="flex flex-col">
-                        {teams.map(team => {
-                            const members = sortedPeople.filter(p => p.teamId === team.id);
-                            if (members.length === 0) return null;
+                <div className={`flex-1 overflow-y-auto custom-scrollbar bg-slate-50/40 pb-32 ${viewMode === 'daily' ? '' : 'md:hidden'}`}>
+                    <div className="max-w-5xl mx-auto bg-white min-h-full shadow-sm border-x border-slate-100">
+                        <div className="flex flex-col">
+                            {[...teams].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(team => {
+                                const members = sortedPeople.filter(p => p.teamId === team.id);
+                                if (members.length === 0) return null;
 
-                            return (
-                                <div key={team.id} className="relative">
-                                    {/* Premium Team Header - Sticky with Visual Depth */}
-                                    <div
-                                        onClick={() => toggleTeam(team.id)}
-                                        className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-100 px-5 py-4 flex items-center justify-between cursor-pointer group transition-all h-[72px]"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div
-                                                className="w-1.5 h-8 rounded-full"
-                                                style={{ backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6' }}
-                                            />
-                                            <div className="flex flex-col">
-                                                <h3 className="text-lg font-black text-slate-900 tracking-tight leading-none">{team.name}</h3>
-                                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">{members.length} לוחמים</span>
+                                return (
+                                    <div key={team.id} className="relative">
+                                        {/* Premium Team Header - Sticky with Visual Depth */}
+                                        <div
+                                            onClick={() => toggleTeam(team.id)}
+                                            className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex items-center justify-between cursor-pointer group transition-all h-[72px]"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div
+                                                    className="w-1.5 h-8 rounded-full"
+                                                    style={{ backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6' }}
+                                                />
+                                                <div className="flex flex-col">
+                                                    <h3 className="text-lg font-black text-slate-900 tracking-tight leading-none">{team.name}</h3>
+                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">{members.length} לוחמים</span>
+                                                </div>
+                                            </div>
+                                            <div className={`w-8 h-8 rounded-full bg-slate-50 group-hover:bg-slate-100 flex items-center justify-center transition-all duration-300 ${collapsedTeams.has(team.id) ? 'rotate-0' : 'rotate-180'}`}>
+                                                <ChevronDown size={18} className="text-slate-400 group-hover:text-slate-600" weight="duotone" />
                                             </div>
                                         </div>
-                                        <div className={`w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center transition-transform duration-300 ${collapsedTeams.has(team.id) ? 'rotate-0' : 'rotate-180'}`}>
-                                            <ChevronDown size={18} className="text-slate-400" />
-                                        </div>
-                                    </div>
 
-                                    {/* Personnel List - Optimized for Touch */}
-                                    {!collapsedTeams.has(team.id) && (
-                                        <div className="divide-y divide-slate-50">
-                                            {members.map(person => {
-                                                const avail = getEffectiveAvailability(person, currentDate, teamRotations, absences, hourlyBlockages);
-                                                const dateKey = currentDate.toLocaleDateString('en-CA');
+                                        {/* Personnel List - Optimized for Touch */}
+                                        {!collapsedTeams.has(team.id) && (
+                                            <div className="divide-y divide-slate-50">
+                                                {members.map(person => {
+                                                    const avail = getEffectiveAvailability(person, currentDate, teamRotations, absences, hourlyBlockages);
+                                                    const dateKey = currentDate.toLocaleDateString('en-CA');
 
-                                                // Check for official absences
-                                                const relevantAbsence = absences.find(a =>
-                                                    a.person_id === person.id &&
-                                                    a.start_date <= dateKey &&
-                                                    a.end_date >= dateKey
-                                                );
-                                                const isExitRequest = !!relevantAbsence;
+                                                    // Check for official absences
+                                                    const relevantAbsence = absences.find(a =>
+                                                        a.person_id === person.id &&
+                                                        a.start_date <= dateKey &&
+                                                        a.end_date >= dateKey
+                                                    );
+                                                    const isExitRequest = !!relevantAbsence;
 
-                                                // Status Pill UI Logic
-                                                let statusConfig = {
-                                                    label: 'לא ידוע',
-                                                    bg: 'bg-white text-slate-400 ring-1 ring-slate-100',
-                                                    dot: 'bg-slate-300',
-                                                    icon: Info
-                                                };
-
-                                                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
-                                                    const prevDate = new Date(currentDate);
-                                                    prevDate.setDate(currentDate.getDate() - 1);
-                                                    const nextDate = new Date(currentDate);
-                                                    nextDate.setDate(currentDate.getDate() + 1);
-
-                                                    const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
-                                                    const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
-
-                                                    const isArrival = !prevAvail.isAvailable || prevAvail.status === 'home';
-                                                    const isDeparture = !nextAvail.isAvailable || nextAvail.status === 'home';
-                                                    const isSingleDay = isArrival && isDeparture;
-
-                                                    statusConfig = {
-                                                        label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
-                                                        bg: isArrival || isSingleDay ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-0' : isDeparture ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 ring-0' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100/50',
-                                                        dot: 'bg-white',
-                                                        icon: isArrival ? MapPin : isDeparture ? MapPin : CheckCircle2
+                                                    // Status Pill UI Logic
+                                                    let statusConfig = {
+                                                        label: 'לא ידוע',
+                                                        bg: 'bg-white text-slate-400 ring-1 ring-slate-100',
+                                                        dot: 'bg-slate-300',
+                                                        icon: Info
                                                     };
 
-                                                    if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
-                                                        if (isSingleDay || (!isArrival && !isDeparture)) {
-                                                            statusConfig.label += ` ${avail.startHour}-${avail.endHour}`;
-                                                        } else if (isArrival && avail.startHour !== '00:00') {
-                                                            statusConfig.label += ` ${avail.startHour}`;
-                                                        } else if (isDeparture && avail.endHour !== '23:59') {
-                                                            statusConfig.label += ` ${avail.endHour}`;
+                                                    if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+                                                        const prevDate = new Date(currentDate);
+                                                        prevDate.setDate(currentDate.getDate() - 1);
+                                                        const nextDate = new Date(currentDate);
+                                                        nextDate.setDate(currentDate.getDate() + 1);
+
+                                                        const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
+                                                        const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
+
+                                                        const isArrival = !prevAvail.isAvailable || prevAvail.status === 'home';
+                                                        const isDeparture = !nextAvail.isAvailable || nextAvail.status === 'home';
+                                                        const isSingleDay = isArrival && isDeparture;
+
+                                                        statusConfig = {
+                                                            label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
+                                                            bg: isArrival || isSingleDay ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-0' : isDeparture ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20 ring-0' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100/50',
+                                                            dot: 'bg-white',
+                                                            icon: isArrival ? MapPin : isDeparture ? MapPin : CheckCircle2
+                                                        };
+
+                                                        if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
+                                                            if (isSingleDay || (!isArrival && !isDeparture)) {
+                                                                statusConfig.label += ` ${avail.startHour}-${avail.endHour}`;
+                                                            } else if (isArrival && avail.startHour !== '00:00') {
+                                                                statusConfig.label += ` ${avail.startHour}`;
+                                                            } else if (isDeparture && avail.endHour !== '23:59') {
+                                                                statusConfig.label += ` ${avail.endHour}`;
+                                                            }
                                                         }
+                                                    } else if (avail.status === 'home') {
+                                                        statusConfig = {
+                                                            label: 'בבית',
+                                                            bg: 'bg-red-50 text-red-600 ring-1 ring-red-100',
+                                                            dot: 'bg-red-500',
+                                                            icon: Home
+                                                        };
+                                                    } else if (avail.status === 'unavailable') {
+                                                        statusConfig = {
+                                                            label: 'אילוץ',
+                                                            bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
+                                                            dot: 'bg-amber-500',
+                                                            icon: Clock
+                                                        };
                                                     }
-                                                } else if (avail.status === 'home') {
-                                                    statusConfig = {
-                                                        label: 'בבית',
-                                                        bg: 'bg-red-50 text-red-600 ring-1 ring-red-100',
-                                                        dot: 'bg-red-500',
-                                                        icon: Home
-                                                    };
-                                                } else if (avail.status === 'unavailable') {
-                                                    statusConfig = {
-                                                        label: 'אילוץ',
-                                                        bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
-                                                        dot: 'bg-amber-500',
-                                                        icon: Clock
-                                                    };
-                                                }
 
-                                                return (
-                                                    <div
-                                                        key={person.id}
-                                                        onClick={(e) => handleCellClick(e, person, currentDate)}
-                                                        className="flex items-center justify-between p-5 bg-white active:bg-slate-50 transition-all h-[80px] cursor-pointer group" // Rule 1: 80px for comfort
-                                                        role="button"
-                                                        tabIndex={0}
-                                                    >
-                                                        {/* Left: Person Info */}
-                                                        <div className="flex items-center gap-4">
-                                                            <div
-                                                                className="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-xl rotate-3 group-active:rotate-0 transition-transform"
-                                                                style={{
-                                                                    backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6',
-                                                                    backgroundImage: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}cc)`
-                                                                }}
-                                                            >
-                                                                {getPersonInitials(person.name)}
-                                                            </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-base font-black text-slate-900 leading-tight">{person.name}</span>
-                                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                                                                    <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">לוחם</span>
+                                                    return (
+                                                        <div
+                                                            key={person.id}
+                                                            onClick={(e) => handleCellClick(e, person, currentDate)}
+                                                            className="flex items-center justify-between p-6 bg-white hover:bg-slate-50/80 active:bg-slate-100 transition-all min-h-[80px] cursor-pointer group border-b border-slate-50"
+                                                            role="button"
+                                                            tabIndex={0}
+                                                        >
+                                                            {/* Right: Person Info (Visually Right in RTL) */}
+                                                            <div className="flex items-center gap-4 shrink-0 bg-inherit relative z-10">
+                                                                <div
+                                                                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-lg group-hover:shadow-blue-500/10 group-active:scale-95 transition-all"
+                                                                    style={{
+                                                                        backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6',
+                                                                        backgroundImage: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}cc)`
+                                                                    }}
+                                                                >
+                                                                    {getPersonInitials(person.name)}
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-base font-black text-slate-900 leading-tight group-hover:text-blue-600 transition-colors uppercase tracking-tight">{person.name}</span>
+                                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-blue-300 transition-colors" />
+                                                                        <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">לוחם</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
 
-                                                        {/* Right Side: Status and Dots/Labels */}
-                                                        <div className="flex items-center gap-3">
-                                                            {isExitRequest ? (
-                                                                <span className="text-[11px] font-black text-red-600 bg-red-50 px-2 py-1 rounded-lg border border-red-100 animate-pulse">
-                                                                    {isViewer ? 'היעדרות' : (relevantAbsence?.reason || 'בקשת יציאה')}
-                                                                </span>
-                                                            ) : (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
-                                                                <div className="flex -space-x-1 rtl:space-x-reverse h-3 items-center">
-                                                                    {avail.unavailableBlocks.slice(0, 3).map((_, i) => (
-                                                                        <div key={i} className="w-2 h-2 rounded-full bg-red-500 border-2 border-white shadow-sm" />
-                                                                    ))}
-                                                                </div>
-                                                            )}
+                                                            {/* Visual Connector - GUIDES THE EYE */}
+                                                            <div className="flex-1 mx-6 h-px border-t border-dashed border-slate-100 transition-all duration-300 group-hover:border-slate-200" />
 
-                                                            <div
-                                                                className={`
-                                                                    flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-xs
-                                                                    ${statusConfig.bg} transition-all active:scale-95
+                                                            {/* Left Side: Status and Dots/Labels (Visually Left in RTL) */}
+                                                            <div className="flex items-center gap-3 shrink-0 bg-inherit relative z-10">
+                                                                {isExitRequest ? (
+                                                                    <span className="text-[11px] font-black text-red-600 bg-red-50 px-2 py-1 rounded-lg border border-red-100 animate-pulse">
+                                                                        {isViewer ? 'היעדרות' : (relevantAbsence?.reason || 'בקשת יציאה')}
+                                                                    </span>
+                                                                ) : (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
+                                                                    <div className="flex -space-x-1 rtl:space-x-reverse h-3 items-center">
+                                                                        {avail.unavailableBlocks.slice(0, 3).map((_, i) => (
+                                                                            <div key={i} className="w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white shadow-sm" />
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+
+                                                                <div
+                                                                    className={`
+                                                                    flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-xs
+                                                                    ${statusConfig.bg} transition-all shadow-sm ring-1 ring-black/5
                                                                 `}
-                                                            >
-                                                                <statusConfig.icon size={14} strokeWidth={2.5} />
-                                                                <span className="whitespace-nowrap">{statusConfig.label}</span>
+                                                                >
+                                                                    <statusConfig.icon size={14} weight="duotone" />
+                                                                    <span className="whitespace-nowrap tracking-tight">{statusConfig.label}</span>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             )}
@@ -324,7 +329,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 {showRequiredDetails && (
                                     <div className="flex sticky z-[85] top-[64px] bg-white backdrop-blur-md h-12 border-b border-slate-200 shadow-sm">
                                         <div className="w-60 shrink-0 bg-rose-50 border-l border-rose-100 h-full flex items-center gap-2 sticky right-0 z-[90] px-6">
-                                            <AlertCircle size={16} className="text-rose-500" />
+                                            <AlertCircle size={16} className="text-rose-500" weight="duotone" />
                                             <span className="text-sm font-black text-rose-900 tracking-tight">נדרשים למשימות</span>
                                         </div>
                                         <div className="flex h-full">
@@ -380,7 +385,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 {/* Summary Row (Global Stats) */}
                                 <div className={`flex sticky z-[85] ${showRequiredDetails ? 'top-[112px]' : 'top-[64px]'} bg-white backdrop-blur-md h-12`}>
                                     <div className="w-60 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[90] px-6">
-                                        <Users size={16} className="text-blue-600" />
+                                        <Users size={16} className="text-blue-600" weight="duotone" />
                                         <span className="text-sm font-black text-slate-900 tracking-tight">סך הכל פלוגה</span>
                                     </div>
                                     <div className="flex h-full">
@@ -411,7 +416,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                     <div className="flex-1 bg-slate-100/50 border-b border-slate-300 h-full" />
                                 </div>
 
-                                {teams.map(team => {
+                                {[...teams].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(team => {
                                     const teamPeople = sortedPeople.filter(p => p.teamId === team.id);
                                     if (teamPeople.length === 0) return null;
                                     const isCollapsed = collapsedTeams.has(team.id);
@@ -426,7 +431,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 {/* Sticky Name Part */}
                                                 <div className="w-60 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex items-center gap-2 shadow-md sticky right-0 z-[80] px-4">
                                                     <div className={`transition-transform duration-300 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
-                                                        <ChevronDown size={18} className="text-slate-600" />
+                                                        <ChevronDown size={18} className="text-slate-600" weight="duotone" />
                                                     </div>
                                                     <span className="text-base font-black text-slate-900 tracking-tight truncate">{team.name}</span>
                                                 </div>
@@ -546,7 +551,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         themeColor = "bg-amber-500";
                                                                         content = (
                                                                             <div className="flex flex-col items-center justify-center">
-                                                                                <MapPin size={12} className="text-amber-500 mb-0.5" />
+                                                                                <MapPin size={12} className="text-amber-500 mb-0.5" weight="duotone" />
                                                                                 <span className="text-[10px] font-black">יציאה</span>
                                                                                 <span className="text-[9px] font-bold opacity-70">
                                                                                     {avail.startHour !== '00:00' ? avail.startHour : ''}
@@ -561,7 +566,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                                                         content = (
                                                                             <div className="flex flex-col items-center justify-center gap-0.5">
-                                                                                <Home size={14} className="text-red-300" />
+                                                                                <Home size={14} className="text-red-300" weight="duotone" />
                                                                                 <span className="text-[10px] font-black">{isConstraint ? 'אילוץ' : 'בית'}</span>
                                                                                 {constraintText}
                                                                             </div>
@@ -586,7 +591,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                             themeColor = "bg-emerald-500";
                                                                             content = (
                                                                                 <div className="flex flex-col items-center justify-center">
-                                                                                    <MapPin size={12} className="text-emerald-500 mb-0.5" />
+                                                                                    <MapPin size={12} className="text-emerald-500 mb-0.5" weight="duotone" />
                                                                                     <span className="text-[10px] font-black">הגעה</span>
                                                                                     <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.startHour}</span>
                                                                                     {constraintText}
@@ -598,7 +603,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                             themeColor = "bg-amber-500";
                                                                             content = (
                                                                                 <div className="flex flex-col items-center justify-center">
-                                                                                    <MapPin size={12} className="text-amber-500 mb-0.5" />
+                                                                                    <MapPin size={12} className="text-amber-500 mb-0.5" weight="duotone" />
                                                                                     <span className="text-[10px] font-black">יציאה</span>
                                                                                     <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour}</span>
                                                                                     {constraintText}
@@ -609,7 +614,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                             themeColor = "bg-emerald-500";
                                                                             content = (
                                                                                 <div className="flex flex-col items-center justify-center gap-0.5">
-                                                                                    <MapPin size={14} className="text-emerald-500/50" />
+                                                                                    <MapPin size={14} className="text-emerald-500/50" weight="duotone" />
                                                                                     <span className="text-[10px] font-black">בסיס</span>
                                                                                     {constraintText}
                                                                                 </div>

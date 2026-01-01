@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Users, ClipboardList, BarChart2, Menu, User, Bell, LogOut, Clock, Settings, FileText, Shield, Layers, Dices, Mail, Anchor, Home, UserX, Package, Activity, HelpCircle, Car } from 'lucide-react';
+import { CalendarBlank as Calendar, Users, ClipboardText as ClipboardList, ChartBar as BarChart2, List as Menu, User, Bell, SignOut as LogOut, Clock, Gear as Settings, FileText, Shield, Stack as Layers, DiceTwo as Dices, EnvelopeSimple as Mail, Anchor, House as Home, UserMinus as UserX, Package, Pulse as Activity, Question as HelpCircle, Car } from '@phosphor-icons/react';
 import { ViewMode } from '@/types';
 import { SystemMessagePopup } from '../common/SystemMessagePopup';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -94,7 +94,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'home' ? 'text-blue-600' : 'text-slate-400'}`}
             >
               <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'home' ? 'bg-blue-50' : ''}`}>
-                <Home size={22} className={currentView === 'home' ? 'fill-blue-200/40' : ''} />
+                <Home size={22} className={currentView === 'home' ? 'fill-blue-200/40' : ''} weight="duotone" />
               </div>
               <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'home' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>בית</span>
               {currentView === 'home' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-b-full shadow-[0_1px_4px_rgba(37,99,235,0.3)]" />}
@@ -106,7 +106,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}`}
               >
                 <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'dashboard' ? 'bg-blue-50' : ''}`}>
-                  <Calendar size={22} className={currentView === 'dashboard' ? 'fill-blue-200/40' : ''} />
+                  <Calendar size={22} className={currentView === 'dashboard' ? 'fill-blue-200/40' : ''} weight="duotone" />
                 </div>
                 <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'dashboard' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>שיבוצים</span>
                 {currentView === 'dashboard' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-b-full shadow-[0_1px_4px_rgba(37,99,235,0.3)]" />}
@@ -119,7 +119,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'attendance' ? 'text-blue-600' : 'text-slate-400'}`}
               >
                 <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'attendance' ? 'bg-blue-50' : ''}`}>
-                  <Clock size={22} className={currentView === 'attendance' ? 'fill-blue-200/40' : ''} />
+                  <Clock size={22} className={currentView === 'attendance' ? 'fill-blue-200/40' : ''} weight="duotone" />
                 </div>
                 <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'attendance' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>נוכחות</span>
                 {currentView === 'attendance' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-b-full shadow-[0_1px_4px_rgba(37,99,235,0.3)]" />}
@@ -132,7 +132,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                 className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'gate' ? 'text-blue-600' : 'text-slate-400'}`}
               >
                 <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'gate' ? 'bg-blue-50' : ''}`}>
-                  <Car size={22} className={currentView === 'gate' ? 'fill-blue-200/40' : ''} />
+                  <Car size={22} className={currentView === 'gate' ? 'fill-blue-200/40' : ''} weight="duotone" />
                 </div>
                 <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'gate' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>ש.ג</span>
                 {currentView === 'gate' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-b-full shadow-[0_1px_4px_rgba(37,99,235,0.3)]" />}
@@ -144,7 +144,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${isMobileMenuOpen ? 'text-blue-600' : 'text-slate-400'}`}
             >
               <div className={`p-2 rounded-xl transition-all duration-300 ${isMobileMenuOpen ? 'bg-blue-50' : ''}`}>
-                <Menu size={22} />
+                <Menu size={22} weight="duotone" />
               </div>
               <span className="text-[10px] font-bold mt-1">תפריט</span>
               {isMobileMenuOpen && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-b-full shadow-[0_1px_4px_rgba(37,99,235,0.3)]" />}
@@ -156,31 +156,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       {/* Main Content - Scrollable */}
       <main ref={mainRef} className="flex-1 overflow-y-auto relative bg-idf-bg scroll-smooth">
         {/* Green Hero Section - Responsive height */}
-        <div className="bg-hero-pattern h-44 md:h-64 w-full absolute top-0 left-0 z-0 transition-all">
-          <div className="max-w-7xl mx-auto px-4 pt-4 md:pt-8 lg:pt-10">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-slate-800">
-              {currentView === 'home' && 'בית'}
-              {currentView === 'dashboard' && 'השיבוצים שלי'}
-              {currentView === 'personnel' && 'ניהול יחידה'}
-              {currentView === 'attendance' && 'יומן נוכחות'}
-              {currentView === 'tasks' && 'בנק משימות'}
-              {currentView === 'stats' && 'מרכז נתונים'}
-              {currentView === 'settings' && 'הגדרות ארגון'}
-              {currentView === 'logs' && 'לוגים'}
-              {currentView === 'org-logs' && 'יומן פעילות'}
-              {currentView === 'lottery' && 'הגרלות'}
-              {currentView === 'constraints' && 'ניהול אילוצים'}
-              {currentView === 'absences' && 'בקשות יציאה'}
-              {currentView === 'equipment' && 'דוח צלם / אמצעים'}
-              {currentView === 'faq' && 'מרכז עזרה'}
-              {currentView === 'contact' && 'צור קשר'}
-            </h1>
-            <div className="w-12 md:w-16 h-1 md:h-1.5 bg-white/40 rounded-full mt-1.5 md:mt-3"></div>
-          </div>
-        </div>
+        {/* Green Hero Section - Responsive height */}
+        <div className="bg-hero-pattern h-32 md:h-40 w-full absolute top-0 left-0 z-0 transition-all" />
 
         {/* Content Cards Container - Responsive spacing */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 pt-24 md:pt-32 pb-24 md:pb-10 min-h-full">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 pt-4 md:pt-6 pb-24 md:pb-10 min-h-full">
           {children}
         </div>
       </main>

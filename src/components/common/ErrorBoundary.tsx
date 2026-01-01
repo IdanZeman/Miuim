@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, ArrowRight } from 'lucide-react';
+import { Warning as AlertTriangle, ArrowsClockwise as RefreshCw, House as Home, ArrowRight } from '@phosphor-icons/react';
 import { logger } from '../../services/loggingService';
 
 interface Props {
@@ -83,7 +83,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 return (
                     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
                         <div className="flex flex-col items-center gap-4 opacity-80">
-                            <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+                            <RefreshCw size={32} className="text-blue-500 animate-spin" weight="duotone" />
                             <p className="text-slate-600 font-medium font-sans">מתעדכן לגרסה חדשה...</p>
                         </div>
                     </div>
@@ -94,7 +94,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
                     <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-8 text-center border-t-4 border-red-500">
                         <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <AlertTriangle className="w-10 h-10 text-red-600" />
+                            <AlertTriangle size={40} className="text-red-600" weight="duotone" />
                         </div>
 
                         <h1 className="text-2xl font-bold text-slate-800 mb-2">
@@ -116,7 +116,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                                 onClick={this.handleGoBack}
                                 className="flex items-center justify-center gap-2 px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors"
                             >
-                                <ArrowRight size={20} />
+                                <ArrowRight size={20} weight="duotone" />
                                 חזור אחורה
                             </button>
 
@@ -124,7 +124,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                                 onClick={this.handleReload}
                                 className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
                             >
-                                <RefreshCw size={20} />
+                                <RefreshCw size={20} weight="duotone" />
                                 רענן עמוד
                             </button>
 
@@ -132,7 +132,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                                 onClick={this.handleGoHome}
                                 className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-colors"
                             >
-                                <Home size={20} />
+                                <Home size={20} weight="duotone" />
                                 מסך ראשי
                             </button>
                         </div>

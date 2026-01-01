@@ -2,9 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../auth/AuthContext';
 import {
-    Activity, Users, Building2, TrendingUp,
-    ArrowUpRight, Trophy
-} from 'lucide-react';
+    Pulse as ActivityIcon,
+    Users as UsersIcon,
+    Buildings as Building2Icon,
+    TrendUp as TrendingUpIcon,
+    ArrowUpRight as ArrowUpRightIcon,
+    Trophy as TrophyIcon
+} from '@phosphor-icons/react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -209,256 +213,273 @@ export const SystemStatsDashboard: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center p-12">
-                <Activity className="animate-spin text-emerald-600 mr-2" />
-                <span className="text-slate-500">טוען נתונים...</span>
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-6rem)]">
+                <ActivityIcon className="animate-spin text-emerald-600 mb-4" size={32} weight="duotone" />
+                <span className="text-slate-500 font-bold text-sm">טוען נתונים...</span>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                    title="ארגונים במערכת"
-                    value={stats.totalOrgs}
-                    icon={<Building2 size={24} />}
-                    color="blue"
-                    subtext={`+${stats.newOrgsMonth} החודש`}
-                />
-                <StatCard
-                    title="משתמשים רשומים"
-                    value={stats.totalUsers}
-                    icon={<Users size={24} />}
-                    color="indigo"
-                    subtext={`+${stats.newUsersMonth} החודש`}
-                />
-                <StatCard
-                    title="פעילים כעת"
-                    value={stats.activeUsersNow}
-                    icon={<Activity size={24} />}
-                    color="emerald"
-                    subtext="ב-15 דקות האחרונות"
-                    pulse
-                />
-                <StatCard
-                    title="פעולות היום"
-                    value={stats.actions24h}
-                    icon={<TrendingUp size={24} />}
-                    color="amber"
-                    subtext="עומס מערכת"
-                />
-            </div>
-
-            {/* Growth Stats Breakdown */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center">
-                        <TrendingUp className="w-5 h-5 mr-2 text-rose-500" />
-                        מדדי צמיחה
-                    </h3>
-                    <div className="flex bg-slate-100 p-1 rounded-lg text-xs font-medium">
-                        {(['today', 'week', 'month'] as const).map((t) => (
-                            <button
-                                key={t}
-                                onClick={() => setGrowthTimeframe(t)}
-                                className={`px-4 py-1.5 rounded transition-all ${growthTimeframe === t ? 'bg-white shadow text-rose-600 font-bold' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                {t === 'today' ? 'היום' : t === 'week' ? 'השבוע' : 'החודש'}
-                            </button>
-                        ))}
+        <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative z-20">
+            {/* Premium Header */}
+            <div className="flex items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm shadow-emerald-100">
+                        <ActivityIcon size={24} weight="duotone" />
                     </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="flex items-center justify-between p-4 bg-blue-50/50 rounded-xl border border-blue-100">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
-                                <Building2 size={24} />
-                            </div>
-                            <div>
-                                <h4 className="text-slate-500 text-sm font-medium">ארגונים חדשים</h4>
-                                <div className="text-sm text-slate-400">
-                                    {growthTimeframe === 'today' ? 'נוספו היום' : growthTimeframe === 'week' ? 'נוספו השבוע' : 'נוספו החודש'}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="text-3xl font-bold text-slate-800">
-                            {getGrowthValue('orgs')}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
-                                <Users size={24} />
-                            </div>
-                            <div>
-                                <h4 className="text-slate-500 text-sm font-medium">משתמשים חדשים</h4>
-                                <div className="text-sm text-slate-400">
-                                    {growthTimeframe === 'today' ? 'הצטרפו היום' : growthTimeframe === 'week' ? 'הצטרפו השבוע' : 'הצטרפו החודש'}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="text-3xl font-bold text-slate-800">
-                            {getGrowthValue('users')}
-                        </div>
+                    <div>
+                        <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">מדדי מערכת</h2>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Global System Analytics</p>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Activity Chart */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold text-slate-800 flex items-center">
-                            <Activity className="w-5 h-5 mr-2 text-blue-500" />
-                            פעילות מערכת
-                        </h3>
-                        <div className="flex bg-slate-100 p-1 rounded-lg text-xs font-medium">
-                            <button
-                                onClick={() => setActivityTimeframe('today')}
-                                className={`px-3 py-1 rounded transition-all ${activityTimeframe === 'today' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                היום
-                            </button>
-                            <button
-                                onClick={() => setActivityTimeframe('week')}
-                                className={`px-3 py-1 rounded transition-all ${activityTimeframe === 'week' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                שבוע
-                            </button>
-                            <button
-                                onClick={() => setActivityTimeframe('month')}
-                                className={`px-3 py-1 rounded transition-all ${activityTimeframe === 'month' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                חודש
-                            </button>
-                        </div>
-                    </div>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 space-y-6">
 
-                    <div className="h-[250px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={stats.activityData}>
-                                <defs>
-                                    <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} interval={activityTimeframe === 'month' ? 3 : 0} />
-                                <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorActivity)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
+                {/* Key Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard
+                        title="ארגונים במערכת"
+                        value={stats.totalOrgs}
+                        icon={<Building2Icon size={24} weight="duotone" />}
+                        color="blue"
+                        subtext={`+${stats.newOrgsMonth} החודש`}
+                    />
+                    <StatCard
+                        title="משתמשים רשומים"
+                        value={stats.totalUsers}
+                        icon={<UsersIcon size={24} weight="duotone" />}
+                        color="indigo"
+                        subtext={`+${stats.newUsersMonth} החודש`}
+                    />
+                    <StatCard
+                        title="פעילים כעת"
+                        value={stats.activeUsersNow}
+                        icon={<ActivityIcon size={24} weight="duotone" />}
+                        color="emerald"
+                        subtext="ב-15 דקות האחרונות"
+                        pulse
+                    />
+                    <StatCard
+                        title="פעולות היום"
+                        value={stats.actions24h}
+                        icon={<TrendingUpIcon size={24} weight="duotone" />}
+                        color="amber"
+                        subtext="עומס מערכת"
+                    />
                 </div>
 
-                {/* New Organizations List */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
-                        <Building2 className="w-5 h-5 mr-2 text-green-500" />
-                        ארגונים חדשים
-                    </h3>
-                    <div className="space-y-4">
-                        {newOrgs.map(org => (
-                            <div key={org.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-sm">{org.name}</h4>
-                                    <p className="text-xs text-slate-500">{new Date(org.created_at).toLocaleDateString('he-IL')}</p>
-                                </div>
-                                <div className="text-xs font-medium bg-white px-2 py-1 rounded border border-slate-200 text-slate-600">
-                                    {org.users_count} משתמשים
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Top Organizations Table */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-bold text-slate-800 flex items-center">
-                            <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
-                            ארגונים מובילים (כל הזמנים)
+                {/* Growth Stats Breakdown */}
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
+                    <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                        <h3 className="text-sm font-black text-slate-800 flex items-center uppercase tracking-wider">
+                            <TrendingUpIcon className="w-5 h-5 mr-2 text-rose-500" weight="duotone" />
+                            מדדי צמיחה
                         </h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-slate-50 text-slate-500">
-                                <tr>
-                                    <th className="px-4 py-2 text-right rounded-r-lg">שם ארגון</th>
-                                    <th className="px-4 py-2 text-center">פעילות (30 יום)</th>
-                                    <th className="px-4 py-2 text-center rounded-l-lg">משתמשים</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {topOrgs.length > 0 ? topOrgs.map((org, idx) => (
-                                    <tr key={org.id} className="hover:bg-slate-50/50">
-                                        <td className="px-4 py-3 font-medium flex items-center gap-2">
-                                            <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${idx < 3 ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-500'}`}>
-                                                {idx + 1}
-                                            </span>
-                                            {org.name}
-                                        </td>
-                                        <td className="px-4 py-3 text-center text-slate-600 font-mono">
-                                            {org.shifts_count}
-                                        </td>
-                                        <td className="px-4 py-3 text-center text-slate-600 font-mono">
-                                            {org.users_count}
-                                        </td>
-                                    </tr>
-                                )) : (
-                                    <tr>
-                                        <td colSpan={3} className="text-center py-6 text-slate-400">לא נמצאו נתונים</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {/* User Leaderboard */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                        <h3 className="text-lg font-bold text-slate-800 flex items-center">
-                            <Users className="w-5 h-5 mr-2 text-purple-500" />
-                            משתמשים פעילים
-                        </h3>
-                        <div className="flex bg-slate-100 p-1 rounded-lg text-xs font-medium">
-                            {(['today', 'week', 'month', 'all'] as const).map((t) => (
+                        <div className="flex bg-white border border-slate-200/60 p-1 rounded-xl text-xs font-bold shadow-sm">
+                            {(['today', 'week', 'month'] as const).map((t) => (
                                 <button
                                     key={t}
-                                    onClick={() => setUserLeaderboardTimeframe(t)}
-                                    className={`px-3 py-1 rounded transition-all ${userLeaderboardTimeframe === t ? 'bg-white shadow text-purple-600 font-bold' : 'text-slate-500 hover:text-slate-700'}`}
+                                    onClick={() => setGrowthTimeframe(t)}
+                                    className={`px-4 py-1.5 rounded-lg transition-all ${growthTimeframe === t ? 'bg-slate-100 text-rose-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
-                                    {t === 'today' ? 'היום' : t === 'week' ? 'השבוע' : t === 'month' ? 'החודש' : 'הכל'}
+                                    {t === 'today' ? 'היום' : t === 'week' ? 'השבוע' : 'החודש'}
                                 </button>
                             ))}
                         </div>
                     </div>
-                    <div className="space-y-3">
-                        {topUsers.map((user, idx) => (
-                            <div key={`${user.id}-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${idx < 3 ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-600'}`}>
-                                        {idx + 1}
-                                    </div>
-                                    <div>
-                                        <div className="font-medium text-slate-800">{user.full_name}</div>
-                                        <div className="text-xs text-slate-500">{user.org_name}</div>
-                                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                                    <Building2Icon size={24} weight="duotone" />
                                 </div>
-                                <div className="text-sm font-bold text-slate-600">
-                                    {user.activity_count} פעולות
+                                <div>
+                                    <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wide">ארגונים חדשים</h4>
+                                    <div className="text-[10px] text-slate-400 font-medium">
+                                        {growthTimeframe === 'today' ? 'נוספו היום' : growthTimeframe === 'week' ? 'נוספו השבוע' : 'נוספו החודש'}
+                                    </div>
                                 </div>
                             </div>
-                        ))}
+                            <div className="text-3xl font-black text-slate-800 tracking-tight">
+                                {getGrowthValue('orgs')}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                                    <UsersIcon size={24} weight="duotone" />
+                                </div>
+                                <div>
+                                    <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wide">משתמשים חדשים</h4>
+                                    <div className="text-[10px] text-slate-400 font-medium">
+                                        {growthTimeframe === 'today' ? 'הצטרפו היום' : growthTimeframe === 'week' ? 'הצטרפו השבוע' : 'הצטרפו החודש'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="text-3xl font-black text-slate-800 tracking-tight">
+                                {getGrowthValue('users')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Main Activity Chart */}
+                    <div className="lg:col-span-2 bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-sm font-black text-slate-800 flex items-center uppercase tracking-wider">
+                                <ActivityIcon className="w-5 h-5 mr-2 text-blue-500" weight="duotone" />
+                                פעילות מערכת
+                            </h3>
+                            <div className="flex bg-white border border-slate-200/60 p-1 rounded-xl text-xs font-bold shadow-sm">
+                                <button
+                                    onClick={() => setActivityTimeframe('today')}
+                                    className={`px-3 py-1 rounded-lg transition-all ${activityTimeframe === 'today' ? 'bg-slate-100 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    היום
+                                </button>
+                                <button
+                                    onClick={() => setActivityTimeframe('week')}
+                                    className={`px-3 py-1 rounded-lg transition-all ${activityTimeframe === 'week' ? 'bg-slate-100 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    שבוע
+                                </button>
+                                <button
+                                    onClick={() => setActivityTimeframe('month')}
+                                    className={`px-3 py-1 rounded-lg transition-all ${activityTimeframe === 'month' ? 'bg-slate-100 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    חודש
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="h-[250px] w-full text-[10px] font-bold">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={stats.activityData}>
+                                    <defs>
+                                        <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                    <XAxis dataKey="date" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={activityTimeframe === 'month' ? 3 : 0} dy={10} />
+                                    <YAxis tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', backgroundColor: 'rgba(15, 23, 42, 0.95)', color: '#fff' }} />
+                                    <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorActivity)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* New Organizations List */}
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
+                        <h3 className="text-sm font-black text-slate-800 mb-6 flex items-center uppercase tracking-wider">
+                            <Building2Icon className="w-5 h-5 mr-2 text-green-500" weight="duotone" />
+                            ארגונים חדשים
+                        </h3>
+                        <div className="space-y-3">
+                            {newOrgs.map(org => (
+                                <div key={org.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:border-green-200 transition-all shadow-sm">
+                                    <div>
+                                        <h4 className="font-bold text-slate-800 text-xs">{org.name}</h4>
+                                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">{new Date(org.created_at).toLocaleDateString('he-IL')}</p>
+                                    </div>
+                                    <div className="text-[10px] font-bold bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 text-slate-500">
+                                        {org.users_count} users
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Top Organizations Table */}
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-sm font-black text-slate-800 flex items-center uppercase tracking-wider">
+                                <TrophyIcon className="w-5 h-5 mr-2 text-yellow-500" weight="duotone" />
+                                ארגונים מובילים (כל הזמנים)
+                            </h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                                <thead className="bg-slate-100 text-slate-400 border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-4 py-3 text-right font-bold uppercase tracking-wider rounded-tr-lg">שם ארגון</th>
+                                        <th className="px-4 py-3 text-center font-bold uppercase tracking-wider">פעילות (30 יום)</th>
+                                        <th className="px-4 py-3 text-center font-bold uppercase tracking-wider rounded-tl-lg">משתמשים</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {topOrgs.length > 0 ? topOrgs.map((org, idx) => (
+                                        <tr key={org.id} className="hover:bg-white group transition-colors">
+                                            <td className="px-4 py-3 font-bold flex items-center gap-2 group-hover:text-blue-600 transition-colors">
+                                                <span className={`flex items-center justify-center w-5 h-5 rounded-md text-[10px] font-black ${idx < 3 ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-200 text-slate-500'}`}>
+                                                    {idx + 1}
+                                                </span>
+                                                {org.name}
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-slate-500 font-mono font-medium">
+                                                {org.shifts_count}
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-slate-500 font-mono font-medium">
+                                                {org.users_count}
+                                            </td>
+                                        </tr>
+                                    )) : (
+                                        <tr>
+                                            <td colSpan={3} className="text-center py-6 text-slate-400 italic">לא נמצאו נתונים</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* User Leaderboard */}
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                            <h3 className="text-sm font-black text-slate-800 flex items-center uppercase tracking-wider">
+                                <UsersIcon className="w-5 h-5 mr-2 text-purple-500" weight="duotone" />
+                                משתמשים פעילים
+                            </h3>
+                            <div className="flex bg-white border border-slate-200/60 p-1 rounded-xl text-xs font-bold shadow-sm">
+                                {(['today', 'week', 'month', 'all'] as const).map((t) => (
+                                    <button
+                                        key={t}
+                                        onClick={() => setUserLeaderboardTimeframe(t)}
+                                        className={`px-3 py-1 rounded-lg transition-all ${userLeaderboardTimeframe === t ? 'bg-slate-100 text-purple-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        {t === 'today' ? 'היום' : t === 'week' ? 'שבוע' : t === 'month' ? 'חודש' : 'הכל'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            {topUsers.map((user, idx) => (
+                                <div key={`${user.id}-${idx}`} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:border-purple-200 hover:shadow-sm transition-all group">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg text-xs font-black transition-transform group-hover:scale-110 ${idx < 3 ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500'}`}>
+                                            {idx + 1}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-xs text-slate-800 mb-0.5">{user.full_name}</div>
+                                            <div className="text-[10px] text-slate-400">{user.org_name}</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-[10px] font-black text-slate-600 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 group-hover:bg-purple-50 group-hover:text-purple-600 group-hover:border-purple-100 transition-colors">
+                                        {user.activity_count} פעולות
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -475,25 +496,25 @@ const StatCard: React.FC<{
     pulse?: boolean;
 }> = ({ title, value, icon, color, subtext, pulse }) => {
     const colorClasses: any = {
-        blue: 'bg-blue-50 text-blue-600',
-        indigo: 'bg-indigo-50 text-indigo-600',
-        emerald: 'bg-emerald-50 text-emerald-600',
-        amber: 'bg-amber-50 text-amber-600',
+        blue: 'bg-blue-100/50 text-blue-600',
+        indigo: 'bg-indigo-100/50 text-indigo-600',
+        emerald: 'bg-emerald-100/50 text-emerald-600',
+        amber: 'bg-amber-100/50 text-amber-600',
     };
 
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow relative overflow-hidden">
+        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60 hover:border-slate-300 transition-all relative overflow-hidden group">
             <div className="flex justify-between items-start mb-4">
                 <div>
-                    <h3 className="text-slate-500 text-sm font-medium mb-1">{title}</h3>
-                    <div className="text-2xl font-bold text-slate-800">{value.toLocaleString()}</div>
+                    <h3 className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">{title}</h3>
+                    <div className="text-2xl font-black text-slate-800 tracking-tight">{value.toLocaleString()}</div>
                 </div>
-                <div className={`p-3 rounded-lg ${colorClasses[color] || 'bg-slate-100 text-slate-600'}`}>
+                <div className={`p-3 rounded-xl ${colorClasses[color] || 'bg-slate-100 text-slate-600'} group-hover:scale-110 transition-transform`}>
                     {icon}
                 </div>
             </div>
-            <div className="text-xs text-slate-400 font-medium flex items-center">
-                {pulse && <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />}
+            <div className="text-[10px] text-slate-400 font-bold flex items-center bg-white/50 w-fit px-2 py-1 rounded-lg">
+                {pulse && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse" />}
                 {subtext}
             </div>
         </div>

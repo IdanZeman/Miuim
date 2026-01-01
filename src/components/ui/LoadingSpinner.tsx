@@ -1,8 +1,18 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { CircleNotch } from '@phosphor-icons/react';
 
-export const LoadingSpinner: React.FC<{ size?: number; className?: string }> = ({ size = 24, className }) => {
+interface LoadingSpinnerProps {
+    size?: number;
+    className?: string; // For color, margins, etc.
+    weight?: 'bold' | 'duotone' | 'regular' | 'fill' | 'light' | 'thin';
+}
+
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 24, className, weight = 'bold' }) => {
     return (
-        <Loader2 size={size} className={`animate-spin text-blue-600 ${className || ''}`} />
+        <CircleNotch
+            size={size}
+            className={`animate-spin ${className || 'text-indigo-600'}`}
+            weight={weight}
+        />
     );
 };

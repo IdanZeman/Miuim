@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Team, TeamRotation } from '../types';
-import { ChevronRight, ChevronLeft, X, Calendar as CalendarIcon, Home, ArrowRight, ArrowLeft } from 'lucide-react';
-import { getEffectiveAvailability } from '../utils/attendanceUtils';
+import { Team, TeamRotation } from '@/types';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, CalendarBlank as CalendarIcon, House as Home, ArrowRight, ArrowLeft } from '@phosphor-icons/react';
+import { GenericModal } from '@/components/ui/GenericModal';
+import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 
 interface TeamAttendanceCalendarProps {
     team: Team;
@@ -79,7 +80,7 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
                     cellBg = 'bg-slate-50/50';
                     content = (
                         <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
-                            <Home size={18} />
+                            <Home size={18} weight="duotone" />
                             <span className="text-xs font-bold mt-1">בבית</span>
                         </div>
                     );
@@ -90,8 +91,8 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
 
                     content = (
                         <div className={`flex flex-col items-center justify-center h-full w-full rounded-md m-1 p-1 ${teamStyles.bg} ${teamStyles.text} ${teamStyles.border} border`}>
-                            {isArrival && <ArrowLeft size={16} className="mb-1" />}
-                            {isDeparture && <ArrowRight size={16} className="mb-1" />}
+                            {isArrival && <ArrowLeft size={16} className="mb-1" weight="duotone" />}
+                            {isDeparture && <ArrowRight size={16} className="mb-1" weight="duotone" />}
 
                             <span className="text-sm font-bold text-center leading-tight">
                                 {team.name}
@@ -128,41 +129,43 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
     // Weekdays header
     const weekDays = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8 animate-fadeIn" onClick={onClose}>
-            <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
-                {/* Header */}
-                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white text-slate-800 shrink-0">
-                    <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shadow-sm ${team.color.replace('border-', 'bg-').replace('text-', 'text-white ')}`}>
-                            {team.name.slice(0, 2)}
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold">{team.name}</h2>
-                            <p className="text-sm text-slate-500 flex items-center gap-1">
-                                <CalendarIcon size={12} />
-                                לוח סבב צוותי
-                            </p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
-                        <X size={24} />
-                    </button>
+    const modalTitle = (
+        <div className="flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shadow-sm ${team.color.replace('border-', 'bg-').replace('text-', 'text-white ')}`}>
+                {team.name.slice(0, 2)}
+            </div>
+            <div className="flex flex-col gap-0.5">
+                <h2 className="text-xl font-black text-slate-800 leading-tight">{team.name}</h2>
+                <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                    <CalendarIcon size={14} className="text-slate-400" weight="duotone" />
+                    <span>לוח סבב צוותי</span>
                 </div>
+            </div>
+        </div>
+    );
 
+    return (
+        <GenericModal
+            isOpen={true}
+            onClose={onClose}
+            title={modalTitle}
+            size="2xl"
+            className="h-[85vh]"
+        >
+            <div className="flex flex-col h-full">
                 {/* Calendar Controls */}
-                <div className="p-4 flex items-center justify-between bg-slate-50 border-b border-slate-100 shrink-0">
+                <div className="flex items-center justify-between mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
                     <button onClick={handlePrevMonth} className="p-2 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-slate-200 transition-all text-slate-600">
-                        <ChevronRight />
+                        <ChevronRight weight="duotone" />
                     </button>
-                    <h3 className="text-lg font-bold text-slate-700">{monthName}</h3>
+                    <h3 className="text-lg font-black text-slate-800 tracking-tight">{monthName}</h3>
                     <button onClick={handleNextMonth} className="p-2 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-slate-200 transition-all text-slate-600">
-                        <ChevronLeft />
+                        <ChevronLeft weight="duotone" />
                     </button>
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
+                <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30 border border-slate-200 rounded-2xl">
                     <div className="grid grid-cols-7 border-b border-slate-200 bg-white sticky top-0 z-10 shadow-sm">
                         {weekDays.map(day => (
                             <div key={day} className="py-3 text-center text-sm font-bold text-slate-500">
@@ -175,6 +178,6 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
                     </div>
                 </div>
             </div>
-        </div>
+        </GenericModal>
     );
 };

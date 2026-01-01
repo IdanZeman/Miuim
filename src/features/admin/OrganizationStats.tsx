@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../services/supabaseClient';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area, Cell } from 'recharts';
-import { Trophy, Activity, Eye, TrendingUp, Users } from 'lucide-react';
+import { Trophy, Pulse as Activity, Eye, TrendUp as TrendingUp, Users } from '@phosphor-icons/react';
 
 interface OrganizationStatsProps {
     organizationId: string;
@@ -150,20 +150,26 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
         activityTrend: []
     };
 
-    if (isLoading) {
-        return <div className="p-8 text-center text-slate-400 animate-pulse">טוען נתונים...</div>;
-    }
-
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Controls */}
-            <div className="flex justify-end mb-4">
-                <div className="flex bg-slate-100 p-1 rounded-lg text-xs font-medium">
+        <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative z-20">
+            {/* Premium Header */}
+            <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shadow-blue-100">
+                        <Activity size={24} weight="duotone" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">סטטיסטיקות אירגון</h2>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Organization Analytics</p>
+                    </div>
+                </div>
+
+                <div className="flex bg-slate-50 border border-slate-200/60 p-1 rounded-xl text-xs font-bold shadow-none w-full md:w-auto overflow-x-auto">
                     {(['today', 'week', 'month'] as const).map((t) => (
                         <button
                             key={t}
                             onClick={() => setTimeframe(t)}
-                            className={`px-3 py-1.5 rounded transition-all ${timeframe === t ? 'bg-white shadow text-blue-600 font-bold' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap flex-1 md:flex-none ${timeframe === t ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5' : 'text-slate-400 hover:text-slate-600'}`}
                         >
                             {t === 'today' ? 'היום' : t === 'week' ? '7 ימים' : '30 יום'}
                         </button>
@@ -171,143 +177,168 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                 </div>
             </div>
 
-            {/* Quick Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                        <p className="text-slate-500 text-xs font-bold mb-1">סה״כ פעולות</p>
-                        <h3 className="text-2xl font-black text-slate-800">{totalActions}</h3>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 space-y-6">
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4">
+                        <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                        <span className="text-xs font-bold animate-pulse">טוען נתונים...</span>
                     </div>
-                    <div className="p-3 bg-blue-50 text-blue-600 rounded-lg shrink-0">
-                        <Activity size={20} />
-                    </div>
-                </div>
+                ) : (
+                    <>
+                        {/* Quick Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex flex-col justify-between h-full group hover:border-blue-200 transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="p-2 bg-blue-100/50 text-blue-600 rounded-lg group-hover:scale-110 transition-transform">
+                                        <Activity size={20} weight="duotone" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Actions</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">{totalActions}</h3>
+                                    <p className="text-xs font-medium text-slate-500 mt-1">סה״כ פעולות</p>
+                                </div>
+                            </div>
 
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                        <p className="text-slate-500 text-xs font-bold mb-1">משתמש הכי פעיל</p>
-                        <h3 className="text-lg font-bold text-slate-800 break-words leading-tight" title={topUsers[0]?.name}>
-                            {topUsers[0]?.name || '-'}
-                        </h3>
-                        <p className="text-[10px] text-slate-400">{topUsers[0]?.count || 0} פעולות</p>
-                    </div>
-                    <div className="p-3 bg-amber-50 text-amber-600 rounded-lg shrink-0">
-                        <Trophy size={20} />
-                    </div>
-                </div>
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex flex-col justify-between h-full group hover:border-amber-200 transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="p-2 bg-amber-100/50 text-amber-600 rounded-lg group-hover:scale-110 transition-transform">
+                                        <Trophy size={20} weight="duotone" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Top User</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-800 tracking-tight truncate" title={topUsers[0]?.name}>
+                                        {topUsers[0]?.name || '-'}
+                                    </h3>
+                                    <p className="text-xs font-medium text-slate-500 mt-1">{topUsers[0]?.count || 0} פעולות</p>
+                                </div>
+                            </div>
 
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                        <p className="text-slate-500 text-xs font-bold mb-1">העמוד הנצפה ביותר</p>
-                        <h3 className="text-lg font-bold text-slate-800 break-words leading-tight" title={topPages[0]?.page}>
-                            {topPages[0]?.page || '-'}
-                        </h3>
-                        <p className="text-[10px] text-slate-400">{topPages[0]?.count || 0} צפיות</p>
-                    </div>
-                    <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg shrink-0">
-                        <Eye size={20} />
-                    </div>
-                </div>
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex flex-col justify-between h-full group hover:border-emerald-200 transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="p-2 bg-emerald-100/50 text-emerald-600 rounded-lg group-hover:scale-110 transition-transform">
+                                        <Eye size={20} weight="duotone" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Top Page</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-800 tracking-tight truncate" title={topPages[0]?.page}>
+                                        {topPages[0]?.page || '-'}
+                                    </h3>
+                                    <p className="text-xs font-medium text-slate-500 mt-1">{topPages[0]?.count || 0} צפיות</p>
+                                </div>
+                            </div>
 
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                        <p className="text-slate-500 text-xs font-bold mb-1">אינטראקטיביות (קליקים)</p>
-                        <h3 className="text-2xl font-black text-slate-800">
-                            {categories.find(c => c.name === 'ui')?.value || 0}
-                        </h3>
-                        <p className="text-[10px] text-slate-400">לחיצות על כפתורים ותפריטים</p>
-                    </div>
-                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg shrink-0">
-                        <Activity size={20} />
-                    </div>
-                </div>
-            </div>
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex flex-col justify-between h-full group hover:border-indigo-200 transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="p-2 bg-indigo-100/50 text-indigo-600 rounded-lg group-hover:scale-110 transition-transform">
+                                        <Activity size={20} weight="duotone" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Clicks</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                                        {categories.find(c => c.name === 'ui')?.value || 0}
+                                    </h3>
+                                    <p className="text-xs font-medium text-slate-500 mt-1">אינטראקטיביות</p>
+                                </div>
+                            </div>
+                        </div>
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Charts Row */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                {/* 1. Activity Trend */}
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                    <h4 className="font-bold text-slate-800 mb-4 flex items-center text-sm">
-                        <TrendingUp size={16} className="mr-2 text-blue-500" />
-                        מגמת פעילות
-                    </h4>
-                    <div className="h-64 w-full text-xs" dir="ltr">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={activityTrend}>
-                                <defs>
-                                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="date" axisLine={false} tickLine={false} />
-                                <YAxis axisLine={false} tickLine={false} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                />
-                                <Area type="monotone" dataKey="count" stroke="#3b82f6" fillOpacity={1} fill="url(#colorCount)" strokeWidth={3} />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
+                            {/* 1. Activity Trend */}
+                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
+                                <h4 className="font-black text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
+                                    <TrendingUp size={18} weight="duotone" className="mr-2 text-blue-500" />
+                                    מגמת פעילות
+                                </h4>
+                                <div className="h-64 w-full text-[10px] font-bold" dir="ltr">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={activityTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+                                            <Tooltip
+                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', backgroundColor: 'rgba(15, 23, 42, 0.95)', color: '#fff' }}
+                                                itemStyle={{ color: '#fff' }}
+                                                cursor={{ stroke: '#3b82f6', strokeWidth: 2 }}
+                                            />
+                                            <Area type="monotone" dataKey="count" stroke="#3b82f6" fillOpacity={1} fill="url(#colorCount)" strokeWidth={3} />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
 
-                {/* 2. Top 5 Users Bar Chart */}
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                    <h4 className="font-bold text-slate-800 mb-4 flex items-center text-sm">
-                        <Users size={16} className="mr-2 text-purple-500" />
-                        5 המשתמשים הפעילים ביותר
-                    </h4>
-                    <div className="h-64 w-full text-xs" dir="ltr">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={topUsers} layout="vertical" margin={{ left: 40 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                                <XAxis type="number" axisLine={false} tickLine={false} />
-                                <YAxis
-                                    dataKey="name"
-                                    type="category"
-                                    width={100}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fontSize: 11, fill: '#64748b' }}
-                                />
-                                <Tooltip
-                                    cursor={{ fill: '#f8fafc' }}
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                />
-                                <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={20} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
+                            {/* 2. Top 5 Users Bar Chart */}
+                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
+                                <h4 className="font-black text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
+                                    <Users size={18} weight="duotone" className="mr-2 text-purple-500" />
+                                    5 המשתמשים הפעילים ביותר
+                                </h4>
+                                <div className="h-64 w-full text-[10px] font-bold" dir="ltr">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={topUsers} layout="vertical" margin={{ left: 0, right: 20 }}>
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                                            <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+                                            <YAxis
+                                                dataKey="name"
+                                                type="category"
+                                                width={100}
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#64748b' }}
+                                            />
+                                            <Tooltip
+                                                cursor={{ fill: '#f1f5f9' }}
+                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', backgroundColor: 'rgba(15, 23, 42, 0.95)', color: '#fff' }}
+                                                itemStyle={{ color: '#fff' }}
+                                            />
+                                            <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={24} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
 
-                {/* 3. Category Breakdown Pie */}
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
-                    <h4 className="font-bold text-slate-800 mb-4 flex items-center text-sm">
-                        <Activity size={16} className="mr-2 text-slate-500" />
-                        התפלגות פעולות לפי קטגוריה
-                    </h4>
-                    <div className="h-64 w-full text-xs" dir="ltr">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={categories}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                <YAxis axisLine={false} tickLine={false} />
-                                <Tooltip
-                                    cursor={{ fill: '#f8fafc' }}
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                />
-                                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40}>
-                                    {categories.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
+                            {/* 3. Category Breakdown Pie */}
+                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60 lg:col-span-2">
+                                <h4 className="font-black text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
+                                    <Activity size={18} weight="duotone" className="mr-2 text-slate-500" />
+                                    התפלגות פעולות לפי קטגוריה
+                                </h4>
+                                <div className="h-64 w-full text-[10px] font-bold" dir="ltr">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={categories}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} dy={10} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8' }} />
+                                            <Tooltip
+                                                cursor={{ fill: '#f1f5f9' }}
+                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', backgroundColor: 'rgba(15, 23, 42, 0.95)', color: '#fff' }}
+                                                itemStyle={{ color: '#fff' }}
+                                            />
+                                            <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} className="hover:opacity-80 transition-opacity">
+                                                {categories.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
 
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

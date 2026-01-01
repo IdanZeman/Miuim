@@ -63,7 +63,7 @@ export interface Role {
   id: string;
   name: string;
   color: string;
-  icon?: string; // Icon name from Lucide
+  icon?: string; // Icon name from Phosphor
   organization_id?: string;
 }
 
@@ -146,7 +146,7 @@ export interface TaskTemplate {
   organization_id?: string;
   is247?: boolean; // Legacy flag, might be relevant for default filling
   assignedTeamId?: string; // NEW: Limit task to specific team
-  icon?: string; // Icon name from lucide-react
+  icon?: string; // Icon name from Phosphor
 }
 
 export interface Shift {
@@ -226,6 +226,7 @@ export interface AppState {
   absences: Absence[]; // NEW
   hourlyBlockages: HourlyBlockage[]; // NEW
   equipment: Equipment[]; // NEW
+  equipmentDailyChecks: EquipmentDailyCheck[]; // NEW - Daily check history
 }
 
 export type TicketStatus = 'new' | 'in_progress' | 'resolved';
@@ -301,13 +302,17 @@ export interface Equipment {
   notes?: string;
 }
 
-export interface EquipmentVerification {
+
+// Daily equipment check record (one per equipment per day)
+export interface EquipmentDailyCheck {
   id: string;
   equipment_id: string;
-  verified_by_id: string; // Profile ID
-  verified_at: string; // ISO Timestamp
+  organization_id: string;
+  check_date: string; // ISO Date "YYYY-MM-DD"
   status: EquipmentStatus;
-  notes?: string;
+  checked_by: string | null; // Profile ID
+  created_at: string; // ISO Timestamp
+  updated_at: string; // ISO Timestamp
 }
 
 export interface SystemMessage {

@@ -19,7 +19,7 @@ export default defineConfig({
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'supabase-vendor': ['@supabase/supabase-js'],
-          'ui-vendor': ['lucide-react']
+          'ui-vendor': ['@phosphor-icons/react']
         }
       }
     }

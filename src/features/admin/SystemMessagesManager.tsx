@@ -3,12 +3,13 @@ import { supabase } from '../../services/supabaseClient';
 import { SystemMessage } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Loader2, Plus, Trash2, Edit2, Save, X, Megaphone, CheckCircle, XCircle } from 'lucide-react';
+import { CircleNotch as Loader2, Plus, Trash as Trash2, PencilSimple as Edit2, FloppyDisk as Save, X, Megaphone, CheckCircle, XCircle } from '@phosphor-icons/react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Button } from '@/components/ui/Button';
 import { useConfirmation } from '@/hooks/useConfirmation';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { DashboardSkeleton } from '@/components/ui/DashboardSkeleton';
 
 export const SystemMessagesManager: React.FC = () => {
     const { organization } = useAuth();
@@ -132,7 +133,7 @@ export const SystemMessagesManager: React.FC = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2">
-                    <Megaphone size={20} className="text-blue-600" />
+                    <Megaphone size={20} weight="duotone" className="text-blue-600" />
                     הודעות מערכת (פופאפים)
                 </h2>
                 {!isEditing && (
@@ -140,6 +141,7 @@ export const SystemMessagesManager: React.FC = () => {
                         onClick={() => setIsEditing(true)}
                         variant="primary"
                         icon={Plus}
+                        iconWeight="bold"
                     >
                         הודעה חדשה
                     </Button>
@@ -202,12 +204,10 @@ export const SystemMessagesManager: React.FC = () => {
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 {isLoading ? (
-                    <div className="p-12 flex justify-center text-slate-400">
-                        <Loader2 className="animate-spin" size={32} />
-                    </div>
+                    <DashboardSkeleton />
                 ) : messages.length === 0 ? (
                     <div className="p-12 text-center text-slate-400">
-                        <Megaphone size={48} className="mx-auto mb-3 opacity-20" />
+                        <Megaphone size={48} weight="duotone" className="mx-auto mb-3 opacity-20" />
                         <p>לא נמצאו הודעות מערכת.</p>
                     </div>
                 ) : (
@@ -229,12 +229,12 @@ export const SystemMessagesManager: React.FC = () => {
                                             <td className="px-6 py-4">
                                                 {msg.is_active ? (
                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                                        <CheckCircle size={12} />
+                                                        <CheckCircle size={12} weight="duotone" />
                                                         פעיל
                                                     </span>
                                                 ) : (
                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                                        <XCircle size={12} />
+                                                        <XCircle size={12} weight="duotone" />
                                                         לא פעיל
                                                     </span>
                                                 )}
@@ -280,12 +280,12 @@ export const SystemMessagesManager: React.FC = () => {
                                         <div>
                                             {msg.is_active ? (
                                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                                    <CheckCircle size={12} />
+                                                    <CheckCircle size={12} weight="duotone" />
                                                     פעיל
                                                 </span>
                                             ) : (
                                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                                    <XCircle size={12} />
+                                                    <XCircle size={12} weight="duotone" />
                                                     לא פעיל
                                                 </span>
                                             )}

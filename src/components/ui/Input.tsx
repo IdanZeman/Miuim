@@ -1,10 +1,10 @@
 import React, { forwardRef } from 'react';
-import { LucideIcon } from 'lucide-react';
+import { Icon } from '@phosphor-icons/react';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
     error?: string;
-    icon?: LucideIcon;
+    icon?: Icon;
     containerClassName?: string;
 }
 
@@ -20,7 +20,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 <div className="relative">
                     {Icon && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                            <Icon size={18} aria-hidden="true" />
+                            <Icon size={18} aria-hidden="true" weight="duotone" />
                         </div>
                     )}
                     <input
@@ -34,7 +34,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                             ${error ? 'border-red-500 focus:ring-red-200' : 'border-slate-300 focus:ring-blue-100 focus:border-blue-500'} 
                             rounded-xl 
                             text-slate-900 
-                            text-base md:text-sm 
+                            text-base 
                             placeholder:text-slate-400 
                             focus:outline-none 
                             focus:ring-4 

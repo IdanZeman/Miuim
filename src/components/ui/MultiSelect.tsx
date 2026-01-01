@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check, Search, X } from 'lucide-react';
+import { CaretDown as ChevronDown, Check, MagnifyingGlass as Search, X } from '@phosphor-icons/react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
 export interface MultiSelectOption {
@@ -127,7 +127,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                                                 className="cursor-pointer hover:text-blue-900"
                                                 onClick={(e) => { e.stopPropagation(); handleSelect(val); }}
                                             >
-                                                <X size={12} />
+                                                <X size={12} weight="bold" />
                                             </span>
                                         </span>
                                     );
@@ -136,7 +136,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                         </div>
                     )}
                 </div>
-                <ChevronDown size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} weight="duotone" />
             </button>
 
             {isOpen && createPortal(
@@ -148,7 +148,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                     {searchable && (
                         <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10">
                             <div className="relative">
-                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} weight="bold" />
                                 <input
                                     type="text"
                                     value={searchTerm}
@@ -178,7 +178,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                                             {opt.icon && <span className="text-slate-400">{opt.icon}</span>}
                                             {opt.label}
                                         </span>
-                                        {isSelected && <Check size={16} className="text-blue-600" />}
+                                        {isSelected && <Check size={16} className="text-blue-600" weight="bold" />}
                                     </button>
                                 );
                             })

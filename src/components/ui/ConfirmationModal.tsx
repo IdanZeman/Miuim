@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Info, ShieldAlert } from 'lucide-react';
-import { Modal } from './Modal';
+import React from 'react';
+import { Warning as AlertTriangle, Info, WarningCircle as ShieldAlert } from '@phosphor-icons/react';
+import { GenericModal } from './GenericModal';
 import { Button } from './Button';
 
 interface ConfirmationModalProps {
@@ -31,24 +31,24 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         switch (type) {
             case 'danger':
                 return {
-                    icon: <ShieldAlert size={24} strokeWidth={2.5} />,
+                    icon: <ShieldAlert size={28} weight="duotone" />,
                     iconBg: 'bg-red-50',
                     iconColor: 'text-red-600',
                     buttonVariant: 'danger' as const,
                 };
             case 'info':
                 return {
-                    icon: <Info size={24} strokeWidth={2.5} />,
+                    icon: <Info size={28} weight="duotone" />,
                     iconBg: 'bg-blue-50',
                     iconColor: 'text-blue-600',
                     buttonVariant: 'primary' as const,
                 };
             default: // warning
                 return {
-                    icon: <AlertTriangle size={24} strokeWidth={2.5} />,
+                    icon: <AlertTriangle size={28} weight="duotone" />,
                     iconBg: 'bg-amber-50',
                     iconColor: 'text-amber-600',
-                    buttonVariant: 'primary' as const, // Or specific 'warning' variant if available, sticking to primary/destructive usually
+                    buttonVariant: 'primary' as const,
                 };
         }
     };
@@ -56,17 +56,15 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     const config = getConfig();
 
     return (
-        <Modal
+        <GenericModal
             isOpen={isOpen}
             onClose={onCancel}
             title={
                 <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl ${config.iconBg} ${config.iconColor} flex items-center justify-center shrink-0`}>
+                    <div className={`w-10 h-10 rounded-xl ${config.iconBg} ${config.iconColor} flex items-center justify-center shrink-0`}>
                         {config.icon}
                     </div>
-                    <div>
-                        <h2 className="text-xl font-black text-slate-800">{title}</h2>
-                    </div>
+                    <span>{title}</span>
                 </div>
             }
             footer={
@@ -74,24 +72,25 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     <Button
                         variant="ghost"
                         onClick={onCancel}
-                        className="flex-1 font-bold text-slate-500 hover:text-slate-700"
+                        className="flex-1 font-bold text-slate-500 hover:text-slate-700 h-12 rounded-xl"
                     >
                         {cancelText}
                     </Button>
                     <Button
                         variant={config.buttonVariant}
                         onClick={onConfirm}
-                        className={`flex-1 shadow-lg ${type === 'danger' ? 'shadow-red-200' : 'shadow-indigo-200'} ${type === 'warning' ? 'bg-amber-500 hover:bg-amber-600 border-amber-600 text-white' : ''}`}
+                        className="flex-1 h-12 rounded-xl text-base font-bold shadow-lg"
                     >
                         {confirmText}
                     </Button>
                 </div>
             }
             size="sm"
+            closeIcon="none" // Standard confirmation usually doesn't need an X if it has massive buttons
         >
-            <div className="text-slate-600 font-medium leading-relaxed">
+            <div className="text-slate-600 font-medium leading-relaxed text-base pt-2">
                 {children ? children : message}
             </div>
-        </Modal>
+        </GenericModal>
     );
 };

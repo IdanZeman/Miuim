@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import { Person } from '../../types';
-import { User, Search, CheckCircle, AlertCircle, X, Loader2, UserCircle2 } from 'lucide-react';
+import { UserCircle as UserIcon, MagnifyingGlass as SearchIcon, CheckCircle as CheckCircleIcon, WarningCircle as AlertCircleIcon, CircleNotch as LoaderIcon } from '@phosphor-icons/react';
 import { mapPersonFromDB } from '../../services/supabaseClient';
+import { GenericModal } from '../../components/ui/GenericModal';
 
 interface ClaimProfileModalProps {
     isOpen: boolean;
@@ -19,14 +19,10 @@ export const ClaimProfileModal: React.FC<ClaimProfileModalProps> = ({ isOpen, on
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
     const [claiming, setClaiming] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             fetchUnlinkedPeople();
-            requestAnimationFrame(() => setIsVisible(true));
-        } else {
-            setIsVisible(false);
         }
     }, [isOpen, profile?.organization_id]);
 
@@ -77,126 +73,106 @@ export const ClaimProfileModal: React.FC<ClaimProfileModalProps> = ({ isOpen, on
         }
     };
 
-    const handleBackdropClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) onClose();
-    };
-
-    if (!isOpen) return null;
-
     const filteredPeople = people.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    return createPortal(
-        <div
-            className={`fixed inset-0 z-[9999] flex flex-col justify-end md:justify-center md:items-center transition-all duration-300 ${isVisible ? 'bg-slate-900/60 backdrop-blur-sm' : 'bg-transparent'}`}
-            onClick={handleBackdropClick}
-        >
-            <div
-                className={`bg-white w-full md:max-w-xl rounded-t-[2.5rem] md:rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] transform transition-all duration-500 ease-out border-t md:border border-slate-200/60 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
-                onClick={(e) => e.stopPropagation()}
+    const modalTitle = (
+        <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-200/50">
+                <UserIcon size={24} weight="duotone" />
+            </div>
+            <div>
+                <h2 className="text-xl md:text-2xl font-black text-slate-900">מי אתה ברשימה?</h2>
+                <p className="text-slate-500 text-sm font-medium">בחר את השם שלך לסנכרון הפרופיל</p>
+            </div>
+        </div>
+    );
+
+    const modalFooter = (
+        <div className="flex flex-col w-full gap-4">
+            {error && (
+                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-red-200 w-full" dir="rtl">
+                    <AlertCircleIcon size={20} className="shrink-0" weight="duotone" />
+                    {error}
+                </div>
+            )}
+            <button
+                onClick={handleClaim}
+                disabled={!selectedPerson || claiming}
+                className="w-full h-14 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-emerald-600/20 hover:-translate-y-1 active:scale-[0.98] disabled:opacity-50 disabled:translate-y-0 flex items-center justify-center gap-4 text-xl"
             >
-                {/* Mobile Drag Handle */}
-                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto my-3 shrink-0 md:hidden" />
+                {claiming ? (
+                    <LoaderIcon className="animate-spin" size={24} />
+                ) : (
+                    <>
+                        <CheckCircleIcon size={28} weight="bold" />
+                        <span>אשר והתחבר</span>
+                    </>
+                )}
+            </button>
+        </div>
+    );
 
-                {/* Header */}
-                <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-slate-50 md:rounded-t-[2rem]">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-200/50">
-                            <UserCircle2 size={24} />
-                        </div>
-                        <div>
-                            <h2 className="text-xl md:text-2xl font-black text-slate-900">מי אתה ברשימה?</h2>
-                            <p className="text-slate-500 text-sm font-medium">בחר את השם שלך לסנכרון הפרופיל</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-all"
-                    >
-                        <X size={24} />
-                    </button>
+    return (
+        <GenericModal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={modalTitle}
+            footer={modalFooter}
+            size="lg"
+        >
+            <div className="space-y-6" dir="rtl">
+                <div className="relative group sticky top-0 z-10">
+                    <SearchIcon className="absolute right-5 top-1/2 -translate-y-1/2 text-emerald-500 transition-transform group-focus-within:scale-110" size={20} weight="bold" />
+                    <input
+                        type="text"
+                        placeholder="חפש את השם שלך..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="w-full pr-14 pl-6 py-4 rounded-2xl bg-white border-2 border-slate-100 focus:border-emerald-500 focus:outline-none text-slate-900 text-lg transition-all font-bold placeholder:font-normal placeholder:text-slate-300 shadow-sm focus:shadow-md"
+                        autoFocus
+                    />
                 </div>
 
-                {/* Body */}
-                <div className="p-6 md:p-8 overflow-y-auto flex-1 space-y-6">
-                    <div className="relative group">
-                        <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-emerald-500 transition-transform group-focus-within:scale-110" size={20} />
-                        <input
-                            type="text"
-                            placeholder="חפש את השם שלך..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className="w-full pr-14 pl-6 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-500 focus:bg-white focus:outline-none text-slate-900 text-lg transition-all font-bold placeholder:font-normal placeholder:text-slate-300 shadow-inner"
-                            autoFocus
-                        />
-                    </div>
-
-                    <div className="border-2 border-slate-100 rounded-2xl bg-white overflow-hidden min-h-[300px] flex flex-col transition-all">
-                        {loading ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-4 p-12">
-                                <div className="w-12 h-12 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin" />
-                                <span className="font-bold text-slate-500">טוען רשימת לוחמים...</span>
+                <div className="border-2 border-slate-100 rounded-2xl bg-white overflow-hidden min-h-[300px] flex flex-col transition-all">
+                    {loading ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-4 p-12">
+                            <div className="w-12 h-12 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin" />
+                            <span className="font-bold text-slate-500">טוען רשימת לוחמים...</span>
+                        </div>
+                    ) : filteredPeople.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-12 text-center gap-4">
+                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-2">
+                                <SearchIcon size={32} weight="bold" />
                             </div>
-                        ) : filteredPeople.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-12 text-center gap-4">
-                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-2">
-                                    <Search size={32} />
-                                </div>
-                                <p className="font-bold text-slate-500">{searchTerm ? 'לא נמצאו תוצאות' : 'אין לוחמים זמינים'}</p>
-                            </div>
-                        ) : (
-                            <div className="divide-y divide-slate-100 overflow-y-auto max-h-[400px]">
-                                {filteredPeople.map(person => (
-                                    <button
-                                        key={person.id}
-                                        onClick={() => setSelectedPerson(person)}
-                                        className={`w-full p-5 text-right flex items-center justify-between hover:bg-emerald-50 transition-all duration-200 group ${selectedPerson?.id === person.id ? 'bg-emerald-50 ring-inset ring-2 ring-emerald-500' : ''}`}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-black transition-all ${selectedPerson?.id === person.id ? 'bg-emerald-500 scale-110 shadow-lg shadow-emerald-500/20' : 'bg-slate-300 group-hover:bg-emerald-400'}`}>
-                                                {person.name.charAt(0)}
-                                            </div>
-                                            <span className={`text-xl transition-colors ${selectedPerson?.id === person.id ? 'text-emerald-900 font-black' : 'text-slate-700 font-bold group-hover:text-emerald-800'}`}>
-                                                {person.name}
-                                            </span>
+                            <p className="font-bold text-slate-500">{searchTerm ? 'לא נמצאו תוצאות' : 'אין לוחמים זמינים'}</p>
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-slate-100 overflow-y-auto max-h-[400px] custom-scrollbar">
+                            {filteredPeople.map(person => (
+                                <button
+                                    key={person.id}
+                                    onClick={() => setSelectedPerson(person)}
+                                    className={`w-full p-5 text-right flex items-center justify-between hover:bg-emerald-50 transition-all duration-200 group ${selectedPerson?.id === person.id ? 'bg-emerald-50 ring-inset ring-2 ring-emerald-500' : ''}`}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-black transition-all ${selectedPerson?.id === person.id ? 'bg-emerald-500 scale-110 shadow-lg shadow-emerald-500/20' : 'bg-slate-300 group-hover:bg-emerald-400'}`}>
+                                            {person.name.charAt(0)}
                                         </div>
-                                        {selectedPerson?.id === person.id && (
-                                            <CheckCircle size={28} className="text-emerald-600 animate-in zoom-in duration-300" />
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Footer */}
-                <div className="p-6 md:p-8 pb-10 md:pb-8 bg-slate-50 border-t border-slate-100 shrink-0">
-                    {error && (
-                        <div className="mb-4 bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-red-200">
-                            <AlertCircle size={20} className="shrink-0" />
-                            {error}
+                                        <span className={`text-xl transition-colors ${selectedPerson?.id === person.id ? 'text-emerald-900 font-black' : 'text-slate-700 font-bold group-hover:text-emerald-800'}`}>
+                                            {person.name}
+                                        </span>
+                                    </div>
+                                    {selectedPerson?.id === person.id && (
+                                        <CheckCircleIcon size={28} className="text-emerald-600 animate-in zoom-in duration-300" weight="duotone" />
+                                    )}
+                                </button>
+                            ))}
                         </div>
                     )}
-
-                    <button
-                        onClick={handleClaim}
-                        disabled={!selectedPerson || claiming}
-                        className="w-full h-16 md:h-14 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-emerald-600/20 hover:-translate-y-1 active:scale-[0.98] disabled:opacity-50 disabled:translate-y-0 flex items-center justify-center gap-4 text-xl"
-                    >
-                        {claiming ? (
-                            <Loader2 className="animate-spin" size={24} />
-                        ) : (
-                            <>
-                                <CheckCircle size={28} />
-                                <span>אשר והתחבר</span>
-                            </>
-                        )}
-                    </button>
                 </div>
             </div>
-        </div>,
-        document.body
+        </GenericModal>
     );
 };

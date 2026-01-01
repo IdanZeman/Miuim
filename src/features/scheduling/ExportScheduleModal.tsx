@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Modal } from '../../components/ui/Modal';
+import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import { DatePicker } from '../../components/ui/DatePicker';
 import { Shift, Person, TaskTemplate } from '../../types';
-import { Download, FileDown } from 'lucide-react';
+import { DownloadSimple as Download, FileArrowDown as FileDown } from '@phosphor-icons/react';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../services/loggingService';
 
@@ -123,11 +123,11 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
     const modalTitle = (
         <div className="flex flex-col gap-0.5">
             <h3 className="text-xl font-black text-slate-800 leading-tight flex items-center gap-2">
-                <FileDown className="text-blue-500" size={20} />
+                <FileDown className="text-blue-500" size={20} weight="duotone" />
                 <span>ייצוא נתוני שיבוץ</span>
             </h3>
             <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                <Download size={12} className="text-blue-500" />
+                <Download size={12} className="text-blue-500" weight="duotone" />
                 <span>הפקת קובץ CSV לניתוח באקסל</span>
             </div>
         </div>
@@ -153,7 +153,7 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
     );
 
     return (
-        <Modal
+        <GenericModal
             isOpen={isOpen}
             onClose={onClose}
             title={modalTitle}
@@ -163,24 +163,16 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
             <div className="flex flex-col gap-6 py-2">
                 {/* Date Range */}
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">מתאריך</label>
-                        <Input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="bg-white"
-                        />
-                    </div>
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">עד תאריך</label>
-                        <Input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="bg-white"
-                        />
-                    </div>
+                    <DatePicker
+                        label="מתאריך"
+                        value={startDate}
+                        onChange={setStartDate}
+                    />
+                    <DatePicker
+                        label="עד תאריך"
+                        value={endDate}
+                        onChange={setEndDate}
+                    />
                 </div>
 
                 {/* Task Selection */}
@@ -222,6 +214,6 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
                     )}
                 </div>
             </div>
-        </Modal>
+        </GenericModal>
     );
 };

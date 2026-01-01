@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Person, Shift, TaskTemplate } from '../../types';
-import { Moon, Sun, Clock, Award } from 'lucide-react';
+import { Moon, Sun, Clock, Medal as Award } from '@phosphor-icons/react';
 
 interface PersonalStatsProps {
     person: Person;
@@ -118,10 +118,10 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, ta
 
                 {/* Bottom Slim Bar - Day/Night Ratio with Icons */}
                 <div className="absolute bottom-2 right-4 opacity-50">
-                    <Sun size={10} className="text-amber-500 fill-amber-500" />
+                    <Sun size={10} className="text-amber-500 fill-amber-500" weight="fill" />
                 </div>
                 <div className="absolute bottom-2 left-4 opacity-50">
-                    <Moon size={10} className="text-indigo-500 fill-indigo-500" />
+                    <Moon size={10} className="text-indigo-500 fill-indigo-500" weight="fill" />
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-1.5 flex opacity-90">
                     <div style={{ width: `${dayRatio}%` }} className="bg-amber-400 h-full transition-all duration-500" />
@@ -161,14 +161,14 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, ta
                         <div className="col-span-3 grid grid-cols-2 gap-4 pt-1">
                             <div className="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-slate-100">
                                 <div className="flex items-center gap-2">
-                                    <Clock size={14} className="text-blue-500" />
+                                    <Clock size={14} className="text-blue-500" weight="duotone" />
                                     <span className="text-xs font-bold text-slate-600">סה"כ שעות</span>
                                 </div>
                                 <span className="font-black text-slate-800">{stats.totalHours.toFixed(0)}</span>
                             </div>
                             <div className="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-slate-100">
                                 <div className="flex items-center gap-2">
-                                    <Moon size={14} className="text-indigo-500" />
+                                    <Moon size={14} className="text-indigo-500" weight="duotone" />
                                     <span className="text-xs font-bold text-slate-600">שעות לילה</span>
                                 </div>
                                 <span className="font-black text-slate-800">{stats.nightHours}</span>

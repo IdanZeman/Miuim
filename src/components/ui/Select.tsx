@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { createPortal } from 'react-dom'; // NEW
-import { ChevronDown, Check, Search, LucideIcon, Filter } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { CaretDown as ChevronDownIcon, Check as CheckIcon, MagnifyingGlass as SearchIcon, Funnel as FilterIcon, Icon } from '@phosphor-icons/react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { logger } from '../../lib/logger';
 import { analytics, trackEvent } from '../../services/analytics';
@@ -17,7 +17,7 @@ interface SelectProps {
     options: SelectOption[];
     label?: string; // Added label prop
     placeholder?: string;
-    icon?: LucideIcon;
+    icon?: Icon;
     className?: string;
     containerClassName?: string;
     disabled?: boolean;
@@ -172,14 +172,14 @@ export const Select: React.FC<SelectProps> = ({
                     aria-haspopup="listbox"
                     aria-expanded={isOpen}
                 >
-                    {Icon ? <Icon size={20} aria-hidden="true" /> : <Filter size={20} aria-hidden="true" />}
+                    {Icon ? <Icon size={20} aria-hidden="true" weight="duotone" /> : <FilterIcon size={20} aria-hidden="true" weight="duotone" />}
                 </button>
             ) : (
                 <button
                     type="button"
                     onClick={toggleOpen}
                     disabled={disabled}
-                    className={`w-full py-2.5 pr-4 pl-10 rounded-xl border bg-slate-50 flex items-center justify-between transition-all shadow-sm text-slate-700 text-sm font-bold text-right
+                    className={`w-full py-2.5 pr-4 pl-10 rounded-xl border bg-slate-50 flex items-center justify-between transition-all shadow-sm text-slate-700 text-base font-bold text-right
                         ${isOpen ? 'ring-2 ring-blue-100 border-blue-500 bg-white' : 'border-slate-200 hover:border-slate-300 hover:bg-white'}
                         ${disabled ? 'opacity-60 cursor-not-allowed bg-slate-100' : 'cursor-pointer'}
                         ${className}
@@ -195,13 +195,13 @@ export const Select: React.FC<SelectProps> = ({
                     {/* Left Icon */}
                     {Icon && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                            <Icon size={18} aria-hidden="true" />
+                            <Icon size={18} aria-hidden="true" weight="duotone" />
                         </div>
                     )}
 
                     {/* Chevron Icon */}
                     <div className={`absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-500' : ''}`}>
-                        <ChevronDown size={18} aria-hidden="true" />
+                        <ChevronDownIcon size={18} aria-hidden="true" weight="bold" />
                     </div>
                 </button>
             )}
@@ -225,14 +225,14 @@ export const Select: React.FC<SelectProps> = ({
                     {searchable && (
                         <div className="p-2 border-b border-slate-100 sticky top-0 bg-white z-10">
                             <div className="relative">
-                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} aria-hidden="true" />
+                                <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} aria-hidden="true" weight="bold" />
                                 <input
                                     ref={searchInputRef}
                                     type="text"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     placeholder="חיפוש..."
-                                    className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-sans"
+                                    className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-lg text-base focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-sans"
                                     onClick={(e) => e.stopPropagation()}
                                     autoFocus
                                     aria-label="חיפוש באפשרויות"
@@ -247,7 +247,7 @@ export const Select: React.FC<SelectProps> = ({
                                 key={option.value}
                                 type="button"
                                 onClick={() => handleSelect(option.value)}
-                                className={`w-full text-right px-3 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-between group
+                                className={`w-full text-right px-3 py-2.5 rounded-lg text-base font-medium transition-colors flex items-center justify-between group
                                     ${option.value === value
                                         ? 'bg-blue-50 text-blue-700'
                                         : 'text-slate-700 hover:bg-slate-50'
@@ -261,7 +261,7 @@ export const Select: React.FC<SelectProps> = ({
                                     {option.label}
                                 </span>
                                 {option.value === value && (
-                                    <Check size={16} className="text-blue-600" aria-hidden="true" />
+                                    <CheckIcon size={16} className="text-blue-600" aria-hidden="true" weight="bold" />
                                 )}
                             </button>
                         ))}

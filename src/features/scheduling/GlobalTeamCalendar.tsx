@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Person, Team, TeamRotation, Absence } from '@/types';
-import { ChevronRight, ChevronLeft, Calendar as CalendarIcon, ArrowRight, ArrowLeft, Home, X, Settings, User, Users, ChevronDown, ListChecks, Info, Filter } from 'lucide-react';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CalendarBlank as CalendarIcon, ArrowRight, ArrowLeft, House as Home, X, Gear as Settings, User, Users, CaretDown as ChevronDown, ListChecks, Info, Funnel as Filter } from '@phosphor-icons/react';
 import { getEffectiveAvailability, getRotationStatusForDate } from '@/utils/attendanceUtils';
 
 interface GlobalTeamCalendarProps {

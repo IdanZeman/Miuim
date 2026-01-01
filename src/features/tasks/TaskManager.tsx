@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { TaskTemplate, Role, SchedulingSegment, Team } from '@/types';
-import { CheckSquare, Plus, Pencil, Trash2, Copy, Layers, Clock, Users, Calendar, MoreVertical } from 'lucide-react';
+import { CheckSquare, Plus, PencilSimple as Pencil, Trash, Copy, Stack as Layers, Clock, Users, CalendarBlank as Calendar, DotsThreeVertical as MoreVertical, Globe } from '@phosphor-icons/react';
 import { useToast } from '@/contexts/ToastContext';
-import { SheetModal } from '@/components/ui/SheetModal';
-import { Modal } from '@/components/ui/Modal';
+import { GenericModal } from '@/components/ui/GenericModal';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { useAuth } from '@/features/auth/AuthContext';
 import { SegmentEditor } from './SegmentEditor';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { logger } from '@/services/loggingService';
 
 interface TaskManagerProps {
@@ -174,7 +175,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 min-h-[600px] relative pb-20 md:pb-6 overflow-hidden">
             <div className="flex flex-col md:flex-row justify-between items-center p-4 md:p-6 border-b border-slate-100 gap-4 sticky top-0 bg-white z-10 transition-shadow">
                 <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 md:gap-3">
-                    <span className="bg-blue-50 p-2 rounded-lg text-blue-600"><CheckSquare size={20} /></span>
+                    <span className="bg-blue-50 p-2 rounded-lg text-blue-600"><CheckSquare size={20} weight="duotone" /></span>
                     ניהול משימות
                     <PageInfo
                         title="ניהול משימות ומשמרות"
@@ -195,140 +196,127 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                         }
                     />
                 </h2>
-                {canEdit && (
-                    <Button
-                        onClick={() => {
-                            if (roles.length === 0) {
-                                showToast('יש להגדיר תפקידים לפני יצירת משימות', 'error');
-                                return;
-                            }
-                            resetForm();
-                            setIsAdding(true);
-                        }}
-                        className="hidden md:flex" // Hide on mobile, use FAB
-                        icon={Plus}
-                        variant="primary"
-                    >
-                        הוסף משימה
-                    </Button>
-                )}
             </div>
 
-            {/* Task List - Full Width */}
-            <div className="divide-y divide-slate-100">
+            {/* Task Grid - Cards Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 p-4 md:p-6">
                 {[...tasks].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(task => (
                     <div
                         key={task.id}
-                        className="relative bg-white hover:bg-slate-50 transition-colors group select-none"
+                        className="group relative bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-slate-300 transition-all cursor-pointer overflow-hidden flex flex-col h-full"
                         onClick={() => canEdit && handleEditClick(task)}
                     >
-                        {/* Vertical Color Anchor (w-1 = 4px) */}
-                        <div className={`absolute top-0 right-0 w-1 h-full ${task.color.replace('border-l-', 'bg-')}`}></div>
+                        {/* Top Color Strip */}
+                        <div className={`h-2 w-full ${task.color.replace('border-l-', 'bg-')} opacity-80`}></div>
 
-                        <div className="p-4 pr-5 flex justify-between items-center group/row">
-                            <div className="min-w-0 flex-1 ml-2">
-                                <h3 className="text-lg font-bold text-slate-900 truncate mb-1">{task.name}</h3>
-                                <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-                                    <span className="flex items-center gap-1">
-                                        <Layers size={14} className="text-slate-400" />
-                                        {task.segments?.length || 0} מקטעים
-                                    </span>
-                                    {task.assignedTeamId && (
-                                        <span className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 rounded-full">
-                                            צוות {teams.find(t => t.id === task.assignedTeamId)?.name}
-                                        </span>
+                        <div className="p-5 flex flex-col flex-1 gap-4">
+
+                            {/* Header: Title & Actions */}
+                            <div className="flex justify-between items-start gap-4">
+                                <h3 className="text-xl font-black text-slate-900 leading-tight line-clamp-2 flex-1">{task.name}</h3>
+
+                                <div className="flex items-center gap-1 -mt-1 -ml-2">
+                                    {canEdit && (
+                                        <div className="relative">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setOpenMenuId(openMenuId === task.id ? null : task.id);
+                                                }}
+                                                className={`p-2 rounded-full transition-all ${openMenuId === task.id ? 'bg-slate-100 text-slate-800' : 'text-slate-300 hover:text-slate-600 hover:bg-slate-50'}`}
+                                                aria-label={`אפשרויות עבור ${task.name}`}
+                                            >
+                                                <MoreVertical size={20} weight="duotone" />
+                                            </button>
+
+                                            {openMenuId === task.id && (
+                                                <div className="absolute left-0 top-full mt-1 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 w-40 z-20 flex flex-col animate-in zoom-in-95 origin-top-left">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDuplicateTask(task); setOpenMenuId(null); }}
+                                                        className="px-4 py-2.5 text-right text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+                                                    >
+                                                        <Copy size={16} weight="duotone" className="text-slate-400" /> שכפל
+                                                    </button>
+                                                    <div className="h-px bg-slate-100 my-1 mx-2" />
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onDeleteTask(task.id);
+                                                            logger.logDelete('task', task.id, task.name, task);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="px-4 py-2.5 text-right text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                                                    >
+                                                        <Trash size={16} weight="duotone" className="text-red-500" /> מחק
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-3">
-                                {/* Difficulty Badge */}
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${task.difficulty >= 4 ? 'bg-red-50 text-red-700' :
-                                    task.difficulty >= 2 ? 'bg-orange-50 text-orange-700' :
-                                        'bg-green-50 text-green-700'
-                                    }`}>
-                                    קושי {task.difficulty}
-                                </span>
-
-                                {/* Three Dots Menu */}
-                                {canEdit && (
-                                    <div className="relative">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setOpenMenuId(openMenuId === task.id ? null : task.id);
-                                            }}
-                                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                                            aria-label={`אפשרויות נוספות עבור ${task.name}`}
-                                            aria-expanded={openMenuId === task.id}
-                                        >
-                                            <MoreVertical size={20} />
-                                        </button>
-
-                                        {/* Quick Actions (Desktop) - Duplicate */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDuplicateTask(task);
-                                            }}
-                                            className="hidden md:flex p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors absolute left-10 top-0 bottom-0 my-auto h-9 w-9 items-center justify-center opacity-0 group-hover:opacity-100"
-                                            title="שכפל משימה"
-                                        >
-                                            <Copy size={18} />
-                                        </button>
-
-                                        {openMenuId === task.id && (
-                                            <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1 w-32 z-20 flex flex-col">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDuplicateTask(task); setOpenMenuId(null); }}
-                                                    className="px-4 py-2 text-right text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                                                >
-                                                    <Copy size={14} /> שכפל
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onDeleteTask(task.id);
-                                                        logger.logDelete('task', task.id, task.name, task);
-                                                        setOpenMenuId(null);
-                                                    }}
-                                                    className="px-4 py-2 text-right text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                                >
-                                                    <Trash2 size={14} /> מחק
-                                                </button>
-                                            </div>
-                                        )}
+                            {/* Details Grid */}
+                            <div className="grid grid-cols-2 gap-3 mt-auto">
+                                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100/50 flex flex-col justify-center">
+                                    <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider">מקטעים</span>
+                                    <div className="flex items-center gap-2 text-slate-700 font-bold">
+                                        <Layers size={16} weight="duotone" className="text-blue-500" />
+                                        <span className="text-sm">{task.segments?.length || 0}</span>
                                     </div>
-                                )}
+                                </div>
+                                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100/50 flex flex-col justify-center">
+                                    <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider">רמת קושי</span>
+                                    <div className={`flex items-center gap-2 font-bold text-sm ${task.difficulty >= 4 ? 'text-red-600' :
+                                        task.difficulty >= 2 ? 'text-orange-500' : 'text-green-600'
+                                        }`}>
+                                        <div className={`w-2 h-2 rounded-full shadow-sm ${task.difficulty >= 4 ? 'bg-red-500' :
+                                            task.difficulty >= 2 ? 'bg-orange-500' : 'bg-green-500'
+                                            }`} />
+                                        {task.difficulty}
+                                    </div>
+                                </div>
                             </div>
+
+                            {/* Optional: Team Badge / Info */}
+                            {task.assignedTeamId ? (
+                                <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-600">
+                                    <Users size={14} weight="duotone" className="text-slate-400 text-blue-500" />
+                                    <span>צוות {teams.find(t => t.id === task.assignedTeamId)?.name}</span>
+                                </div>
+                            ) : (
+                                <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-400">
+                                    <Globe size={14} weight="duotone" />
+                                    <span>פתוח לכולם</span>
+                                </div>
+                            )}
+
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* FAB - Mobile Only */}
-            {canEdit && (
-                <button
-                    onClick={() => {
-                        if (roles.length === 0) {
-                            showToast('יש להגדיר תפקידים לפני יצירת משימות', 'error');
-                            return;
-                        }
-                        resetForm();
-                        setIsAdding(true);
-                    }}
-                    className="md:hidden fixed bottom-24 left-6 w-14 h-14 bg-idf-yellow text-slate-900 rounded-full shadow-lg hover:shadow-xl hover:bg-yellow-400 transition-all flex items-center justify-center z-30 active:scale-95"
-                    aria-label="הוסף משימה חדשה"
-                >
-                    <Plus size={28} />
-                </button>
-            )}
+            {/* FAB - Universal Add Button */}
+            <FloatingActionButton
+                icon={Plus}
+                onClick={() => {
+                    if (roles.length === 0) {
+                        showToast('יש להגדיר תפקידים לפני יצירת משימות', 'error');
+                        return;
+                    }
+                    resetForm();
+                    setIsAdding(true);
+                }}
+                ariaLabel="הוסף משימה חדשה"
+                show={canEdit}
+            />
 
-            {/* Add/Edit Task Sheet */}
-            <SheetModal
+            {/* Add/Edit Task GenericModal */}
+            <GenericModal
                 isOpen={isModalOpen}
                 onClose={resetForm}
                 title={editId ? 'עריכת משימה' : 'הוספת משימה חדשה'}
+                size="lg"
                 footer={
                     <div className="flex gap-3 w-full">
                         {editId && (
@@ -343,7 +331,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                 }}
                                 className="flex-1 border-slate-200 hover:bg-slate-50 text-slate-600"
                             >
-                                <Copy size={18} className="ml-2" />
+                                <Copy size={18} weight="duotone" className="ml-2" />
                                 שכפל
                             </Button>
                         )}
@@ -389,7 +377,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                                 aria-label={`בחר צבע ${bgColor.replace('bg-', '')}`}
                                                 aria-pressed={isSelected}
                                             >
-                                                {isSelected && <CheckSquare size={14} className="text-white bg-black/20 rounded" aria-hidden="true" />}
+                                                {isSelected && <CheckSquare size={14} weight="duotone" className="text-white bg-black/20 rounded" aria-hidden="true" />}
                                             </button>
                                         );
                                     })}
@@ -442,24 +430,20 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             </div>
 
                             {/* Start Date */}
-                            <div className="flex items-center px-4 py-3">
-                                <div className="w-32 shrink-0 font-bold text-slate-700 text-sm">תאריך התחלה</div>
-                                <input
-                                    type="date"
+                            <div className="px-4 py-2">
+                                <DatePicker
+                                    label="תאריך התחלה"
                                     value={startDate.split('T')[0]}
-                                    onChange={e => setStartDate(e.target.value)}
-                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right font-medium"
+                                    onChange={setStartDate}
                                 />
                             </div>
 
                             {/* End Date */}
-                            <div className="flex items-center px-4 py-3">
-                                <div className="w-32 shrink-0 font-bold text-slate-700 text-sm">תאריך סיום</div>
-                                <input
-                                    type="date"
+                            <div className="px-4 py-2 border-t border-slate-100">
+                                <DatePicker
+                                    label="תאריך סיום"
                                     value={endDate.split('T')[0]}
-                                    onChange={e => setEndDate(e.target.value)}
-                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 text-right font-medium placeholder:text-slate-300"
+                                    onChange={setEndDate}
                                 />
                             </div>
                         </div>
@@ -499,7 +483,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                                 className="p-2 text-slate-400 hover:text-blue-500 rounded-full"
                                                 title="שכפל מקטע"
                                             >
-                                                <Copy size={16} />
+                                                <Copy size={16} weight="duotone" />
                                             </button>
                                             <button
                                                 onClick={(e) => {
@@ -511,7 +495,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                                 className="p-2 text-slate-400 hover:text-red-500 rounded-full"
                                                 title="מחק מקטע"
                                             >
-                                                <Trash2 size={16} />
+                                                <Trash size={16} weight="duotone" />
                                             </button>
                                         </div>
                                     </div>
@@ -524,13 +508,13 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             onClick={() => { setEditingSegment(undefined); setShowSegmentEditor(true); }}
                             className="w-full py-3 bg-white border border-slate-200 border-dashed rounded-xl text-blue-600 font-bold text-sm hover:bg-blue-50 hover:border-blue-300 transition-all flex items-center justify-center gap-2"
                         >
-                            <Plus size={18} />
+                            <Plus size={18} weight="bold" />
                             הוסף מקטע / משמרת
                         </button>
 
                     </div>
                 </div>
-            </SheetModal>
+            </GenericModal>
 
             <SegmentEditor
                 isOpen={showSegmentEditor}

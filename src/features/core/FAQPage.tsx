@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, ChevronUp, BookOpen, Users, CheckCircle, Calendar, Shield, UserCircle, Settings, HelpCircle, Package, Trophy } from 'lucide-react';
+import {
+    MagnifyingGlass as SearchIcon, CaretDown as ChevronDownIcon, CaretUp as ChevronUpIcon, BookOpen as BookOpenIcon, Users as UsersIcon,
+    CheckCircle as CheckCircleIcon, CalendarBlank as CalendarIcon, Shield as ShieldIcon, UserCircle as UserCircleIcon, Gear as SettingsIcon,
+    Question as HelpCircleIcon, Package as PackageIcon, Trophy as TrophyIcon
+} from '@phosphor-icons/react';
 import { Input } from '../../components/ui/Input';
 
 interface FAQItem {
@@ -27,7 +31,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
         {
             id: 'personnel',
             title: '1. ניהול כוח אדם ומבנה ארגוני',
-            icon: Users,
+            icon: UsersIcon,
             items: [
                 {
                     question: 'מה ההבדל בין "צוות" (Team) ל"תפקיד" (Role)?',
@@ -54,7 +58,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
         {
             id: 'tasks',
             title: '2. אפיון משימות ומשמרות',
-            icon: CheckCircle,
+            icon: CheckCircleIcon,
             items: [
                 {
                     question: 'מה ההבדל בין "משימה" למקטעים (Segments)?',
@@ -80,7 +84,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
         {
             id: 'scheduling',
             title: '3. לוח שיבוצים ומנגנון ה"קוסם"',
-            icon: Calendar,
+            icon: CalendarIcon,
             items: [
                 {
                     question: 'איך עובד השיבוץ האוטומטי (Smart Assign)?',
@@ -116,7 +120,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
         {
             id: 'attendance',
             title: '4. אשף הסבבים',
-            icon: UserCircle,
+            icon: UserCircleIcon,
             items: [
                 {
                     question: 'מהם מצבי האופטימיזציה בסבבים?',
@@ -146,7 +150,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
         {
             id: 'equipment',
             title: '5. ניהול אמצעים ואמל"ח (צלם)',
-            icon: Package,
+            icon: PackageIcon,
             items: [
                 {
                     question: 'איך עובדת החתימה הדיגיטלית?',
@@ -161,7 +165,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
         {
             id: 'reports',
             title: '6. דוחות ואנליטיקה',
-            icon: Trophy,
+            icon: TrophyIcon,
             items: [
                 {
                     question: 'מהו "ניקוד עומס"?',
@@ -191,7 +195,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 md:p-12 mb-8 text-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-50 text-indigo-600 rounded-2xl mb-6 shadow-sm rotate-3">
-                        <HelpCircle size={40} />
+                        <HelpCircleIcon size={40} weight="duotone" />
                     </div>
                     <h1 className="text-4xl font-black text-slate-900 mb-3 tracking-tight">מרכז עזרה ומדריכים</h1>
                     <p className="text-slate-500 text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
@@ -200,7 +204,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
 
                     <div className="max-w-2xl mx-auto relative group">
                         <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                            <Search className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} />
+                            <SearchIcon className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} weight="bold" />
                         </div>
                         <Input
                             placeholder="חפש נושא, שאלה או מדריך..."
@@ -216,7 +220,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
                     {filteredCategories.length === 0 ? (
                         <div className="text-center py-20 opacity-60">
                             <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4 text-slate-400">
-                                <Search size={24} />
+                                <SearchIcon size={24} weight="bold" />
                             </div>
                             <p className="text-xl font-bold text-slate-700">לא נמצאו תוצאות לחיפוש "{searchTerm}"</p>
                             <p className="text-slate-500 mt-2">נסה מילות מפתח אחרות או עיין בקטגוריות למטה</p>
@@ -226,7 +230,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
                             <div key={category.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow duration-300 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${catIdx * 0.05}s` }}>
                                 <div className="bg-slate-50/50 p-5 border-b border-slate-100 flex items-center gap-4">
                                     <div className={`p-2 rounded-xl bg-white shadow-sm text-indigo-600`}>
-                                        <category.icon size={22} />
+                                        <category.icon size={22} weight="duotone" />
                                     </div>
                                     <h2 className="text-xl font-black text-slate-800 tracking-tight">{category.title}</h2>
                                 </div>
@@ -243,7 +247,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
                                                         {item.question}
                                                     </span>
                                                     <div className={`shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-                                                        {isOpen ? <ChevronUp className="text-indigo-500" /> : <ChevronDown className="text-slate-400 group-hover:text-slate-600" />}
+                                                        {isOpen ? <ChevronUpIcon weight="bold" className="text-indigo-500" /> : <ChevronDownIcon weight="bold" className="text-slate-400 group-hover:text-slate-600" />}
                                                     </div>
                                                 </button>
                                                 <div

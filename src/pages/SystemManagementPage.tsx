@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, MessageSquare, AlertCircle, LayoutDashboard, Megaphone } from 'lucide-react';
+import { Shield, Chat as MessageSquare, WarningCircle as AlertCircle, SquaresFour as LayoutDashboard, Megaphone } from '@phosphor-icons/react';
 
 import { AdminLogsViewer } from '../features/admin/AdminLogsViewer';
 import { SupportTicketsPage } from './SupportTicketsPage';
@@ -18,7 +18,7 @@ export const SystemManagementPage: React.FC = () => {
     if (!profile?.is_super_admin) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-500">
-                <AlertCircle size={48} className="mb-4 text-red-400" />
+                <AlertCircle size={48} className="mb-4 text-red-400" weight="duotone" />
                 <h2 className="text-2xl font-bold text-slate-800">אין גישה</h2>
                 <p>עמוד זה מיועד למנהלי מערכת בלבד.</p>
             </div>
@@ -30,7 +30,7 @@ export const SystemManagementPage: React.FC = () => {
             {/* Header */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-6">
                 <div className="flex items-center gap-3 mb-2">
-                    <Shield className="text-slate-700" size={28} />
+                    <Shield className="text-slate-700" size={28} weight="duotone" />
                     <h1 className="text-2xl font-bold text-slate-800">ניהול מערכת</h1>
                 </div>
                 <p className="text-slate-500">מרכז שליטה למנהלי מערכת: צפייה בלוגים וטיפול בפניות.</p>
@@ -45,7 +45,7 @@ export const SystemManagementPage: React.FC = () => {
                             }`}
                         title="דשבורד"
                     >
-                        <LayoutDashboard size={18} />
+                        <LayoutDashboard size={18} weight="duotone" />
                         <span className="hidden md:inline">דשבורד</span>
                     </button>
                     <button
@@ -56,7 +56,7 @@ export const SystemManagementPage: React.FC = () => {
                             }`}
                         title="לוגים מערכתיים"
                     >
-                        <Shield size={18} />
+                        <Shield size={18} weight="duotone" />
                         <span className="hidden md:inline">לוגים מערכתיים</span>
                     </button>
                     <button
@@ -67,7 +67,7 @@ export const SystemManagementPage: React.FC = () => {
                             }`}
                         title="פניות ותמיכה"
                     >
-                        <MessageSquare size={18} />
+                        <MessageSquare size={18} weight="duotone" />
                         <span className="hidden md:inline">פניות ותמיכה</span>
                     </button>
                     <button
@@ -78,7 +78,7 @@ export const SystemManagementPage: React.FC = () => {
                             }`}
                         title="הודעות מערכת"
                     >
-                        <Megaphone size={18} />
+                        <Megaphone size={18} weight="duotone" />
                         <span className="hidden md:inline">הודעות מערכת</span>
                     </button>
                 </div>

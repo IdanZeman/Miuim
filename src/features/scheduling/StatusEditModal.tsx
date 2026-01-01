@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, ArrowRight, Plus, Trash2, Calendar as CalendarIcon, X } from 'lucide-react';
-import { Modal } from '@/components/ui/Modal';
+import { ArrowRight, Plus, Trash, CalendarBlank as CalendarIcon, House, Buildings, Clock, Info, Check } from '@phosphor-icons/react';
+import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { logger } from '@/services/loggingService';
 import { AvailabilitySlot } from '@/types';
+import { TimePicker } from '@/components/ui/DatePicker';
+import { Input } from '@/components/ui/Input';
 
 interface StatusEditModalProps {
     isOpen: boolean;
@@ -59,7 +61,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                 setCustomType('departure');
                 setCustomEnd(e);
             } else {
-                setCustomType(null); // Simple logic, can expand if needed
+                setCustomType(null); // Simple logic
                 setCustomStart(s === '00:00' ? defaultArrivalHour : s);
                 setCustomEnd(e === '23:59' ? defaultDepartureHour : e);
             }
@@ -77,8 +79,6 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             setCustomType(null);
         }
     }, [currentAvailability, isOpen, defaultArrivalHour, defaultDepartureHour]);
-
-    // ... (rest of code) ...
 
     const handleApply = () => {
         let finalStart = '00:00';
@@ -156,14 +156,13 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     };
 
     const renderTimeline = () => {
-        // Simple visual representation of the day
-        // 06:00 to 22:00
-        const hours = Array.from({ length: 17 }, (_, i) => i + 6);
-
         return (
-            <div className="flex flex-col gap-2 mt-4">
-                <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">יומן יומי</span>
+            <div className="flex flex-col gap-3 mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between px-1">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <Info size={14} weight="duotone" />
+                        יומן יומי וחסימות
+                    </span>
                     {!isAddingBlock && (
                         <button
                             onClick={() => {
@@ -173,65 +172,77 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                 setNewBlockEnd('11:00');
                                 setNewBlockReason('');
                             }}
-                            className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1"
+                            className="text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 px-3 py-1.5 rounded-full font-bold transition-colors flex items-center gap-1.5"
                         >
-                            <Plus size={12} /> הוסף חסימה
+                            <Plus size={12} weight="bold" /> הוסף חסימה
                         </button>
                     )}
                 </div>
 
                 {isAddingBlock && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 animate-in slide-in-from-top-2 fade-in duration-200">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="flex flex-col gap-1 flex-1">
-                                <label className="text-[10px] font-bold text-slate-400">התחלה</label>
-                                <input type="time" value={newBlockStart} onChange={e => setNewBlockStart(e.target.value)} className="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-bold w-full outline-none focus:border-blue-500" />
-                            </div>
-                            <div className="flex flex-col gap-1 flex-1">
-                                <label className="text-[10px] font-bold text-slate-400">סיום</label>
-                                <input type="time" value={newBlockEnd} onChange={e => setNewBlockEnd(e.target.value)} className="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-bold w-full outline-none focus:border-blue-500" />
-                            </div>
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm animate-in zoom-in-95 duration-200 relative overflow-hidden ring-1 ring-slate-100">
+                        <h4 className="text-xs font-bold text-slate-800 mb-3 block">
+                            {editingBlockId ? 'עריכת חסימה' : 'חסימה חדשה'}
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                            <TimePicker label="התחלה" value={newBlockStart} onChange={setNewBlockStart} />
+                            <TimePicker label="סיום" value={newBlockEnd} onChange={setNewBlockEnd} />
                         </div>
-                        <input
-                            type="text"
-                            placeholder="סיבה (אופציונלי)"
+                        <Input
+                            placeholder="סיבת חסימה (אופציונלי)"
                             value={newBlockReason}
                             onChange={e => setNewBlockReason(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs font-bold outline-none focus:border-blue-500 mb-2"
+                            className="text-xs font-medium mb-3 h-10 border-slate-200"
                         />
-                        <div className="flex gap-2">
-                            <button onClick={() => { setIsAddingBlock(false); setEditingBlockId(null); }} className="flex-1 py-1 text-xs font-bold text-slate-400 hover:text-slate-600">ביטול</button>
-                            <button onClick={addOrUpdateBlock} className="flex-1 py-1 bg-slate-800 text-white text-xs font-bold rounded hover:bg-slate-700">
+                        <div className="flex gap-2 justify-end">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => { setIsAddingBlock(false); setEditingBlockId(null); }}
+                                className="text-slate-500"
+                            >
+                                ביטול
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={addOrUpdateBlock}
+                                className="bg-slate-900 text-white"
+                            >
                                 {editingBlockId ? 'עדכן' : 'הוסף'}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
 
-                <div className="space-y-1.5 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+                <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
                     {unavailableBlocks.filter(b => b.type !== 'absence').length === 0 && !isAddingBlock && (
-                        <div className="text-center py-4 text-xs text-slate-300 font-bold border border-dashed border-slate-100 rounded-lg">
-                            אין חסימות להיום
+                        <div className="text-center py-6 text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                            <span className="text-xs font-medium block">הלו"ז פנוי להיום</span>
                         </div>
                     )}
                     {unavailableBlocks.filter(b => b.type !== 'absence').sort((a, b) => a.start.localeCompare(b.start)).map(block => (
                         <div
                             key={block.id}
                             onClick={() => handleEditBlock(block)}
-                            className={`flex items-center justify-between p-2 rounded-lg group border cursor-pointer hover:shadow-sm transition-all ${editingBlockId === block.id ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-300' : 'bg-red-50 border-red-100 hover:bg-red-100'}`}
+                            className={`flex items-center justify-between p-3 pl-2 rounded-xl border cursor-pointer hover:shadow-sm transition-all ${editingBlockId === block.id
+                                ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-100'
+                                : 'bg-white border-slate-100 hover:border-slate-200'
+                                }`}
                         >
-                            <div className="flex items-center gap-2">
-                                <div className={`w-1.5 h-1.5 rounded-full ${editingBlockId === block.id ? 'bg-blue-400' : 'bg-red-400'}`} />
+                            <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${editingBlockId === block.id ? 'bg-blue-100 text-blue-600' : 'bg-rose-50 text-rose-500'}`}>
+                                    <Clock size={16} weight="duotone" />
+                                </div>
                                 <div className="flex flex-col">
-                                    <span className="text-xs font-black text-slate-700">{block.start} - {block.end}</span>
-                                    {block.reason && <span className="text-[10px] text-slate-400">{block.reason}</span>}
+                                    <span className="text-xs font-bold text-slate-800 tracking-tight">{block.start} - {block.end}</span>
+                                    {block.reason && <span className="text-[10px] text-slate-500 truncate max-w-[150px]">{block.reason}</span>}
                                 </div>
                             </div>
                             <button
                                 onClick={(e) => { e.stopPropagation(); removeBlock(block.id); }}
-                                className="text-red-300 hover:text-red-500 p-1 rounded-full hover:bg-white/50 transition-colors"
+                                className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                             >
-                                <Trash2 size={12} />
+                                <Trash size={16} weight="duotone" />
                             </button>
                         </div>
                     ))}
@@ -240,28 +251,31 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
         );
     };
 
+    // Use GenericModal Title prop for standard look
     const modalTitle = (
-        <div className="flex flex-col gap-0.5">
-            <h3 className="text-lg font-black text-slate-800 leading-tight">ערוך סטטוס יומי</h3>
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                <CalendarIcon size={12} className="text-blue-500" />
-                <span>{personName} • {date}</span>
+        <div className="flex flex-col">
+            <span className="text-xl font-bold text-slate-800">ערוך סטטוס יומי</span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{personName}</span>
+                <span className="text-[10px] text-slate-300">•</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{date}</span>
             </div>
         </div>
     );
 
     const modalFooter = (
-        <div className="flex gap-3 w-full">
+        <div className="flex items-center justify-between w-full gap-3">
             <Button
                 variant="ghost"
                 onClick={onClose}
-                className="flex-1 h-12 md:h-10 text-base md:text-sm font-bold"
+                className="text-slate-500 hover:text-slate-700 font-bold"
             >
                 ביטול
             </Button>
             <Button
                 onClick={handleApply}
-                className="flex-1 h-12 md:h-10 text-base md:text-sm font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
+                className="bg-idf-yellow hover:bg-idf-yellow-hover text-slate-900 shadow-sm px-8 rounded-xl font-black"
+                icon={Check}
             >
                 שמור שינויים
             </Button>
@@ -269,90 +283,104 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     );
 
     return (
-        <Modal
+        <GenericModal
             isOpen={isOpen}
             onClose={onClose}
             title={modalTitle}
             size="sm"
             footer={modalFooter}
         >
-            <div className="flex flex-col gap-1 w-full">
+            <div className="flex flex-col gap-6">
                 {!customType ? (
                     <>
-                        {/* Status Toggles */}
-                        <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
+                        {/* 1. Segmented Control - Premium Design */}
+                        <div className="bg-slate-50 border border-slate-200 p-1.5 rounded-2xl flex relative shadow-inner">
                             <button
                                 onClick={() => setMainStatus('base')}
-                                className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${mainStatus === 'base' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-300 ${mainStatus === 'base'
+                                    ? 'bg-white text-green-600 shadow-sm ring-1 ring-black/5 transform scale-[1.02]'
+                                    : 'text-slate-400 hover:text-slate-600'
+                                    }`}
                             >
+                                <Buildings size={18} weight={mainStatus === 'base' ? 'duotone' : 'bold'} />
                                 בבסיס
                             </button>
                             <button
                                 onClick={() => setMainStatus('home')}
-                                className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${mainStatus === 'home' ? 'bg-white text-red-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-300 ${mainStatus === 'home'
+                                    ? 'bg-white text-slate-600 shadow-sm ring-1 ring-black/5 transform scale-[1.02]'
+                                    : 'text-slate-400 hover:text-slate-600'
+                                    }`}
                             >
+                                <House size={18} weight={mainStatus === 'home' ? 'duotone' : 'bold'} />
                                 בבית
                             </button>
                         </div>
 
+                        {/* 2. Time Cards (if Base) - Premium Design */}
                         {mainStatus === 'base' && (
-                            <div className="grid grid-cols-2 gap-2 mb-2">
-                                <button onClick={() => setCustomType('arrival')} className="flex flex-col items-center justify-center p-3 border border-slate-100 hover:border-teal-200 bg-white hover:bg-teal-50 rounded-xl transition-all group">
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 group-hover:text-teal-600">שעת הגעה</span>
-                                    <span className="text-lg font-black text-slate-700 group-hover:text-teal-700">
-                                        {customType === 'arrival' ? customStart : (currentAvailability?.startHour !== '00:00' ? currentAvailability?.startHour : '00:00')}
+                            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
+                                <button
+                                    onClick={() => setCustomType('arrival')}
+                                    className="relative flex flex-col items-center justify-center p-5 border border-slate-100 bg-white hover:border-slate-200 hover:shadow-lg hover:shadow-slate-200/50 rounded-[1.5rem] transition-all group active:scale-[0.98] overflow-hidden"
+                                >
+                                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent opacity-50" />
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2 group-hover:text-slate-600 transition-colors">שעת הגעה</span>
+                                    <span className="text-2xl font-black text-slate-900 font-mono tracking-tight">
+                                        {customType === 'arrival' ? customStart : (currentAvailability?.startHour && currentAvailability.startHour !== '00:00' ? currentAvailability?.startHour : '00:00')}
                                     </span>
                                 </button>
-                                <button onClick={() => setCustomType('departure')} className="flex flex-col items-center justify-center p-3 border border-slate-100 hover:border-amber-200 bg-white hover:bg-amber-50 rounded-xl transition-all group">
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 group-hover:text-amber-600">שעת יציאה</span>
-                                    <span className="text-lg font-black text-slate-700 group-hover:text-amber-700">
-                                        {customType === 'departure' ? customEnd : (currentAvailability?.endHour !== '23:59' ? currentAvailability?.endHour : '23:59')}
+                                <button
+                                    onClick={() => setCustomType('departure')}
+                                    className="relative flex flex-col items-center justify-center p-5 border border-slate-100 bg-white hover:border-slate-200 hover:shadow-lg hover:shadow-slate-200/50 rounded-[1.5rem] transition-all group active:scale-[0.98] overflow-hidden"
+                                >
+                                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent opacity-50" />
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2 group-hover:text-slate-600 transition-colors">שעת יציאה</span>
+                                    <span className="text-2xl font-black text-slate-900 font-mono tracking-tight">
+                                        {customType === 'departure' ? customEnd : (currentAvailability?.endHour && currentAvailability.endHour !== '23:59' ? currentAvailability?.endHour : '23:59')}
                                     </span>
                                 </button>
                             </div>
                         )}
 
-                        <div className="my-2 border-b border-slate-50" />
+                        <div className="h-px bg-slate-100 mx-4" />
 
-                        {/* Daily Agenda / Blocks - Only show if Base */}
+                        {/* 3. Daily Agenda / Blocks */}
                         {mainStatus === 'base' && !disableJournal && renderTimeline()}
                     </>
                 ) : (
-                    // Sub-views for time picking (Arrival/Departure)
-                    <div className="flex flex-col gap-4">
-                        <button onClick={() => setCustomType(null)} className="flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold self-start px-1">
-                            <ArrowRight size={16} />
-                            <span className="text-sm">חזרה</span>
+                    // Sub-views for time picking
+                    <div className="flex flex-col gap-6 animate-in slide-in-from-right-8 duration-300">
+                        <button onClick={() => setCustomType(null)} className="flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold self-start px-1 transition-colors">
+                            <ArrowRight size={18} weight="bold" />
+                            <span className="text-xs">חזרה לתפריט</span>
                         </button>
 
-                        {customType === 'departure' && (
-                            <div className="flex flex-col gap-2">
-                                <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">שעת יציאה להיום</span>
-                                <input
-                                    type="time"
+                        <div className="bg-slate-50/50 rounded-[2rem] p-8 border border-slate-100 text-center shadow-lg shadow-slate-100">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">
+                                {customType === 'arrival' ? 'הגדרת שעת הגעה' : 'הגדרת שעת יציאה'}
+                            </span>
+
+                            {customType === 'departure' && (
+                                <TimePicker
+                                    label=""
                                     value={customEnd}
-                                    onChange={e => setCustomEnd(e.target.value)}
-                                    className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-black w-full text-center outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 h-14"
+                                    onChange={setCustomEnd}
+                                    className="text-center text-2xl h-16 max-w-[240px] mx-auto font-black"
                                 />
-                            </div>
-                        )}
-
-                        {customType === 'arrival' && (
-                            <div className="flex flex-col gap-2">
-                                <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">שעת הגעה להיום</span>
-                                <input
-                                    type="time"
+                            )}
+                            {customType === 'arrival' && (
+                                <TimePicker
+                                    label=""
                                     value={customStart}
-                                    onChange={e => setCustomStart(e.target.value)}
-                                    className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-black w-full text-center outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 h-14"
+                                    onChange={setCustomStart}
+                                    className="text-center text-2xl h-16 max-w-[240px] mx-auto font-black"
                                 />
-                            </div>
-                        )}
-
-                        {/* We can remove 'custom' logic button if we just rely on the granular Arrival/Departure buttons above */}
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
-        </Modal>
+        </GenericModal>
     );
 };

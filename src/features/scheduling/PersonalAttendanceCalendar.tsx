@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Person, TeamRotation, Absence } from '@/types';
-import { ChevronRight, ChevronLeft, X, ArrowRight, ArrowLeft, Home, Calendar as CalendarIcon, Trash2, Clock, RotateCcw, Download } from 'lucide-react';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, DownloadSimple as Download } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
-import { Modal } from '@/components/ui/Modal';
+import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
+import { TimePicker } from '@/components/ui/DatePicker';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
 import { logger } from '@/services/loggingService';
 import { getPersonInitials } from '@/utils/nameUtils';
@@ -156,7 +157,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 bgClass = 'bg-slate-100/50';
                 content = (
                     <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                        <Home size={16} />
+                        <Home size={16} weight="duotone" />
                         <span className="text-[10px] font-bold mt-1">בבית</span>
                     </div>
                 );
@@ -164,7 +165,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 bgClass = 'bg-blue-50';
                 content = (
                     <div className="flex flex-col items-center justify-center h-full text-blue-600">
-                        <ArrowLeft size={16} strokeWidth={3} />
+                        <ArrowLeft size={16} weight="bold" />
                         <span className="text-[10px] font-bold mt-1">הגעה</span>
                         <span className="text-[9px]">{formatTime(avail.startHour)}</span>
                     </div>
@@ -173,7 +174,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 bgClass = 'bg-orange-50';
                 content = (
                     <div className="flex flex-col items-center justify-center h-full text-orange-600">
-                        <ArrowRight size={16} strokeWidth={3} />
+                        <ArrowRight size={16} weight="bold" />
                         <span className="text-[10px] font-bold mt-1">יציאה</span>
                         <span className="text-[9px]">{formatTime(avail.endHour)}</span>
                     </div>
@@ -220,7 +221,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             <div className="flex flex-col gap-0.5">
                 <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">{person.name}</h2>
                 <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wider">
-                    <CalendarIcon size={14} className="text-slate-400" />
+                    <CalendarIcon size={14} className="text-slate-400" weight="duotone" />
                     <span>לוח נוכחות אישי</span>
                 </div>
             </div>
@@ -255,7 +256,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
                 title="ייצוא ל-CSV"
             >
-                <Download size={20} />
+                <Download size={20} weight="duotone" />
             </button>
             {!isViewer && (
                 <button
@@ -263,7 +264,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     className="w-10 h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
                     title="הגדרת סבב אישי"
                 >
-                    <RotateCcw size={20} />
+                    <RotateCcw size={20} weight="duotone" />
                 </button>
             )}
         </div>
@@ -305,7 +306,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
     })();
 
     return (
-        <Modal
+        <GenericModal
             isOpen={true}
             onClose={onClose}
             title={modalTitle}
@@ -313,28 +314,27 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             footer={modalFooter}
             size="2xl"
         >
-            <div className="flex flex-col h-full">
-                {/* Calendar Controls */}
-                <div className="flex items-center justify-between mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                    <Button onClick={handlePrevMonth} variant="ghost" size="icon" icon={ChevronRight} />
-                    <h3 className="text-lg font-black text-slate-800 tracking-tight">{monthName}</h3>
-                    <Button onClick={handleNextMonth} variant="ghost" size="icon" icon={ChevronLeft} />
-                </div>
+            {/* Calendar Controls */}
+            <div className="flex items-center justify-between mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                <Button onClick={handlePrevMonth} variant="ghost" size="icon" icon={ChevronRight} />
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">{monthName}</h3>
+                <Button onClick={handleNextMonth} variant="ghost" size="icon" icon={ChevronLeft} />
+            </div>
 
-                {/* Calendar Grid */}
-                <div className="flex-1 overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-sm flex flex-col">
-                    <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
-                        {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(day => (
-                            <div key={day} className="py-2.5 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                {day}
-                            </div>
-                        ))}
-                    </div>
-                    <div className="grid grid-cols-7 flex-1">
-                        {renderCalendarDays()}
-                    </div>
+            {/* Calendar Grid */}
+            <div className="flex-1 overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-sm flex flex-col">
+                <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
+                    {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map(day => (
+                        <div key={day} className="py-2.5 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {day}
+                        </div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-7 flex-1">
+                    {renderCalendarDays()}
                 </div>
             </div>
+
 
             {/* Rotation Settings Modal */}
             {
@@ -351,7 +351,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             {/* Day Edit Modal */}
             {
                 editingDate && (
-                    <Modal
+                    <GenericModal
                         isOpen={true}
                         onClose={() => setEditingDate(null)}
                         title={`עריכה - ${editingDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })}`}
@@ -386,34 +386,18 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                             {editState.isAvailable && (
                                 <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                                     <div>
-                                        <label className="text-xs font-bold text-slate-500 mb-1 block">התחלה</label>
-                                        <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
-                                            <span className={`text-sm font-bold flex-1 text-center pointer-events-none ${editState.start ? 'text-slate-900' : 'text-slate-400'}`}>
-                                                {editState.start || '00:00'}
-                                            </span>
-                                            <input
-                                                type="time"
-                                                value={editState.start}
-                                                onChange={e => setEditState(prev => ({ ...prev, start: e.target.value }))}
-                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                            />
-                                            <Clock size={16} className="text-slate-400 absolute left-2 pointer-events-none" />
-                                        </div>
+                                        <TimePicker
+                                            label="התחלה"
+                                            value={editState.start}
+                                            onChange={val => setEditState(prev => ({ ...prev, start: val }))}
+                                        />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-slate-500 mb-1 block">סיום</label>
-                                        <div className="relative flex items-center bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 w-full group hover:bg-white hover:border-blue-400 transition-colors">
-                                            <span className={`text-sm font-bold flex-1 text-center pointer-events-none ${editState.end ? 'text-slate-900' : 'text-slate-400'}`}>
-                                                {editState.end || '23:59'}
-                                            </span>
-                                            <input
-                                                type="time"
-                                                value={editState.end}
-                                                onChange={e => setEditState(prev => ({ ...prev, end: e.target.value }))}
-                                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                            />
-                                            <Clock size={16} className="text-slate-400 absolute left-2 pointer-events-none" />
-                                        </div>
+                                        <TimePicker
+                                            label="סיום"
+                                            value={editState.end}
+                                            onChange={val => setEditState(prev => ({ ...prev, end: val }))}
+                                        />
                                     </div>
                                 </div>
                             )}
@@ -421,7 +405,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                             <div className="flex gap-3 pt-2">
                                 {getDisplayAvailability(editingDate).source === 'manual' && (
                                     <Button onClick={handleClearDay} variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-600 px-3" title="נקה שינוי ידני">
-                                        <Trash2 size={18} />
+                                        <Trash2 size={18} weight="duotone" />
                                     </Button>
                                 )}
                                 <Button onClick={handleSaveDay} variant="primary" className="flex-1">
@@ -429,9 +413,9 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                                 </Button>
                             </div>
                         </div>
-                    </Modal>
+                    </GenericModal>
                 )
             }
-        </Modal >
+        </GenericModal >
     );
 };

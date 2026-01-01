@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase, mapPersonFromDB } from '../../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import { Person } from '../../types';
-import { User, Search, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { User as UserIcon, MagnifyingGlass as SearchIcon, CheckCircle as CheckCircleIcon, WarningCircle as AlertCircleIcon, ArrowLeft as ArrowLeftIcon } from '@phosphor-icons/react';
 
 
 export const ClaimProfile: React.FC = () => {
@@ -71,7 +71,7 @@ export const ClaimProfile: React.FC = () => {
                 <div className="max-w-3xl mx-auto px-4 w-full flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 p-1.5">
-                            <User size={20} className="text-slate-900" />
+                            <UserIcon size={20} className="text-slate-900" weight="duotone" />
                         </div>
                         <span className="text-xl font-black text-slate-900 tracking-tight">אימות זהות</span>
                     </div>
@@ -96,7 +96,7 @@ export const ClaimProfile: React.FC = () => {
                 {/* Search Box */}
                 <div className="sticky top-[80px] z-40 mb-6 md:mb-8">
                     <div className="relative group shadow-lg shadow-slate-200/50 rounded-2xl">
-                        <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={24} />
+                        <SearchIcon className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={24} weight="bold" />
                         <input
                             type="text"
                             placeholder="חפש את השם שלך..."
@@ -117,7 +117,7 @@ export const ClaimProfile: React.FC = () => {
                     ) : filteredPeople.length === 0 ? (
                         <div className="py-16 px-6 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200">
                             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                                <Search size={32} />
+                                <SearchIcon size={32} weight="bold" />
                             </div>
                             <p className="text-slate-900 font-bold text-lg mb-1">לא מצאנו שם כזה</p>
                             <p className="text-slate-400">נסה לחפש שוב או פנה למפקד שיצר את הארגון.</p>
@@ -150,7 +150,7 @@ export const ClaimProfile: React.FC = () => {
                                 </div>
                                 {selectedPerson?.id === person.id && (
                                     <div className="bg-emerald-500 rounded-full p-1 text-white animate-in zoom-in spin-in-90 duration-300">
-                                        <CheckCircle size={24} className="fill-current" />
+                                        <CheckCircleIcon size={24} className="fill-current" weight="duotone" />
                                     </div>
                                 )}
                             </button>
@@ -164,7 +164,7 @@ export const ClaimProfile: React.FC = () => {
                 <div className="max-w-3xl mx-auto flex flex-col items-center">
                     {error && (
                         <div className="w-full mb-4 bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-red-100 animate-in slide-in-from-bottom-2">
-                            <AlertCircle size={20} className="shrink-0" />
+                            <AlertCircleIcon size={20} className="shrink-0" weight="duotone" />
                             {error}
                         </div>
                     )}
@@ -182,7 +182,7 @@ export const ClaimProfile: React.FC = () => {
                         ) : (
                             <>
                                 אישור וחיבור אישי
-                                <ArrowLeft size={24} />
+                                <ArrowLeftIcon size={24} weight="bold" />
                             </>
                         )}
                     </button>

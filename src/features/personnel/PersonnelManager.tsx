@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, ChevronDown, ChevronLeft, User, Users, Shield, Pencil, Mail, Activity, Trash2, FileSpreadsheet, X, Check, Download, Archive, AlertTriangle, Loader2, Filter, ArrowUpDown, ArrowDownAZ, ArrowUpZA, Layers, LayoutList, MoreVertical } from 'lucide-react';
+import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe } from '@phosphor-icons/react';
 import { Person, Team, Role } from '../../types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../services/loggingService';
-import { Modal } from '../../components/ui/Modal';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
 import { ExcelImportWizard } from './ExcelImportWizard';
-import { SheetModal } from '../../components/ui/SheetModal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { GenericModal } from '../../components/ui/GenericModal';
+import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
 import { ROLE_ICONS } from '../../constants';
 
 interface PersonnelManagerProps {
@@ -21,7 +21,9 @@ interface PersonnelManagerProps {
     roles: Role[];
     onAddPerson: (person: Person) => void;
     onDeletePerson: (id: string) => void;
+    onDeletePeople: (ids: string[]) => void;
     onUpdatePerson: (person: Person) => void;
+    onUpdatePeople: (people: Person[]) => void;
     onAddTeam: (team: Team) => void;
     onUpdateTeam: (team: Team) => void;
     onDeleteTeam: (id: string) => void;
@@ -40,7 +42,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     roles,
     onAddPerson,
     onDeletePerson,
+    onDeletePeople,
     onUpdatePerson,
+    onUpdatePeople,
     onAddTeam,
     onUpdateTeam,
     onDeleteTeam,
@@ -89,6 +93,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
     // Editing IDs
     const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
+    const [isPropagating, setIsPropagating] = useState(false); // NEW
     const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
     const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
 
@@ -131,6 +136,28 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     // NEW: Context Menu State
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, person: Person } | null>(null);
     const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+    // -- Derived/Sorted Data --
+    const sortedTeamsAsc = useMemo(() => [...teams].sort((a, b) => a.name.localeCompare(b.name, 'he')), [teams]);
+    const sortedRolesAsc = useMemo(() => [...roles].sort((a, b) => a.name.localeCompare(b.name, 'he')), [roles]);
+
+    const displayTeamsList = useMemo(() => {
+        return [...teams]
+            .filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .sort((a, b) => {
+                const cmp = a.name.localeCompare(b.name, 'he');
+                return sortOrder === 'asc' ? cmp : -cmp;
+            });
+    }, [teams, searchTerm, sortOrder]);
+
+    const displayRolesList = useMemo(() => {
+        return [...roles]
+            .filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .sort((a, b) => {
+                const cmp = a.name.localeCompare(b.name, 'he');
+                return sortOrder === 'asc' ? cmp : -cmp;
+            });
+    }, [roles, searchTerm, sortOrder]);
 
     // Long Press Logic
     const touchTimer = React.useRef<NodeJS.Timeout | null>(null);
@@ -202,17 +229,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             'מחיקת פריטים',
             `האם אתה בטוח שברצונך למחוק ${selectedItemIds.size} פריטים? פעולה זו היא בלתי הפיכה.`,
             () => {
-                selectedItemIds.forEach(id => {
-                    if (activeTab === 'people') {
-                        onDeletePerson(id);
-                    }
-                    else if (activeTab === 'teams') {
-                        onDeleteTeam(id);
-                    }
-                    else if (activeTab === 'roles') {
-                        onDeleteRole(id);
-                    }
-                });
+                const ids = Array.from(selectedItemIds);
+                if (activeTab === 'people') {
+                    onDeletePeople(ids);
+                } else {
+                    ids.forEach(id => {
+                        if (activeTab === 'teams') onDeleteTeam(id);
+                        else if (activeTab === 'roles') onDeleteRole(id);
+                    });
+                }
                 logger.info('DELETE', `Bulk deleted ${selectedItemIds.size} ${activeTab}`, {
                     count: selectedItemIds.size,
                     type: activeTab,
@@ -322,7 +347,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             fileName = `people_export_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.csv`;
         } else if (activeTab === 'teams') {
             const header = 'שם צוות,מספר חברים,צבע\n';
-            const rows = teams.map(t => {
+            const rows = sortedTeamsAsc.map(t => {
                 const memberCount = people.filter(p => p.teamId === t.id).length;
                 return `"${t.name}",${memberCount},${t.color}`;
             }).join('\n');
@@ -330,7 +355,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             fileName = `teams_export_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.csv`;
         } else if (activeTab === 'roles') {
             const header = 'שם תפקיד,מספר משובצים,צבע\n';
-            const rows = roles.map(r => {
+            const rows = sortedRolesAsc.map(r => {
                 const count = people.filter(p => (p.roleIds || []).includes(r.id)).length;
                 return `"${r.name}",${count},${r.color}`;
             }).join('\n');
@@ -439,6 +464,42 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 logger.logCreate('person', newId, personData.name, personData);
                 showToast('החייל נוסף בהצלחה', 'success');
             }
+
+            // Custom Field Propagation logic
+            const newKeys = Object.keys(newCustomFields);
+            const originalPerson = editingPersonId ? people.find(p => p.id === editingPersonId) : null;
+            const oldKeys = originalPerson?.customFields ? Object.keys(originalPerson.customFields) : [];
+
+            // Identify keys that are present in the submitted form but were missing in the original person
+            const addedKeys = newKeys.filter(key => !oldKeys.includes(key));
+
+            if (addedKeys.length > 0) {
+                // We have new columns to propagate to everyone else!
+                setIsPropagating(true);
+
+                const peopleToUpdate = people
+                    .filter(p => p.id !== editingPersonId) // Skip the person we just saved
+                    .map(p => {
+                        const pFields = p.customFields || {};
+                        const missingKeys = addedKeys.filter(k => !Object.prototype.hasOwnProperty.call(pFields, k));
+
+                        // If this person is missing any of the new keys, structure an update
+                        if (missingKeys.length > 0) {
+                            const updatedFields = { ...pFields };
+                            missingKeys.forEach(k => updatedFields[k] = "");
+                            return { ...p, customFields: updatedFields };
+                        }
+                        return null;
+                    })
+                    .filter(Boolean) as Person[];
+
+                if (peopleToUpdate.length > 0) {
+                    // Fire and forget (let it run in background)
+                    onUpdatePeople(peopleToUpdate);
+                }
+                setIsPropagating(false);
+            }
+
             closeForm();
         } catch (e: any) {
             console.error("Save Error", e);
@@ -521,6 +582,36 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         return '';
     };
 
+    const handleDeleteFieldGlobally = (fieldName: string) => {
+        requestConfirm(
+            'מחיקת שדה מכלל החיילים',
+            `האם אתה בטוח שברצונך למחוק את השדה "${fieldName}" מכלל החיילים במערכת? פעולה זו תמחוק את כל המידע השמור בשדה זה עבור כולם.`,
+            async () => {
+                const peopleWithField = people.filter(p => p.customFields && Object.prototype.hasOwnProperty.call(p.customFields, fieldName));
+
+                const updates = peopleWithField.map(p => {
+                    const nextFields = { ...p.customFields };
+                    delete nextFields[fieldName];
+                    return { ...p, customFields: nextFields };
+                });
+
+                if (updates.length > 0) {
+                    onUpdatePeople(updates);
+                }
+
+                // Also update current form if it's there
+                if (newCustomFields[fieldName] !== undefined) {
+                    const next = { ...newCustomFields };
+                    delete next[fieldName];
+                    setNewCustomFields(next);
+                }
+
+                showToast(`השדה "${fieldName}" נמחק מ-${updates.length} חיילים`, 'success');
+            },
+            'danger'
+        );
+    };
+
     // Use effect to open modal when state changes if needed, 
     // but we control it explicitly in click handlers
     useEffect(() => {
@@ -541,7 +632,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             {/* Name */}
                             <div className="flex items-center px-5 py-4 group">
                                 <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                    <User size={18} strokeWidth={2.5} />
+                                    <User size={18} weight="duotone" />
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">שם מלא</label>
@@ -573,7 +664,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             {/* Email */}
                             <div className="flex items-center px-5 py-4 group">
                                 <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                    <Mail size={18} strokeWidth={2.5} />
+                                    <Mail size={18} weight="duotone" />
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">אימייל</label>
@@ -597,14 +688,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             {/* Team Selector */}
                             <div className="flex items-center px-5 py-4 group bg-white relative">
                                 <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                    <Users size={18} strokeWidth={2.5} />
+                                    <Users size={18} weight="duotone" />
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">צוות</label>
                                     <Select
                                         value={newTeamId}
                                         onChange={(val) => setNewTeamId(val)}
-                                        options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                        options={sortedTeamsAsc.map(t => ({ value: t.id, label: t.name }))}
                                         placeholder="בחר צוות"
                                         className="bg-transparent border-none shadow-none hover:bg-slate-50 pr-0 h-auto py-0 font-bold text-base"
                                         containerClassName="w-full"
@@ -624,7 +715,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             >
                                 <div className="flex items-center">
                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ml-4 transition-colors ${newItemActive ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-400'}`}>
-                                        <Activity size={18} strokeWidth={2.5} />
+                                        <Activity size={18} weight="duotone" />
                                     </div>
                                     <div>
                                         <div className="text-sm font-black text-slate-900">סטטוס פעיל</div>
@@ -648,7 +739,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             >
                                 <div className="flex items-center">
                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ml-4 transition-colors ${newIsCommander ? 'bg-yellow-50 text-yellow-600' : 'bg-slate-50 text-slate-400'}`}>
-                                        <Shield size={18} strokeWidth={2.5} />
+                                        <Shield size={18} weight="duotone" />
                                     </div>
                                     <div>
                                         <div className="text-sm font-black text-slate-900">מפקד</div>
@@ -667,7 +758,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">תפקידים והכשרות</h3>
                         <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5">
                             <div className="flex flex-wrap gap-2.5">
-                                {roles.map(role => {
+                                {sortedRolesAsc.map(role => {
                                     const isSelected = newRoleIds.includes(role.id);
                                     const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
                                     return (
@@ -701,7 +792,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             {Object.entries(newCustomFields || {}).map(([key, value]) => (
                                 <div key={key} className="flex items-center px-5 py-4 group bg-white">
                                     <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                        <Layers size={18} strokeWidth={2.5} />
+                                        <Layers size={18} weight="duotone" />
                                     </div>
                                     <div className="flex-1 min-w-0 mr-1">
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5 truncate">{key}</label>
@@ -711,26 +802,36 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300"
                                         />
                                     </div>
-                                    <button onClick={() => {
-                                        const next = { ...newCustomFields };
-                                        delete next[key];
-                                        setNewCustomFields(next);
-                                    }} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                                        <X size={20} strokeWidth={2.5} />
-                                    </button>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                            onClick={() => handleDeleteFieldGlobally(key)}
+                                            className="p-2 text-slate-300 hover:text-red-500 transition-colors flex flex-col items-center group/global"
+                                            title="מחק לכולם"
+                                        >
+                                            <Globe size={18} weight="duotone" className="group-hover/global:animate-pulse" />
+                                            <span className="text-[7px] font-black opacity-0 group-hover/global:opacity-100 transition-opacity whitespace-nowrap">לכולם</span>
+                                        </button>
+                                        <button onClick={() => {
+                                            const next = { ...newCustomFields };
+                                            delete next[key];
+                                            setNewCustomFields(next);
+                                        }} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
+                                            <X size={20} weight="bold" />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
 
                             {/* Add Field Row */}
                             <div className="flex items-center px-5 py-4 bg-slate-50/50">
                                 <div className="w-10 h-10 rounded-xl bg-white text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 ml-4 shadow-sm">
-                                    <Plus size={20} strokeWidth={3} />
+                                    <Plus size={20} weight="bold" />
                                 </div>
                                 <div className="flex-1">
                                     <input
                                         value={tempCustomKey}
                                         onChange={(e) => setTempCustomKey(e.target.value)}
-                                        placeholder="שדה חדש (לדוג: דת, מצב משפחתי...)"
+                                        placeholder="שדה חדש (לדוג: מידת נעליים, מספר חדש...)"
                                         list="custom-hits-sheet"
                                         className="w-full bg-transparent text-sm font-black outline-none text-slate-700 placeholder:text-slate-400"
                                     />
@@ -796,7 +897,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                     onClick={() => setNewItemColor(color.value)}
                                     className={`w-10 h-10 rounded-2xl ${color.bg} transition-all hover:scale-110 flex items-center justify-center active:scale-90 ${newItemColor === color.value ? 'ring-4 ring-offset-2 ring-indigo-500/20 shadow-lg scale-110' : 'opacity-80'}`}
                                 >
-                                    {newItemColor === color.value && <Check size={20} className="text-white" strokeWidth={3} />}
+                                    {newItemColor === color.value && <Check size={20} className="text-white" weight="bold" />}
                                 </button>
                             ))}
                         </div>
@@ -865,32 +966,32 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 <div className="flex items-center gap-3">
                     <div className="flex-1 relative">
                         <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
-                            <Search size={18} strokeWidth={2.5} />
+                            <MagnifyingGlass size={18} strokeWidth={2.5} />
                         </div>
                         <input
                             placeholder={`חפש ${activeTab === 'people' ? 'חייל' : activeTab === 'teams' ? 'צוות' : 'תפקיד'}...`}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="block w-full h-11 pr-12 pl-4 bg-slate-100/60 border border-transparent rounded-[1.25rem] text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm"
+                            className="block w-full h-11 pr-12 pl-4 bg-slate-100/60 border border-transparent rounded-[1.25rem] text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-base"
                         />
                     </div>
                     <button
                         onClick={() => setShowFilters(!showFilters)}
                         className={`h-11 w-11 rounded-[1.25rem] border border-slate-200 transition-all flex items-center justify-center shrink-0 ${showFilters ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-white text-slate-500'}`}
                     >
-                        <Filter size={18} strokeWidth={showFilters ? 3 : 2.5} />
+                        <FunnelIcon size={18} strokeWidth={showFilters ? 3 : 2.5} />
                     </button>
                     <button
                         onClick={() => setShowMoreMenu(!showMoreMenu)}
                         className={`h-11 w-11 rounded-[1.25rem] border border-slate-200 bg-white text-slate-500 flex items-center justify-center transition-all ${showMoreMenu ? 'ring-2 ring-indigo-500/50' : ''}`}
                     >
-                        <MoreVertical size={18} />
+                        <DotsThreeVerticalIcon size={18} />
                     </button>
                 </div>
             </div>
 
             {/* Desktop Header Container (Hidden on Mobile) */}
-            <div className="hidden md:flex sticky top-0 bg-white/95 backdrop-blur-md z-40 py-4 border-b border-slate-100 mb-0 px-6 transition-all shadow-sm items-center gap-8">
+            <div className="hidden md:flex sticky top-0 bg-white/95 backdrop-blur-md z-40 py-3 mb-0 px-6 transition-all shadow-sm items-center justify-between">
                 {/* 1. Title Area */}
                 <div className="flex items-center gap-3 shrink-0">
                     <h2 className="text-xl font-black text-slate-800 tracking-tight">ניהול כוח אדם</h2>
@@ -932,42 +1033,25 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     {/* Premium Search Bar */}
                     <div className="flex-1 relative group max-w-sm">
                         <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none transition-colors group-focus-within:text-indigo-600 text-slate-400">
-                            <Search size={18} strokeWidth={2.5} />
+                            <MagnifyingGlass size={18} strokeWidth={2.5} />
                         </div>
                         <input
                             placeholder={activeTab === 'people' ? "חפש חייל..." : activeTab === 'teams' ? "חפש צוות..." : "חפש תפקיד..."}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="block w-full h-11 pr-12 pl-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm"
+                            className="block w-full h-11 pr-12 pl-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-base"
                         />
                     </div>
 
                     {/* Action Buttons Group */}
                     <div className="flex items-center gap-2">
-                        {/* Add Button */}
-                        {canEdit && (
-                            <Button
-                                onClick={() => {
-                                    if (activeTab === 'people' && teams.length === 0) {
-                                        showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
-                                        setActiveTab('teams');
-                                        return;
-                                    }
-                                    setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewEmail('');
-                                }}
-                                className="shrink-0 flex items-center gap-2 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 font-black px-5 border-none"
-                            >
-                                <Plus size={20} strokeWidth={2.5} />
-                                <span>{activeTab === 'people' ? 'הוסף חייל' : activeTab === 'teams' ? 'הוסף צוות' : 'הוסף תפקיד'}</span>
-                            </Button>
-                        )}
 
                         {/* Filter Button */}
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className={`h-11 w-11 rounded-xl border border-slate-200 transition-all flex items-center justify-center shrink-0 ${showFilters ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
                         >
-                            <Filter size={20} strokeWidth={showFilters ? 3 : 2} />
+                            <Funnel size={20} strokeWidth={showFilters ? 3 : 2} />
                         </button>
 
                         {/* Sort Button */}
@@ -976,7 +1060,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             className="h-11 w-11 rounded-xl border border-slate-200 bg-white text-slate-500 flex items-center justify-center transition-colors hover:bg-slate-50"
                             title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
                         >
-                            {sortOrder === 'asc' ? <ArrowDownAZ size={20} /> : <ArrowUpZA size={20} />}
+                            {sortOrder === 'asc' ? <SortDescendingIcon size={20} /> : <SortAscendingIcon size={20} />}
                         </button>
 
                         {/* Bulk Delete Action */}
@@ -985,7 +1069,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 onClick={handleBulkDelete}
                                 className="h-11 px-4 rounded-xl bg-red-50 text-red-600 border border-red-100 flex items-center gap-2 font-black text-sm hover:bg-red-100 animate-in fade-in zoom-in duration-200"
                             >
-                                <Trash2 size={18} />
+                                <Trash size={18} />
                                 <span>מחק ({selectedItemIds.size})</span>
                             </button>
                         )}
@@ -996,7 +1080,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 onClick={() => setShowMoreMenu(!showMoreMenu)}
                                 className="h-11 w-11 rounded-xl border border-slate-200 bg-white text-slate-500 flex items-center justify-center transition-colors hover:bg-slate-50"
                             >
-                                <MoreVertical size={20} />
+                                <DotsThreeVertical size={20} weight="bold" />
                             </button>
 
                             {showMoreMenu && (
@@ -1006,7 +1090,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         {activeTab === 'people' && canEdit && (
                                             <button onClick={() => { setIsImportWizardOpen(true); setShowMoreMenu(false); }} className="w-full text-right px-4 py-3.5 hover:bg-slate-50 text-[13px] font-black flex items-center gap-3 text-slate-700 transition-colors">
                                                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                                    <FileSpreadsheet size={16} strokeWidth={2.5} />
+                                                    <FileXls size={16} strokeWidth={2.5} />
                                                 </div>
                                                 ייבוא מאקסל
                                             </button>
@@ -1014,7 +1098,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         {canEdit && (
                                             <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-4 py-3.5 hover:bg-slate-50 text-[13px] font-black flex items-center gap-3 text-slate-700 transition-colors">
                                                 <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                                                    <Download size={16} strokeWidth={2.5} />
+                                                    <DownloadSimple size={16} weight="bold" />
                                                 </div>
                                                 ייצוא נתונים
                                             </button>
@@ -1039,7 +1123,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             {/* SHARED: Mobile Modals (Hidden on Desktop) */}
             <div className="md:hidden">
                 {/* More Menu Modal */}
-                <Modal
+                <GenericModal size="sm"
                     isOpen={showMoreMenu}
                     onClose={() => setShowMoreMenu(false)}
                     title="אפשרויות נוספות"
@@ -1053,7 +1137,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         {activeTab === 'people' && canEdit && (
                             <button onClick={() => { setIsImportWizardOpen(true); setShowMoreMenu(false); }} className="w-full text-right px-4 py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-sm font-black flex items-center gap-4 text-slate-700 transition-colors">
                                 <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                                    <FileSpreadsheet size={20} strokeWidth={2.5} />
+                                    <FileXls size={20} strokeWidth={2.5} />
                                 </div>
                                 ייבוא מאקסל
                             </button>
@@ -1061,7 +1145,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         {canEdit && (
                             <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-4 py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-sm font-black flex items-center gap-4 text-slate-700 transition-colors">
                                 <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                                    <Download size={20} strokeWidth={2.5} />
+                                    <DownloadSimple size={20} strokeWidth={2.5} />
                                 </div>
                                 ייצוא נתונים
                             </button>
@@ -1081,10 +1165,10 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             </div>
                         </div>
                     </div>
-                </Modal>
+                </GenericModal>
 
                 {/* Filter Modal */}
-                <Modal
+                <GenericModal size="sm"
                     isOpen={showFilters}
                     onClose={() => setShowFilters(false)}
                     title="סינון ותצוגה"
@@ -1100,7 +1184,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             <Select
                                 value={filterTeamId}
                                 onChange={(val) => setFilterTeamId(val)}
-                                options={[{ value: 'all', label: 'כל הצוותים' }, { value: 'no-team', label: 'ללא צוות' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
+                                options={[{ value: 'all', label: 'כל הצוותים' }, { value: 'no-team', label: 'ללא צוות' }, ...sortedTeamsAsc.map(t => ({ value: t.id, label: t.name }))]}
                                 placeholder="בחר צוות"
                                 className="bg-slate-50 border-transparent rounded-xl h-12 font-bold"
                             />
@@ -1110,40 +1194,42 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             <Select
                                 value={filterRoleId}
                                 onChange={(val) => setFilterRoleId(val)}
-                                options={[{ value: 'all', label: 'כל התפקידים' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
+                                options={[{ value: 'all', label: 'כל התפקידים' }, ...sortedRolesAsc.map(r => ({ value: r.id, label: r.name }))]}
                                 placeholder="בחר תפקיד"
                                 className="bg-slate-50 border-transparent rounded-xl h-12 font-bold"
                             />
                         </div>
                     </div>
-                </Modal>
+                </GenericModal>
             </div>
 
             {/* Filters Panel - Desktop Only */}
-            {showFilters && (
-                <div className="hidden md:grid mt-4 p-5 bg-white/50 backdrop-blur-sm rounded-[2rem] border border-slate-200/50 grid-cols-2 gap-4 animate-in slide-in-from-top-4 fade-in duration-300 shadow-xl shadow-slate-200/20 mx-4 md:mx-0">
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">צוות</label>
-                        <Select
-                            value={filterTeamId}
-                            onChange={(val) => setFilterTeamId(val)}
-                            options={[{ value: 'all', label: 'כל הצוותים' }, { value: 'no-team', label: 'ללא צוות' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
-                            placeholder="בחר צוות"
-                            className="bg-white border-slate-200 rounded-xl h-11 font-bold"
-                        />
+            {
+                showFilters && (
+                    <div className="hidden md:grid mt-4 p-5 bg-white/50 backdrop-blur-sm rounded-[2rem] border border-slate-200/50 grid-cols-2 gap-4 animate-in slide-in-from-top-4 fade-in duration-300 shadow-xl shadow-slate-200/20 mx-4 md:mx-0">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">צוות</label>
+                            <Select
+                                value={filterTeamId}
+                                onChange={(val) => setFilterTeamId(val)}
+                                options={[{ value: 'all', label: 'כל הצוותים' }, { value: 'no-team', label: 'ללא צוות' }, ...sortedTeamsAsc.map(t => ({ value: t.id, label: t.name }))]}
+                                placeholder="בחר צוות"
+                                className="bg-white border-slate-200 rounded-xl h-11 font-bold"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">תפקיד</label>
+                            <Select
+                                value={filterRoleId}
+                                onChange={(val) => setFilterRoleId(val)}
+                                options={[{ value: 'all', label: 'כל התפקידים' }, ...sortedRolesAsc.map(r => ({ value: r.id, label: r.name }))]}
+                                placeholder="בחר תפקיד"
+                                className="bg-white border-slate-200 rounded-xl h-11 font-bold"
+                            />
+                        </div>
                     </div>
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">תפקיד</label>
-                        <Select
-                            value={filterRoleId}
-                            onChange={(val) => setFilterRoleId(val)}
-                            options={[{ value: 'all', label: 'כל התפקידים' }, ...roles.map(r => ({ value: r.id, label: r.name }))]}
-                            placeholder="בחר תפקיד"
-                            className="bg-white border-slate-200 rounded-xl h-11 font-bold"
-                        />
-                    </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Content Lists */}
             <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -1260,7 +1346,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                                         {/* Interaction Indicator (Chevron if not selected) */}
                                         <div className="shrink-0 flex items-center justify-center text-slate-300 md:hidden">
-                                            <ChevronLeft size={18} strokeWidth={2.5} />
+                                            <CaretLeftIcon size={18} weight="bold" />
                                         </div>
                                     </div>
                                 );
@@ -1271,7 +1357,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 return (
                                     <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500">
                                         <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
-                                            <Users size={40} className="text-slate-300" strokeWidth={1.5} />
+                                            <MagnifyingGlassIcon size={40} className="text-slate-300" strokeWidth={1.5} />
                                         </div>
                                         <p className="text-xl font-black text-slate-900 tracking-tight">לא נמצאו חיילים</p>
                                         <p className="text-sm font-bold text-slate-400 mt-1">נסה לשנות את מונחי החיפוש או הסינון</p>
@@ -1371,15 +1457,19 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 )}
 
                 {activeTab === 'teams' && (
-                    teams.length === 0 ? (
+                    displayTeamsList.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500 col-span-full">
                             <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
                                 <Users size={40} className="text-slate-300" strokeWidth={1.5} />
                             </div>
-                            <p className="text-xl font-black text-slate-900 tracking-tight">לא הוגדרו צוותים</p>
-                            <p className="text-sm font-bold text-slate-400 mt-1">לחץ על ה- FAB כדי להוסיף צוות ראשון</p>
+                            <p className="text-xl font-black text-slate-900 tracking-tight">
+                                {searchTerm ? 'לא נמצאו צוותים' : 'לא הוגדרו צוותים'}
+                            </p>
+                            <p className="text-sm font-bold text-slate-400 mt-1">
+                                {searchTerm ? 'נסה לשנות את מונחי החיפוש' : 'לחץ על ה- FAB כדי להוסיף צוות ראשון'}
+                            </p>
                         </div>
-                    ) : teams.map(team => {
+                    ) : displayTeamsList.map(team => {
                         const isSelected = selectedItemIds.has(team.id);
                         const memberCount = people.filter(p => p.teamId === team.id).length;
                         return (
@@ -1437,7 +1527,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             className="p-2 text-slate-300 hover:text-red-500 rounded-full transition-colors hidden md:block"
                                             aria-label={`מחק את הצוות ${team.name}`}
                                         >
-                                            <Trash2 size={18} />
+                                            <Trash size={18} weight="duotone" />
                                         </button>
                                     )}
                                     <div className="text-slate-300 md:hidden">
@@ -1450,15 +1540,19 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 )}
 
                 {activeTab === 'roles' && (
-                    roles.length === 0 ? (
+                    displayRolesList.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500 col-span-full">
                             <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
                                 <Shield size={40} className="text-slate-300" strokeWidth={1.5} />
                             </div>
-                            <p className="text-xl font-black text-slate-900 tracking-tight">לא הוגדרו תפקידים</p>
-                            <p className="text-sm font-bold text-slate-400 mt-1">לחץ על ה- FAB כדי להוסיף תפקיד ראשון</p>
+                            <p className="text-xl font-black text-slate-900 tracking-tight">
+                                {searchTerm ? 'לא נמצאו תפקידים' : 'לא הוגדרו תפקידים'}
+                            </p>
+                            <p className="text-sm font-bold text-slate-400 mt-1">
+                                {searchTerm ? 'נסה לשנות את מונחי החיפוש' : 'לחץ על ה- FAB כדי להוסיף תפקיד ראשון'}
+                            </p>
                         </div>
-                    ) : roles.map(role => {
+                    ) : displayRolesList.map(role => {
                         const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
                         const isSelected = selectedItemIds.has(role.id);
                         const assignedCount = people.filter(p => (p.roleIds || []).includes(role.id)).length;
@@ -1517,7 +1611,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             className="p-2 text-slate-300 hover:text-red-500 rounded-full transition-colors hidden md:block"
                                             aria-label={`מחק את התפקיד ${role.name}`}
                                         >
-                                            <Trash2 size={18} />
+                                            <Trash size={18} weight="duotone" />
                                         </button>
                                     )}
                                     <div className="text-slate-300 md:hidden">
@@ -1556,14 +1650,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         onClick={handleBulkDelete}
                                         className="h-11 px-5 rounded-xl bg-red-500 text-white font-black text-xs shadow-lg shadow-red-500/20 active:scale-95 transition-all flex items-center gap-2"
                                     >
-                                        <Trash2 size={16} strokeWidth={2.5} />
+                                        <Trash size={16} weight="bold" />
                                         מחק
                                     </button>
                                 </div>
                             </div>
                         </div>
                     ) : (
-                        <button
+                        <FloatingActionButton
+                            icon={Plus}
                             onClick={() => {
                                 if (activeTab === 'people' && teams.length === 0) {
                                     showToast('יש להגדיר צוותים לפני הוספת חיילים', 'error');
@@ -1572,12 +1667,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 }
                                 setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewName(''); setNewEmail('');
                             }}
-                            className="md:hidden fixed bottom-28 left-6 w-16 h-16 bg-slate-900 text-white rounded-2xl shadow-2xl shadow-slate-900/40 transition-all flex items-center justify-center z-50 hover:scale-105 active:scale-90"
-                            aria-label={`הוסף ${activeTab === 'people' ? 'חייל' : activeTab === 'teams' ? 'צוות' : 'תפקיד'}`}
-                        >
-                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-slate-900 to-slate-700 active:from-slate-800 active:to-slate-600" />
-                            <Plus size={32} strokeWidth={2.5} className="relative z-10" />
-                        </button>
+                            ariaLabel={`הוסף ${activeTab === 'people' ? 'חייל' : activeTab === 'teams' ? 'צוות' : 'תפקיד'}`}
+                            show={true}
+                        />
                     )
                 )
             }
@@ -1634,7 +1726,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 );
                             }} className="w-full text-right px-4 py-3 hover:bg-red-50 rounded-xl text-[13px] font-black flex items-center gap-3 text-red-600 transition-colors" role="menuitem">
                                 <div className="w-8 h-8 rounded-lg bg-red-100/50 text-red-600 flex items-center justify-center">
-                                    <Trash2 size={18} strokeWidth={2.5} />
+                                    <Trash size={18} weight="duotone" />
                                 </div>
                                 <span>מחק חייל לצמיתות</span>
                             </button>
@@ -1643,22 +1735,63 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 )
             }
 
-            {/* Reusable SheetModal for All Forms */}
-            <SheetModal
+            {/* Reusable GenericModal for All Forms */}
+            <GenericModal
                 isOpen={isModalOpen}
                 onClose={closeForm}
                 title={getModalTitle()}
-                isSaving={isSaving}
-                onSave={handleSave}
+                size="lg"
+                footer={(
+                    <div className="flex w-full items-center gap-4">
+                        <Button
+                            variant="outline"
+                            onClick={closeForm}
+                            disabled={isSaving}
+                            className="flex-1"
+                        >
+                            ביטול
+                        </Button>
+                        <Button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="flex-[2] font-black"
+                        >
+                            {isSaving ? 'שומר שינויים...' : 'שמור'}
+                        </Button>
+                    </div>
+                )}
             >
-                {renderModalContent()}
-            </SheetModal>
+                <div className="py-2">
+                    {renderModalContent()}
+                </div>
+            </GenericModal>
 
             {/* Duplicate Warning Modal */}
-            <Modal
+            <GenericModal
                 isOpen={!!duplicateWarning?.isOpen}
                 onClose={() => setDuplicateWarning(null)}
                 title="התראה: כפילות אפשרית"
+                size="sm"
+                footer={(
+                    <div className="flex justify-end gap-3 w-full">
+                        <Button
+                            variant="outline"
+                            onClick={() => setDuplicateWarning(null)}
+                            className="border-slate-300 hover:bg-slate-50 flex-1"
+                        >
+                            ביטול
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setDuplicateWarning(null);
+                                executeSavePerson();
+                            }}
+                            className="bg-amber-500 hover:bg-amber-600 text-white border-transparent flex-1"
+                        >
+                            צור כפילות
+                        </Button>
+                    </div>
+                )}
             >
                 <div className="space-y-6">
                     <div className="flex items-start gap-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
@@ -1674,27 +1807,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     <p className="text-slate-600 text-lg leading-relaxed">
                         יצירת כרטיס נוסף תגרום לכפילות נתונים. האם אתם בטוחים שברצונכם להמשיך?
                     </p>
-
-                    <div className="flex justify-end gap-3 pt-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setDuplicateWarning(null)}
-                            className="border-slate-300 hover:bg-slate-50"
-                        >
-                            ביטול
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                setDuplicateWarning(null);
-                                executeSavePerson();
-                            }}
-                            className="bg-amber-500 hover:bg-amber-600 text-white border-transparent"
-                        >
-                            צור כפילות
-                        </Button>
-                    </div>
                 </div>
-            </Modal>
+            </GenericModal>
 
             <ExcelImportWizard
                 isOpen={isImportWizardOpen}
@@ -1709,11 +1823,16 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             />
 
             {/* Import Results Modal */}
-            <Modal
+            <GenericModal
                 isOpen={!!importResults}
                 onClose={() => setImportResults(null)}
                 title="סיכום ייבוא נתונים"
                 size="lg"
+                footer={(
+                    <div className="flex justify-end w-full">
+                        <Button onClick={() => setImportResults(null)}>סגור</Button>
+                    </div>
+                )}
             >
                 <div className="space-y-6">
                     <div className="grid grid-cols-3 gap-4 text-center">
@@ -1747,12 +1866,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             </div>
                         </div>
                     )}
-
-                    <div className="flex justify-end pt-2">
-                        <Button onClick={() => setImportResults(null)}>סגור</Button>
-                    </div>
                 </div>
-            </Modal>
+            </GenericModal>
             {/* Confirmation Modal */}
             <ConfirmationModal
                 isOpen={confirmModal.isOpen}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { TaskTemplate } from '../../types';
-import { X, Calendar, CheckSquare, Wand2, Loader2, Sparkles, Users } from 'lucide-react';
-import { Modal } from '@/components/ui/Modal';
+import { X, CalendarBlank as Calendar, CheckSquare, MagicWand as Wand2, Sparkle as Sparkles, Users } from '@phosphor-icons/react';
+import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 interface AutoScheduleModalProps {
     isOpen: boolean;
@@ -103,11 +104,11 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
     const modalTitle = (
         <div className="flex flex-col gap-0.5">
             <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight flex items-center gap-2">
-                <Sparkles className="text-blue-500" size={20} />
+                <Sparkles className="text-blue-500" size={20} weight="duotone" />
                 <span>שיבוץ אוטומטי</span>
             </h2>
             <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                <Wand2 size={12} className="text-blue-500" />
+                <Wand2 size={12} className="text-blue-500" weight="duotone" />
                 <span>אלגוריתם חלוקת משימות חכמה</span>
             </div>
         </div>
@@ -130,7 +131,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                 isLoading={isScheduling || localIsSubmitting}
             >
                 <div className="flex items-center justify-center gap-2">
-                    <Wand2 size={18} />
+                    <Wand2 size={18} weight="duotone" />
                     <span>התחל שיבוץ</span>
                 </div>
             </Button>
@@ -138,7 +139,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
     );
 
     return (
-        <Modal
+        <GenericModal
             isOpen={isOpen}
             onClose={onClose}
             title={modalTitle}
@@ -155,7 +156,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                             : 'text-slate-400 hover:text-slate-600'
                             }`}
                     >
-                        <Calendar size={14} className={`inline-block ml-2 ${mode === 'single' ? 'text-blue-500' : ''}`} />
+                        <Calendar size={14} className={`inline-block ml-2 ${mode === 'single' ? 'text-blue-500' : ''}`} weight="duotone" />
                         יום בודד
                     </button>
                     <button
@@ -165,54 +166,25 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                             : 'text-slate-400 hover:text-slate-600'
                             }`}
                     >
-                        <Calendar size={14} className={`inline-block ml-2 ${mode === 'range' ? 'text-blue-500' : ''}`} />
+                        <Calendar size={14} className={`inline-block ml-2 ${mode === 'range' ? 'text-blue-500' : ''}`} weight="duotone" />
                         טווח תאריכים
                     </button>
                 </div>
 
                 {/* Date Inputs */}
                 <div className="grid grid-cols-2 gap-4 mb-2">
-                    <div>
-                        <label className="block text-xs font-black text-slate-500 mb-1.5 px-1 uppercase tracking-wider">
-                            {mode === 'single' ? 'תאריך לשיבוץ' : 'תאריך התחלה'}
-                        </label>
-                        <div
-                            className="relative flex items-center bg-white rounded-xl border border-slate-200 px-3 py-2.5 w-full group hover:border-blue-400 transition-colors cursor-pointer shadow-sm"
-                            onClick={() => (document.getElementById('startDateInput') as HTMLInputElement)?.showPicker()}
-                        >
-                            <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${startDate ? 'text-slate-900' : 'text-slate-400'}`}>
-                                {startDate ? new Date(startDate).toLocaleDateString('he-IL') : 'בחר תאריך'}
-                            </span>
-                            <input
-                                id="startDateInput"
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                            />
-                            <Calendar size={18} className="text-slate-400 ml-2 pointer-events-none" />
-                        </div>
-                    </div>
+                    <DatePicker
+                        label={mode === 'single' ? 'תאריך לשיבוץ' : 'תאריך התחלה'}
+                        value={startDate}
+                        onChange={setStartDate}
+                    />
                     {mode === 'range' && (
                         <div className="animate-in fade-in slide-in-from-left-2 duration-300">
-                            <label className="block text-xs font-black text-slate-500 mb-1.5 px-1 uppercase tracking-wider">תאריך סיום</label>
-                            <div
-                                className="relative flex items-center bg-white rounded-xl border border-slate-200 px-3 py-2.5 w-full group hover:border-blue-400 transition-colors cursor-pointer shadow-sm"
-                                onClick={() => (document.getElementById('endDateInput') as HTMLInputElement)?.showPicker()}
-                            >
-                                <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${endDate ? 'text-slate-900' : 'text-slate-400'}`}>
-                                    {endDate ? new Date(endDate).toLocaleDateString('he-IL') : 'בחר תאריך'}
-                                </span>
-                                <input
-                                    id="endDateInput"
-                                    type="date"
-                                    value={endDate}
-                                    min={startDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                                />
-                                <Calendar size={18} className="text-slate-400 ml-2 pointer-events-none" />
-                            </div>
+                            <DatePicker
+                                label="תאריך סיום"
+                                value={endDate}
+                                onChange={setEndDate}
+                            />
                         </div>
                     )}
                 </div>
@@ -221,7 +193,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 my-4">
                     <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-lg ${prioritizeTeamOrganic ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>
-                            <Users size={20} />
+                            <Users size={20} weight="duotone" />
                         </div>
                         <div>
                             <h4 className="text-sm font-black text-slate-800 leading-tight">שמור על אורגניות צוותים</h4>
@@ -254,7 +226,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                         </div>
                     ) : (
                         <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-                            {tasks.map(task => (
+                            {tasks.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(task => (
                                 <label
                                     key={task.id}
                                     className={`relative flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer group hover:shadow-md ${selectedTaskIds.has(task.id) ? 'bg-white border-blue-200 ring-1 ring-blue-50' : 'bg-white border-slate-100 grayscale-[0.5] opacity-80 hover:grayscale-0 hover:opacity-100'}`}
@@ -263,7 +235,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                                         ? 'bg-blue-600 border-blue-600 text-white shadow-sm shadow-blue-200'
                                         : 'border-slate-200 bg-white'
                                         }`}>
-                                        {selectedTaskIds.has(task.id) && <CheckSquare size={16} strokeWidth={3} />}
+                                        {selectedTaskIds.has(task.id) && <CheckSquare size={16} weight="bold" />}
                                     </div>
                                     <input
                                         type="checkbox"
@@ -289,6 +261,6 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                     )}
                 </div>
             </div>
-        </Modal>
+        </GenericModal>
     );
 };

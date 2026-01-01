@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
-import { Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, UserPlus, Mail, Trash2, Users, Search, Pencil, Info, Copy, RefreshCw, Settings, Plus, Gavel, Layout, UserCircle, Globe, Anchor, Activity, ChevronLeft, AlertTriangle, Megaphone, Accessibility } from 'lucide-react';
+import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon } from '@phosphor-icons/react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode, Role } from '@/types';
@@ -15,6 +15,8 @@ import { Select } from '../../components/ui/Select';
 import { PermissionEditorContent } from './PermissionEditorContent';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { OrganizationMessagesManager } from './OrganizationMessagesManager';
+import { TimePicker } from '../../components/ui/DatePicker';
+import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
 
 import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../../utils/permissions';
 
@@ -38,10 +40,11 @@ const RoleTemplateManager: React.FC<{
     onRefresh: () => void;
     onRestorePresets?: () => void; // NEW
     isAdmin?: boolean; // NEW
-}> = ({ organizationId, templates, teams, onRefresh, onRestorePresets, isAdmin }) => {
+    isCreating: boolean;
+    setIsCreating: (v: boolean) => void;
+}> = ({ organizationId, templates, teams, onRefresh, onRestorePresets, isAdmin, isCreating, setIsCreating }) => {
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
-    const [isCreating, setIsCreating] = useState(false);
     const [editingTemplate, setEditingTemplate] = useState<PermissionTemplate | null>(null);
 
     const handleDeleteTemplate = async (id: string) => {
@@ -92,7 +95,7 @@ const RoleTemplateManager: React.FC<{
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 md:gap-3">
-                    <Shield className="text-indigo-600 flex-shrink-0" size={24} />
+                    <Shield className="text-indigo-600 flex-shrink-0" size={24} weight="duotone" />
                     <div>
                         <h2 className="text-lg md:text-xl font-black text-slate-800">תבניות הרשאות</h2>
                         <p className="text-xs md:text-sm text-slate-500 font-bold">הגדר תפקידים מובנים כמו "מפקד מחלקה", "חייל" וכו'</p>
@@ -109,14 +112,6 @@ const RoleTemplateManager: React.FC<{
                             שחזר תבניות מערכת
                         </Button>
                     )}
-                    <Button
-                        variant="primary"
-                        icon={Plus}
-                        onClick={() => setIsCreating(true)}
-                        className="shadow-md"
-                    >
-                        <span className="hidden md:inline">תבנית חדשה</span>
-                    </Button>
                 </div>
             </div>
 
@@ -196,7 +191,7 @@ const TemplateEditorModal: React.FC<{
             title={
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                        <Shield size={24} strokeWidth={2.5} />
+                        <Shield size={24} weight="duotone" strokeWidth={2.5} />
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-800">{template ? 'עריכת תבנית' : 'יצירת תבנית חדשה'}</h2>
@@ -207,7 +202,7 @@ const TemplateEditorModal: React.FC<{
             footer={
                 <div className="flex justify-end gap-3 w-full">
                     <Button variant="ghost" onClick={onClose} className="font-bold text-slate-500 hover:text-slate-700">ביטול</Button>
-                    <Button variant="primary" icon={Save} onClick={handleSave} disabled={!name.trim()} className="shadow-lg shadow-indigo-200">שמור תבנית</Button>
+                    <Button variant="primary" icon={Save} onClick={handleSave} disabled={!name.trim()} className="shadow-none">שמור תבנית</Button>
                 </div>
             }
             size="2xl"
@@ -314,36 +309,18 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
         <div className="space-y-6 max-w-3xl">
             <div className="flex flex-col md:flex-row md:items-end gap-4">
                 <div className="flex-1 w-full md:w-auto">
-                    <label id="night-start-label" className="block text-sm font-bold text-slate-700 mb-1.5 line-clamp-1">התחלת לילה</label>
-                    <div className="relative flex items-center bg-gray-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:border-blue-500 transition-colors focus-within:ring-2 focus-within:ring-blue-100">
-                        <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${start ? 'text-slate-900' : 'text-slate-400'}`}>
-                            {start || 'בחר שעה'}
-                        </span>
-                        <input
-                            type="time"
-                            value={start}
-                            onChange={e => setStart(e.target.value)}
-                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                            aria-labelledby="night-start-label"
-                        />
-                        <Clock size={16} className="text-slate-400 ml-2 pointer-events-none" aria-hidden="true" />
-                    </div>
+                    <TimePicker
+                        label="התחלת לילה"
+                        value={start}
+                        onChange={setStart}
+                    />
                 </div>
                 <div className="flex-1 w-full md:w-auto">
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5 line-clamp-1">סיום לילה</label>
-                    <div className="relative flex items-center bg-gray-50 rounded-xl border border-slate-200 px-3 py-2 w-full group hover:border-blue-500 transition-colors focus-within:ring-2 focus-within:ring-blue-100">
-                        <span className={`text-sm font-bold flex-1 text-right pointer-events-none ${end ? 'text-slate-900' : 'text-slate-400'}`}>
-                            {end || 'בחר שעה'}
-                        </span>
-                        <input
-                            type="time"
-                            value={end}
-                            onChange={e => setEnd(e.target.value)}
-                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                            aria-label="סיום לילה"
-                        />
-                        <Clock size={16} className="text-slate-400 ml-2 pointer-events-none" aria-hidden="true" />
-                    </div>
+                    <TimePicker
+                        label="סיום לילה"
+                        value={end}
+                        onChange={setEnd}
+                    />
                 </div>
             </div>
 
@@ -368,7 +345,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                     isLoading={saving}
                     icon={Save}
                     variant="primary"
-                    className="shadow-md"
+                    className="shadow-none"
                 >
                     {saving ? 'שומר...' : 'שמור שינויים'}
                 </Button>
@@ -382,13 +359,12 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const [members, setMembers] = useState<Profile[]>([]);
     const [invites, setInvites] = useState<OrganizationInvite[]>([]);
     const [loading, setLoading] = useState(true);
-    const [inviteEmail, setInviteEmail] = useState('');
-    const [inviteTemplateId, setInviteTemplateId] = useState<string>(''); // NEW: Selected template for invite
-    const [sending, setSending] = useState(false);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
     const [roles, setRoles] = useState<Role[]>([]); // New State
-    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles' | 'messages'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles' | 'messages' | 'teams'>('general');
+    const [isCreating, setIsCreating] = useState(false);
 
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
@@ -464,36 +440,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         }
     };
 
-    const handleSendInvite = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!organization || !user || !inviteEmail.trim()) return;
-        setSending(true);
-        try {
-            const { error } = await supabase
-                .from('organization_invites')
-                .insert({
-                    organization_id: organization.id,
-                    email: inviteEmail.trim().toLowerCase(),
-                    template_id: inviteTemplateId || null, // Updated to use template_id
-                    invited_by: user.id
-                });
 
-            if (error) throw error;
-            showToast(`הזמנה נשלחה ל-${inviteEmail}`, 'success');
-            setInviteEmail('');
-            setInviteTemplateId('');
-            fetchInvites();
-        } catch (error: any) {
-            console.error('Error sending invite:', error);
-            if (error.code === '23505') {
-                showToast('משתמש זה כבר הוזמן או חבר בארגון', 'warning');
-            } else {
-                showToast('שגיאה בשליחת ההזמנה', 'error');
-            }
-        } finally {
-            setSending(false);
-        }
-    };
 
 
     const [editingPermissionsFor, setEditingPermissionsFor] = useState<Profile | null>(null);
@@ -533,7 +480,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     if (!checkAccess('settings', 'edit') && !profile?.is_super_admin) {
         return (
             <div className="bg-white rounded-xl p-8 shadow-sm border border-red-200 text-center">
-                <Shield className="mx-auto text-red-500 mb-4" size={40} />
+                <Shield className="mx-auto text-red-500 mb-4" size={40} weight="duotone" />
                 <h2 className="text-xl font-bold text-slate-800 mb-2">אין הרשאה</h2>
                 <p className="text-slate-600">רק מנהלים יכולים לגשת להגדרות הארגון</p>
             </div>
@@ -552,7 +499,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     ];
 
     return (
-        <div className="h-full bg-transparent md:bg-white" dir="rtl">
+        <div className="h-full bg-slate-50 md:bg-white rounded-[2rem] md:rounded-2xl shadow-xl md:shadow-none border md:border-slate-100 p-0 md:p-0 overflow-hidden" dir="rtl">
             {/* === Mobile Layout (< md) === */}
             {/* Header Removed - Content moved to main card */}
 
@@ -585,7 +532,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                 aria-selected={activeTab === tab.id}
                                 aria-controls={`panel-${tab.id}`}
                             >
-                                <tab.icon size={18} className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} aria-hidden="true" />
+                                <tab.icon size={18} weight="duotone" className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} aria-hidden="true" />
                                 {tab.label}
                             </button>
                         ))}
@@ -595,7 +542,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                             href="/accessibility"
                             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all group"
                         >
-                            <Accessibility size={18} className="text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
+                            <Accessibility size={18} weight="duotone" className="text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
                             הצהרת נגישות
                         </a>
                     </div>
@@ -643,7 +590,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                             : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-600'
                                             }`}
                                     >
-                                        <tab.icon size={16} />
+                                        <tab.icon size={16} weight="duotone" />
                                         <span className={activeTab === tab.id ? 'inline' : 'hidden sm:inline'}>{tab.label}</span>
                                     </button>
                                 ))}
@@ -655,7 +602,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <div className="hidden md:flex items-center gap-2 mb-2 border-b border-slate-100 pb-4">
                                     <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                                        <Settings className="text-slate-600" size={28} />
+                                        <Settings className="text-slate-600" size={28} weight="duotone" />
                                         הגדרות וניהול
                                         <PageInfo
                                             title="הגדרות ארגון"
@@ -675,7 +622,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                 </div>
                                 <section>
                                     <div className="flex items-center gap-2 mb-4 text-slate-800">
-                                        <LinkIcon className="text-blue-500" size={20} />
+                                        <LinkIcon className="text-blue-500" size={20} weight="duotone" />
                                         <h2 className="text-xl font-black">הגדרות הזמנה</h2>
                                     </div>
                                     <InviteLinkSettings
@@ -683,12 +630,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                         onUpdate={fetchMembers}
                                         templates={templates}
                                         onViewTemplates={() => setActiveTab('roles')}
-                                        onSendInvite={handleSendInvite}
-                                        inviteEmail={inviteEmail}
-                                        setInviteEmail={setInviteEmail}
-                                        inviteTemplateId={inviteTemplateId}
-                                        setInviteTemplateId={setInviteTemplateId}
-                                        sending={sending}
+
                                     />
                                 </section>
 
@@ -696,7 +638,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
 
                                 <section>
                                     <div className="flex items-center gap-2 mb-4 text-slate-800">
-                                        <Clock className="text-orange-500" size={20} />
+                                        <Clock className="text-orange-500" size={20} weight="duotone" />
                                         <h2 className="text-xl font-black">הגדרות כלליות</h2>
                                     </div>
                                     <GeneralSettings organizationId={organization?.id || ''} />
@@ -711,6 +653,8 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                     templates={templates.filter(t => !SYSTEM_ROLE_PRESETS.some(p => p.name === t.name))}
                                     teams={teams}
                                     onRefresh={fetchTemplates}
+                                    isCreating={isCreating}
+                                    setIsCreating={setIsCreating}
                                 />
                             </div>
                         )}
@@ -778,7 +722,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                                         size="sm"
                                                         className="text-slate-400 hover:text-blue-600 hover:bg-white"
                                                     >
-                                                        <Pencil size={14} />
+                                                        <Pencil size={14} weight="duotone" />
                                                     </Button>
                                                 )}
                                             </div>
@@ -796,6 +740,16 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                     </div>
                 </div>
             </div>
+
+            {/* Unified FAB for Organization Settings */}
+            <FloatingActionButton
+                icon={Plus}
+                onClick={() => {
+                    if (activeTab === 'roles') setIsCreating(true);
+                }}
+                ariaLabel={activeTab === 'roles' ? 'תבנית חדשה' : 'הזמן משתמש'}
+                show={isAdmin && !loading && activeTab === 'roles'}
+            />
 
             {editingPermissionsFor && (
                 <PermissionEditor
@@ -816,29 +770,9 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
 const InviteLinkSettings: React.FC<{
     organization: any;
     onUpdate: () => void;
-    templates: PermissionTemplate[],
+    templates: PermissionTemplate[];
     onViewTemplates: () => void;
-    // New props for email invite form which is now inside here or parallel? 
-    // Wait, the previous code had InviteLinkSettings ONLY for the Link. 
-    // But I see I didn't inject the Email Form logic into InviteLinkSettings in the previous step, I just passed props.
-    // I need to update InviteLinkSettings signature and content to include the Email Invite form OR move the Email Invite form outside.
-    // Let's UPDATE the signature to accept the email invite props so I can render both forms if needed, or better yet, just keep them separate?
-    // The previous code had `InviteLinkSettings` component just for the link toggle.
-    // AND a separate "Send Invite" area? Actually I missed where the "Send Invite" form was rendered in the original file! 
-    // It was probably passed as children or I missed it. 
-    // Checking lines 609... it just renders `InviteLinkSettings`.
-    // Ah, `handleSendInvite` was defined in the parent but WHERE is the JSX for the email input?
-    // I don't see the email input in the original file snippet I read (lines 600-628).
-    // It must be inside `InviteLinkSettings`? NO, `InviteLinkSettings` is defined at line 717.
-    // Let me check `InviteLinkSettings` content via view_file first to be sure.
-    // I will ABORT this specific chunk replacement and verify first.
-    inviteEmail: string;
-    setInviteEmail: (s: string) => void;
-    inviteTemplateId: string;
-    setInviteTemplateId: (s: string) => void;
-    onSendInvite: (e: React.FormEvent) => void;
-    sending: boolean;
-}> = ({ organization, onUpdate, templates, onViewTemplates, inviteEmail, setInviteEmail, inviteTemplateId, setInviteTemplateId, onSendInvite, sending }) => {
+}> = ({ organization, onUpdate, templates, onViewTemplates }) => {
     const { showToast } = useToast();
     const { confirm, modalProps } = useConfirmation();
     const [loading, setLoading] = useState(false);
@@ -974,7 +908,7 @@ const InviteLinkSettings: React.FC<{
                         {/* Template Selector - Compact */}
                         <div>
                             <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
-                                <Shield size={12} /> תבנית הרשאות למצטרפים (דרך הקישור)
+                                <Shield size={12} weight="duotone" /> תבנית הרשאות למצטרפים (דרך הקישור)
                             </label>
                             <div className="flex gap-2">
                                 <div className="flex-1">
@@ -985,12 +919,12 @@ const InviteLinkSettings: React.FC<{
                                             { value: '', label: 'ללא (צפייה בלבד)' },
                                             ...templates.map(t => ({ value: t.id, label: t.name }))
                                         ]}
-                                        className="!bg-white !h-10 text-sm"
+                                        className="!bg-white !h-10 text-base"
                                         placeholder="בחר תבנית..."
                                     />
                                 </div>
                                 <button onClick={onViewTemplates} className="bg-white border border-slate-200 rounded-lg px-3 hover:bg-slate-50 text-slate-500">
-                                    <Settings size={16} />
+                                    <Settings size={16} weight="duotone" />
                                 </button>
                             </div>
                         </div>
@@ -1002,11 +936,11 @@ const InviteLinkSettings: React.FC<{
                                 onClick={copyToClipboard}
                                 className="w-full flex items-center justify-between bg-white border-2 border-slate-200 hover:border-blue-400 hover:text-blue-600 text-slate-600 rounded-xl p-3 transition-all group"
                             >
-                                <span className="text-sm font-mono truncate dir-ltr px-2 opacity-80 group-hover:opacity-100">
+                                <span className="text-base font-mono truncate dir-ltr px-2 opacity-80 group-hover:opacity-100">
                                     {window.location.origin}/join/{inviteToken.slice(0, 8)}...
                                 </span>
                                 <div className="flex items-center gap-2 font-bold text-sm bg-slate-100 px-3 py-1.5 rounded-lg group-hover:bg-blue-50 group-hover:text-blue-700">
-                                    {copied ? <CheckCircle size={16} /> : <Copy size={16} />}
+                                    {copied ? <CheckCircle size={16} weight="duotone" /> : <Copy size={16} weight="duotone" />}
                                     <span>{copied ? 'הועתק' : 'העתק'}</span>
                                 </div>
                             </button>
@@ -1014,13 +948,15 @@ const InviteLinkSettings: React.FC<{
 
                         <div className="flex justify-center">
                             <button onClick={handleRegenerate} className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors">
-                                <RefreshCw size={10} /> אפס קישור קיים
+                                <RefreshCw size={10} weight="bold" /> אפס קישור קיים
                             </button>
                         </div>
                     </div>
                 )}
                 <ConfirmationModal {...modalProps} />
             </div>
+
+
         </div>
     );
 };

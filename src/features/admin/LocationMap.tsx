@@ -156,42 +156,38 @@ export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
     const defaultZoom = 7;
 
     return (
-        <div className="relative w-full h-[350px] bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-inner z-0">
+        <div className="relative w-full h-[350px] bg-slate-50 rounded-2xl border border-slate-200/60 overflow-hidden shadow-sm z-0">
             <MapContainer
                 center={defaultCenter}
                 zoom={defaultZoom}
                 scrollWheelZoom={true}
                 className="w-full h-full z-0"
-                style={{ background: '#0f172a', height: '100%', width: '100%' }} // Match slate-900
+                style={{ background: '#f8fafc', height: '100%', width: '100%' }} // Match slate-50
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    className="map-tiles-dark" // We can try to filter this with CSS for dark mode
                 />
 
-                {/* Custom CSS to Darken the Map Tiles */}
                 <style>{`
-                    .leaflet-tile {
-                        filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-                    }
                     .leaflet-container {
-                        background: #0f172a !important;
-                        height: 100%;
-                        width: 100%;
+                        font-family: inherit;
                     }
-                    /* Ensure controls are visible on dark map */
+                    /* Custom controls style */
                      .leaflet-control-custom-button {
-                        background-color: #1e293b;
-                        color: #e2e8f0;
-                        border: 1px solid #334155;
+                        background-color: #ffffff;
+                        color: #475569;
+                        border: 1px solid #e2e8f0;
                         cursor: pointer;
-                        border-radius: 4px;
+                        border-radius: 8px;
                         transition: all 0.2s;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
                     }
                     .leaflet-control-custom-button:hover {
-                         background-color: #334155;
-                         color: #ffffff;
+                         background-color: #f8fafc;
+                         color: #0f172a;
+                         transform: translateY(-1px);
+                         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                     }
                 `}</style>
 
@@ -201,16 +197,16 @@ export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
                         center={[point.lat, point.lon]}
                         radius={point.radius}
                         pathOptions={{
-                            color: point.color,
-                            fillColor: point.color,
+                            color: '#059669', // Emerald-600
+                            fillColor: '#10b981', // Emerald-500
                             fillOpacity: 0.6,
-                            weight: 1
+                            weight: 2
                         }}
                     >
-                        <Tooltip direction="top" offset={[0, -5]} opacity={1}>
-                            <div className="text-center">
-                                <span className="font-bold block">{point.name}</span>
-                                <span className="text-xs">{point.value} visits</span>
+                        <Tooltip direction="top" offset={[0, -5]} opacity={1} className="custom-map-tooltip">
+                            <div className="text-center font-sans">
+                                <span className="font-bold block text-slate-800">{point.name}</span>
+                                <span className="text-xs text-slate-500 font-medium">{point.value} visits</span>
                             </div>
                         </Tooltip>
                     </CircleMarker>
@@ -221,8 +217,8 @@ export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
             </MapContainer>
 
             {/* Overlay Hint */}
-            <div className="absolute top-2 left-12 z-[400] text-[9px] text-slate-500 font-mono bg-slate-900/80 px-2 py-1 rounded border border-slate-800 pointer-events-none">
-                Live Map Enabled
+            <div className="absolute top-3 left-14 z-[400] text-[10px] text-slate-500 font-bold bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg border border-slate-200 shadow-sm pointer-events-none uppercase tracking-wider">
+                Live Map
             </div>
         </div>
     );

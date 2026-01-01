@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Team, TeamRotation } from '@/types';
-import { Settings, CalendarDays, Trash2, Save, Clock } from 'lucide-react';
+import { Gear as Settings, Calendar as CalendarDays, Trash, FloppyDisk as Save, Clock } from '@phosphor-icons/react';
 import { v4 as uuidv4 } from 'uuid';
-import { Modal } from '@/components/ui/Modal';
+import { GenericModal } from '@/components/ui/GenericModal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
 
 interface RotationEditorProps {
     team: Team;
@@ -47,7 +48,7 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
         <div className="flex flex-col pr-2 text-right">
             <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">הגדרות סבב - {team.name}</h2>
             <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wider">
-                <Settings size={14} className="text-slate-400" />
+                <Settings size={14} className="text-slate-400" weight="duotone" />
                 <span>ניהול מחזוריות צוותית</span>
             </div>
         </div>
@@ -59,7 +60,7 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
                 <Button
                     onClick={() => onDeleteRotation?.(existing.id)}
                     variant="danger"
-                    icon={Trash2}
+                    icon={Trash}
                     className="font-bold opacity-80 hover:opacity-100"
                 >
                     מחק סבב
@@ -68,13 +69,13 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
 
             <div className="flex gap-3">
                 <Button onClick={onClose} variant="ghost" className="font-bold text-slate-500">ביטול</Button>
-                <Button onClick={handleSave} variant="primary" icon={Save} className="font-bold px-8 shadow-lg shadow-blue-200">שמור הגדרות</Button>
+                <Button onClick={handleSave} variant="primary" icon={Save} className="font-bold px-8 shadow-none">שמור הגדרות</Button>
             </div>
         </div>
     );
 
     return (
-        <Modal
+        <GenericModal
             isOpen={true}
             onClose={onClose}
             title={modalTitle}
@@ -85,7 +86,7 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
                 {/* Guidance Note */}
                 <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 text-sm text-blue-800 flex items-start gap-4">
                     <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                        <CalendarDays className="text-blue-600" size={20} />
+                        <CalendarDays className="text-blue-600" size={20} weight="duotone" />
                     </div>
                     <div>
                         <strong className="block text-blue-900 mb-1 font-black">הגדרת סבב יציאות:</strong>
@@ -119,52 +120,35 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
 
                     <div className="space-y-6">
                         <div>
-                            <Input
-                                type="date"
+                            <DatePicker
                                 label="תאריך התחלה (עוגן)"
                                 value={anchorDate}
-                                onChange={e => setAnchorDate(e.target.value)}
-                                icon={CalendarDays}
-                                className="w-full bg-slate-50/50 border-slate-200"
+                                onChange={setAnchorDate}
                             />
-                        </div>
-                        <div>
-                            <Input
-                                type="date"
+                            <DatePicker
                                 label="תאריך סיום (אופציונלי)"
                                 value={endDate}
-                                onChange={e => setEndDate(e.target.value)}
-                                icon={CalendarDays}
-                                className="w-full bg-slate-50/50 border-slate-200"
-                                placeholder="ללא סיום"
+                                onChange={setEndDate}
                             />
                         </div>
                     </div>
 
                     <div className="space-y-6 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                            <Input
-                                type="time"
+                            <TimePicker
                                 label="שעת הגעה (יום 1)"
                                 value={arrTime}
-                                onChange={e => setArrTime(e.target.value)}
-                                icon={Clock}
-                                className="w-full bg-slate-50/50 border-slate-200"
+                                onChange={setArrTime}
                             />
-                        </div>
-                        <div>
-                            <Input
-                                type="time"
+                            <TimePicker
                                 label="שעת יציאה (יום אחרון)"
                                 value={depTime}
-                                onChange={e => setDepTime(e.target.value)}
-                                icon={Clock}
-                                className="w-full bg-slate-50/50 border-slate-200"
+                                onChange={setDepTime}
                             />
                         </div>
                     </div>
                 </div>
             </div>
-        </Modal>
+        </GenericModal>
     );
 };

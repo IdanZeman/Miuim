@@ -1,21 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    Search,
-    Calendar,
-    Filter,
-    Download,
-    User,
-    Car,
-    Footprints,
-    ArrowRightCircle,
-    ArrowLeftCircle,
-    Building2,
-    Clock
-} from 'lucide-react';
+    MagnifyingGlass as SearchIcon, Calendar as CalendarIcon, Funnel as FilterIcon, DownloadSimple as DownloadIcon, User as UserIcon,
+    Car as CarIcon, Footprints as FootprintsIcon, ArrowCircleRight as ArrowRightCircleIcon, ArrowCircleLeft as ArrowLeftCircleIcon, Buildings as Building2Icon, Clock as ClockIcon
+} from '@phosphor-icons/react';
 import { useGateSystem, GateLog } from '../../hooks/useGateSystem';
 import { Input } from '../ui/Input';
+import { DatePicker } from '../ui/DatePicker';
 import { Button } from '../ui/Button';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { DashboardSkeleton } from '../ui/DashboardSkeleton';
 import { LogDetailsModal } from './LogDetailsModal';
 import { format } from 'date-fns';
 
@@ -77,7 +69,7 @@ export const GateHistory: React.FC = () => {
                             placeholder="מספר רכב, שם נהג..."
                             className="pl-10"
                         />
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     </div>
                 </div>
 
@@ -96,26 +88,20 @@ export const GateHistory: React.FC = () => {
                 </div>
 
                 <div className="flex gap-2 w-full lg:w-auto">
-                    <div>
-                        <label className="text-xs font-bold text-slate-500 mb-1 block">מתאריך</label>
-                        <Input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-slate-500 mb-1 block">עד תאריך</label>
-                        <Input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                        />
-                    </div>
+                    <DatePicker
+                        label="מתאריך"
+                        value={startDate}
+                        onChange={setStartDate}
+                    />
+                    <DatePicker
+                        label="עד תאריך"
+                        value={endDate}
+                        onChange={setEndDate}
+                    />
                 </div>
 
                 <Button variant="outline" onClick={loadHistory} className="mb-[1px]">
-                    <Filter size={18} />
+                    <FilterIcon size={18} />
                 </Button>
             </div>
 
@@ -137,8 +123,8 @@ export const GateHistory: React.FC = () => {
                         <tbody className="divide-y divide-slate-100">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={7} className="py-12 text-center">
-                                        <LoadingSpinner />
+                                    <td colSpan={7} className="py-12">
+                                        <DashboardSkeleton />
                                     </td>
                                 </tr>
                             ) : logs.length === 0 ? (
@@ -157,11 +143,11 @@ export const GateHistory: React.FC = () => {
                                         <td className="px-4 py-3">
                                             {log.entry_type === 'pedestrian' ? (
                                                 <div className="bg-orange-100 text-orange-600 p-1.5 rounded-lg w-fit" title="הולך רגל">
-                                                    <Footprints size={16} />
+                                                    <FootprintsIcon size={16} />
                                                 </div>
                                             ) : (
                                                 <div className="bg-blue-100 text-blue-600 p-1.5 rounded-lg w-fit" title="רכב">
-                                                    <Car size={16} />
+                                                    <CarIcon size={16} />
                                                 </div>
                                             )}
                                         </td>
@@ -173,7 +159,7 @@ export const GateHistory: React.FC = () => {
                                         </td>
                                         <td className="px-4 py-3">
                                             <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium">
-                                                <Building2 size={12} />
+                                                <Building2Icon size={12} />
                                                 {log.organizations?.name || 'לא ידוע'}
                                             </span>
                                         </td>
@@ -189,7 +175,7 @@ export const GateHistory: React.FC = () => {
                                         </td>
                                         <td className="px-4 py-3 text-slate-500">
                                             <div className="flex items-center gap-1">
-                                                <Clock size={14} />
+                                                <ClockIcon size={14} />
                                                 {getDuration(log.entry_time, log.exit_time)}
                                             </div>
                                         </td>

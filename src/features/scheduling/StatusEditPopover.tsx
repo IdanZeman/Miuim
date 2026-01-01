@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Clock, ArrowLeft } from 'lucide-react';
+import { X, Clock, ArrowLeft } from '@phosphor-icons/react';
+import { TimePicker } from '../../components/ui/DatePicker';
 
 interface StatusEditPopoverProps {
     isOpen: boolean;
@@ -64,7 +65,7 @@ export const StatusEditPopover: React.FC<StatusEditPopoverProps> = ({
                 <div className="text-xs font-black text-slate-400 px-1 pb-3 border-b border-slate-100 mb-2 flex justify-between items-center uppercase tracking-widest">
                     <span>ערוך סטטוס • {date}</span>
                     <button onClick={onClose} className="hover:bg-slate-100 rounded-full p-1 transition-colors">
-                        <X size={16} />
+                        <X size={16} weight="bold" />
                     </button>
                 </div>
 
@@ -87,7 +88,7 @@ export const StatusEditPopover: React.FC<StatusEditPopoverProps> = ({
                         </div>
 
                         <button onClick={() => setCustomType('custom')} className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded text-xs text-slate-700 w-full text-right transition-colors mt-1 font-bold">
-                            <Clock size={12} className="text-blue-500" /> שעות מותאמות...
+                            <Clock size={12} className="text-blue-500" weight="duotone" /> שעות מותאמות...
                         </button>
 
                         <button onClick={() => handleApply('unavailable')} className="flex items-center gap-3 px-2 py-2 hover:bg-slate-100 rounded text-xs text-slate-400 w-full text-right border-t mt-2 pt-3 transition-colors font-black uppercase tracking-tighter">
@@ -97,53 +98,44 @@ export const StatusEditPopover: React.FC<StatusEditPopoverProps> = ({
                 ) : (
                     <div className="flex flex-col gap-3 p-1">
                         <button onClick={() => setCustomType(null)} className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 font-bold">
-                            <ArrowLeft size={14} />
+                            <ArrowLeft size={14} weight="duotone" />
                             <span className="text-xs">חזרה</span>
                         </button>
 
                         {customType === 'departure' && (
                             <div className="flex flex-col gap-1.5">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">שעת יציאה להיום</span>
-                                <input
-                                    type="time"
+                                <TimePicker
+                                    label="שעת יציאה"
                                     value={customEnd}
-                                    onChange={e => setCustomEnd(e.target.value)}
-                                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base font-bold w-full text-center outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 h-10"
+                                    onChange={setCustomEnd}
                                 />
                             </div>
                         )}
 
                         {customType === 'arrival' && (
                             <div className="flex flex-col gap-1.5">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">שעת הגעה להיום</span>
-                                <input
-                                    type="time"
+                                <TimePicker
+                                    label="שעת הגעה"
                                     value={customStart}
-                                    onChange={e => setCustomStart(e.target.value)}
-                                    className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-base font-bold w-full text-center outline-none focus:ring-2 ring-blue-500/20 focus:border-blue-500 h-10"
+                                    onChange={setCustomStart}
                                 />
                             </div>
                         )}
 
                         {customType === 'custom' && (
                             <div className="flex items-center justify-between gap-2 px-1">
-                                <div className="flex flex-col gap-1 flex-1">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase text-center">התחלה</span>
-                                    <input
-                                        type="time"
+                                <div className="flex flex-1">
+                                    <TimePicker
+                                        label="מהשעה"
                                         value={customStart}
-                                        onChange={e => setCustomStart(e.target.value)}
-                                        className="bg-slate-50 border border-slate-200 rounded-md px-1 py-1 text-sm font-bold w-full text-center h-9 outline-none focus:border-blue-500 focus:ring-1 ring-blue-500/20"
+                                        onChange={setCustomStart}
                                     />
                                 </div>
-                                <span className="text-slate-300 mt-5 font-light text-xl">—</span>
-                                <div className="flex flex-col gap-1 flex-1">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase text-center">סיום</span>
-                                    <input
-                                        type="time"
+                                <div className="flex flex-1">
+                                    <TimePicker
+                                        label="עד השעה"
                                         value={customEnd}
-                                        onChange={e => setCustomEnd(e.target.value)}
-                                        className="bg-slate-50 border border-slate-200 rounded-md px-1 py-1 text-sm font-bold w-full text-center h-9 outline-none focus:border-blue-500 focus:ring-1 ring-blue-500/20"
+                                        onChange={setCustomEnd}
                                     />
                                 </div>
                             </div>

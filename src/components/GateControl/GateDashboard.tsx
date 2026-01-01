@@ -2,19 +2,22 @@ import React, { useState, useMemo } from 'react';
 import { useGateSystem, GateLog } from '../../hooks/useGateSystem';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { FloatingActionButton } from '../ui/FloatingActionButton';
+import { CircleNotch } from '@phosphor-icons/react';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../features/auth/AuthContext';
 import { GateHistoryList } from './GateHistoryList';
-import { Modal } from '../ui/Modal'; // Added Modal import
+
+import { GenericModal } from '../ui/GenericModal';
 import {
-    ArrowLeftRight, Settings, RefreshCw, Car, Footprints, LogOut, Search,
-    Plus, MapPin, Filter, AlertTriangle, CheckCircle2, MoreVertical, Trash2, Edit2, User, PlusCircle,
-    ChevronDown, ChevronUp, Download, Printer, UserPlus, History, ShieldCheck
-} from 'lucide-react';
+    ArrowsLeftRight as ArrowLeftRightIcon, Gear as SettingsIcon, ArrowsClockwise as RefreshCwIcon, Car as CarIcon, Footprints as FootprintsIcon, SignOut as LogOutIcon, MagnifyingGlass as SearchIcon,
+    Plus as PlusIcon, MapPin as MapPinIcon, Funnel as FilterIcon, Warning as AlertTriangleIcon, CheckCircle as CheckCircle2Icon, DotsThreeVertical as MoreVerticalIcon, Trash as Trash2Icon, PencilSimple as Edit2Icon, User as UserIcon, PlusCircle as PlusCircleIcon,
+    CaretDown as ChevronDownIcon, CaretUp as ChevronUpIcon, DownloadSimple as DownloadIcon, Printer as PrinterIcon, UserPlus as UserPlusIcon, ClockCounterClockwise as HistoryIcon, ShieldCheck as ShieldCheckIcon
+} from '@phosphor-icons/react';
 import { ManageAuthorizedVehiclesModal, AuthorizedVehiclesContent } from './ManageAuthorizedVehiclesModal';
 import { GateHistory } from './GateHistory';
 import { supabase } from '../../lib/supabase';
+import { DashboardSkeleton } from '../ui/DashboardSkeleton';
 
 export const GateDashboard: React.FC = () => {
     const {
@@ -195,7 +198,7 @@ export const GateDashboard: React.FC = () => {
             if (existingLog) {
                 const { success, error } = await registerExit(existingLog.id);
                 if (success) {
-                    showToast(`יציאה נרשמה (נסגר רישום קיים)`, 'success');
+                    showToast(`יציאה נרשמה(נסגר רישום קיים)`, 'success');
                     setRefreshTrigger(prev => prev + 1);
                     setPlateInput('');
                     setDriverName('');
@@ -217,7 +220,7 @@ export const GateDashboard: React.FC = () => {
                 });
 
                 if (success) {
-                    showToast(`יציאה נרשמה (ללא רישום כניסה קודם)`, 'success');
+                    showToast(`יציאה נרשמה(ללא רישום כניסה קודם)`, 'success');
                     setRefreshTrigger(prev => prev + 1);
                     setPlateInput('');
                     setDriverName('');
@@ -233,7 +236,7 @@ export const GateDashboard: React.FC = () => {
     const handleRegisterExit = async (logId: string, plateNumber: string) => {
         const { success, error } = await registerExit(logId);
         if (success) {
-            showToast(`יציאה נרשמה ל-${plateNumber} `, 'success');
+            showToast(`יציאה נרשמה ל-${plateNumber}`, 'success');
             setRefreshTrigger(prev => prev + 1);
         } else {
             showToast(error || 'אירעה שגיאה ברישום היציאה', 'error');
@@ -249,7 +252,7 @@ export const GateDashboard: React.FC = () => {
                         <div className="flex flex-col">
                             <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
                                 <div className="p-2 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/20">
-                                    <ShieldCheck size={20} strokeWidth={2.5} />
+                                    <ShieldCheckIcon size={20} strokeWidth={2.5} />
                                 </div>
                                 {direction === 'entry' ? 'דיווח כניסה' : 'דיווח יציאה'}
                             </h2>
@@ -263,7 +266,7 @@ export const GateDashboard: React.FC = () => {
                                 className={`px-4 rounded-lg transition-all flex items-center gap-2 ${entryType === 'vehicle' ? 'bg-white shadow-sm text-blue-600 font-black' : 'text-slate-400 hover:text-slate-600 font-bold'}`}
                                 title="רכב"
                             >
-                                <Car size={18} strokeWidth={2.5} />
+                                <CarIcon size={18} strokeWidth={2.5} />
                                 <span className="text-xs hidden md:inline">רכב</span>
                             </button>
                             <button
@@ -271,7 +274,7 @@ export const GateDashboard: React.FC = () => {
                                 className={`px-4 rounded-lg transition-all flex items-center gap-2 ${entryType === 'pedestrian' ? 'bg-white shadow-sm text-amber-600 font-black' : 'text-slate-400 hover:text-slate-600 font-bold'}`}
                                 title="הולך רגל"
                             >
-                                <Footprints size={18} strokeWidth={2.5} />
+                                <FootprintsIcon size={18} strokeWidth={2.5} />
                                 <span className="text-xs hidden md:inline">הולך רגל</span>
                             </button>
                         </div>
@@ -284,14 +287,14 @@ export const GateDashboard: React.FC = () => {
                             onClick={() => setEntryType('vehicle')}
                             className={`flex-1 rounded-xl transition-all flex items-center justify-center gap-2 font-black text-sm ${entryType === 'vehicle' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`}
                         >
-                            <Car size={20} strokeWidth={2.5} />
+                            <CarIcon size={20} strokeWidth={2.5} />
                             רכב
                         </button>
                         <button
                             onClick={() => setEntryType('pedestrian')}
                             className={`flex-1 rounded-xl transition-all flex items-center justify-center gap-2 font-black text-sm ${entryType === 'pedestrian' ? 'bg-white shadow-sm text-amber-600' : 'text-slate-400'}`}
                         >
-                            <Footprints size={20} strokeWidth={2.5} />
+                            <FootprintsIcon size={20} strokeWidth={2.5} />
                             הולך רגל
                         </button>
                     </div>
@@ -308,7 +311,7 @@ export const GateDashboard: React.FC = () => {
                                 : 'text-slate-500 hover:text-slate-800'
                                 }`}
                         >
-                            <LogOut className="rotate-180" size={18} strokeWidth={2.5} />
+                            <LogOutIcon className="rotate-180" size={18} strokeWidth={2.5} />
                             כניסה
                         </button>
                         <button
@@ -319,7 +322,7 @@ export const GateDashboard: React.FC = () => {
                                 : 'text-slate-500 hover:text-slate-800'
                                 }`}
                         >
-                            <LogOut size={18} strokeWidth={2.5} />
+                            <LogOutIcon size={18} strokeWidth={2.5} />
                             יציאה
                         </button>
                     </div>
@@ -334,7 +337,7 @@ export const GateDashboard: React.FC = () => {
                         </div>
                         <div className="relative group">
                             <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
-                                {entryType === 'vehicle' ? <Car size={20} strokeWidth={2.5} /> : <User size={20} strokeWidth={2.5} />}
+                                {entryType === 'vehicle' ? <CarIcon size={20} strokeWidth={2.5} /> : <UserIcon size={20} strokeWidth={2.5} />}
                             </div>
                             <input
                                 type="text"
@@ -383,13 +386,13 @@ export const GateDashboard: React.FC = () => {
                     {entryType === 'vehicle' && plateInput.length >= 3 && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                             <div className={`p-4 rounded-2xl border-2 flex items-center gap-4 transition-all ${match
-                                ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
-                                    .replace('bg-emerald-50', 'bg-emerald-50') // dummy replace to keep logic same
-                                : isLoading ? 'bg-slate-50 border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-800'
-                                }`}>
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${match ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-200 text-white'}`}>
-                                    {isLoading ? <LoadingSpinner size={20} /> : (
-                                        match ? <CheckCircle2 size={24} strokeWidth={2.5} /> : <AlertTriangle className={!isLoading ? 'text-rose-500' : ''} size={24} strokeWidth={2.5} />
+                                    ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                                        .replace('bg-emerald-50', 'bg-emerald-50') // dummy replace to keep logic same
+                                    : isLoading ? 'bg-slate-50 border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-800'
+                                } `}>
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${match ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-200 text-white'} `}>
+                                    {isLoading ? <CircleNotch size={20} className="animate-spin" weight="bold" /> : (
+                                        match ? <CheckCircle2Icon size={24} strokeWidth={2.5} /> : <AlertTriangleIcon className={!isLoading ? 'text-rose-500' : ''} size={24} strokeWidth={2.5} />
                                     )}
                                 </div>
                                 <div className="flex-1">
@@ -411,16 +414,16 @@ export const GateDashboard: React.FC = () => {
 
                             {!match && !isLoading && (
                                 <div className="space-y-3">
-                                    <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${isExceptional ? 'bg-amber-50 border-amber-300 shadow-lg shadow-amber-200/20' : 'bg-white border-slate-100 hover:border-blue-200'}`}>
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isExceptional ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-slate-100 text-slate-400'}`}>
-                                            <AlertTriangle size={20} strokeWidth={2.5} />
+                                    <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${isExceptional ? 'bg-amber-50 border-amber-300 shadow-lg shadow-amber-200/20' : 'bg-white border-slate-100 hover:border-blue-200'} `}>
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isExceptional ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-slate-100 text-slate-400'} `}>
+                                            <AlertTriangleIcon size={20} strokeWidth={2.5} />
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-black text-slate-900 text-sm">אישור כניסה חריג</div>
                                             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">דווח על כניסה שלא מן המניין</div>
                                         </div>
-                                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isExceptional ? 'bg-amber-500 border-amber-500' : 'border-slate-200 bg-slate-50'}`}>
-                                            {isExceptional && <CheckCircle2 size={16} className="text-white" strokeWidth={3} />}
+                                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isExceptional ? 'bg-amber-500 border-amber-500' : 'border-slate-200 bg-slate-50'} `}>
+                                            {isExceptional && <CheckCircle2Icon size={16} className="text-white" strokeWidth={3} />}
                                         </div>
                                         <input
                                             type="checkbox"
@@ -457,7 +460,7 @@ export const GateDashboard: React.FC = () => {
                                         }}
                                         className="w-full h-11 flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-blue-200 text-blue-600 font-black text-xs hover:bg-blue-50 active:scale-95 transition-all text-center"
                                     >
-                                        <PlusCircle size={16} strokeWidth={2.5} />
+                                        <PlusCircleIcon size={16} strokeWidth={2.5} />
                                         הוספה מהירה למאגר (24 שעות)
                                     </button>
                                 </div>
@@ -472,7 +475,7 @@ export const GateDashboard: React.FC = () => {
                                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">שם הנהג</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
-                                        <User size={18} />
+                                        <UserIcon size={18} />
                                     </div>
                                     <input
                                         value={driverName}
@@ -502,7 +505,7 @@ export const GateDashboard: React.FC = () => {
                             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-1">הערות נוספות</label>
                             <div className="relative">
                                 <div className="absolute top-3 right-4 text-slate-400 group-focus-within:text-blue-600 transition-colors">
-                                    <Edit2 size={16} />
+                                    <Edit2Icon size={16} />
                                 </div>
                                 <textarea
                                     value={notes}
@@ -520,15 +523,15 @@ export const GateDashboard: React.FC = () => {
                                 type="submit"
                                 disabled={isSubmitting}
                                 className={`
-                                w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3
+w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3
                                 ${isSubmitting ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white shadow-blue-500/30 hover:shadow-blue-500/40'}
-                            `}
+`}
                             >
-                                {isSubmitting ? <LoadingSpinner size={24} /> : (
+                                {isSubmitting ? <CircleNotch size={24} className="animate-spin" weight="bold" /> : (
                                     <>
                                         <span>{direction === 'entry' ? 'אישור כניסה' : 'אישור יציאה'}</span>
                                         <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                                            {direction === 'entry' ? <LogOut className="rotate-180" size={18} /> : <LogOut size={18} />}
+                                            {direction === 'entry' ? <LogOutIcon className="rotate-180" size={18} /> : <LogOutIcon size={18} />}
                                         </div>
                                     </>
                                 )}
@@ -559,7 +562,7 @@ export const GateDashboard: React.FC = () => {
             {!isModal && (
                 <div className="bg-blue-50/50 rounded-2xl p-5 border border-blue-100 text-blue-800 text-sm hidden lg:block">
                     <p className="flex items-center gap-2 font-bold mb-2">
-                        <MapPin size={16} />
+                        <MapPinIcon size={16} />
                         הנחיות לש.ג:
                     </p>
                     <ul className="list-disc list-inside space-y-1 opacity-80">
@@ -629,7 +632,7 @@ export const GateDashboard: React.FC = () => {
                             setFilteredPedestrians([]);
                         }}
                     >
-                        <User size={14} className="text-slate-400" />
+                        <UserIcon size={14} className="text-slate-400" />
                         <span className="font-medium text-slate-800">{person.name}</span>
                     </div>
                 </React.Fragment>
@@ -637,219 +640,166 @@ export const GateDashboard: React.FC = () => {
         });
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex justify-center items-center h-[60vh]">
-                <LoadingSpinner />
-                <span className="mr-2 text-slate-500">טוען נתוני שער...</span>
-            </div>
-        );
-    }
+    if (isLoading) return <DashboardSkeleton />;
 
     return (
-        <div className="flex flex-col h-full relative overflow-hidden bg-slate-50/50">
-            {/* Mobile-Only Premium Header */}
-            <header className="md:hidden bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-4 pt-4 pb-4 shrink-0 transition-all">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                            <ShieldCheck size={24} strokeWidth={2.5} />
-                        </div>
-                        <div className="flex flex-col">
-                            <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">שער הכניסה</h1>
-                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-1">בקרת כניסה • ש.ג</span>
-                        </div>
-                    </div>
+        <div className="flex flex-col h-full relative overflow-hidden bg-white rounded-[2rem] shadow-xl border border-slate-100 animate-in fade-in zoom-in-95 duration-500">
+            {/* Main Content Container */}
+            <div className="flex-1 overflow-hidden flex flex-col relative z-10">
 
-                    {/* Secondary Action (e.g. Refresh History) */}
-                    <button
-                        onClick={() => setRefreshTrigger(prev => prev + 1)}
-                        className={`w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 active:scale-90 transition-all ${isLoadingHistory ? 'animate-spin' : ''}`}
-                    >
-                        <RefreshCw size={18} />
-                    </button>
-                </div>
-
-                {/* Premium Segmented Control (Mobile) */}
-                <div className="flex items-center p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/50 h-14">
-                    <button
-                        onClick={() => setCurrentTab('control')}
-                        className={`flex-1 flex items-center justify-center gap-2 h-full rounded-xl transition-all duration-300 ${currentTab === 'control' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
-                    >
-                        <Car size={18} strokeWidth={currentTab === 'control' ? 2.5 : 2} />
-                        <span className="text-sm">תנועה</span>
-                    </button>
-                    {canManageAuthorized && (
-                        <button
-                            onClick={() => setCurrentTab('authorized')}
-                            className={`flex-1 flex items-center justify-center gap-2 h-full rounded-xl transition-all duration-300 ${currentTab === 'authorized' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
-                        >
-                            <Settings size={18} strokeWidth={currentTab === 'authorized' ? 2.5 : 2} />
-                            <span className="text-sm">ניהול</span>
-                        </button>
-                    )}
-                </div>
-            </header>
-
-            {/* Desktop Header (Preserved) */}
-            <header className="hidden md:flex px-6 py-5 shrink-0 z-20 relative bg-white border-b border-slate-200/60">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                        <div className="text-blue-600">
-                            <ShieldCheck size={28} strokeWidth={2.5} />
-                        </div>
-                        <div>
-                            <h1 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">בקרת כניסה - ש.ג</h1>
-                            <p className="text-xs md:text-sm text-slate-500 font-medium">ניהול ורישום כניסות ויציאות</p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                        <div className="flex p-1 bg-slate-50 rounded-xl border border-slate-200/50 w-full md:w-auto">
-                            <button
-                                onClick={() => setCurrentTab('control')}
-                                className={`flex-1 md:flex-none px-4 md:px-6 py-1.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${currentTab === 'control'
-                                    ? 'bg-blue-600 text-white shadow-md'
-                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                                    }`}
-                            >
-                                <Car size={16} strokeWidth={2.5} />
-                                <span>תנועה</span>
-                            </button>
-                            {canManageAuthorized && (
-                                <button
-                                    onClick={() => setCurrentTab('authorized')}
-                                    className={`flex-1 md:flex-none px-4 md:px-6 py-1.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${currentTab === 'authorized'
-                                        ? 'bg-blue-600 text-white shadow-md'
-                                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                                        }`}
-                                >
-                                    <Settings size={14} />
-                                    <span>ניהול</span>
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            {/* Main Content Area */}
-            <div className="flex-1 overflow-hidden relative">
-                {currentTab === 'control' ? (
-                    <div className="flex flex-col lg:flex-row h-full p-4 gap-4 animate-in fade-in duration-300">
-                        {/* Desktop Sidebar Form */}
-                        <aside className="hidden lg:flex w-full lg:w-1/3 flex-col gap-4 h-full overflow-y-auto pb-4">
-                            {renderEntryForm()}
-                        </aside>
-
-                        {/* Mobile Form Modal */}
-                        <Modal
-                            isOpen={isReportModalOpen}
-                            onClose={() => setIsReportModalOpen(false)}
-                            title={
-                                <div className="flex flex-col">
-                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                                        {direction === 'entry' ? 'דיווח כניסה' : 'דיווח יציאה'}
-                                    </h2>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <div className={`p-1 rounded-lg ${direction === 'entry' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
-                                            {direction === 'entry' ? <LogOut className="rotate-180" size={14} /> : <LogOut size={14} />}
-                                        </div>
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                            {direction === 'entry' ? 'רישום כניסה בזמן אמת' : 'רישום יציאה מהבסיס'}
-                                        </span>
-                                    </div>
-                                </div>
-                            }
-                            footer={
-                                <Button
-                                    type="submit"
-                                    form="gate-entry-form"
-                                    disabled={isSubmitting}
-                                    className={`
-                                        w-full h-12 rounded-xl font-black text-lg transition-all shadow-lg active:scale-95 flex items-center justify-center gap-3
-                                        ${isSubmitting ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white shadow-blue-500/30'}
-                                    `}
-                                >
-                                    {isSubmitting ? <LoadingSpinner size={24} /> : (
-                                        <>
-                                            <span>{direction === 'entry' ? 'אישור כניסה' : 'אישור יציאה'}</span>
-                                            <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
-                                                {direction === 'entry' ? <LogOut className="rotate-180" size={16} /> : <LogOut size={16} />}
-                                            </div>
-                                        </>
-                                    )}
-                                </Button>
-                            }
-                            size="lg"
-                        >
-                            <div className="pb-4">
-                                {renderEntryForm(true)}
+                {/* Unified Header */}
+                <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white sticky top-0 z-20">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                                <ShieldCheckIcon size={24} weight="duotone" />
                             </div>
-                        </Modal>
+                            <div className="flex flex-col">
+                                <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">שער הכניסה</h1>
+                                <span className="text-[11px] font-bold text-slate-500 mt-1">בקרת כניסה • ש.ג</span>
+                            </div>
+                        </div>
 
-                        {/* History & Active List */}
-                        <main className="flex-1 flex flex-col gap-4 overflow-hidden">
-                            <div className="bg-white rounded-2xl flex flex-col flex-1 shadow-sm border border-slate-200/60 overflow-hidden">
-                                {/* History Header - Premium Design */}
-                                <div className="border-b border-slate-100 p-5 shrink-0 bg-white z-10 transition-all">
-                                    <div className="flex items-center justify-between mb-5">
-                                        <div className="flex flex-col">
-                                            <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                                                <History className="text-blue-600" size={20} />
-                                                היסטוריית תנועה
-                                            </h2>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">דוחות אחרונים</span>
+                        {/* Mobile Refresh */}
+                        <button
+                            onClick={() => setRefreshTrigger(prev => prev + 1)}
+                            className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 active:scale-90 transition-all border border-slate-100"
+                        >
+                            <RefreshCwIcon size={20} className={isLoadingHistory ? 'animate-spin' : ''} />
+                        </button>
+                    </div>
+
+                    {/* Navigation Tabs */}
+                    <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/50 w-full md:w-auto self-stretch md:self-auto">
+                        <button
+                            onClick={() => setCurrentTab('control')}
+                            className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${currentTab === 'control'
+                                    ? 'bg-white text-indigo-600 shadow-sm'
+                                    : 'text-slate-400 hover:text-slate-600'
+                                } `}
+                        >
+                            <CarIcon size={18} weight={currentTab === 'control' ? 'duotone' : 'bold'} />
+                            <span>תנועה</span>
+                        </button>
+                        {canManageAuthorized && (
+                            <button
+                                onClick={() => setCurrentTab('authorized')}
+                                className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${currentTab === 'authorized'
+                                        ? 'bg-white text-indigo-600 shadow-sm'
+                                        : 'text-slate-400 hover:text-slate-600'
+                                    } `}
+                            >
+                                <SettingsIcon size={18} weight={currentTab === 'authorized' ? 'duotone' : 'bold'} />
+                                <span>ניהול</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Content Area */}
+                <div className="flex-1 overflow-hidden relative bg-white">
+                    {currentTab === 'control' ? (
+                        <div className="flex flex-col lg:flex-row h-full p-4 md:p-6 gap-6 animate-in fade-in duration-300">
+                            {/* Desktop Sidebar Form */}
+                            <aside className="hidden lg:flex w-full lg:w-[380px] shrink-0 flex-col gap-4 h-full overflow-y-auto">
+                                {renderEntryForm()}
+                            </aside>
+
+                            {/* Mobile Entry Sheet (Replaces Modal) */}
+                            <GenericModal
+                                isOpen={isReportModalOpen}
+                                onClose={() => setIsReportModalOpen(false)}
+                                title={direction === 'entry' ? 'דיווח כניסה' : 'דיווח יציאה'}
+                                size="full"
+                            >
+                                <div className="p-1 pb-8">
+                                    <div className="flex items-center gap-2 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                        <div className={`p-2 rounded-lg ${direction === 'entry' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'} `}>
+                                            {direction === 'entry' ? <LogOutIcon className="rotate-180" size={20} /> : <LogOutIcon size={20} />}
                                         </div>
-                                        <div className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black border border-blue-100 shadow-sm">
-                                            {historyLogs.length} רשומות
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-black text-slate-800">{direction === 'entry' ? 'רישום כניסה בשער' : 'רישום יציאה מהבסיס'}</span>
+                                            <span className="text-[10px] text-slate-500 font-bold">החלק למטה לביטול</span>
                                         </div>
                                     </div>
 
-                                    {/* Premium Search Bar */}
-                                    <div className="relative group">
-                                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
-                                            <Search size={18} strokeWidth={2.5} />
+                                    {renderEntryForm(true)}
+
+                                    <Button
+                                        type="submit"
+                                        form="gate-entry-form"
+                                        disabled={isSubmitting}
+                                        className={`w-full h-14 mt-6 rounded-2xl font-black text-lg shadow-xl active:scale-95 flex items-center justify-center gap-3 ${isSubmitting ? 'bg-slate-100 text-slate-400' : 'bg-amber-400 text-slate-900 shadow-slate-900/10 hover:bg-amber-500'} `}
+                                    >
+                                        {isSubmitting ? <CircleNotch size={24} className="animate-spin" weight="bold" /> : (
+                                            <>
+                                                <span>{direction === 'entry' ? 'אשר ורשום כניסה' : 'אשר ורשום יציאה'}</span>
+                                                <CheckCircle2Icon size={22} weight="bold" />
+                                            </>
+                                        )}
+                                    </Button>
+                                    <div className="h-4" /> {/* Spacer for bottom safe area */}
+                                </div>
+                            </GenericModal>
+
+                            {/* History & Active List */}
+                            <main className="flex-1 flex flex-col gap-4 overflow-hidden min-w-0">
+                                <div className="bg-slate-50 rounded-2xl flex flex-col flex-1 shadow-sm border border-slate-100 overflow-hidden">
+                                    {/* History Header */}
+                                    <div className="border-b border-slate-200 p-4 md:p-5 shrink-0 bg-slate-50 z-10">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex flex-col">
+                                                <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                                    <HistoryIcon className="text-indigo-600" size={20} weight="duotone" />
+                                                    יומן תנועות
+                                                </h2>
+                                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">פעילות אחרונה בשער</span>
+                                            </div>
+                                            <div className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black border border-indigo-100">
+                                                {historyLogs.length} רשומות
+                                            </div>
                                         </div>
-                                        <input
-                                            type="text"
-                                            value={historySearchTerm}
-                                            onChange={(e) => setHistorySearchTerm(e.target.value)}
-                                            placeholder="חיפוש לפי מספר רכב או שם..."
-                                            className="block w-full h-12 pr-12 pl-4 bg-slate-50 border-none rounded-[1.25rem] text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-sm"
+
+                                        {/* Search Bar */}
+                                        <div className="relative group">
+                                            <SearchIcon className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} weight="bold" />
+                                            <input
+                                                type="text"
+                                                value={historySearchTerm}
+                                                onChange={(e) => setHistorySearchTerm(e.target.value)}
+                                                placeholder="חיפוש חכם ביומן..."
+                                                className="block w-full h-12 pr-11 pl-4 bg-slate-50/50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-sm outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* List Content */}
+                                    <div className="flex-1 overflow-hidden flex flex-col relative bg-slate-50/50">
+                                        <GateHistoryList
+                                            logs={historyLogs}
+                                            isLoading={isLoadingHistory}
+                                            onExit={handleRegisterExit}
                                         />
                                     </div>
                                 </div>
-
-                                {/* List Content */}
-                                <div className="flex-1 overflow-hidden flex flex-col relative">
-                                    <GateHistoryList
-                                        logs={historyLogs}
-                                        isLoading={isLoadingHistory}
-                                        onExit={handleRegisterExit}
-                                    />
-                                </div>
-                            </div>
-                        </main>
-                    </div>
-                ) : (
-                    <div className="h-full px-4 md:px-6 py-4 animate-in fade-in slide-in-from-bottom-4 duration-300 overflow-y-auto">
-                        <AuthorizedVehiclesContent className="h-full bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 border border-slate-200/60" />
-                    </div>
-                )}
+                            </main>
+                        </div>
+                    ) : (
+                        <div className="h-full px-4 md:px-6 py-6 animate-in fade-in slide-in-from-bottom-4 duration-300 overflow-y-auto">
+                            <AuthorizedVehiclesContent className="h-full bg-white rounded-3xl md:p-6 md:border border-slate-200/60" />
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Premium Mobile FAB */}
-            {currentTab === 'control' && (
-                <button
-                    onClick={() => setIsReportModalOpen(true)}
-                    className="md:hidden fixed bottom-28 left-6 w-16 h-16 bg-blue-600 text-white rounded-3xl shadow-[0_12px_40px_rgba(37,99,235,0.4)] hover:shadow-[0_12px_40px_rgba(37,99,235,0.6)] active:scale-90 transition-all flex items-center justify-center z-[100] group overflow-hidden"
-                    aria-label="הוסף דיווח"
-                >
-                    <div className="absolute inset-0 bg-gradient-to-tr from-blue-700 to-blue-500 opacity-100 group-hover:scale-110 transition-transform" />
-                    <Plus size={32} strokeWidth={3} className="relative z-10" />
-                </button>
-            )}
+            {/* Standard FAB - Bottom Right (Fixed) */}
+            <FloatingActionButton
+                show={currentTab === 'control'}
+                onClick={() => setIsAddVehicleModalOpen(true)}
+                icon={PlusIcon}
+                ariaLabel="הוסף רכב מורשה"
+                className="md:hidden"
+            />
         </div>
     );
 };

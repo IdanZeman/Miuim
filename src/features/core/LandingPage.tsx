@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Zap, X, Calendar, Users, CheckCircle, ArrowLeft, Menu, Bell, User, Mail, Phone, Send, MessageSquare, Upload, Loader2, Heart } from 'lucide-react';
+import { Shield, Lightning as Zap, X, Calendar, Users, CheckCircle, ArrowLeft, List as Menu, Bell, User, Envelope as Mail, Phone, PaperPlaneRight as Send, Chat as MessageSquare, UploadSimple as Upload, CircleNotch as Loader2, Heart } from '@phosphor-icons/react';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
 import { TermsModal } from '../auth/TermsModal'; // Import TermsModal
@@ -176,7 +176,7 @@ export const LandingPage: React.FC = () => {
                         onClick={() => setShowLoginModal(true)}
                         className="bg-[#FFD700] hover:bg-[#F4C430] text-slate-900 px-5 md:px-6 py-2 md:py-2.5 rounded-full font-bold text-sm shadow-sm hover:shadow-md transition-all flex items-center gap-2 group"
                     >
-                        <User size={18} className="group-hover:scale-110 transition-transform" />
+                        <User size={18} weight="duotone" className="group-hover:scale-110 transition-transform" />
                         <span>לאזור האישי</span>
                     </button>
                 </div>
@@ -222,7 +222,7 @@ export const LandingPage: React.FC = () => {
                                 aria-label="תעבור מאקסלים לשליטה בזמן אמת"
                             >
                                 <span>תעבור מאקסלים לשליטה בזמן אמת</span>
-                                <ArrowLeft className="group-hover:-translate-x-1 transition-transform" />
+                                <ArrowLeft size={20} weight="bold" className="group-hover:-translate-x-1 transition-transform" />
                             </button>
 
                         </div>
@@ -341,7 +341,7 @@ export const LandingPage: React.FC = () => {
                         {isSuccess ? (
                             <div className="text-center py-12 animate-in fade-in zoom-in">
                                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Send className="text-green-600" size={40} />
+                                    <Send className="text-green-600" size={40} weight="duotone" />
                                 </div>
                                 <h3 className="text-2xl font-bold text-slate-800 mb-2">ההודעה נשלחה בהצלחה!</h3>
                                 <p className="text-slate-600 mb-8 max-w-md mx-auto">תודה שפנית אלינו. הצוות שלנו יבדוק את הפנייה ויחזור אליך בהקדם האפשרי.</p>
@@ -358,7 +358,7 @@ export const LandingPage: React.FC = () => {
                                     <div className="space-y-2">
                                         <label className="text-sm font-bold text-slate-700">שם מלא</label>
                                         <div className="relative">
-                                            <User className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <User className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} weight="duotone" />
                                             <input
                                                 type="text"
                                                 required
@@ -372,7 +372,7 @@ export const LandingPage: React.FC = () => {
                                     <div className="space-y-2">
                                         <label className="text-sm font-bold text-slate-700">טלפון</label>
                                         <div className="relative">
-                                            <Phone className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <Phone className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} weight="duotone" />
                                             <input
                                                 type="tel"
                                                 value={phone}
@@ -387,7 +387,7 @@ export const LandingPage: React.FC = () => {
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-slate-700">תוכן ההודעה</label>
                                     <div className="relative">
-                                        <MessageSquare className="absolute right-4 top-4 text-slate-400" size={18} />
+                                        <MessageSquare className="absolute right-4 top-4 text-slate-400" size={18} weight="duotone" />
                                         <textarea
                                             required
                                             value={message}
@@ -414,7 +414,7 @@ export const LandingPage: React.FC = () => {
                                             htmlFor="file-upload-landing"
                                             className="cursor-pointer flex items-center gap-2 px-6 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl transition-all font-medium"
                                         >
-                                            <Upload size={18} />
+                                            <Upload size={18} weight="duotone" />
                                             בחר קובץ
                                         </label>
                                         {file && (
@@ -428,7 +428,7 @@ export const LandingPage: React.FC = () => {
                                                     }}
                                                     className="hover:bg-blue-100 rounded-full p-1 transition-colors"
                                                 >
-                                                    <X size={14} />
+                                                    <X size={14} weight="bold" />
                                                 </button>
                                             </div>
                                         )}
@@ -447,7 +447,7 @@ export const LandingPage: React.FC = () => {
                                         </>
                                     ) : (
                                         <>
-                                            <Send size={20} />
+                                            <Send size={20} weight="duotone" />
                                             שלח הודעה
                                         </>
                                     )}
@@ -469,7 +469,7 @@ export const LandingPage: React.FC = () => {
                                 className="absolute top-3 md:top-4 left-3 md:left-4 text-slate-400 hover:text-slate-600 transition-colors"
                                 disabled={isLoggingIn}
                             >
-                                <X size={20} className="md:w-6 md:h-6" />
+                                <X size={20} weight="bold" className="md:w-6 md:h-6" />
                             </button>
 
                             {/* Logo */}

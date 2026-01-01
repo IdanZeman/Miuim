@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import {
-    Users,
-    Layout,
-    MousePointer2,
-    Activity,
-    Calendar,
-    BarChart3,
-    Trophy
-} from 'lucide-react';
+    Layout as LayoutIcon,
+    CursorClick as MousePointerClickIcon,
+    Pulse as ActivityIcon,
+    ChartBar as BarChartIcon,
+    Trophy as TrophyIcon
+} from '@phosphor-icons/react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { Select } from '../../components/ui/Select';
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
 
 type TimeRange = 'today' | 'week' | 'month';
 
@@ -135,182 +132,187 @@ export const UserActivityStats: React.FC = () => {
     const maxGraphValue = Math.max(...stats.activityGraph.map(d => Number(d.count)), 10);
 
     return (
-        <div className="space-y-6">
-            {/* Header / Control Bar */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                        <Activity size={20} />
+        <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative z-20">
+            {/* Premium Header */}
+            <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm shadow-indigo-100">
+                        <ActivityIcon size={24} weight="duotone" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-slate-800">ניתוח פעילות משתמשים</h2>
-                        <p className="text-xs text-slate-500">סטטיסטיקות שימוש בארגון</p>
+                        <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">ניתוח פעילות משתמשים</h2>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">User Activity Analytics</p>
                     </div>
                 </div>
 
-                <div className="w-full sm:w-48">
-                    <Select
-                        value={timeRange}
-                        onChange={(val) => setTimeRange(val as TimeRange)}
-                        options={[
-                            { value: 'today', label: 'היום' },
-                            { value: 'week', label: 'השבוע' },
-                            { value: 'month', label: 'החודש' }
-                        ]}
-                        className="bg-slate-50 border-slate-200"
-                    />
+                <div className="flex bg-slate-50 border border-slate-200/60 p-1 rounded-xl text-xs font-bold shadow-none w-full md:w-auto overflow-x-auto">
+                    {(['today', 'week', 'month'] as const).map((t) => (
+                        <button
+                            key={t}
+                            onClick={() => setTimeRange(t)}
+                            className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap flex-1 md:flex-none ${timeRange === t ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            {t === 'today' ? 'היום' : t === 'week' ? '7 ימים' : '30 יום'}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {loading ? (
-                <div className="flex justify-center py-20">
-                    <LoadingSpinner />
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* 1. Activity Graph */}
-                    <div className="col-span-1 md:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                        <div className="flex items-center gap-2 mb-6">
-                            <BarChart3 className="text-blue-500" size={20} />
-                            <h3 className="font-bold text-slate-700">מגמת פעילות</h3>
-                        </div>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+                {loading ? (
+                    <DashboardSkeleton />
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* 1. Activity Graph */}
+                        <div className="col-span-1 md:col-span-2 bg-slate-50 rounded-2xl border border-slate-200/60 p-6">
+                            <div className="flex items-center justify-between mb-6 border-b border-slate-200/60 pb-4">
+                                <div className="flex items-center gap-2">
+                                    <BarChartIcon className="text-indigo-500" size={20} weight="duotone" />
+                                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">מגמת פעילות</h3>
+                                </div>
+                                {stats.activityGraph.length > 0 && (
+                                    <div className="text-[10px] font-bold text-slate-400">
+                                        Total Actions: {stats.activityGraph.reduce((a, b) => a + Number(b.count), 0)}
+                                    </div>
+                                )}
+                            </div>
 
-                        {stats.activityGraph.length > 0 ? (
-                            <div className="h-64 w-full" dir="ltr">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={stats.activityGraph} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis
-                                            dataKey="date_bucket"
-                                            tick={{ fontSize: 11, fill: '#64748b' }}
-                                            axisLine={false}
-                                            tickLine={false}
-                                        />
-                                        <YAxis
-                                            allowDecimals={false}
-                                            tick={{ fontSize: 11, fill: '#64748b' }}
-                                            axisLine={false}
-                                            tickLine={false}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                                            cursor={{ fill: '#f8fafc' }}
-                                            formatter={(value: number) => [value, 'פעולות']}
-                                        />
-                                        <Bar
-                                            dataKey="count"
-                                            fill="#3b82f6"
-                                            radius={[4, 4, 0, 0]}
-                                            barSize={30}
-                                            name="פעולות"
-                                        />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        ) : (
-                            <div className="h-48 flex items-center justify-center text-slate-400 text-sm italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                אין נתונים לתקופה זו
-                            </div>
-                        )}
-                    </div>
-
-                    {/* 2. Top Users */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                                <Trophy className="text-amber-500" size={18} />
-                                <h3 className="font-bold text-slate-700 text-sm">משתמשים מובילים</h3>
-                            </div>
-                        </div>
-                        <div className="p-2">
-                            {stats.topUsers.length > 0 ? (
-                                <div className="space-y-1">
-                                    {stats.topUsers.map((user, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${idx === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
-                                                    {idx + 1}
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold text-sm text-slate-800">{user.user_name}</div>
-                                                    <div className="text-[10px] text-slate-400 font-mono">{user.user_email}</div>
-                                                </div>
-                                            </div>
-                                            <div className="bg-slate-100 px-2 py-1 rounded text-xs font-bold text-slate-600">
-                                                {user.action_count}
-                                            </div>
-                                        </div>
-                                    ))}
+                            {stats.activityGraph.length > 0 ? (
+                                <div className="h-64 w-full text-[10px]" dir="ltr">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={stats.activityGraph} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                            <XAxis
+                                                dataKey="date_bucket"
+                                                tick={{ fontSize: 10, fill: '#94a3b8' }}
+                                                axisLine={false}
+                                                tickLine={false}
+                                                dy={10}
+                                            />
+                                            <YAxis
+                                                allowDecimals={false}
+                                                tick={{ fontSize: 10, fill: '#94a3b8' }}
+                                                axisLine={false}
+                                                tickLine={false}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', backgroundColor: 'rgba(15, 23, 42, 0.95)', color: '#fff' }}
+                                                itemStyle={{ color: '#fff', fontSize: '12px' }}
+                                                cursor={{ fill: '#f1f5f9' }}
+                                                formatter={(value: number) => [value, 'פעולות']}
+                                                labelStyle={{ color: '#94a3b8', fontSize: '10px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                                            />
+                                            <Bar
+                                                dataKey="count"
+                                                fill="#6366f1"
+                                                radius={[4, 4, 0, 0]}
+                                                barSize={32}
+                                                name="פעולות"
+                                            />
+                                        </BarChart>
+                                    </ResponsiveContainer>
                                 </div>
                             ) : (
-                                <div className="p-8 text-center text-slate-400 text-xs">אין נתונים</div>
+                                <div className="h-48 flex items-center justify-center text-slate-400 text-sm italic bg-slate-100/50 rounded-xl border border-dashed border-slate-200">
+                                    אין נתונים לתקופה זו
+                                </div>
                             )}
                         </div>
-                    </div>
 
-                    {/* 3. Top Pages */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                                <Layout className="text-emerald-500" size={18} />
-                                <h3 className="font-bold text-slate-700 text-sm">דפים נצפים ביותר</h3>
+                        {/* 2. Top Users */}
+                        <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6 flex flex-col h-full">
+                            <div className="flex items-center gap-2 mb-6 border-b border-slate-200/60 pb-4">
+                                <TrophyIcon className="text-amber-500" size={18} weight="duotone" />
+                                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">משתמשים מובילים</h3>
+                            </div>
+                            <div className="flex-1">
+                                {stats.topUsers.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {stats.topUsers.map((user, idx) => (
+                                            <div key={idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 hover:border-amber-200 rounded-xl transition-all group shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shadow-sm transition-transform group-hover:scale-110 ${idx === 0 ? 'bg-amber-400 text-white' : idx === 1 ? 'bg-slate-400 text-white' : idx === 2 ? 'bg-amber-700/60 text-white' : 'bg-slate-100 text-slate-500 shadow-none'}`}>
+                                                        {idx + 1}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-xs text-slate-800 truncate max-w-[120px]">{user.user_name}</div>
+                                                        <div className="text-[9px] text-slate-400 font-mono truncate max-w-[120px]">{user.user_email}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-slate-50 px-2 py-1 rounded-lg text-xs font-black text-slate-600 border border-slate-100">
+                                                    {user.action_count}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-8 text-center text-slate-400 text-xs italic">אין נתונים</div>
+                                )}
                             </div>
                         </div>
-                        <div className="p-2">
-                            {stats.topPages.length > 0 ? (
-                                <div className="space-y-1">
-                                    {stats.topPages.map((page, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                                    <Layout size={14} />
-                                                </div>
-                                                <div className="font-medium text-sm text-slate-700 truncate max-w-[180px]" title={translateItem(page.page_name, 'page')}>
-                                                    {translateItem(page.page_name, 'page')}
-                                                </div>
-                                            </div>
-                                            <div className="text-xs font-mono text-slate-500">
-                                                {page.view_count} צפיות
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="p-8 text-center text-slate-400 text-xs">אין נתונים</div>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* 4. Top Actions */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:col-span-2">
-                        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                                <MousePointer2 className="text-purple-500" size={18} />
-                                <h3 className="font-bold text-slate-700 text-sm">פעולות נפוצות</h3>
+                        {/* 3. Top Pages */}
+                        <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6 flex flex-col h-full">
+                            <div className="flex items-center gap-2 mb-6 border-b border-slate-200/60 pb-4">
+                                <LayoutIcon className="text-emerald-500" size={18} weight="duotone" />
+                                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">דפים נצפים ביותר</h3>
+                            </div>
+                            <div className="flex-1">
+                                {stats.topPages.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {stats.topPages.map((page, idx) => (
+                                            <div key={idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 hover:border-emerald-200 rounded-xl transition-all group shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                                                        <LayoutIcon size={14} weight="duotone" />
+                                                    </div>
+                                                    <div className="font-bold text-xs text-slate-700 truncate max-w-[150px]" title={translateItem(page.page_name, 'page')}>
+                                                        {translateItem(page.page_name, 'page')}
+                                                    </div>
+                                                </div>
+                                                <div className="text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
+                                                    {page.view_count} view
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-8 text-center text-slate-400 text-xs italic">אין נתונים</div>
+                                )}
                             </div>
                         </div>
-                        <div className="p-4">
-                            {stats.topActions.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                    {stats.topActions.map((action, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:border-purple-200 hover:bg-purple-50 transition-all group">
-                                            <div className="font-medium text-xs text-slate-700 truncate pr-2" title={translateItem(action.action_name, 'action')}>
-                                                {translateItem(action.action_name, 'action')}
-                                            </div>
-                                            <div className="bg-slate-100 group-hover:bg-white px-2 py-0.5 rounded text-[10px] font-bold text-slate-600">
-                                                {action.usage_count}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="p-8 text-center text-slate-400 text-xs">אין נתונים</div>
-                            )}
-                        </div>
-                    </div>
 
-                </div>
-            )}
+                        {/* 4. Top Actions */}
+                        <div className="md:col-span-2 bg-slate-50 rounded-2xl border border-slate-200/60 p-6 flex flex-col hover:border-purple-200/50 transition-colors">
+                            <div className="flex items-center gap-2 mb-6 border-b border-slate-200/60 pb-4">
+                                <MousePointerClickIcon className="text-purple-500" size={18} weight="duotone" />
+                                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">פעולות נפוצות</h3>
+                            </div>
+                            <div className="flex-1">
+                                {stats.topActions.length > 0 ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {stats.topActions.map((action, idx) => (
+                                            <div key={idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:border-purple-200 hover:shadow-sm transition-all group">
+                                                <div className="font-bold text-xs text-slate-700 truncate pr-2 flex items-center gap-2" title={translateItem(action.action_name, 'action')}>
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-400 group-hover:scale-125 transition-transform"></div>
+                                                    {translateItem(action.action_name, 'action')}
+                                                </div>
+                                                <div className="bg-purple-50 group-hover:bg-purple-100 group-hover:text-purple-700 px-2 py-1 rounded-lg text-[10px] font-black text-purple-600 transition-colors">
+                                                    {action.usage_count}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-8 text-center text-slate-400 text-xs italic">אין נתונים</div>
+                                )}
+                            </div>
+                        </div>
+
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

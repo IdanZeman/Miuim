@@ -1,11 +1,10 @@
 
 import React, { useState } from 'react';
 import { Person, Shift, TaskTemplate, Role, Team } from '../../types';
-import { FileBarChart, Users, ClipboardList } from 'lucide-react';
+import { Users, ClipboardText as ClipboardList, MapPin, ChartBar as BarChart3 } from '@phosphor-icons/react';
 import { LocationReport } from './LocationReport';
 import { TaskReports } from './TaskReports';
 import { ManpowerReports } from './ManpowerReports';
-import { MapPin, BarChart3 } from 'lucide-react';
 import { PageInfo } from '../../components/ui/PageInfo';
 
 interface StatsDashboardProps {
@@ -32,10 +31,10 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    return (
       <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-4 md:p-8 min-h-[70vh]">
 
-         {/* Header */}
-         <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-               <BarChart3 className="text-blue-600" size={28} />
+         {/* Header & Navigation Combined */}
+         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4">
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 shrink-0">
+               <BarChart3 className="text-blue-600" size={28} weight="duotone" />
                דוחות ונתונים
                <PageInfo
                   title="דוחות ונתונים"
@@ -54,19 +53,17 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   }
                />
             </h2>
-         </div>
 
-         {/* Top Navigation - Segmented Control Style */}
-         {!isViewer && (
-            <div className="flex justify-center mb-6">
+            {/* Top Navigation - Segmented Control Style */}
+            {!isViewer && (
                <div
-                  className="bg-slate-100/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200 shadow-sm flex w-full max-w-md"
+                  className="bg-slate-100/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200 shadow-sm flex w-full md:w-auto min-w-[320px]"
                   role="tablist"
                   aria-label="סוגי דוחות"
                >
                   <button
                      onClick={() => setReportType('manpower')}
-                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${reportType === 'manpower'
+                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'manpower'
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
@@ -75,12 +72,12 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      aria-controls="report-content"
                      id="tab-manpower"
                   >
-                     <Users size={18} aria-hidden="true" />
-                     <span>כוח אדם</span>
+                     <Users size={18} aria-hidden="true" weight="duotone" />
+                     <span className="whitespace-nowrap">כוח אדם</span>
                   </button>
                   <button
                      onClick={() => setReportType('tasks')}
-                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${reportType === 'tasks'
+                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'tasks'
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
@@ -89,12 +86,12 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      aria-controls="report-content"
                      id="tab-tasks"
                   >
-                     <ClipboardList size={18} aria-hidden="true" />
+                     <ClipboardList size={18} aria-hidden="true" weight="duotone" />
                      <span>שיבוץ</span>
                   </button>
                   <button
                      onClick={() => setReportType('location')}
-                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${reportType === 'location'
+                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'location'
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
@@ -103,12 +100,12 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      aria-controls="report-content"
                      id="tab-location"
                   >
-                     <MapPin size={18} aria-hidden="true" />
+                     <MapPin size={18} aria-hidden="true" weight="duotone" />
                      <span>מיקום</span>
                   </button>
                </div>
-            </div>
-         )}
+            )}
+         </div>
 
          {/* Content Area */}
          <div className="min-h-[500px]" id="report-content" role="tabpanel" aria-labelledby={`tab-${reportType}`}>

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
-import { Calendar, CheckCircle2, XCircle, ChevronRight, ChevronLeft, Search, Settings, CalendarDays, ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, Wand2, Sparkles, Users, MoreVertical, Download } from 'lucide-react';
+import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical as MoreVertical, DownloadSimple as Download } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { DateNavigator } from '../../components/ui/DateNavigator';
@@ -9,9 +9,6 @@ import { GlobalTeamCalendar } from './GlobalTeamCalendar';
 import { RotationEditor } from './RotationEditor';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
 import { logger } from '../../services/loggingService';
-import { Modal } from '../../components/ui/Modal';
-import { Input } from '@/components/ui/Input';
-import { AttendanceRow } from './AttendanceRow';
 import { AttendanceTable } from './AttendanceTable';
 import { BulkAttendanceModal } from './BulkAttendanceModal';
 import { useToast } from '@/contexts/ToastContext';
@@ -486,22 +483,22 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 relative isolate z-10 overflow-hidden
             `}>
                 {/* Mobile Header - Premium Design */}
-                <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 pt-3 pb-3">
-                    <div className="flex items-center gap-2 mb-3">
-                        {/* Compact Segmented Control - Merged with buttons row as requested */}
-                        <div className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 h-11">
+                <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 py-3 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                        {/* Compact Segmented Control */}
+                        <div className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 h-9">
                             <button
                                 onClick={() => setViewMode('calendar')}
                                 className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                             >
-                                <CalendarDays size={16} strokeWidth={viewMode === 'calendar' ? 2.5 : 2} />
+                                <CalendarDays size={14} weight="duotone" />
                                 <span className="text-xs">חודשי</span>
                             </button>
                             <button
                                 onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
                                 className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'day_detail' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                             >
-                                <ListChecks size={16} strokeWidth={viewMode === 'day_detail' ? 2.5 : 2} />
+                                <ListChecks size={14} weight="duotone" />
                                 <span className="text-xs">יומי</span>
                             </button>
                         </div>
@@ -509,22 +506,22 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         {!isViewer && (
                             <button
                                 onClick={() => setShowRotaWizard(true)}
-                                className="w-11 h-11 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shadow-sm active:scale-95 transition-all shrink-0"
+                                className="w-9 h-9 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl border border-blue-100 active:scale-95 transition-all shrink-0"
                                 title="מחולל סבבים"
                             >
-                                <Sparkles size={20} strokeWidth={2.5} />
+                                <Sparkles size={18} weight="duotone" />
                             </button>
                         )}
                         <button
                             onClick={handleExport}
-                            className="w-11 h-11 flex items-center justify-center bg-slate-50 text-slate-600 rounded-xl border border-slate-100 shadow-sm active:scale-95 transition-all shrink-0"
+                            className="w-9 h-9 flex items-center justify-center bg-slate-50 text-slate-600 rounded-xl border border-slate-100 active:scale-95 transition-all shrink-0"
                         >
-                            <Download size={20} />
+                            <Download size={18} weight="duotone" />
                         </button>
                     </div>
 
                     {/* Date Navigator - Optimized for Mobile */}
-                    <div className="bg-slate-50/50 rounded-2xl border border-slate-100 p-1">
+                    <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-0.5">
                         <DateNavigator
                             date={viewMode === 'calendar' ? viewDate : selectedDate}
                             onDateChange={(d) => {
@@ -532,7 +529,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 else setSelectedDate(d);
                             }}
                             mode={viewMode === 'calendar' ? 'month' : 'day'}
-                            className="w-full justify-between border-none bg-transparent h-12"
+                            className="w-full justify-between border-none bg-transparent h-9"
                             showTodayButton={true}
                         />
                     </div>
@@ -560,17 +557,17 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     ) : (
                         <div className="h-full flex flex-col">
                             {/* Search Bar - Premium Mobile Design */}
-                            <div className="px-4 py-4 bg-white/50 backdrop-blur-sm border-b border-slate-100">
+                            <div className="px-4 py-3 bg-white/50 backdrop-blur-sm border-b border-slate-100">
                                 <div className="relative group">
-                                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
-                                        <Search size={18} strokeWidth={2.5} />
+                                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
+                                        <Search size={16} weight="duotone" />
                                     </div>
                                     <input
                                         type="text"
                                         placeholder="חיפוש לוחם..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="block w-full h-14 pr-12 pl-4 bg-slate-100/50 border-none rounded-[1.25rem] text-slate-900 placeholder-slate-400 focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-base"
+                                        className="block w-full h-10 pr-10 pl-4 bg-slate-100/50 border-none rounded-2xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold text-sm"
                                     />
                                 </div>
                             </div>
@@ -597,11 +594,11 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
             {/* --- DESKTOP VIEW CONTAINER --- */}
             <div className="hidden md:flex flex-col flex-1 overflow-hidden">
-                {/* Desktop Header (Preserved) */}
-                <div className="bg-white shadow-sm border-b border-slate-200 p-4 justify-between items-center shrink-0 z-20 relative flex">
+                {/* Desktop Header */}
+                <div className="bg-white/50 backdrop-blur-sm border-b border-slate-100 p-4 justify-between items-center shrink-0 z-20 relative flex gap-4">
                     <div className="flex items-center gap-4">
-                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                            <Calendar className="text-idf-green" />
+                        <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                            <Calendar className="text-blue-600" size={24} weight="duotone" />
                             יומן נוכחות
                             <PageInfo
                                 title="יומן נוכחות"
@@ -620,37 +617,41 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 }
                             />
                         </h2>
-                        <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
+
+                        <div className="h-6 w-px bg-slate-200 mx-2" />
+
+                        <div className="flex bg-slate-100/80 rounded-xl p-1 border border-slate-200/50">
                             <button
                                 onClick={() => setViewMode('calendar')}
-                                className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                <CalendarDays size={16} />
+                                <CalendarDays size={14} weight="duotone" />
                                 לוח שנה
                             </button>
                             <button
                                 onClick={() => setViewMode('table')}
-                                className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                <ListChecks size={16} />
+                                <ListChecks size={14} weight="duotone" />
                                 טבלה חודשית
                             </button>
                             <button
                                 onClick={() => setViewMode('day_detail')}
-                                className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'day_detail' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'day_detail' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                <Users size={16} />
+                                <Users size={14} weight="duotone" />
                                 רשימה יומית
                             </button>
                         </div>
                     </div>
+
                     <div className="flex items-center gap-2">
                         {/* Expandable Search */}
                         {viewMode !== 'calendar' && (
-                            <div className={`relative transition-all duration-300 ease-in-out ${isSearchExpanded || searchTerm ? 'w-32' : 'w-9'}`}>
+                            <div className={`relative transition-all duration-300 ease-in-out ${isSearchExpanded || searchTerm ? 'w-48' : 'w-9'}`}>
                                 {isSearchExpanded || searchTerm ? (
                                     <div className="relative w-full">
-                                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} weight="duotone" />
                                         <input
                                             autoFocus
                                             type="text"
@@ -658,27 +659,26 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                             onBlur={() => { if (!searchTerm) setIsSearchExpanded(false); }}
-                                            className="w-full pr-9 pl-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm"
+                                            className="w-full h-9 pr-9 pl-8 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm placeholder:font-medium"
                                         />
                                         <button
                                             onClick={() => { setSearchTerm(''); setIsSearchExpanded(false); }}
                                             className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
                                         >
-                                            <X size={12} />
+                                            <X size={12} weight="bold" />
                                         </button>
                                     </div>
                                 ) : (
                                     <button
                                         onClick={() => setIsSearchExpanded(true)}
-                                        className="w-9 h-9 flex items-center justify-center bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-500 transition-colors"
+                                        className="w-9 h-9 flex items-center justify-center bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-500 transition-colors"
                                     >
-                                        <Search size={16} />
+                                        <Search size={16} weight="duotone" />
                                     </button>
                                 )}
                             </div>
                         )}
 
-                        {/* Grouped Date Controls with "Today" button */}
                         <DateNavigator
                             date={(viewMode === 'calendar' || viewMode === 'table') ? viewDate : selectedDate}
                             onDateChange={(d) => {
@@ -687,48 +687,49 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             }}
                             mode={(viewMode === 'calendar' || viewMode === 'table') ? 'month' : 'day'}
                         />
-                    </div>
 
-                    {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
-                        <button
-                            onClick={() => setShowRotaWizard(true)}
-                            data-testid="open-rota-wizard-btn"
-                            className="px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 border border-amber-100"
-                        >
-                            <Sparkles size={16} />
-                            מחולל סבבים
-                        </button>
-                    )}
-                    {/* More Actions Menu */}
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowMoreActions(!showMoreActions)}
-                            className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors border ${showMoreActions ? 'bg-slate-100 border-slate-300 text-slate-800' : 'bg-white border-transparent hover:bg-slate-50 text-slate-500'}`}
-                        >
-                            <MoreVertical size={18} />
-                        </button>
-
-                        {showMoreActions && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setShowMoreActions(false)} />
-                                <div className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
-                                    <button
-                                        onClick={() => { setShowRequiredDetails(!showRequiredDetails); setShowMoreActions(false); }}
-                                        className="w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-slate-50 flex items-center gap-2 text-slate-700"
-                                    >
-                                        <ListChecks size={16} className="text-slate-400" />
-                                        {showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
-                                    </button>
-                                    <button
-                                        onClick={() => { handleExport(); setShowMoreActions(false); }}
-                                        className="w-full text-right px-4 py-2.5 text-sm font-medium hover:bg-slate-50 flex items-center gap-2 text-slate-700"
-                                    >
-                                        <Download size={16} className="text-slate-400" />
-                                        ייצוא לאקסל
-                                    </button>
-                                </div>
-                            </>
+                        {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
+                            <button
+                                onClick={() => setShowRotaWizard(true)}
+                                data-testid="open-rota-wizard-btn"
+                                className="h-9 px-4 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 border border-amber-100"
+                            >
+                                <Sparkles size={14} weight="duotone" />
+                                <span className="hidden xl:inline">מחולל סבבים</span>
+                            </button>
                         )}
+
+                        {/* More Actions Menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowMoreActions(!showMoreActions)}
+                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors border ${showMoreActions ? 'bg-slate-100 border-slate-300 text-slate-800' : 'bg-white border-transparent hover:bg-slate-50 text-slate-500'}`}
+                            >
+                                <MoreVertical size={18} weight="duotone" />
+                            </button>
+
+                            {showMoreActions && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowMoreActions(false)} />
+                                    <div className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                                        <button
+                                            onClick={() => { setShowRequiredDetails(!showRequiredDetails); setShowMoreActions(false); }}
+                                            className="w-full text-right px-4 py-2.5 text-xs font-bold hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                                        >
+                                            <ListChecks size={14} className="text-slate-400" weight="duotone" />
+                                            {showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
+                                        </button>
+                                        <button
+                                            onClick={() => { handleExport(); setShowMoreActions(false); }}
+                                            className="w-full text-right px-4 py-2.5 text-xs font-bold hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                                        >
+                                            <Download size={14} className="text-slate-400" weight="duotone" />
+                                            ייצוא לאקסל
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
 

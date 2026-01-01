@@ -1,9 +1,10 @@
 import React from 'react';
 import { GateLog, AuthorizedVehicle } from '../../hooks/useGateSystem';
-import { ArrowLeftRight, Calendar, Clock, Car, Footprints, AlertTriangle, User, ShieldCheck, Building2, X, ChevronDown, LogOut } from 'lucide-react';
+import { ArrowsLeftRight as ArrowLeftRightIcon, Calendar as CalendarIcon, Clock as ClockIcon, Car as CarIcon, Footprints as FootprintsIcon, Warning as AlertTriangleIcon, User as UserIcon, ShieldCheck as ShieldCheckIcon, Buildings as Building2Icon, X as XIcon, CaretDown as ChevronDownIcon, SignOut as LogOutIcon } from '@phosphor-icons/react';
 import { Button } from '../ui/Button';
-import { Modal } from '../ui/Modal';
 import { LogDetailsModal } from './LogDetailsModal';
+import { DashboardSkeleton } from '../ui/DashboardSkeleton';
+import { format } from 'date-fns';
 
 interface GateHistoryListProps {
     logs: GateLog[];
@@ -16,11 +17,9 @@ interface GateHistoryListProps {
 export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoading, onExit }) => {
     if (isLoading && logs.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 text-slate-400">
-                <div className="animate-spin mb-4">
-                    <ArrowLeftRight size={32} />
-                </div>
-                <p>טוען היסטוריה...</p>
+            <div className="p-8">
+                <DashboardSkeleton />
+                <p className="text-center text-slate-400 mt-4 font-bold">טוען היסטוריה...</p>
             </div>
         );
     }
@@ -28,7 +27,7 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
     if (logs.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center p-12 text-slate-400">
-                <Calendar size={48} className="mb-4 opacity-50" />
+                <CalendarIcon size={48} className="mb-4 opacity-50" weight="duotone" />
                 <p className="text-lg font-medium">לא נמצאה היסטוריה</p>
                 <p className="text-sm">נסה לשנות את תאריכי הסינון</p>
             </div>
@@ -82,14 +81,14 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors">
-                                <Calendar size={16} />
+                                <CalendarIcon size={16} weight="duotone" />
                             </div>
                             <span className="text-sm font-black text-slate-900 tracking-tight">{date}</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="bg-slate-100 text-slate-500 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">{dateLogs.length} תנועות</span>
                             <div className={`transition-transform duration-300 ${collapsedDates[date] ? '-rotate-90' : 'rotate-0'}`}>
-                                <ChevronDown size={16} className="text-slate-400" />
+                                <ChevronDownIcon size={16} className="text-slate-400" weight="bold" />
                             </div>
                         </div>
                     </div>
@@ -113,7 +112,7 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
                                                 ? 'bg-amber-50 text-amber-600 shadow-sm shadow-amber-100'
                                                 : 'bg-blue-50 text-blue-600 shadow-sm shadow-blue-100'
                                                 }`}>
-                                                {log.entry_type === 'pedestrian' ? <Footprints size={22} strokeWidth={2.5} /> : <Car size={22} strokeWidth={2.5} />}
+                                                {log.entry_type === 'pedestrian' ? <FootprintsIcon size={22} weight="duotone" /> : <CarIcon size={22} weight="duotone" />}
                                             </div>
 
                                             <div className="min-w-0 flex-1">
@@ -123,13 +122,13 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
                                                     </h4>
                                                     {log.is_exceptional && (
                                                         <div className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-0.5 rounded-lg font-black text-[9px] border border-red-100/50 animate-pulse">
-                                                            <AlertTriangle size={10} />
+                                                            <AlertTriangleIcon size={10} weight="bold" />
                                                             חריג
                                                         </div>
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-xs text-slate-500 font-bold">
-                                                    <User size={12} className="text-slate-400" />
+                                                    <UserIcon size={12} className="text-slate-400" weight="duotone" />
                                                     <span className="truncate">{log.driver_name}</span>
                                                     {log.organizations?.name && (
                                                         <>
@@ -152,7 +151,6 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
 
                                             {log.exit_time ? (
                                                 <div className="flex items-center gap-3">
-                                                    {/* Duration Logic could be here, but let's stick to times */}
                                                     <div className="flex flex-col items-center opacity-60">
                                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">כניסה</span>
                                                         <span className="font-black text-slate-600 text-sm">{formatTime(log.entry_time)}</span>
@@ -174,7 +172,7 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
                                                             }}
                                                             className="h-10 px-4 bg-red-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-red-200 active:scale-95 transition-all flex items-center gap-2"
                                                         >
-                                                            <LogOut size={14} />
+                                                            <LogOutIcon size={14} weight="bold" />
                                                             יציאה
                                                         </button>
                                                     )}
@@ -184,7 +182,7 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
                                     </div>
                                     {log.notes && (
                                         <div className="mt-3 mr-14 bg-amber-50/50 text-amber-900 text-[11px] p-2.5 rounded-xl border border-amber-100/30 flex items-start gap-2 font-bold leading-relaxed">
-                                            <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                                            <AlertTriangleIcon size={14} className="text-amber-500 shrink-0" weight="bold" />
                                             {log.notes}
                                         </div>
                                     )}

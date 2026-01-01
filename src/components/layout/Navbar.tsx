@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-    Calendar, Users, ClipboardList, BarChart2, Menu, LogOut, Clock,
-    Settings, FileText, Shield, Dices, Mail, Anchor, Home, UserX,
-    Package, Activity, HelpCircle, ChevronDown, User as UserIcon,
-    LayoutDashboard, Briefcase, Database, UserCog, Car
-} from 'lucide-react';
+    CalendarBlank as CalendarIcon, Users as UsersIcon, ClipboardText as ClipboardListIcon, ChartBar as BarChartIcon, List as MenuIcon, SignOut as LogOutIcon, Clock as ClockIcon,
+    Gear as SettingsIcon, FileText as FileTextIcon, Shield as ShieldIcon, DiceFive as DicesIcon, Envelope as MailIcon, Anchor as AnchorIcon, House as HomeIcon, UserMinus as UserXIcon,
+    Package as PackageIcon, Pulse as ActivityIcon, Question as HelpCircleIcon, CaretDown as ChevronDownIcon, User as UserIcon,
+    SquaresFour as LayoutDashboardIcon, Briefcase as BriefcaseIcon, Database as DatabaseIcon, UserGear as UserCogIcon, Car as CarIcon
+} from '@phosphor-icons/react';
 import { ViewMode, Profile } from '../../types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { analytics } from '../../services/analytics';
@@ -58,9 +58,9 @@ const NavDropdown = ({
                     }`}
                 aria-expanded={isOpen}
             >
-                <Icon size={18} className={isActive ? 'text-blue-600' : 'text-slate-500'} />
+                <Icon size={18} className={isActive ? 'text-blue-600' : 'text-slate-500'} weight={isActive ? "fill" : "duotone"} />
                 <span>{label}</span>
-                <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} text-slate-400`} />
+                <ChevronDownIcon size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} text-slate-400`} weight="duotone" />
 
                 {/* Active Indicator Line */}
                 {isActive && (
@@ -107,7 +107,7 @@ const DropdownItem = ({
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`}
     >
-        {Icon && <Icon size={18} className={active ? 'text-blue-600' : danger ? 'text-red-500' : 'text-slate-500'} />}
+        {Icon && <Icon size={18} className={active ? 'text-blue-600' : danger ? 'text-red-500' : 'text-slate-500'} weight={active ? "fill" : "duotone"} />}
         {label}
     </button>
 );
@@ -148,7 +148,7 @@ const UserDropdown = ({
                     }`}
             >
                 <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                    <UserIcon size={18} />
+                    <UserIcon size={18} weight="duotone" />
                 </div>
                 <div className="hidden md:flex flex-col items-start min-w-[3rem] max-w-[8rem]">
                     <span className="text-xs font-bold text-slate-700 truncate w-full dir-ltr text-right">
@@ -156,7 +156,7 @@ const UserDropdown = ({
                     </span>
                     <span className="text-[10px] text-slate-400">אזור אישי</span>
                 </div>
-                <ChevronDown size={14} className="text-slate-400 mr-1" />
+                <ChevronDownIcon size={14} className="text-slate-400 mr-1" weight="duotone" />
             </button>
 
             {isOpen && (
@@ -172,7 +172,7 @@ const UserDropdown = ({
                         <div className="border-t border-slate-100 mt-1 pt-1">
                             <DropdownItem
                                 label="התנתק"
-                                icon={LogOut}
+                                icon={LogOutIcon}
                                 onClick={onLogout}
                                 danger
                             />
@@ -234,7 +234,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                         }`}
                                     aria-label="ניהול כוח אדם"
                                 >
-                                    <Users size={18} className={currentView === 'personnel' ? 'text-blue-600' : 'text-slate-500'} aria-hidden="true" />
+                                    <UsersIcon size={18} className={currentView === 'personnel' ? 'text-blue-600' : 'text-slate-500'} aria-hidden="true" weight={currentView === 'personnel' ? "fill" : "duotone"} />
                                     <span>ניהול כוח אדם</span>
                                 </button>
                             )}
@@ -243,13 +243,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             {(checkAccess('tasks') || checkAccess('dashboard') || checkAccess('constraints')) && (
                                 <NavDropdown
                                     label="משימות"
-                                    icon={ClipboardList}
+                                    icon={ClipboardListIcon}
                                     isActive={['tasks', 'dashboard', 'constraints'].includes(currentView || '')}
                                 >
                                     {checkAccess('tasks') && (
                                         <DropdownItem
                                             label="ניהול משימות"
-                                            icon={ClipboardList}
+                                            icon={ClipboardListIcon}
                                             active={currentView === 'tasks'}
                                             onClick={() => handleNav('tasks')}
                                         />
@@ -257,7 +257,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                     {checkAccess('dashboard') && (
                                         <DropdownItem
                                             label="לוח שיבוצים"
-                                            icon={Calendar}
+                                            icon={CalendarIcon}
                                             active={currentView === 'dashboard'}
                                             onClick={() => handleNav('dashboard')}
                                         />
@@ -265,7 +265,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                     {checkAccess('constraints') && (
                                         <DropdownItem
                                             label="ניהול אילוצים"
-                                            icon={Anchor}
+                                            icon={AnchorIcon}
                                             active={currentView === 'constraints'}
                                             onClick={() => handleNav('constraints')}
                                         />
@@ -277,14 +277,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             {(checkAccess('attendance') || checkAccess('absences')) && (
                                 <NavDropdown
                                     label="נוכחות והיעדרויות"
-                                    icon={Clock}
+                                    icon={ClockIcon}
                                     isActive={['attendance', 'absences'].includes(currentView || '')}
                                     testId="nav-attendance-group"
                                 >
                                     {checkAccess('attendance') && (
                                         <DropdownItem
                                             label="יומן נוכחות"
-                                            icon={Clock}
+                                            icon={ClockIcon}
                                             active={currentView === 'attendance'}
                                             onClick={() => handleNav('attendance')}
                                             testId="nav-attendance-journal"
@@ -292,7 +292,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                     )}
                                     <DropdownItem
                                         label="בקשות יציאה"
-                                        icon={UserX}
+                                        icon={UserXIcon}
                                         active={currentView === 'absences'}
                                         onClick={() => handleNav('absences')}
                                         testId="nav-absence-requests"
@@ -307,19 +307,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             {(checkAccess('equipment') || checkAccess('gate')) && (
                                 <NavDropdown
                                     label="לוגיסטיקה"
-                                    icon={Package}
+                                    icon={PackageIcon}
                                     isActive={['equipment', 'gate'].includes(currentView || '')}
                                 >
                                     <DropdownItem
                                         label="רשימת ציוד"
-                                        icon={Package}
+                                        icon={PackageIcon}
                                         active={currentView === 'equipment'}
                                         onClick={() => handleNav('equipment')}
                                     />
                                     {checkAccess('gate') && (
                                         <DropdownItem
                                             label="ש.ג"
-                                            icon={Car}
+                                            icon={CarIcon}
                                             active={currentView === 'gate'}
                                             onClick={() => handleNav('gate')}
                                         />
@@ -331,13 +331,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             {(checkAccess('stats') || checkAccess('org-logs')) && (
                                 <NavDropdown
                                     label="דוחות"
-                                    icon={BarChart2}
+                                    icon={BarChartIcon}
                                     isActive={['stats', 'org-logs'].includes(currentView || '')}
                                 >
                                     {checkAccess('stats') && (
                                         <DropdownItem
                                             label="דוחות"
-                                            icon={FileText}
+                                            icon={FileTextIcon}
                                             active={currentView === 'stats'}
                                             onClick={() => handleNav('stats')}
                                         />
@@ -345,7 +345,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                     {(checkAccess('org-logs') || profile?.is_super_admin || profile?.role === 'admin') && (
                                         <DropdownItem
                                             label="יומן פעילות"
-                                            icon={Activity}
+                                            icon={ActivityIcon}
                                             active={currentView === 'org-logs'}
                                             onClick={() => handleNav('org-logs')}
                                         />
@@ -356,26 +356,26 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             {/* 6. More Group */}
                             <NavDropdown
                                 label="עוד"
-                                icon={Menu}
+                                icon={MenuIcon}
                                 isActive={['lottery', 'contact', 'faq'].includes(currentView || '')}
                             >
                                 {checkAccess('lottery') && (
                                     <DropdownItem
                                         label="הגרלות"
-                                        icon={Dices}
+                                        icon={DicesIcon}
                                         active={currentView === 'lottery'}
                                         onClick={() => handleNav('lottery')}
                                     />
                                 )}
                                 <DropdownItem
                                     label="צור קשר"
-                                    icon={Mail}
+                                    icon={MailIcon}
                                     active={currentView === 'contact'}
                                     onClick={() => handleNav('contact')}
                                 />
                                 <DropdownItem
                                     label="מרכז מידע"
-                                    icon={HelpCircle}
+                                    icon={HelpCircleIcon}
                                     active={currentView === 'faq'}
                                     onClick={() => handleNav('faq')}
                                 />
@@ -392,7 +392,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             {checkAccess('settings') && (
                                 <DropdownItem
                                     label="הגדרות ארגון"
-                                    icon={Settings}
+                                    icon={SettingsIcon}
                                     active={currentView === 'settings'}
                                     onClick={() => handleNav('settings')}
                                 />
@@ -401,7 +401,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             {profile?.is_super_admin && (
                                 <DropdownItem
                                     label="ניהול מערכת"
-                                    icon={Shield}
+                                    icon={ShieldIcon}
                                     active={currentView === 'system'}
                                     onClick={() => handleNav('system')}
                                 />
@@ -409,13 +409,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             <div className="bg-slate-50 my-1 py-1 border-t border-b border-slate-100">
                                 <DropdownItem
                                     label="מרכז עזרה"
-                                    icon={HelpCircle}
+                                    icon={HelpCircleIcon}
                                     active={currentView === 'faq'}
                                     onClick={() => handleNav('faq')}
                                 />
                                 <DropdownItem
                                     label="צור קשר"
-                                    icon={Mail}
+                                    icon={MailIcon}
                                     active={currentView === 'contact'}
                                     onClick={() => handleNav('contact')}
                                 />

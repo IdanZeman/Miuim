@@ -2,16 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../services/supabaseClient';
-import { Clock, Plus, Trash2, Edit2, Copy, Save, X, Eye, Users, Shield, Globe, ChevronUp, ChevronDown, Filter, AlertTriangle, Check } from 'lucide-react';
-import * as AllIcons from 'lucide-react';
+import { Clock, Plus, Trash as Trash2, PencilSimple as Edit2, Copy, FloppyDisk as Save, X, Eye, Users, Shield, Globe, CaretUp as ChevronUp, CaretDown as ChevronDown, Funnel as Filter, Warning as AlertTriangle, Check } from '@phosphor-icons/react';
+import * as AllIcons from '@phosphor-icons/react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { Person, Team, Role } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../services/loggingService';
 import { Select } from '../../components/ui/Select';
-import { Modal } from '../../components/ui/Modal';
-import { SheetModal } from '../../components/ui/SheetModal';
+import { GenericModal } from '../../components/ui/GenericModal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -41,6 +40,7 @@ interface WarClockProps {
     myPerson: Person | undefined;
     teams: Team[];
     roles: Role[];
+    darkMode?: boolean;
 }
 
 
@@ -324,18 +324,18 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     };
 
     const getTargetIcon = (type: string, targetId?: string | null) => {
-        if (type === 'all') return <Globe size={14} />;
-        if (type === 'team') return <Users size={14} />;
+        if (type === 'all') return <Globe size={14} weight="duotone" />;
+        if (type === 'team') return <Users size={14} weight="duotone" />;
         if (type === 'role' && targetId) {
             const role = roles.find(r => r.id === targetId);
             // @ts-ignore
             if (role?.icon && AllIcons[role.icon]) {
                 // @ts-ignore
                 const IconComp = AllIcons[role.icon];
-                return <IconComp size={14} />;
+                return <IconComp size={14} weight="duotone" />;
             }
         }
-        return <Shield size={14} />;
+        return <Shield size={14} weight="duotone" />;
     };
 
 
@@ -350,7 +350,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                 >
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                         <div className={`p-1.5 rounded-lg transition-colors ${isOpen ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <Clock size={20} />
+                            <Clock size={20} weight="duotone" />
                         </div>
                         סדר יום
                         {!isOpen && <span className="text-xs font-normal text-slate-400 px-2 py-0.5 bg-slate-100 rounded-full">{timelineData.items.length} אירועים</span>}
@@ -361,7 +361,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                 onClick={() => setShowFilters(true)}
                                 className={`p-2 rounded-full transition-colors ${filters.mode !== 'all' || filters.teams.length > 0 || filters.roles.length > 0 ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100'}`}
                             >
-                                <Filter size={18} />
+                                <Filter size={18} weight="duotone" />
                             </button>
                         )}
                         {canEdit && isOpen && (
@@ -375,13 +375,13 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                     });
                                     setIsEditing(true);
                                 }}
-                                className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 shadow-md shadow-blue-200"
+                                className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
                             >
-                                <Plus size={18} />
+                                <Plus size={18} weight="bold" />
                             </button>
                         )}
                         <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-slate-400 hover:text-slate-600">
-                            {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            {isOpen ? <ChevronUp size={20} weight="duotone" /> : <ChevronDown size={20} weight="duotone" />}
                         </button>
                     </div>
                 </div>
@@ -548,7 +548,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                                                                         </div>
                                                                                         {canEdit && (
                                                                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600">
-                                                                                                <Edit2 size={12} />
+                                                                                                <Edit2 size={12} weight="duotone" />
                                                                                             </div>
                                                                                         )}
                                                                                     </div>
@@ -582,7 +582,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                     ) : (
                         <div className="flex flex-col items-center justify-center p-12 bg-slate-50 rounded-2xl border border-slate-100 border-dashed text-center">
                             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm text-slate-300">
-                                <Clock size={32} />
+                                <Clock size={32} weight="duotone" />
                             </div>
                             <h3 className="text-lg font-bold text-slate-700 mb-1">היומן פנוי</h3>
                             <p className="text-slate-500 text-sm">אין לו"ז כרגע להיום.</p>
@@ -602,10 +602,11 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
 
 
             {/* Filters Bottom Sheet */}
-            <SheetModal
+            <GenericModal
                 isOpen={showFilters}
                 onClose={() => setShowFilters(false)}
                 title="סינון לוח זמנים"
+                size="md"
             >
                 <div className="flex flex-col gap-4">
                     <div className="space-y-2">
@@ -615,7 +616,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                 onClick={() => setFilters({ mode: 'all', general: false, teams: [], roles: [] })}
                                 className={`flex-1 py-3 px-4 rounded-xl border font-bold text-sm transition-all flex items-center justify-center gap-2 ${filters.mode === 'all' ? 'bg-slate-800 text-white border-slate-800 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
                             >
-                                {filters.mode === 'all' && <Check size={16} />}
+                                {filters.mode === 'all' && <Check size={16} weight="bold" />}
                                 הצג הכל
                             </button>
                         </div>
@@ -676,10 +677,10 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                         </div>
                     )}
                 </div>
-            </SheetModal>
+            </GenericModal>
 
             {/* Modals */}
-            <Modal
+            <GenericModal
                 isOpen={isEditing}
                 onClose={() => setIsEditing(false)}
                 title={editItem.id ? 'עריכת אירוע' : 'אירוע חדש'}
@@ -763,7 +764,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                         )}
                     </div>
                 </div>
-            </Modal>
+            </GenericModal>
 
             <ConfirmationModal
                 isOpen={!!itemToDeleteId}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Person } from '@/types';
-import { ChevronRight, ChevronLeft, Settings, Clock, CheckCircle2 } from 'lucide-react';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, Gear as Settings, Clock, CheckCircle as CheckCircle2 } from '@phosphor-icons/react';
 import { logger } from '@/services/loggingService';
+import { TimePicker } from '@/components/ui/DatePicker';
 
 interface AttendanceRowProps {
     person: Person;
@@ -73,8 +74,8 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
                     <div className="flex items-center gap-2">
                         <h4 className="font-bold text-slate-800 text-base truncate group-hover:text-blue-600 transition-colors">{person.name}</h4>
                         <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] whitespace-nowrap ${statusColor} flex items-center gap-1 shadow-sm`}>
-                            {availStatus === 'arrival' && <ChevronLeft size={10} className="rotate-180" />}
-                            {availStatus === 'departure' && <ChevronRight size={10} className="rotate-180" />}
+                            {availStatus === 'arrival' && <ChevronLeft size={10} className="rotate-180" weight="duotone" />}
+                            {availStatus === 'departure' && <ChevronRight size={10} className="rotate-180" weight="duotone" />}
                             {statusLabel}
                         </span>
                     </div>
@@ -88,32 +89,26 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
                     <div className="flex items-center">
                         {isTimeExpanded ? (
                             <div className="absolute left-4 z-10 flex items-center gap-2 bg-white px-2 py-1.5 rounded-lg border border-slate-200 shadow-xl animate-in fade-in zoom-in-95 duration-200">
-                                <div className="flex flex-col items-center">
-                                    <span className="text-[9px] text-slate-400 font-medium tracking-wide">התחלה</span>
-                                    <input
-                                        type="time"
-                                        value={availability.startHour}
-                                        onChange={e => onTimeChange(person, 'startHour', e.target.value)}
-                                        className="bg-slate-50 rounded px-1 text-xs font-bold text-slate-700 w-16 text-center focus:outline-none focus:ring-1 focus:ring-blue-200 ltr-input"
-                                        disabled={isViewer}
-                                    />
-                                </div>
-                                <div className="w-px h-6 bg-slate-100 mx-0.5"></div>
-                                <div className="flex flex-col items-center">
-                                    <span className="text-[9px] text-slate-400 font-medium tracking-wide">סיום</span>
-                                    <input
-                                        type="time"
-                                        value={availability.endHour}
-                                        onChange={e => onTimeChange(person, 'endHour', e.target.value)}
-                                        className="bg-slate-50 rounded px-1 text-xs font-bold text-slate-700 w-16 text-center focus:outline-none focus:ring-1 focus:ring-blue-200 ltr-input"
-                                        disabled={isViewer}
-                                    />
-                                </div>
+                                <TimePicker
+                                    variant="compact"
+                                    label="התחלה"
+                                    value={availability.startHour}
+                                    onChange={val => onTimeChange(person, 'startHour', val)}
+                                    className="w-16"
+                                />
+                                <div className="w-px h-6 bg-slate-100 mx-0.5 mt-4"></div>
+                                <TimePicker
+                                    variant="compact"
+                                    label="סיום"
+                                    value={availability.endHour}
+                                    onChange={val => onTimeChange(person, 'endHour', val)}
+                                    className="w-16"
+                                />
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setIsTimeExpanded(false); }}
                                     className="mr-1 p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
                                 >
-                                    <CheckCircle2 size={14} className="text-green-600" />
+                                    <CheckCircle2 size={14} className="text-green-600" weight="duotone" />
                                 </button>
                             </div>
                         ) : (
@@ -152,7 +147,7 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
                         className="text-slate-300 hover:text-blue-600 transition-colors"
                         title="הגדרת סבב אישי"
                     >
-                        <Settings size={14} />
+                        <Settings size={14} weight="duotone" />
                     </button>
                 )}
             </div>

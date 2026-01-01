@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Users, Sparkles } from 'lucide-react';
+import { Shield as ShieldIcon, Users as UsersIcon, Sparkle as SparklesIcon } from '@phosphor-icons/react';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -65,7 +65,7 @@ export const CreateOrganizationPage: React.FC = () => {
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <Shield size={32} className="text-white" />
+            <ShieldIcon size={32} className="text-white" weight="duotone" />
           </div>
           <h1 className="text-3xl font-bold text-slate-800 mb-2">ברוכים הבאים למערכת לניהול פלוגה משימות!</h1>
           <p className="text-slate-600">הגדר את הארגון שלך כדי להתחיל</p>
@@ -87,7 +87,7 @@ export const CreateOrganizationPage: React.FC = () => {
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-            <Sparkles size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
+            <SparklesIcon size={20} className="text-blue-600 flex-shrink-0 mt-0.5" weight="duotone" />
             <div className="text-sm text-blue-800">
               <p className="font-bold mb-1">טיפ:</p>
               <p>תוכל להוסיף חברי צוות נוספים ולהגדיר הרשאות בהגדרות הארגון לאחר מכן.</p>
@@ -106,7 +106,7 @@ export const CreateOrganizationPage: React.FC = () => {
               </>
             ) : (
               <>
-                <Users size={20} />
+                <UsersIcon size={20} weight="bold" />
                 צור ארגון והתחל
               </>
             )}

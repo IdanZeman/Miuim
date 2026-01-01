@@ -3,11 +3,11 @@ import { supabase } from '@/services/supabaseClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Person, Team, Role } from '@/types';
 import { getPersonInitials } from '@/utils/nameUtils';
-import { Trophy, Users, RefreshCw, Shuffle, Dices, Check, Settings2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trophy, Users, ArrowsClockwise as RefreshCw, Shuffle, DiceFive as Dices, Check, Sliders as Settings2, X, CaretDown as ChevronDown, CaretUp as ChevronUp } from '@phosphor-icons/react';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
+import { GenericModal } from '@/components/ui/GenericModal';
 
 interface LotteryProps {
     people: Person[];
@@ -20,7 +20,7 @@ interface LotteryProps {
 
 type PoolType = 'all' | 'team' | 'role' | 'manual';
 
-const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }: { sizeClass: string, rotation: number, isSpinning: boolean, candidates: Person[], wheelColors: string[] }) => (
+const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors, onSpin }: { sizeClass: string, rotation: number, isSpinning: boolean, candidates: Person[], wheelColors: string[], onSpin?: () => void }) => (
     <div className="relative">
         {/* Pointer */}
         <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 text-slate-800 filter drop-shadow-lg" aria-hidden="true">
@@ -29,7 +29,8 @@ const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }:
 
         {/* The Wheel */}
         <div
-            className={`${sizeClass} rounded-full border-8 border-white shadow-2xl relative transition-transform`}
+            onClick={!isSpinning ? onSpin : undefined}
+            className={`${sizeClass} rounded-full border-8 border-white shadow-2xl relative transition-transform ${onSpin && !isSpinning ? 'cursor-pointer hover:brightness-105' : ''}`}
             style={{
                 transform: `rotate(${rotation}deg)`,
                 transitionDuration: isSpinning ? '8s' : '0s',
@@ -59,12 +60,15 @@ const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }:
                         }}
                     >
                         <span
-                            className={`text-white font-bold truncate max-h-[70%] drop-shadow-md whitespace-nowrap px-1 ${baseSize}`}
+                            className={`text-white font-black truncate max-h-[70%] drop-shadow-md whitespace-nowrap px-1 ${baseSize}`}
                             style={{
                                 writingMode: 'vertical-rl',
                                 textOrientation: 'mixed',
                                 transform: 'rotate(180deg)',
-                                fontFamily: 'sans-serif'
+                                fontFamily: 'sans-serif',
+                                textRendering: 'optimizeLegibility',
+                                WebkitFontSmoothing: 'antialiased',
+                                MozOsxFontSmoothing: 'grayscale'
                             }}
                         >
                             {p.name}
@@ -75,9 +79,11 @@ const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors }:
         </div>
 
         {/* Center Hub */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full shadow-xl flex items-center justify-center z-10">
+        <div
+            onClick={!isSpinning ? onSpin : undefined}
+            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full shadow-xl flex items-center justify-center z-10 ${onSpin && !isSpinning ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}>
             <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-white">
-                <Dices size={20} />
+                <Dices size={20} weight="duotone" />
             </div>
         </div>
     </div >
@@ -386,7 +392,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                     onClick={() => setIsEditMode(!isEditMode)}
                     className="text-xs flex items-center gap-1 text-slate-500 hover:text-blue-600 transition-colors"
                 >
-                    <Settings2 size={12} />
+                    <Settings2 size={12} weight="duotone" />
                     {isEditMode ? 'סגור' : 'ערוך'}
                 </button>
             </div>
@@ -412,7 +418,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                                     className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-xs ${participatingIds.has(p.id) ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                                 >
                                     <div className={`w-3 h-3 rounded border flex items-center justify-center ${participatingIds.has(p.id) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
-                                        {participatingIds.has(p.id) && <Check size={8} className="text-white" />}
+                                        {participatingIds.has(p.id) && <Check size={8} className="text-white" weight="bold" />}
                                     </div>
                                     <span className={participatingIds.has(p.id) ? 'font-medium text-slate-800' : 'text-slate-500'}>{p.name}</span>
                                 </div>
@@ -444,9 +450,9 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
             {/* Global Sound Toggle Removed */}
 
             {/* ================= MOBILE VIEW (md:hidden) ================= */}
-            <div className="md:hidden flex flex-col h-full overflow-y-auto">
+            <div className="md:hidden flex flex-col h-full relative">
                 {/* 1. Header Area */}
-                <div className="bg-white text-slate-900 p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div className="bg-white text-slate-900 px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 sticky top-0 z-20 shadow-sm">
                     <div>
                         <h1 className="text-2xl font-black mb-0.5 flex items-center gap-2">
                             הגרלה
@@ -469,21 +475,21 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setIsSettingsOpen(true)}
-                            className={`p-3 rounded-xl border bg-slate-50 border-slate-200 text-slate-500 hover:text-indigo-600 transition-all`}
+                            className={`p-3 rounded-xl border bg-slate-50 border-slate-200 text-slate-500 hover:text-indigo-600 transition-all active:scale-95`}
                         >
-                            <Settings2 size={20} aria-hidden="true" />
+                            <Settings2 size={24} aria-hidden="true" weight="duotone" />
                         </button>
                         <button
                             onClick={() => setShowHistory(!showHistory)}
-                            className={`p-3 rounded-xl border transition-all ${showHistory ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                            className={`p-3 rounded-xl border transition-all active:scale-95 ${showHistory ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
                         >
-                            <Trophy size={20} aria-hidden="true" />
+                            <Trophy size={24} aria-hidden="true" weight="duotone" />
                         </button>
                     </div>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 p-4 flex flex-col">
+                <div className="flex-1 overflow-y-auto p-4 flex flex-col pb-32">
                     {showHistory ? (
                         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">זוכים אחרונים</h3>
@@ -500,7 +506,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                                                 <p className="text-[10px] text-slate-400">{new Date(h.created_at).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                                             </div>
                                         </div>
-                                        <Trophy size={16} className="text-yellow-400" />
+                                        <Trophy size={16} className="text-yellow-400" weight="fill" />
                                     </div>
                                 ))}
                             </div>
@@ -508,13 +514,12 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                         </div>
                     ) : (
                         <>
-
                             {/* Wheel Section */}
-                            <div className="flex justify-center mb-6">
+                            <div className="flex justify-center mb-6 mt-4">
                                 {mode === 'single' && candidates.length > 0 ? (
-                                    <WheelView sizeClass="w-64 h-64 sm:w-72 sm:h-72" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} />
+                                    <WheelView sizeClass="w-[92vw] h-[92vw] max-w-[500px] max-h-[500px]" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} onSpin={handleSpin} />
                                 ) : mode === 'multiple' ? (
-                                    <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold text-center p-4">
+                                    <div className="w-[92vw] h-[92vw] max-w-[500px] max-h-[500px] rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold text-center p-4">
                                         {isSpinning ? (
                                             <div className="animate-pulse text-indigo-500 font-bold text-xl" role="status" aria-live="polite">
                                                 ...מגריל...
@@ -524,7 +529,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold">
+                                    <div className="w-[92vw] h-[92vw] max-w-[500px] max-h-[500px] rounded-full border-4 border-dashed border-slate-200 flex items-center justify-center text-slate-400 font-bold">
                                         אין משתתפים
                                     </div>
                                 )}
@@ -535,7 +540,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                                 {winners.length > 0 && !isSpinning ? (
                                     <div className="animate-bounce-in" role="alert" aria-live="assertive">
                                         <p className="text-sm font-bold text-slate-400 mb-1">הזוכה הוא:</p>
-                                        <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                                        <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 drop-shadow-sm">
                                             {winners[0].name}
                                         </h2>
                                     </div>
@@ -544,59 +549,50 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                                         ...מגריל...
                                     </div>
                                 ) : (
-                                    <p className="text-slate-400 font-medium">לחץ על הכפתור כדי להתחיל</p>
+                                    <p className="text-slate-400 font-medium text-lg">לחץ על הכפתור כדי להתחיל</p>
                                 )}
                             </div>
-
-                            {/* Primary Action Button */}
-                            <button
-                                onClick={handleSpin}
-                                disabled={candidates.length === 0 || isSpinning}
-                                className={`w-full py-4 rounded-2xl font-black text-xl shadow-xl transform transition-all active:scale-95 flex items-center justify-center gap-3 mb-6
-                            ${candidates.length === 0 || isSpinning
-                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
-                                        : 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 shadow-yellow-500/30'
-                                    }`}
-                            >
-                                {isSpinning ? <RefreshCw className="animate-spin" size={24} /> : <Dices size={24} />}
-                                {isSpinning ? 'מסתובב...' : 'סובב את הגלגל!'}
-                            </button>
                         </>
                     )}
                 </div>
+
+                {/* Sticky Footer Action */}
+                {!showHistory && (
+                    <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-xl border-t border-slate-100 z-30 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                        <button
+                            onClick={handleSpin}
+                            disabled={candidates.length === 0 || isSpinning}
+                            className={`w-full py-4 rounded-2xl font-black text-xl shadow-xl transform transition-all active:scale-95 flex items-center justify-center gap-3
+                            ${candidates.length === 0 || isSpinning
+                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                                    : 'bg-idf-yellow text-slate-900 shadow-yellow-500/20'
+                                }`}
+                        >
+                            {isSpinning ? <RefreshCw className="animate-spin" size={24} weight="duotone" /> : <Dices size={24} weight="duotone" />}
+                            {isSpinning ? 'מסתובב...' : 'סובב את הגלגל!'}
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {/* Mobile Settings Modal */}
-            <Modal
+            {/* Mobile Settings Sheet */}
+            <GenericModal
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
-                title={
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                            <Settings2 size={20} strokeWidth={2.5} />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-black text-slate-800">הגדרות הגרלה</h3>
-                            <p className="text-sm font-bold text-slate-400">ניהול משתתפים ואפשרויות</p>
-                        </div>
-                    </div>
-                }
+                title="הגדרות הגרלה"
                 footer={
-                    <div className="w-full">
-                        <Button
-                            onClick={() => setIsSettingsOpen(false)}
-                            className="w-full h-12 text-lg font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200"
-                        >
-                            שמור וסגור
-                        </Button>
-                    </div>
+                    <Button
+                        onClick={() => setIsSettingsOpen(false)}
+                        className="w-full h-12 text-lg font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200"
+                    >
+                        שמור וסגור
+                    </Button>
                 }
-                className="md:hidden"
             >
                 <div className="space-y-6 pt-2">
                     {ConfigPanelContent()}
                 </div>
-            </Modal>
+            </GenericModal>
 
 
             {/* ================= DESKTOP VIEW (hidden md:flex) ================= */}
@@ -610,7 +606,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
 
                     <div className="relative z-10 transform transition-transform shrink-0">
                         {mode === 'single' && candidates.length > 0 ? (
-                            <WheelView sizeClass="w-[280px] h-[280px] lg:w-[350px] lg:h-[350px] xl:w-[450px] xl:h-[450px]" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} />
+                            <WheelView sizeClass="w-[280px] h-[280px] lg:w-[350px] lg:h-[350px] xl:w-[450px] xl:h-[450px]" rotation={rotation} isSpinning={isSpinning} candidates={candidates} wheelColors={wheelColors} onSpin={handleSpin} />
                         ) : mode === 'multiple' ? (
                             <div className="w-[280px] h-[280px] lg:w-[350px] lg:h-[350px] xl:w-[450px] xl:h-[450px] rounded-full border-4 border-dashed border-white/30 flex items-center justify-center text-white/50 font-bold text-xl text-center p-8">
                                 {isSpinning ? (
@@ -641,7 +637,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                 <div className="w-[320px] lg:w-[400px] bg-white flex flex-col overflow-hidden border-r border-slate-100 shrink-0 transition-all">
                     <div className="p-4 lg:p-6 border-b border-slate-100 bg-slate-50/50">
                         <h2 className="text-lg lg:text-xl font-bold text-slate-800 flex items-center gap-2 mb-4 lg:mb-6">
-                            <Settings2 className="text-indigo-600" />
+                            <Settings2 className="text-indigo-600" weight="duotone" />
                             לוח בקרה
                             <PageInfo
                                 title="הגרלה"
@@ -670,7 +666,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-indigo-500/30 hover:-translate-y-1'
                                 }`}
                         >
-                            {isSpinning ? <RefreshCw className="animate-spin" size={24} /> : <Dices size={24} />}
+                            {isSpinning ? <RefreshCw className="animate-spin" size={24} weight="duotone" /> : <Dices size={24} weight="duotone" />}
                             {isSpinning ? 'מגריל...' : 'סובב עכשיו!'}
                         </button>
                     </div>
@@ -691,7 +687,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                                             <p className="text-[10px] text-slate-400">{new Date(h.created_at).toLocaleDateString()}</p>
                                         </div>
                                     </div>
-                                    <Trophy size={14} className="text-yellow-400" />
+                                    <Trophy size={14} className="text-yellow-400" weight="fill" />
                                 </div>
                             ))}
                         </div>
