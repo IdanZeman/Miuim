@@ -61,6 +61,7 @@ export const GateDashboard: React.FC = () => {
     const [isExceptional, setIsExceptional] = useState(false);
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
 
     // Dashboard State
     const [historySearchTerm, setHistorySearchTerm] = useState('');
@@ -386,9 +387,9 @@ export const GateDashboard: React.FC = () => {
                     {entryType === 'vehicle' && plateInput.length >= 3 && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                             <div className={`p-4 rounded-2xl border-2 flex items-center gap-4 transition-all ${match
-                                    ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
-                                        .replace('bg-emerald-50', 'bg-emerald-50') // dummy replace to keep logic same
-                                    : isLoading ? 'bg-slate-50 border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-800'
+                                ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                                    .replace('bg-emerald-50', 'bg-emerald-50') // dummy replace to keep logic same
+                                : isLoading ? 'bg-slate-50 border-slate-100 text-slate-400' : 'bg-rose-50 border-rose-100 text-rose-800'
                                 } `}>
                                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${match ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-200 text-white'} `}>
                                     {isLoading ? <CircleNotch size={20} className="animate-spin" weight="bold" /> : (
@@ -674,8 +675,8 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                         <button
                             onClick={() => setCurrentTab('control')}
                             className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${currentTab === 'control'
-                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                    : 'text-slate-400 hover:text-slate-600'
+                                ? 'bg-white text-indigo-600 shadow-sm'
+                                : 'text-slate-400 hover:text-slate-600'
                                 } `}
                         >
                             <CarIcon size={18} weight={currentTab === 'control' ? 'duotone' : 'bold'} />
@@ -685,8 +686,8 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                             <button
                                 onClick={() => setCurrentTab('authorized')}
                                 className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${currentTab === 'authorized'
-                                        ? 'bg-white text-indigo-600 shadow-sm'
-                                        : 'text-slate-400 hover:text-slate-600'
+                                    ? 'bg-white text-indigo-600 shadow-sm'
+                                    : 'text-slate-400 hover:text-slate-600'
                                     } `}
                             >
                                 <SettingsIcon size={18} weight={currentTab === 'authorized' ? 'duotone' : 'bold'} />
@@ -795,9 +796,9 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
             {/* Standard FAB - Bottom Right (Fixed) */}
             <FloatingActionButton
                 show={currentTab === 'control'}
-                onClick={() => setIsAddVehicleModalOpen(true)}
+                onClick={() => setIsReportModalOpen(true)}
                 icon={PlusIcon}
-                ariaLabel="הוסף רכב מורשה"
+                ariaLabel="דיווח כניסה/יציאה"
                 className="md:hidden"
             />
         </div>
