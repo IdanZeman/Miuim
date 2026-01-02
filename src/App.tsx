@@ -10,6 +10,10 @@ const AttendanceManager = lazyWithRetry(() => import('./features/scheduling/Atte
 const TaskManager = lazyWithRetry(() => import('./features/tasks/TaskManager').then(module => ({ default: module.TaskManager })));
 const StatsDashboard = lazyWithRetry(() => import('./features/stats/StatsDashboard').then(module => ({ default: module.StatsDashboard })));
 const OrganizationSettingsComponent = lazyWithRetry(() => import('./features/admin/OrganizationSettings').then(module => ({ default: module.OrganizationSettings })));
+const BattalionDashboard = lazyWithRetry(() => import('./features/battalion/BattalionDashboard').then(module => ({ default: module.BattalionDashboard })));
+const BattalionPersonnelTable = lazyWithRetry(() => import('./features/battalion/BattalionPersonnelTable').then(module => ({ default: module.BattalionPersonnelTable })));
+const BattalionSettings = lazyWithRetry(() => import('./features/battalion/BattalionSettings').then(module => ({ default: module.BattalionSettings })));
+const BattalionAttendanceManager = lazyWithRetry(() => import('./features/battalion/BattalionAttendanceManager').then(module => ({ default: module.BattalionAttendanceManager })));
 
 const AdminLogsViewer = lazyWithRetry(() => import('./features/admin/AdminLogsViewer').then(module => ({ default: module.AdminLogsViewer })));
 const OrganizationLogsViewer = lazyWithRetry(() => import('./features/admin/OrganizationLogsViewer').then(module => ({ default: module.OrganizationLogsViewer })));
@@ -31,7 +35,8 @@ import { Onboarding } from './features/auth/Onboarding';
 import { AuthProvider, useAuth } from './features/auth/AuthContext';
 import { useToast } from './contexts/ToastContext';
 import { logger } from './services/loggingService';
-import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence, Equipment } from './types'; // Updated imports
+import { Person, Shift, TaskTemplate, Role, Team, SchedulingConstraint, Absence, Equipment, ViewMode, Organization } from './types';
+import { WarClock } from './features/scheduling/WarClock';
 import { supabase } from './services/supabaseClient';
 import {
     mapShiftFromDB, mapShiftToDB,
@@ -47,7 +52,7 @@ import {
 import { solveSchedule, SchedulingSuggestion, SchedulingResult } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
 import { FloatingActionButton } from './components/ui/FloatingActionButton';
-import { MagicWand as Wand2, SparkleIcon as Sparkles, Shield, X, CalendarBlank as Calendar, WarningCircle as AlertCircle } from '@phosphor-icons/react';
+import { MagicWand as Wand2, SparkleIcon as Sparkles, Shield, X, CalendarBlank as Calendar, WarningCircle as AlertCircle, CircleNotch as Loader2, Users } from '@phosphor-icons/react';
 import { v4 as uuidv4 } from 'uuid';
 import { generateShiftsForTask } from './utils/shiftUtils';
 import JoinPage from './features/auth/JoinPage';
@@ -64,6 +69,7 @@ import { GlobalClickTracker } from './features/core/GlobalClickTracker';
 import { AutoScheduleModal } from './features/scheduling/AutoScheduleModal';
 import { EmptyStateGuide } from './components/ui/EmptyStateGuide';
 import { ToastProvider } from './contexts/ToastContext';
+import { BackgroundPrefetcher } from './components/core/BackgroundPrefetcher';
 
 
 
@@ -80,10 +86,13 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 
 // --- Main App Content (Authenticated) ---
 // Track view changes
-const MainApp: React.FC = () => {
+// Custom hook to manage the massive state of the main application
+const useMainAppState = () => {
     const { organization, user, profile, checkAccess } = useAuth();
+    const isCommander = (organization?.is_hq && profile?.permissions?.dataScope === 'battalion') || profile?.is_super_admin;
+    const hasBattalion = !!organization?.battalion_id;
     const { showToast } = useToast();
-    const [view, setView] = useState<'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq' | 'gate'>(() => {
+    const [view, setView] = useState<ViewMode>(() => {
         // Always start at home, but check for import wizard flag
         if (typeof window !== 'undefined') {
             const shouldOpenImport = localStorage.getItem('open_import_wizard');
@@ -93,6 +102,23 @@ const MainApp: React.FC = () => {
         }
         return 'home';
     });
+
+    const [activeOrgId, setActiveOrgId] = useState<string | null>(() => {
+        // Default to user's assigned organization
+        if (profile?.organization_id) return profile.organization_id;
+
+        // For battalion commanders without a specific organization, 
+        // they will select one from the battalion's companies (handled later)
+        return null;
+    });
+
+    // Handle initial activeOrgId setting when profile loads
+    useEffect(() => {
+        if (profile?.organization_id && !activeOrgId) {
+            setActiveOrgId(profile.organization_id);
+        }
+    }, [profile, activeOrgId]);
+
 
     // Persistence & Scroll to Top Effect
     useEffect(() => {
@@ -119,6 +145,24 @@ const MainApp: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [scheduleMode, setScheduleMode] = useState<'single' | 'range'>('single');
     const [autoOpenRotaWizard, setAutoOpenRotaWizard] = useState(false);
+    const [battalionCompanies, setBattalionCompanies] = useState<Organization[]>([]);
+
+    // Fetch battalion companies if user is in battalion
+    useEffect(() => {
+        const bid = organization?.battalion_id;
+        if (bid) {
+            import('./services/battalionService').then(m => m.fetchBattalionCompanies(bid))
+                .then(setBattalionCompanies)
+                .catch(err => console.error('Failed to fetch battalion companies', err));
+        }
+    }, [organization?.battalion_id]);
+
+    // Auto-select first company if no org is active
+    useEffect(() => {
+        if (!activeOrgId && battalionCompanies.length > 0) {
+            setActiveOrgId(battalionCompanies[0].id);
+        }
+    }, [activeOrgId, battalionCompanies]);
     const [schedulingSuggestions, setSchedulingSuggestions] = useState<SchedulingSuggestion[]>([]);
     const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
 
@@ -140,7 +184,9 @@ const MainApp: React.FC = () => {
         isLoading: isOrgLoading,
         error: orgError,
         refetch: refetchOrgData
-    } = useOrganizationData();
+    } = useOrganizationData(activeOrgId);
+
+    const orgIdForActions = activeOrgId || organization?.id;
 
     // Map the new hook data to the old 'state' structure
     const state = {
@@ -184,7 +230,7 @@ const MainApp: React.FC = () => {
     // For V1 Performance: We simply invalidate the query to refetch fresh data
     const queryClient = useQueryClient();
     const refreshData = () => {
-        return queryClient.invalidateQueries({ queryKey: ['organizationData', organization?.id] });
+        return queryClient.invalidateQueries({ queryKey: ['organizationData', activeOrgId] });
     };
 
     const myPerson = React.useMemo(() => {
@@ -196,12 +242,12 @@ const MainApp: React.FC = () => {
 
     useEffect(() => {
         logger.setContext(
-            organization?.id || null,
+            activeOrgId || organization?.id || null,
             user?.id || null,
             profile?.email || user?.email || null,
             profile?.full_name || null
         );
-    }, [organization, user, profile]);
+    }, [activeOrgId, organization, user, profile]);
 
 
 
@@ -279,27 +325,23 @@ const MainApp: React.FC = () => {
     };
 
     const handleAddPerson = async (p: Person) => {
-        if (!organization) return;
-        const personWithOrg = { ...p, organization_id: organization.id };
+        if (!orgIdForActions) return;
+        const personWithOrg = { ...p, organization_id: orgIdForActions };
         const dbPayload = mapPersonToDB(personWithOrg);
 
-        // ... (Keep existing UUID generation logic if needed or rely on DB) ...
-        if (dbPayload.id && (dbPayload.id.startsWith('person-') || dbPayload.id.startsWith('imported-'))) {
-            dbPayload.id = self.crypto && self.crypto.randomUUID ? self.crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
+        if (dbPayload.id && (dbPayload.id.startsWith('person-') || dbPayload.id.startsWith('imported-') || dbPayload.id.startsWith('temp-'))) {
+            dbPayload.id = uuidv4();
         }
 
         try {
             const { error } = await supabase.from('people').insert(dbPayload);
             if (error) throw error;
             await logger.logCreate('person', dbPayload.id, p.name, p);
-            await refreshData(); // Re-fetch
-            showToast('העובד נוסף בהצלחה', 'success');
+            await refreshData();
+            showToast('החייל נוסף בהצלחה', 'success');
         } catch (e: any) {
-            console.warn("DB Insert Failed", e);
-            if (e.code === '23505') throw new Error('שגיאה: משתמש קיים.');
+            console.error("Add Person Error", e);
+            showToast(e.message || 'שגיאה בהוספת חייל', 'error');
             throw e;
         }
     };
@@ -351,79 +393,122 @@ const MainApp: React.FC = () => {
     };
 
     const handleAddTeam = async (t: Team) => {
+        if (!orgIdForActions) return;
+        const dbPayload = mapTeamToDB({ ...t, organization_id: orgIdForActions });
+
+        if (dbPayload.id && (dbPayload.id.startsWith('team-') || dbPayload.id.startsWith('temp-'))) {
+            dbPayload.id = uuidv4();
+        }
+
         try {
-            const { error } = await supabase.from('teams').insert(mapTeamToDB({ ...t, organization_id: organization.id }));
+            const { error } = await supabase.from('teams').insert(dbPayload);
             if (error) throw error;
-            await logger.logCreate('team', t.id, t.name, t);
+            await logger.logCreate('team', dbPayload.id, t.name, t);
+            showToast('הצוות נוסף בהצלחה', 'success');
             await refreshData();
         } catch (e: any) {
-            logger.error('ERROR', 'Failed to add team', e);
-            console.warn(e);
+            console.error('Add Team Error:', e);
+            showToast('שגיאה בהוספת צוות', 'error');
+            throw e;
         }
     };
 
     const handleUpdateTeam = async (t: Team) => {
         try {
-            await supabase.from('teams').update(mapTeamToDB(t)).eq('id', t.id);
+            const { error } = await supabase.from('teams').update(mapTeamToDB(t)).eq('id', t.id);
+            if (error) throw error;
             await refreshData();
-        } catch (e) { console.warn(e); }
+        } catch (e: any) {
+            console.error('Update Team Error:', e);
+            showToast('שגיאה בעדכון צוות', 'error');
+        }
     };
 
     const handleDeleteTeam = async (id: string) => {
         try {
-            await supabase.from('teams').delete().eq('id', id);
+            const { error } = await supabase.from('teams').delete().eq('id', id);
+            if (error) throw error;
             await refreshData();
-        } catch (e) { console.warn(e); }
+        } catch (e: any) {
+            console.error('Delete Team Error:', e);
+            showToast('שגיאה במחיקת צוות', 'error');
+        }
     };
 
     const handleAddRole = async (r: Role) => {
-        if (!organization) return;
+        if (!orgIdForActions) return;
+        const dbPayload = mapRoleToDB({ ...r, organization_id: orgIdForActions });
+
+        if (dbPayload.id && (dbPayload.id.startsWith('role-') || dbPayload.id.startsWith('temp-'))) {
+            dbPayload.id = uuidv4();
+        }
+
         try {
-            await supabase.from('roles').insert(mapRoleToDB({ ...r, organization_id: organization.id }));
+            const { error } = await supabase.from('roles').insert(dbPayload);
+            if (error) throw error;
+            showToast('התפקיד נוסף בהצלחה', 'success');
             await refreshData();
-        } catch (e) { console.warn(e); }
+        } catch (e: any) {
+            console.error('Add Role Error:', e);
+            showToast('שגיאה בהוספת תפקיד', 'error');
+            throw e;
+        }
     };
 
     const handleUpdateRole = async (r: Role) => {
         try {
-            await supabase.from('roles').update(mapRoleToDB(r)).eq('id', r.id);
+            const { error } = await supabase.from('roles').update(mapRoleToDB(r)).eq('id', r.id);
+            if (error) throw error;
             await refreshData();
-        } catch (e) { console.warn(e); }
+        } catch (e: any) {
+            console.error('Update Role Error:', e);
+            showToast('שגיאה בעדכון תפקיד', 'error');
+        }
     };
 
     const handleDeleteRole = async (id: string) => {
         try {
-            await supabase.from('roles').delete().eq('id', id);
+            const { error } = await supabase.from('roles').delete().eq('id', id);
+            if (error) throw error;
             await refreshData();
-        } catch (e) { console.warn(e); }
+        } catch (e: any) {
+            console.error('Delete Role Error:', e);
+            showToast('שגיאה במחיקת תפקיד', 'error');
+        }
     };
 
     const handleAddTask = async (t: TaskTemplate) => {
-        if (!organization) return;
+        if (!orgIdForActions) return;
+        const dbPayload = mapTaskToDB({ ...t, organization_id: orgIdForActions });
+
+        if (dbPayload.id && (dbPayload.id.startsWith('task-') || dbPayload.id.startsWith('temp-'))) {
+            dbPayload.id = uuidv4();
+        }
+
         try {
-            const { error } = await supabase.from('task_templates').insert(mapTaskToDB({ ...t, organization_id: organization.id }));
+            const { error } = await supabase.from('task_templates').insert(dbPayload);
             if (error) throw error;
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const newShifts = generateShiftsForTask({ ...t, organization_id: organization.id }, today);
-            const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: organization.id }));
+            const newShifts = generateShiftsForTask({ ...t, id: dbPayload.id, organization_id: orgIdForActions }, today);
+            const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
             if (shiftsWithOrg.length > 0) {
                 const { error: shiftsError } = await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
                 if (shiftsError) console.error('Error saving shifts:', shiftsError);
             }
-            await logger.logCreate('task', t.id, t.name, t);
-            await refreshData();
+            await logger.logCreate('task', dbPayload.id, t.name, t);
             showToast('המשימה נוצרה בהצלחה', 'success');
+            await refreshData();
         } catch (e: any) {
-            logger.error('ERROR', 'Failed to add task', e);
-            console.error('Add Task Failed:', e);
-            showToast(`שגיאה ביצירת משימה: ${e.message}`, 'error');
+            console.error('Add Task Error:', e);
+            showToast('שגיאה בהוספת משימה', 'error');
+            throw e;
         }
     };
 
     const handleUpdateTask = async (t: TaskTemplate) => {
-        if (!organization) return;
+        if (!orgIdForActions) return;
         const oldTask = state.taskTemplates.find(task => task.id === t.id);
 
         // Check if segments changed
@@ -439,19 +524,17 @@ const MainApp: React.FC = () => {
             const startOfWeek = new Date(today);
             startOfWeek.setDate(today.getDate() - today.getDay());
             const newShifts = generateShiftsForTask(t, startOfWeek);
-            const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: organization.id }));
+            const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
             try {
-                const { error: taskError } = await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id);
-                if (taskError) {
-                    throw new Error(`Task Update Failed: ${taskError.message}`);
-                }
+                await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id);
 
-                await supabase.from('shifts').delete().eq('task_id', t.id).eq('organization_id', organization.id);
+                await supabase.from('shifts').delete().eq('task_id', t.id).eq('organization_id', orgIdForActions);
                 if (shiftsWithOrg.length > 0) {
                     const { error: shiftsError } = await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
                     if (shiftsError) console.error('Shifts insert error:', shiftsError);
                 }
 
+                await logger.logUpdate('task', t.id, t.name, oldTask, t);
                 await refreshData();
                 showToast('המשימה והמשמרות עודכנו בהצלחה', 'success');
 
@@ -462,31 +545,36 @@ const MainApp: React.FC = () => {
         } else {
             try {
                 const { error } = await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id);
-                if (error) {
-                    console.error('Task Update Failed:', error);
-                    showToast(`שגיאה בשמירה: ${error.message} (${error.details || ''})`, 'error');
-                }
+                if (error) throw error;
+                await logger.logUpdate('task', t.id, t.name, oldTask, t);
+                await refreshData();
+                showToast('המשימה עודכנה בהצלחה', 'success');
             } catch (e: any) {
-                console.error('Task Update Exception:', e);
-                showToast(`שגיאה לא צפויה: ${e.message}`, 'error');
+                console.error('Task Update Error:', e);
+                showToast(`שגיאה בעדכון: ${e.message}`, 'error');
             }
-            await refreshData();
         }
     };
 
     const handleDeleteTask = async (id: string) => {
-        if (!organization) return;
+        if (!orgIdForActions) return;
         try {
-            await supabase.from('task_templates').delete().eq('id', id).eq('organization_id', organization.id);
-            await supabase.from('shifts').delete().eq('task_id', id).eq('organization_id', organization.id);
+            const task = state.taskTemplates.find(t => t.id === id);
+            await supabase.from('task_templates').delete().eq('id', id).eq('organization_id', orgIdForActions);
+            await supabase.from('shifts').delete().eq('task_id', id).eq('organization_id', orgIdForActions);
+            await logger.logDelete('task', id, task?.name || 'משימה', task);
             await refreshData();
-        } catch (e) { console.warn(e); }
+            showToast('המשימה נמחקה בהצלחה', 'success');
+        } catch (e: any) {
+            console.error('Delete Task Error:', e);
+            showToast('שגיאה במחיקת משימה', 'error');
+        }
     };
 
     const handleAddConstraint = async (c: Omit<SchedulingConstraint, 'id'>, silent = false) => {
-        if (!organization) return;
+        if (!orgIdForActions) return;
         try {
-            await import('./services/supabaseClient').then(m => m.addConstraint({ ...c, organization_id: organization.id }));
+            await import('./services/supabaseClient').then(m => m.addConstraint({ ...c, organization_id: orgIdForActions }));
             refreshData();
             if (!silent) showToast('אילוץ נשמר בהצלחה', 'success');
         } catch (e) {
@@ -498,11 +586,11 @@ const MainApp: React.FC = () => {
     const handleDeleteConstraint = async (id: string, silent = false) => {
         try {
             await import('./services/supabaseClient').then(m => m.deleteConstraint(id));
-            refreshData();
+            await refreshData();
             if (!silent) showToast('אילוץ נמחק בהצלחה', 'success');
-        } catch (e) {
-            console.warn(e);
-            showToast('שגיאה במחיקת אילוץ', 'error');
+        } catch (e: any) {
+            console.error('Delete Constraint Error:', e);
+            if (!silent) showToast('שגיאה במחיקת אילוץ', 'error');
         }
     };
 
@@ -513,27 +601,41 @@ const MainApp: React.FC = () => {
         } catch (e) { console.warn(e); }
     };
 
-    // NEW ROTATION HANDLERS
     const handleAddRotation = async (r: import('./types').TeamRotation) => {
-        if (!organization) return;
+        if (!orgIdForActions) return;
         try {
-            await supabase.from('team_rotations').insert(mapRotationToDB({ ...r, organization_id: organization.id }));
+            const { error } = await supabase.from('team_rotations').insert(mapRotationToDB({ ...r, organization_id: orgIdForActions }));
+            if (error) throw error;
             await refreshData();
-        } catch (e) { console.warn(e); }
+            showToast('סבב נוסף בהצלחה', 'success');
+        } catch (e: any) {
+            console.error('Add Rotation Error:', e);
+            showToast('שגיאה בהוספת סבב', 'error');
+        }
     };
 
     const handleUpdateRotation = async (r: import('./types').TeamRotation) => {
         try {
-            await supabase.from('team_rotations').update(mapRotationToDB(r)).eq('id', r.id);
+            const { error } = await supabase.from('team_rotations').update(mapRotationToDB(r)).eq('id', r.id);
+            if (error) throw error;
             await refreshData();
-        } catch (e) { console.warn(e); }
+            showToast('הסבב עודכן בהצלחה', 'success');
+        } catch (e: any) {
+            console.error('Update Rotation Error:', e);
+            showToast('שגיאה בעדכון סבב', 'error');
+        }
     };
 
     const handleDeleteRotation = async (id: string) => {
         try {
-            await supabase.from('team_rotations').delete().eq('id', id);
+            const { error } = await supabase.from('team_rotations').delete().eq('id', id);
+            if (error) throw error;
             await refreshData();
-        } catch (e) { console.warn(e); }
+            showToast('הסבב נמחק בהצלחה', 'success');
+        } catch (e: any) {
+            console.error('Delete Rotation Error:', e);
+            showToast('שגיאה במחיקת סבב', 'error');
+        }
     };
 
     // ABSENCE HANDLERS (Missing DB Implementation in original? Assuming state only or need DB)
@@ -575,29 +677,47 @@ const MainApp: React.FC = () => {
     };
 
     const handleAddEquipment = async (e: Equipment) => {
-        if (!organization) return;
-        const itemWithOrg = { ...e, organization_id: organization.id };
+        if (!orgIdForActions) return;
+        const dbPayload = mapEquipmentToDB({ ...e, organization_id: orgIdForActions });
+
+        // Handle non-UUID temp IDs from frontend
+        if (dbPayload.id && !dbPayload.id.includes('-') && dbPayload.id.length < 32) {
+            dbPayload.id = uuidv4();
+        }
+
         try {
-            await supabase.from('equipment').insert(itemWithOrg);
+            const { error } = await supabase.from('equipment').insert(dbPayload);
+            if (error) throw error;
             await refreshData();
-        } catch (e) { console.warn(e); }
+            showToast('הציוד נוסף בהצלחה', 'success');
+        } catch (e: any) {
+            console.error('Add Equipment Error:', e);
+            showToast('שגיאה בהוספת ציוד', 'error');
+        }
     };
 
     const handleUpdateEquipment = async (e: Equipment) => {
         try {
-            const { data, error } = await supabase.from('equipment').update(mapEquipmentToDB(e)).eq('id', e.id);
+            const { error } = await supabase.from('equipment').update(mapEquipmentToDB(e)).eq('id', e.id);
             if (error) throw error;
             await refreshData();
+            showToast('הציוד עודכן בהצלחה', 'success');
         } catch (e: any) {
+            console.error('Update Equipment Error:', e);
             showToast(`שגיאה בעדכון ציוד: ${e.message}`, 'error');
         }
     };
 
     const handleDeleteEquipment = async (id: string) => {
         try {
-            await supabase.from('equipment').delete().eq('id', id);
+            const { error } = await supabase.from('equipment').delete().eq('id', id);
+            if (error) throw error;
             await refreshData();
-        } catch (e) { console.warn(e); }
+            showToast('הציוד נמחק בהצלחה', 'success');
+        } catch (e: any) {
+            console.error('Delete Equipment Error:', e);
+            showToast('שגיאה במחיקת ציוד', 'error');
+        }
     };
 
     // Equipment Daily Check Handlers
@@ -756,7 +876,7 @@ const MainApp: React.FC = () => {
 
         const end = new Date(start);
         end.setHours(start.getHours() + duration);
-        const newShift: Shift = { id: uuidv4(), taskId: task.id, startTime: start.toISOString(), endTime: end.toISOString(), assignedPersonIds: [], isLocked: false, organization_id: organization.id };
+        const newShift: Shift = { id: uuidv4(), taskId: task.id, startTime: start.toISOString(), endTime: end.toISOString(), assignedPersonIds: [], isLocked: false, organization_id: orgIdForActions };
         try {
             await supabase.from('shifts').insert(mapShiftToDB(newShift));
             await refreshData();
@@ -793,7 +913,7 @@ const MainApp: React.FC = () => {
 
                 try {
                     // 1. Fetch history for load calculation
-                    const historyShifts = await fetchUserHistory(dateStart, 30);
+                    const historyShifts = await fetchUserHistory(orgIdForActions, dateStart, 30);
                     const historyScores = calculateHistoricalLoad(historyShifts, state.taskTemplates, state.people.map(p => p.id));
 
                     // 2. Fetch future assignments (to avoid conflicts)
@@ -806,7 +926,7 @@ const MainApp: React.FC = () => {
                         .select('*')
                         .gte('start_time', futureStart.toISOString())
                         .lte('start_time', futureEndLimit.toISOString())
-                        .eq('organization_id', organization!.id);
+                        .eq('organization_id', orgIdForActions);
 
                     const futureAssignments = (futureData || []).map(mapShiftFromDB);
 
@@ -851,7 +971,7 @@ const MainApp: React.FC = () => {
                     }
 
                     if (solvedShifts.length > 0) {
-                        const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: organization!.id }));
+                        const shiftsToSave = solvedShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
 
                         // Save to DB
                         const { error } = await supabase.from('shifts').upsert(shiftsToSave.map(mapShiftToDB));
@@ -895,7 +1015,7 @@ const MainApp: React.FC = () => {
     };
 
     const handleClearDay = async () => {
-        if (!organization) return;
+        if (!orgIdForActions) return;
         if (!checkAccess('dashboard', 'edit')) {
             showToast('אין לך הרשאה לבצע פעולה זו', 'error');
             return;
@@ -905,7 +1025,7 @@ const MainApp: React.FC = () => {
         if (targetShifts.length === 0) return;
         const ids = targetShifts.map(s => s.id);
         try {
-            await supabase.from('shifts').update({ assigned_person_ids: [] }).in('id', ids).eq('organization_id', organization.id);
+            await supabase.from('shifts').update({ assigned_person_ids: [] }).in('id', ids).eq('organization_id', orgIdForActions);
             await refreshData();
         } catch (e) { console.warn(e); }
     };
@@ -919,6 +1039,8 @@ const MainApp: React.FC = () => {
 
     const renderContent = () => {
         if (isGlobalLoading) return <DashboardSkeleton />;
+
+        const orgIdForActions = activeOrgId || organization?.id;
 
         // Permission Gate
         if (view !== 'contact' && !checkAccess(view)) {
@@ -938,59 +1060,47 @@ const MainApp: React.FC = () => {
         }
 
         switch (view) {
-            case 'home': return <HomePage shifts={state.shifts} tasks={state.taskTemplates} people={state.people} teams={state.teams} roles={state.roles} onNavigate={(view: any, date?: Date) => {
-                if (date) setSelectedDate(date);
-                setView(view);
-            }} />;
+            case 'home':
+                return (
+                    <div className="space-y-6">
+                        <HomePage
+                            shifts={state.shifts}
+                            tasks={state.taskTemplates}
+                            people={state.people}
+                            teams={state.teams}
+                            roles={state.roles}
+                            onNavigate={(view: any) => handleNavigate(view as any)}
+                        />
+                    </div>
+                );
+
             case 'dashboard':
                 return (
                     <div className="space-y-6">
-                        {state.taskTemplates.length === 0 && state.people.length === 0 && state.roles.length === 0 ? (
-                            <EmptyStateGuide
-                                hasTasks={state.taskTemplates.length > 0}
-                                hasPeople={state.people.length > 0}
-                                hasRoles={state.roles.length > 0}
-                                onNavigate={setView}
-                                onImport={() => {
-                                    localStorage.setItem('open_import_wizard', 'true');
-                                    setView('personnel');
-                                }}
-                            />
-                        ) : (
-                            <>
-                                {state.taskTemplates.length > 0 && checkAccess('dashboard', 'edit') && (
-                                    <FloatingActionButton
-                                        icon={Wand2}
-                                        onClick={() => setShowScheduleModal(true)}
-                                        ariaLabel="שיבוץ אוטומטי"
-                                        show={true}
-                                    />
-                                )}
-                                <ScheduleBoard
-                                    shifts={state.shifts}
-                                    missionReports={state.missionReports}
-                                    people={state.people}
-                                    taskTemplates={state.taskTemplates}
-                                    roles={state.roles}
-                                    teams={state.teams}
-                                    constraints={state.constraints}
-                                    selectedDate={selectedDate}
-                                    onDateChange={setSelectedDate}
-                                    onSelect={() => { }}
-                                    onDelete={handleDeleteShift}
-                                    isViewer={!checkAccess('dashboard', 'edit')}
-                                    onClearDay={handleClearDay}
-                                    onNavigate={handleNavigate}
-                                    onAssign={handleAssign}
-                                    onUnassign={handleUnassign}
-                                    onAddShift={handleAddShift}
-                                    onUpdateShift={handleUpdateShift}
-                                    onToggleCancelShift={handleToggleCancelShift}
-                                    teamRotations={state.teamRotations}
-                                    onRefreshData={refetchOrgData}
-                                />
-                            </>
-                        )}
+                        <ScheduleBoard
+                            shifts={state.shifts}
+                            missionReports={state.missionReports}
+                            people={state.people}
+                            taskTemplates={state.taskTemplates}
+                            roles={state.roles}
+                            teams={state.teams}
+                            constraints={state.constraints}
+                            selectedDate={selectedDate}
+                            onDateChange={setSelectedDate}
+                            onSelect={() => { }}
+                            onDelete={handleDeleteShift}
+                            isViewer={!checkAccess('dashboard', 'edit')}
+                            onClearDay={handleClearDay}
+                            onNavigate={handleNavigate}
+                            onAssign={handleAssign}
+                            onUnassign={handleUnassign}
+                            onAddShift={handleAddShift}
+                            onUpdateShift={handleUpdateShift}
+                            onToggleCancelShift={handleToggleCancelShift}
+                            teamRotations={state.teamRotations}
+                            onRefreshData={refetchOrgData}
+                        />
+
                         <AutoScheduleModal
                             isOpen={showScheduleModal}
                             onClose={() => setShowScheduleModal(false)}
@@ -1001,7 +1111,6 @@ const MainApp: React.FC = () => {
                         />
                     </div>
                 );
-            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} isViewer={!checkAccess('personnel', 'edit')} />;
             case 'attendance': return <AttendanceManager
                 people={state.people}
                 teams={state.teams}
@@ -1009,7 +1118,7 @@ const MainApp: React.FC = () => {
                 tasks={state.taskTemplates}
                 constraints={state.constraints}
                 absences={state.absences}
-                hourlyBlockages={state.hourlyBlockages} // NEW
+                hourlyBlockages={state.hourlyBlockages}
                 settings={state.settings}
                 onUpdatePerson={handleUpdatePerson}
                 onUpdatePeople={handleUpdatePeople}
@@ -1018,16 +1127,21 @@ const MainApp: React.FC = () => {
                 onDeleteRotation={handleDeleteRotation}
                 onAddShifts={async (newShifts) => {
                     try {
-                        const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: organization?.id }));
+                        const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
                         await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
                         refreshData();
                     } catch (e) { console.warn(e); }
                 }}
-                onRefresh={refetchOrgData} // NEW
+                onRefresh={refetchOrgData}
                 isViewer={!checkAccess('attendance', 'edit')}
                 initialOpenRotaWizard={autoOpenRotaWizard}
                 onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}
             />;
+            case 'battalion-home': return <BattalionDashboard setView={setView} />;
+            case 'battalion-personnel': return <BattalionPersonnelTable />;
+            case 'battalion-attendance': return <BattalionAttendanceManager />;
+            case 'battalion-settings': return <BattalionSettings />;
+            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} isViewer={!checkAccess('personnel', 'edit')} />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onDeleteTask={handleDeleteTask} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} isViewer={!checkAccess('tasks', 'edit')} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
             case 'settings': return checkAccess('settings', 'edit') ? <OrganizationSettingsComponent teams={state.teams} /> : <Navigate to="/" />;
@@ -1037,15 +1151,14 @@ const MainApp: React.FC = () => {
                 people={state.allPeople || state.people}
                 teams={state.teams}
                 roles={state.roles}
-                shifts={state.shifts} // NEW
-                absences={state.absences} // NEW
-                tasks={state.taskTemplates} // NEW
+                shifts={state.shifts}
+                absences={state.absences}
+                tasks={state.taskTemplates}
             />;
-            case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} isViewer={!checkAccess('constraints', 'edit')} organizationId={organization?.id || ''} />;
+            case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} isViewer={!checkAccess('constraints', 'edit')} organizationId={orgIdForActions || ''} />;
             case 'faq': return <FAQPage onNavigate={setView} />;
             case 'contact': return <ContactPage />;
-            case 'tickets': return profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" />; // Redirect legacy tickets route
-            case 'system': return profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" />; // NEW
+            case 'system': return profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" />;
             case 'equipment':
                 return <EquipmentManager
                     people={state.people}
@@ -1069,9 +1182,9 @@ const MainApp: React.FC = () => {
                         onDeleteAbsence={handleDeleteAbsence}
                         onUpdatePerson={handleUpdatePerson}
                         isViewer={!checkAccess('attendance', 'edit')}
-                        shifts={state.shifts} // NEW
-                        tasks={state.taskTemplates} // NEW
-                        teams={state.teams} // NEW
+                        shifts={state.shifts}
+                        tasks={state.taskTemplates}
+                        teams={state.teams}
                         onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); setView('attendance'); }}
                     />
                 ) : <Navigate to="/" />;
@@ -1088,22 +1201,45 @@ const MainApp: React.FC = () => {
                     </div>
                 );
         }
-
     };
 
     useEffect(() => { initGA(); }, []);
     useEffect(() => { if (view) { trackPageView(`/${view}`); logger.logView(view); } }, [view]);
     usePageTracking(view);
 
+    return {
+        view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isCommander, isLinkedToPerson,
+        state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal, handleAutoSchedule,
+        scheduleStartDate, isScheduling, handleClearDay, handleNavigate, handleAssign, handleUnassign,
+        handleAddShift, handleUpdateShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
+        autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
+        setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent
+    };
+};
+
+const MainApp: React.FC = () => {
+    const {
+        view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isCommander, isLinkedToPerson,
+        state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal,
+        scheduleStartDate, isScheduling, refetchOrgData, myPerson,
+        schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal, renderContent
+    } = useMainAppState();
+
     const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';
     if (!isLinkedToPerson && state.people.length > 0 && !hasSkippedLinking) return <ClaimProfile />;
 
     return (
-        <Layout currentView={view} setView={setView}>
+        <Layout
+            currentView={view}
+            setView={setView}
+            activeOrgId={activeOrgId}
+            onOrgChange={setActiveOrgId}
+            battalionCompanies={battalionCompanies}
+        >
             <div className="relative min-h-screen bg-transparent pb-20 md:pb-0">
                 <ErrorBoundary>
                     <main className="max-w-[1600px] mx-auto transition-all duration-300">
-                        <React.Suspense fallback={<div className="p-8"><DashboardSkeleton /></div>}>
+                        <React.Suspense fallback={<div className="flex justify-center items-center h-[60vh]"><DashboardSkeleton /></div>}>
                             {renderContent()}
                         </React.Suspense>
                     </main>
@@ -1183,62 +1319,79 @@ const MainApp: React.FC = () => {
 };
 
 // --- App Wrapper with Auth Logic ---
+const MainRoute: React.FC<{ user: any; profile: any; organization: any }> = ({ user, profile, organization }) => {
+
+    // If user exists but NO profile data is loaded yet -> Show Loading
+    if (user && !profile) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50">
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600 font-medium">טוען פרופיל משתמש...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // If not logged in → Show New Landing Page
+    if (!user) {
+        return <NewLandingPage />;
+    }
+
+    // If profile has organization_id but organization data is not loaded yet -> Show Loading
+    if (profile?.organization_id && !organization) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50">
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600 font-medium">טוען נתוני ארגון...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // If profile exists but NO organization_id AND NO battalion_id → Show Onboarding
+    if (profile && !profile.organization_id && !profile.battalion_id) {
+        return <Onboarding />;
+    }
+
+    return <MainApp />;
+};
+
+// --- App Wrapper with Auth Logic ---
 const AppContent: React.FC = () => {
     const { user, profile, organization, loading } = useAuth();
     const [isProcessingInvite, setIsProcessingInvite] = useState(true);
 
-    // Check for pending invite after login
-    // Check for pending invite and terms acceptance after login
     useEffect(() => {
         const checkPendingInvite = async () => {
             const pendingToken = localStorage.getItem('pending_invite_token');
             const hasOrg = !!profile?.organization_id;
 
-            console.log('🔍 [App] State Check:', {
-                userId: user?.id,
-                pendingToken,
-                hasOrg,
-                profileId: profile?.id,
-                currentOrgId: profile?.organization_id
-            });
-
             if (user && pendingToken) {
                 if (hasOrg) {
-                    console.log('✨ [App] User already has org, clearing redundant token.');
                     localStorage.removeItem('pending_invite_token');
                     setIsProcessingInvite(false);
                     return;
                 }
-
-                console.log('🚀 [App] Executing join logic for token:', pendingToken);
                 try {
                     const { data, error } = await supabase.rpc('join_organization_by_token', { p_token: pendingToken });
-                    console.log('✅ [App] RPC Join Result:', { data, error });
-
-                    if (error) throw error;
-
-                    if (data) {
+                    if (!error && data) {
                         localStorage.removeItem('pending_invite_token');
-                        console.log('🎉 [App] Join Success. Refreshing...');
                         window.location.reload();
                         return;
-                    } else {
-                        console.warn('⚠️ [App] Join RPC returned false. Token may be invalid or expired.');
-                        localStorage.removeItem('pending_invite_token');
                     }
+                    localStorage.removeItem('pending_invite_token');
                 } catch (error) {
-                    console.error('❌ [App] Join Error:', error);
+                    console.error('❌ Join Error:', error);
                 }
             }
-
             setIsProcessingInvite(false);
         };
-
 
         const checkTerms = async () => {
             const timestamp = localStorage.getItem('terms_accepted_timestamp');
             if (user && timestamp) {
-                console.log("📝 App: Saving terms acceptance...", timestamp);
                 await supabase.from('profiles').update({ terms_accepted_at: timestamp }).eq('id', user.id);
                 localStorage.removeItem('terms_accepted_timestamp');
             }
@@ -1254,13 +1407,9 @@ const AppContent: React.FC = () => {
         }
     }, [user, loading, profile]);
 
-    // Safety timeout for invite processing
     useEffect(() => {
         if (isProcessingInvite) {
-            const timer = setTimeout(() => {
-                console.warn('Invite processing timed out, forcing reset.');
-                setIsProcessingInvite(false);
-            }, 10000); // 10 seconds max
+            const timer = setTimeout(() => setIsProcessingInvite(false), 10000);
             return () => clearTimeout(timer);
         }
     }, [isProcessingInvite]);
@@ -1280,6 +1429,7 @@ const AppContent: React.FC = () => {
 
     return (
         <ErrorBoundary>
+            {user && <BackgroundPrefetcher />}
             <Routes>
                 <Route path="/join/:token" element={<JoinPage />} />
                 <Route path="/accessibility" element={<AccessibilityStatement />} />
@@ -1290,55 +1440,6 @@ const AppContent: React.FC = () => {
         </ErrorBoundary>
     );
 };
-
-// Helper component for main route logic
-const MainRoute: React.FC<{ user: any, profile: any, organization: any }> = ({ user, profile, organization }) => {
-
-
-    // If user exists but NO profile data is loaded yet -> Show Loading
-    // Important: Wait for profile to be determined before showing Onboarding
-    if (user && !profile) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-600 font-medium">טוען פרופיל משתמש...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // If not logged in → Show New Landing Page
-    if (!user) {
-
-        return <NewLandingPage />;
-    }
-
-    // If profile has organization_id but organization data is not loaded yet -> Show Loading
-    if (profile?.organization_id && !organization) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-teal-50">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-600 font-medium">טוען נתוני ארגון...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // If profile exists but NO organization_id → Show Onboarding (Create/Join flow)
-    if (profile && !profile.organization_id) {
-        return <Onboarding />;
-    }
-
-
-    // User is logged in, has profile, and has organization → Show Main App
-
-    return <MainApp />;
-};
-
-
-
 
 export default function App() {
     return (

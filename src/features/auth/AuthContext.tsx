@@ -39,8 +39,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const permissionKey = screen === 'absences' ? 'attendance' :
       screen === 'org-logs' ? 'logs' : screen;
 
-    // Always allow home, contact, faq and gate for authenticated users
-    if (screen === 'home' || screen === 'contact' || screen === 'faq' || screen === 'gate') return true;
+    // Always allow home, dashboard, contact, faq, battalion-home and gate for authenticated users
+    if (['home', 'dashboard', 'contact', 'faq', 'gate', 'battalion-home'].includes(screen)) return true;
 
     // Super Admin has access to everything
     if (profile.is_super_admin) return true;

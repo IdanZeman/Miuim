@@ -10,7 +10,15 @@ export interface Organization {
   is_invite_link_active?: boolean;
   invite_link_role?: UserRole;
   invite_link_template_id?: string; // Links to permission_templates
-  battalion_id?: string;
+  battalion_id?: string | null;
+  is_hq?: boolean; // NEW: Marks this organization as the HQ of the battalion
+}
+
+export interface Battalion {
+  id: string;
+  name: string;
+  code: string;
+  created_at: string;
 }
 
 export interface CustomFieldDefinition {
@@ -45,13 +53,13 @@ export interface TeamRotation {
   end_date?: string; // ISO Date "YYYY-MM-DD" - Optional end of cycle entitlement
   arrival_time: string; // "HH:MM" e.g "10:00"
   departure_time: string; // "HH:MM" e.g "14:00"
-}    
+}
 
 export interface OrganizationInvite {
   id: string;
   organization_id: string;
   email: string;
-//   role?: UserRole; // REMOVED
+  //   role?: UserRole; // REMOVED
   template_id?: string; // NEW: Link to permission template
   invited_by: string;
   created_at: string;
@@ -167,7 +175,7 @@ export interface Shift {
 }
 
 export type AccessLevel = 'view' | 'edit' | 'none';
-export type DataScope = 'organization' | 'team' | 'personal' | 'my_team';
+export type DataScope = 'organization' | 'team' | 'personal' | 'my_team' | 'battalion';
 
 export interface PermissionTemplate {
   id: string;
@@ -191,6 +199,7 @@ export interface Profile {
   email: string;
   full_name?: string;
   organization_id: string | null;
+  battalion_id: string | null;
   role?: UserRole; // Deprecated but kept for backward compatibility
   permissions?: UserPermissions; // JSONB storage for custom permissions
   is_super_admin?: boolean; // Keeping for now as emergency, but practically deprecated favor of permissions
@@ -245,7 +254,7 @@ export interface ContactMessage {
   updated_at?: string; // New column
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq' | 'gate';
+export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq' | 'gate' | 'battalion-home' | 'battalion-personnel' | 'battalion-attendance' | 'battalion-settings';
 
 export interface DailyPresence {
   id?: string; // Optional for new entries

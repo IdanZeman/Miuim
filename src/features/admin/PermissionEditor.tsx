@@ -12,20 +12,10 @@ interface PermissionEditorProps {
     teams: Team[];
     templates?: PermissionTemplate[];
     onManageTemplates?: () => void;
+    isHq?: boolean;
 }
 
-const SCREENS: { id: ViewMode; label: string }[] = [
-    { id: 'dashboard', label: 'לוח שיבוצים' },
-    { id: 'personnel', label: 'ניהול כוח אדם' },
-    { id: 'tasks', label: 'משימות' },
-    { id: 'attendance', label: 'נוכחות' },
-    { id: 'stats', label: 'דוחות ונתונים' },
-    { id: 'constraints', label: 'ניהול אילוצים' },
-    { id: 'lottery', label: 'הגרלות' },
-    { id: 'equipment', label: 'ניהול אמצעים' },
-    { id: 'logs', label: 'יומן פעילות' },
-    { id: 'settings', label: 'הגדרות ארגון' },
-];
+
 
 const DEFAULT_PERMISSIONS: UserPermissions = {
     dataScope: 'organization',
@@ -39,7 +29,7 @@ import { Button } from '@/components/ui/Button';
 import { PermissionEditorContent } from './PermissionEditorContent';
 import { SYSTEM_ROLE_PRESETS } from '@/utils/permissions';
 
-export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onClose, user: targetUser, onSave, teams, templates = [], onManageTemplates }) => {
+export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onClose, user: targetUser, onSave, teams, templates = [], onManageTemplates, isHq }) => {
     const [permissions, setPermissions] = useState<UserPermissions>(targetUser.permissions || DEFAULT_PERMISSIONS);
     const [activeTemplateId, setActiveTemplateId] = useState<string | null>(targetUser.permission_template_id || null);
     const [saving, setSaving] = useState(false);
@@ -204,7 +194,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                     )}
                 </section>
 
-                <PermissionEditorContent permissions={permissions} setPermissions={handlePermissionsChange} teams={teams} />
+                <PermissionEditorContent permissions={permissions} setPermissions={handlePermissionsChange} teams={teams} isHq={isHq} />
             </div>
         </Modal>
     );

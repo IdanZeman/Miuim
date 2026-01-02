@@ -14,7 +14,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, setView, checkAccess, isPublic = false }) => {
-    const { user, profile, signOut } = useAuth();
+    const { user, profile, organization, signOut } = useAuth();
 
     const handleLogout = async () => {
         analytics.trackButtonClick('logout', 'sidebar');
@@ -40,8 +40,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
             <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-white shadow-2xl z-50 md:hidden overflow-y-auto">
                 {/* Header */}
                 <div className="p-6 border-b border-slate-200 bg-white">
-                    <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-lg font-bold text-slate-800">תפריט ניווט</h2>
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex flex-col">
+                            <h2 className="text-lg font-black text-slate-900 leading-tight">
+                                {organization?.battalion_id ? (organization.name || 'מבט גדודי') : (organization?.name || 'מערכת ניהול')}
+                            </h2>
+                            <p className="text-xs font-bold text-slate-400 mt-0.5">{user?.email}</p>
+                        </div>
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-slate-100 rounded-full transition-colors"
@@ -51,8 +56,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                             </svg>
                         </button>
                     </div>
-                    <p className="text-xs text-slate-500 mb-3">{user?.email || 'משתמש'}</p>
-
                     <button
                         onClick={() => { handleLogout(); onClose(); }}
                         className="w-full p-2 text-red-600 hover:bg-red-50 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors text-sm border border-red-200"
@@ -73,6 +76,59 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                         <Home size={22} weight="duotone" className={currentView === 'home' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                         <span>בית</span>
                     </button>
+
+                    {/* Battalion Section - Only for HQ */}
+                    {organization?.is_hq && organization?.battalion_id && (
+                        <>
+                            <div className="pt-6 pb-2 px-4">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול גדוד</span>
+                            </div>
+                            <button
+                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-home'
+                                    ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                    }`}
+                                onClick={() => { setView('battalion-home'); onClose() }}
+                            >
+                                <Activity size={22} weight="duotone" className={currentView === 'battalion-home' ? 'text-blue-500' : 'text-slate-400'} />
+                                <span>מבט גדודי</span>
+                            </button>
+                            <button
+                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-personnel'
+                                    ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                    }`}
+                                onClick={() => { setView('battalion-personnel'); onClose() }}
+                            >
+                                <Users size={22} weight="duotone" className={currentView === 'battalion-personnel' ? 'text-blue-500' : 'text-slate-400'} />
+                                <span>סד"כ גדודי</span>
+                            </button>
+                            <button
+                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-attendance'
+                                    ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                    }`}
+                                onClick={() => { setView('battalion-attendance'); onClose() }}
+                            >
+                                <Calendar size={22} weight="duotone" className={currentView === 'battalion-attendance' ? 'text-blue-500' : 'text-slate-400'} />
+                                <span>יומן נוכחות גדודי</span>
+                            </button>
+                            <button
+                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-settings'
+                                    ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                    }`}
+                                onClick={() => { setView('battalion-settings'); onClose() }}
+                            >
+                                <Settings size={22} weight="duotone" className={currentView === 'battalion-settings' ? 'text-blue-500' : 'text-slate-400'} />
+                                <span>הגדרות גדוד</span>
+                            </button>
+                        </>
+                    )}
+
+                    <div className="pt-6 pb-2 px-4 md:hidden">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול פלוגה</span>
+                    </div>
 
                     {checkAccess('dashboard') && (
                         <button
