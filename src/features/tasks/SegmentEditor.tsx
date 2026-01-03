@@ -73,6 +73,11 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
             return;
         }
 
+        if (isRepeat && duration >= 24) {
+            showToast('לא ניתן להגדיר מחזור רציף עם משמרת של 24 שעות ומעלה. השתמש בתדירות יומית במקום.', 'error');
+            return;
+        }
+
         const segment: SchedulingSegment = {
             id: initialSegment?.id || crypto.randomUUID(),
             taskId,
@@ -221,18 +226,24 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                     </div>
 
                     {/* Continuous Cycle Toggle */}
-                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm px-5 py-4 flex items-center justify-between cursor-pointer active:bg-slate-50 transition-colors"
-                        onClick={() => setIsRepeat(!isRepeat)}>
-                        <div>
-                            <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                <RotateCcw size={18} className="text-amber-500" weight="duotone" />
-                                מחזור רציף (24/7)
+                    <div className="space-y-3">
+                        <div className={cn(
+                            "bg-white rounded-3xl border transition-all px-5 py-4 flex items-center justify-between cursor-pointer",
+                            isRepeat ? "border-amber-200 shadow-md shadow-amber-50" : "border-slate-200/60 shadow-sm"
+                        )}
+                            onClick={() => setIsRepeat(!isRepeat)}>
+                            <div>
+                                <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <RotateCcw size={18} className={isRepeat ? "text-amber-500" : "text-slate-400"} weight="duotone" />
+                                    מחזור רציף (סבב 24/7)
+                                </div>
+                                <p className="text-[11px] font-bold text-slate-400 mt-1">יצירת רצף משמרות אוטומטי לכל אורך היממה</p>
                             </div>
-                            <p className="text-[11px] font-bold text-slate-400 mt-1">יצירת רצף משמרות לכל אורך היממה</p>
+                            <div className={cn("w-12 h-7 rounded-full transition-all relative", isRepeat ? "bg-amber-500" : "bg-slate-200")}>
+                                <div className={cn("absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm", isRepeat ? "left-1" : "left-6")} />
+                            </div>
                         </div>
-                        <div className={cn("w-12 h-7 rounded-full transition-all relative", isRepeat ? "bg-amber-500" : "bg-slate-200")}>
-                            <div className={cn("absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm", isRepeat ? "left-1" : "left-6")} />
-                        </div>
+
                     </div>
                 </div>
 

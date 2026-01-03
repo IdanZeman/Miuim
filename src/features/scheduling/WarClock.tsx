@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../services/supabaseClient';
-import { Clock, Plus, Trash as Trash2, PencilSimple as Edit2, Copy, FloppyDisk as Save, X, Eye, Users, Shield, Globe, CaretUp as ChevronUp, CaretDown as ChevronDown, Funnel as Filter, Warning as AlertTriangle, Check } from '@phosphor-icons/react';
+import { Clock, Plus, Trash as Trash2, PencilSimple as Edit2, Copy, FloppyDisk as Save, X, Eye, Users, Shield, Globe, CaretUp as ChevronUp, CaretDown as ChevronDown, Funnel as Filter, Warning as AlertTriangle, Check, ArrowsOut, ArrowsIn } from '@phosphor-icons/react';
 import * as AllIcons from '@phosphor-icons/react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { Person, Team, Role } from '../../types';
@@ -14,7 +14,10 @@ import { GenericModal } from '../../components/ui/GenericModal';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
-import { TimePicker } from '@/components/ui/DatePicker';
+import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
+import { DateNavigator } from '@/components/ui/DateNavigator';
+import { format, isWithinInterval, parseISO, startOfDay } from 'date-fns';
+import { he } from 'date-fns/locale';
 
 interface ScheduleItem {
     id: string;
@@ -24,6 +27,8 @@ interface ScheduleItem {
     targetType: 'all' | 'team' | 'role';
     targetId: string | null; // teamId or roleId
     daysOfWeek?: number[]; // 0=Sunday, 6=Saturday
+    startDate?: string; // "YYYY-MM-DD"
+    endDate?: string;   // "YYYY-MM-DD"
 }
 
 const DAYS = [
@@ -65,7 +70,9 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
     const [itemToDeleteId, setItemToDeleteId] = useState<string | null>(null);
 
-    const [selectedDay, setSelectedDay] = useState<number>(new Date().getDay());
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const selectedDay = selectedDate.getDay();
+    const [isFullScreen, setIsFullScreen] = useState(false);
 
     const fetchItems = async () => {
         let loadedFromDb = false;
@@ -87,7 +94,9 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                         description: d.description,
                         targetType: d.target_type,
                         targetId: d.target_id,
-                        daysOfWeek: d.days_of_week || [0, 1, 2, 3, 4, 5, 6]
+                        daysOfWeek: d.days_of_week || [0, 1, 2, 3, 4, 5, 6],
+                        startDate: d.start_date,
+                        endDate: d.end_date
                     }));
                     mappedItems.sort((a, b) => a.startTime.localeCompare(b.startTime));
                     setItems(mappedItems);
@@ -129,6 +138,17 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
             return;
         }
 
+        // Validation for Date Range
+        if ((editItem.startDate || editItem.endDate) && (!editItem.startDate || !editItem.endDate)) {
+            showToast('במצב טווח תאריכים, חובה להזין גם תאריך התחלה וגם תאריך סיום', 'error');
+            return;
+        }
+
+        if (editItem.startDate && editItem.endDate && editItem.startDate > editItem.endDate) {
+            showToast('תאריך סיום חייב להיות אחרי תאריך התחלה', 'error');
+            return;
+        }
+
         const cleanTargetId = editItem.targetId && editItem.targetId.trim() !== '' ? editItem.targetId : null;
 
         // Try DB Save if Organization exists
@@ -140,7 +160,9 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                 description: editItem.description,
                 target_type: editItem.targetType || 'all',
                 target_id: cleanTargetId,
-                days_of_week: editItem.daysOfWeek || [0, 1, 2, 3, 4, 5, 6]
+                days_of_week: editItem.daysOfWeek || [0, 1, 2, 3, 4, 5, 6],
+                start_date: editItem.startDate || null,
+                end_date: editItem.endDate || null
             };
 
             try {
@@ -178,7 +200,9 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
             description: editItem.description,
             targetType: editItem.targetType || 'all',
             targetId: cleanTargetId,
-            daysOfWeek: editItem.daysOfWeek || [0, 1, 2, 3, 4, 5, 6]
+            daysOfWeek: editItem.daysOfWeek || [0, 1, 2, 3, 4, 5, 6],
+            startDate: editItem.startDate,
+            endDate: editItem.endDate
         };
 
         const newItems = editItem.id
@@ -243,10 +267,26 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
 
     // 2. View Filtering (User Selection - Union Logic)
     const filteredItems = baseItems.filter(item => {
-        // Day Filter
-        const days = item.daysOfWeek || [0, 1, 2, 3, 4, 5, 6];
-        if (!days.includes(selectedDay)) return false;
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const days = item.daysOfWeek || [];
 
+        // 1. If it's a specific date match (startDate == endDate == dateStr)
+        const isSpecificDate = item.startDate && item.endDate && item.startDate === item.endDate;
+        if (isSpecificDate) {
+            return item.startDate === dateStr;
+        }
+
+        // 2. Day of Week Filter (for recurring)
+        if (days.length > 0 && !days.includes(selectedDay)) return false;
+
+        // 3. Date Range Filter (for recurring within a range)
+        if (item.startDate && dateStr < item.startDate) return false;
+        if (item.endDate && dateStr > item.endDate) return false;
+
+        // Fallback for items with no days selected but are not specific dates (shouldn't happen with GUI but just in case)
+        if (days.length === 0 && !isSpecificDate) return false;
+
+        // 4. View Filters (Union logic for user-selected filters)
         if (filters.mode === 'all') return true;
 
         let match = false;
@@ -268,14 +308,15 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
 
         const sorted = [...filteredItems].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
+        const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
         const now = new Date();
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
         const itemsWithStatus = sorted.map(item => {
             const start = minutesFromMidnight(item.startTime);
             const end = minutesFromMidnight(item.endTime);
-            const isNow = currentMinutes >= start && currentMinutes < end;
-            const isPast = currentMinutes >= end;
+            const isNow = isToday && currentMinutes >= start && currentMinutes < end;
+            const isPast = (isToday && currentMinutes >= end) || (!isToday && format(selectedDate, 'yyyy-MM-dd') < format(new Date(), 'yyyy-MM-dd'));
             return { ...item, isNow, isPast };
         });
 
@@ -358,6 +399,15 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                         {isOpen && (
                             <button
+                                onClick={() => setIsFullScreen(!isFullScreen)}
+                                className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"
+                                title={isFullScreen ? "מזער" : "מסך מלא"}
+                            >
+                                {isFullScreen ? <ArrowsIn size={18} weight="duotone" /> : <ArrowsOut size={18} weight="duotone" />}
+                            </button>
+                        )}
+                        {isOpen && (
+                            <button
                                 onClick={() => setShowFilters(true)}
                                 className={`p-2 rounded-full transition-colors ${filters.mode !== 'all' || filters.teams.length > 0 || filters.roles.length > 0 ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100'}`}
                             >
@@ -371,7 +421,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                         targetType: 'all',
                                         startTime: '08:00',
                                         endTime: '09:00',
-                                        daysOfWeek: [0, 1, 2, 3, 4, 5, 6]
+                                        daysOfWeek: [] // Default to none as requested
                                     });
                                     setIsEditing(true);
                                 }}
@@ -386,20 +436,13 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                     </div>
                 </div>
 
-                {/* Day Selector */}
+                {/* Day Navigation */}
                 {isOpen && (
-                    <div className="flex items-center justify-between bg-slate-100 p-1 rounded-xl mx-2 mb-2">
-                        {DAYS.map(day => (
-                            <button
-                                key={day.id}
-                                onClick={() => setSelectedDay(day.id)}
-                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${selectedDay === day.id ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                aria-label={`הצג יום ${day.full}`}
-                                aria-pressed={selectedDay === day.id}
-                            >
-                                {day.label}
-                            </button>
-                        ))}
+                    <div className="px-2 mb-2">
+                        <DateNavigator
+                            date={selectedDate}
+                            onDateChange={setSelectedDate}
+                        />
                     </div>
                 )}
             </div>
@@ -414,8 +457,11 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                     {timelineData.items.length > 0 ? (
                         <div
                             ref={scrollContainerRef}
-                            className="relative w-full rounded-2xl bg-white shadow-sm border border-slate-100 overflow-y-auto scroll-smooth p-2"
-                            style={{ height: '400px', maxHeight: '60vh' }}
+                            className={`
+                                relative w-full rounded-2xl bg-white shadow-sm border border-slate-100 overflow-y-auto scroll-smooth p-2 no-scrollbar
+                                ${isFullScreen ? 'h-full border-none shadow-none' : 'max-h-[60vh]'}
+                            `}
+                            style={isFullScreen ? {} : { height: '400px' }}
                         >
                             {(() => {
                                 // Clustering Logic for Parallel View
@@ -505,9 +551,16 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
 
                                                         // -----------------------------------------------------------
                                                         // 2. Render Columns
-                                                        // -----------------------------------------------------------
+                                                        const columnCount = columns.length;
                                                         return columns.map((colItems, colIndex) => (
-                                                            <div key={colIndex} className="flex flex-col gap-2 min-w-[140px] md:min-w-[200px] flex-1">
+                                                            <div
+                                                                key={colIndex}
+                                                                className={`flex flex-col gap-2 flex-1`}
+                                                                style={{
+                                                                    minWidth: columnCount > 3 ? '100px' : (columnCount > 1 ? '140px' : '200px'),
+                                                                    maxWidth: isFullScreen ? 'none' : (columnCount === 1 ? 'none' : '50%')
+                                                                }}
+                                                            >
                                                                 {colItems.map(item => {
                                                                     const itemColor = getItemColor(item);
                                                                     return (
@@ -544,7 +597,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                                                                             <span style={{ color: itemColor }} className="shrink-0 drop-shadow-sm">
                                                                                                 {getTargetIcon(item.targetType, item.targetId)}
                                                                                             </span>
-                                                                                            <span className="truncate">{getTargetLabel(item)}</span>
+                                                                                            <span className="truncate">{columnCount > 4 ? '' : getTargetLabel(item)}</span>
                                                                                         </div>
                                                                                         {canEdit && (
                                                                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600">
@@ -553,7 +606,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                                                                         )}
                                                                                     </div>
 
-                                                                                    <h4 className={`font-black text-slate-900 leading-tight break-words ${item.isNow ? 'text-base' : 'text-sm'}`}>{item.description}</h4>
+                                                                                    <h4 className={`font-black text-slate-900 leading-tight break-words ${item.isNow ? 'text-base' : (columnCount > 3 ? 'text-xs' : 'text-sm')}`}>{item.description}</h4>
                                                                                 </div>
 
                                                                                 <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-100">
@@ -710,34 +763,102 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500">חזרה שבועית</label>
-                        <div className="flex items-center justify-between gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
-                            {DAYS.map(day => {
-                                const isSelected = (editItem.daysOfWeek || [0, 1, 2, 3, 4, 5, 6]).includes(day.id);
-                                return (
-                                    <button
-                                        key={day.id}
-                                        onClick={() => {
-                                            const current = editItem.daysOfWeek || [0, 1, 2, 3, 4, 5, 6];
-                                            let newDays;
-                                            if (isSelected) {
-                                                // Prevent deselecting all? Or allow it? Allowing for now, but usually at least 1 day needed.
-                                                newDays = current.filter(d => d !== day.id);
-                                            } else {
-                                                newDays = [...current, day.id];
-                                            }
-                                            setEditItem({ ...editItem, daysOfWeek: newDays });
-                                        }}
-                                        className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${isSelected ? 'bg-blue-500 text-white shadow-md shadow-blue-200 scale-105' : 'text-slate-400 hover:bg-white hover:text-slate-600'}`}
-                                        aria-label={day.full}
-                                        aria-pressed={isSelected}
-                                    >
-                                        {day.label}
-                                    </button>
-                                );
-                            })}
+                    <div className="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <div className="flex flex-col gap-3">
+                            <label className="text-sm font-bold text-slate-700">סוג אירוע</label>
+                            <div className="flex bg-white p-1 rounded-xl border border-slate-200">
+                                <button
+                                    onClick={() => {
+                                        const isAlreadyRecurring = !editItem.startDate || editItem.startDate !== editItem.endDate;
+                                        if (!isAlreadyRecurring) {
+                                            setEditItem({ ...editItem, startDate: undefined, endDate: undefined });
+                                        }
+                                    }}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${(!editItem.startDate || editItem.startDate !== editItem.endDate) ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                    אירוע חוזר
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const today = format(new Date(), 'yyyy-MM-dd');
+                                        setEditItem({ ...editItem, startDate: today, endDate: today, daysOfWeek: [] });
+                                    }}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${(editItem.startDate && editItem.startDate === editItem.endDate) ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                    תאריך ספציפי
+                                </button>
+                            </div>
                         </div>
+
+                        {/* RECURRING MODE UI */}
+                        {(!editItem.startDate || editItem.startDate !== editItem.endDate) ? (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">באילו ימים:</label>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setEditItem({ ...editItem, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] })}
+                                                className="text-[10px] font-bold text-blue-600 hover:underline"
+                                            >
+                                                סמן הכל
+                                            </button>
+                                            <span className="text-slate-300 text-[10px]">|</span>
+                                            <button
+                                                onClick={() => setEditItem({ ...editItem, daysOfWeek: [] })}
+                                                className="text-[10px] font-bold text-slate-500 hover:underline"
+                                            >
+                                                בטל הכל
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-1">
+                                        {DAYS.map(day => {
+                                            const isSelected = (editItem.daysOfWeek || []).includes(day.id);
+                                            return (
+                                                <button
+                                                    key={day.id}
+                                                    onClick={() => {
+                                                        const current = editItem.daysOfWeek || [];
+                                                        const newDays = isSelected ? current.filter(d => d !== day.id) : [...current, day.id];
+                                                        setEditItem({ ...editItem, daysOfWeek: newDays });
+                                                    }}
+                                                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${isSelected ? 'bg-blue-500 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-300'}`}
+                                                >
+                                                    {day.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="pt-2 border-t border-slate-200/60">
+                                    <label className="text-xs font-bold text-slate-400 block mb-2">טווח תאריכים (אופציונלי):</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <DatePicker
+                                            label="מתאריך"
+                                            value={editItem.startDate || ''}
+                                            onChange={(val) => setEditItem({ ...editItem, startDate: val })}
+                                        />
+                                        <DatePicker
+                                            label="עד תאריך"
+                                            value={editItem.endDate || ''}
+                                            onChange={(val) => setEditItem({ ...editItem, endDate: val })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            /* SPECIFIC DATE MODE UI */
+                            <div className="animate-in fade-in slide-in-from-top-2">
+                                <DatePicker
+                                    label="בחר תאריך"
+                                    value={editItem.startDate || ''}
+                                    onChange={(val) => setEditItem({ ...editItem, startDate: val, endDate: val })}
+                                />
+                                <p className="text-[10px] text-slate-400 mt-2 font-medium">האירוע יופיע רק בתאריך שנבחר.</p>
+                            </div>
+                        )}
                     </div>
 
                     <Input
@@ -775,6 +896,202 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                 onConfirm={() => { if (itemToDeleteId) handleDelete(itemToDeleteId); setItemToDeleteId(null); }}
                 onCancel={() => setItemToDeleteId(null)}
             />
+            {/* Full Screen Portal */}
+            {isFullScreen && createPortal(
+                <div className="fixed inset-0 z-[100] bg-slate-50 flex flex-col animate-in fade-in zoom-in-95 duration-300">
+                    {/* Light Premium Header */}
+                    <div className="bg-white/80 backdrop-blur-md text-slate-900 px-4 py-3 md:px-6 md:py-4 flex flex-col md:flex-row items-center justify-between shadow-sm border-b border-slate-200/60 gap-4">
+                        <div className="flex items-center gap-4 w-full md:w-auto">
+                            <div className="p-2.5 bg-blue-50 rounded-2xl border border-blue-100 shadow-sm">
+                                <Clock size={28} weight="duotone" className="text-blue-600" />
+                            </div>
+                            <div className="flex flex-col">
+                                <h2 className="text-lg md:text-xl font-black tracking-tight leading-none mb-1 text-slate-900">לוח מלחמה</h2>
+                                <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase tracking-widest">
+                                    {format(selectedDate, 'eeee, dd MMMM yyyy', { locale: he })}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+                            <div className="flex-1 md:flex-none">
+                                <DateNavigator
+                                    date={selectedDate}
+                                    onDateChange={setSelectedDate}
+                                    className="!bg-slate-50 !border-slate-200 !text-slate-700 !h-10 hover:!bg-white transition-all shadow-sm"
+                                />
+                            </div>
+                            <button
+                                onClick={() => setIsFullScreen(false)}
+                                className="h-10 w-10 flex items-center justify-center bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl transition-all border border-slate-200 hover:border-red-200 active:scale-95 shadow-sm group"
+                                title="סגור תצוגה"
+                            >
+                                <X size={20} weight="bold" className="group-hover:rotate-90 transition-transform duration-300" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 overflow-hidden p-3 md:p-6 flex flex-col">
+                        <div className="flex-1 bg-white rounded-[2rem] md:rounded-[3rem] shadow-2xl border border-slate-200/60 overflow-hidden flex flex-col">
+                            {/* Sub-header / Legend */}
+                            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-6 bg-blue-500 rounded-full"></div>
+                                    <span className="text-xs font-black text-slate-800 uppercase tracking-widest">ציר זמן פעילות</span>
+                                </div>
+                                <div className="flex items-center gap-4 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200/50 shadow-sm">
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-600">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse-slow"></div>
+                                        <span>אירוע פעיל</span>
+                                    </div>
+                                    <div className="w-px h-3 bg-slate-200"></div>
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-slate-200"></div>
+                                        <span>הסתיים</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Scrollable Timeline */}
+                            <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px]">
+                                {(() => {
+                                    const sorted = timelineData.items;
+                                    type ItemWithStatus = typeof sorted[0];
+                                    const clusters: ItemWithStatus[][] = [];
+                                    let currentCluster: ItemWithStatus[] = [];
+                                    let clusterEnd = -1;
+
+                                    sorted.forEach(item => {
+                                        const start = minutesFromMidnight(item.startTime);
+                                        const end = minutesFromMidnight(item.endTime);
+                                        if (currentCluster.length === 0) {
+                                            currentCluster.push(item);
+                                            clusterEnd = end;
+                                        } else {
+                                            if (start < clusterEnd) {
+                                                currentCluster.push(item);
+                                                clusterEnd = Math.max(clusterEnd, end);
+                                            } else {
+                                                clusters.push(currentCluster);
+                                                currentCluster = [item];
+                                                clusterEnd = end;
+                                            }
+                                        }
+                                    });
+                                    if (currentCluster.length > 0) clusters.push(currentCluster);
+
+                                    if (clusters.length === 0) {
+                                        return (
+                                            <div className="h-full flex flex-col items-center justify-center opacity-30 text-slate-400 py-20">
+                                                <Clock size={64} weight="duotone" className="mb-4" />
+                                                <p className="text-xl font-bold">אין אירועים להצגה</p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="flex flex-col gap-10 max-w-7xl mx-auto w-full">
+                                            {clusters.map((cluster, clusterIndex) => (
+                                                <div key={clusterIndex} className="flex flex-col md:flex-row gap-4 md:gap-8 group/cluster">
+                                                    {/* Time Sidebar */}
+                                                    <div className="flex flex-row md:flex-col items-center justify-start min-w-[5rem] md:pt-4">
+                                                        <div className="bg-slate-900 text-white px-3 py-1.5 rounded-xl font-mono text-sm font-black shadow-xl border border-slate-700">
+                                                            {cluster[0].startTime}
+                                                        </div>
+                                                        <div className="hidden md:block w-px flex-1 bg-gradient-to-b from-slate-300 via-slate-200 to-transparent my-3 group-last/cluster:h-12"></div>
+                                                        <div className="md:hidden flex-1 h-px bg-slate-200 mx-3"></div>
+                                                    </div>
+
+                                                    {/* Event Cards Grid */}
+                                                    <div className="flex-1 flex flex-col sm:flex-row flex-wrap gap-4">
+                                                        {(() => {
+                                                            const columns: ItemWithStatus[][] = [];
+                                                            const sortedCluster = [...cluster].sort((a, b) => {
+                                                                const startA = minutesFromMidnight(a.startTime);
+                                                                const startB = minutesFromMidnight(b.startTime);
+                                                                if (startA !== startB) return startA - startB;
+                                                                return minutesFromMidnight(b.endTime) - minutesFromMidnight(a.endTime);
+                                                            });
+                                                            sortedCluster.forEach(item => {
+                                                                let placed = false;
+                                                                for (let i = 0; i < columns.length; i++) {
+                                                                    const col = columns[i];
+                                                                    if (minutesFromMidnight(col[col.length - 1].endTime) <= minutesFromMidnight(item.startTime)) {
+                                                                        col.push(item);
+                                                                        placed = true;
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                if (!placed) columns.push([item]);
+                                                            });
+
+                                                            return columns.map((colItems, colIndex) => (
+                                                                <div key={colIndex} className="flex flex-col gap-4 flex-1 min-w-[280px] max-w-full md:max-w-[45%] lg:max-w-[32%]">
+                                                                    {colItems.map(item => {
+                                                                        const itemColor = getItemColor(item);
+                                                                        return (
+                                                                            <div
+                                                                                key={item.id}
+                                                                                className={`
+                                                                                    relative flex flex-col rounded-[1.5rem] border-2 border-l-[10px] transition-all cursor-pointer group/card
+                                                                                    ${item.isNow ? 'bg-white ring-4 ring-blue-500/10 shadow-[0_20px_50px_rgba(0,0,0,0.1)] scale-[1.02] z-10' : 'bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_15px_35px_rgba(0,0,0,0.08)] hover:-translate-y-1'}
+                                                                                    ${item.isPast ? 'opacity-60 grayscale-[0.2] hover:grayscale-0 transition-all' : ''}
+                                                                                `}
+                                                                                style={{ borderLeftColor: itemColor, borderColor: item.isNow ? '#f8fafc' : '#f1f5f9' }}
+                                                                                onClick={() => { setEditItem(item); setIsEditing(true); }}
+                                                                            >
+                                                                                <div className="p-5 flex flex-col h-full gap-4">
+                                                                                    <div className="flex justify-between items-center">
+                                                                                        <div className="flex items-center gap-2.5 text-[10px] font-black px-3 py-1.5 rounded-full bg-slate-50 border border-slate-100 uppercase tracking-widest text-slate-500">
+                                                                                            <span style={{ color: itemColor }}>{getTargetIcon(item.targetType, item.targetId)}</span>
+                                                                                            <span className="truncate">{getTargetLabel(item)}</span>
+                                                                                        </div>
+                                                                                        {item.isNow && (
+                                                                                            <div className="flex items-center gap-1.5 bg-green-50 text-green-600 px-2 py-1 rounded-full border border-green-100">
+                                                                                                <div className="flex h-2 w-2 relative">
+                                                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                                                                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-600"></span>
+                                                                                                </div>
+                                                                                                <span className="text-[9px] font-black uppercase">LIVE</span>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+
+                                                                                    <h4 className={`font-black text-slate-900 leading-tight tracking-tight ${item.isNow ? 'text-xl' : 'text-lg'}`}>
+                                                                                        {item.description}
+                                                                                    </h4>
+
+                                                                                    <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
+                                                                                        <div className="flex items-center gap-2 text-slate-400 group-hover/card:text-blue-500 transition-colors">
+                                                                                            <Clock size={16} weight="bold" />
+                                                                                            <span className="text-sm font-black font-mono tracking-tighter">
+                                                                                                {item.startTime} - {item.endTime}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-all transform translate-x-2 group-hover/card:translate-x-0">
+                                                                                            <Edit2 size={14} weight="bold" className="text-slate-400" />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            ));
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };

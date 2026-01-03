@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, ArrowLeft, Lightning, ChartBar, LinkedinLogo, X, User } from '@phosphor-icons/react';
 import { StickyScrollFeatures } from './components/StickyScrollFeatures';
@@ -10,7 +10,7 @@ import { logger } from '../../services/loggingService';
 
 // --- Components ---
 
-const Navbar = ({ onLogin }: { onLogin: () => void }) => (
+const Navbar = ({ onLogin, onScrollToTop }: { onLogin: () => void; onScrollToTop: () => void }) => (
     <motion.nav
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -22,7 +22,7 @@ const Navbar = ({ onLogin }: { onLogin: () => void }) => (
 
             {/* Logo (Right in RTL - First Child) */}
             <button
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                onClick={onScrollToTop}
                 className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
                 <div className="w-10 h-10 flex items-center justify-center">
@@ -198,6 +198,13 @@ export const NewLandingPage: React.FC = () => {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [termsAccepted, setTermsAccepted] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const scrollToTop = () => {
+        if (containerRef.current) {
+            containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
 
     const handleGoogleLogin = async () => {
         logger.logClick('google_login_button', 'login_modal');
@@ -223,9 +230,12 @@ export const NewLandingPage: React.FC = () => {
     };
 
     return (
-        <div className="h-screen w-full overflow-y-auto overflow-x-hidden bg-slate-50 text-slate-900 font-sans selection:bg-emerald-200">
+        <div
+            ref={containerRef}
+            className="h-screen w-full overflow-y-auto overflow-x-hidden bg-slate-50 text-slate-900 font-sans selection:bg-emerald-200"
+        >
 
-            <Navbar onLogin={() => setShowLoginModal(true)} />
+            <Navbar onLogin={() => setShowLoginModal(true)} onScrollToTop={scrollToTop} />
 
             <main className="relative z-10 w-full">
 
@@ -240,12 +250,15 @@ export const NewLandingPage: React.FC = () => {
                 {/* Footer */}
                 <footer className="border-t border-slate-200 py-12 px-6 text-center bg-white" dir="rtl">
                     <div className="flex flex-col items-center justify-center gap-4">
-                        <div className="flex items-center gap-2 justify-center">
+                        <button
+                            onClick={scrollToTop}
+                            className="flex items-center gap-2 justify-center hover:opacity-80 transition-opacity"
+                        >
                             <div className="w-8 h-8 rounded-lg flex items-center justify-center">
                                 <img src="/images/logo.webp" alt="Logo" className="w-full h-full object-contain" />
                             </div>
                             <span className="text-slate-900 font-black text-xl">מערכת לניהול פלוגה</span>
-                        </div>
+                        </button>
                         <p className="text-slate-500 font-medium text-sm">
                             &copy; 2025 כל הזכויות שמורות.
                         </p>
