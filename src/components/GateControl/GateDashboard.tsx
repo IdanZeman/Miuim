@@ -60,7 +60,6 @@ export const GateDashboard: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isExceptional, setIsExceptional] = useState(false);
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
-    const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
 
