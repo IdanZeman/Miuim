@@ -400,14 +400,14 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                                 className="flex-1 md:flex-none p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                                                 title="ערוך חוק"
                                             >
-                                                <Edit2 size={18} className="mx-auto" weight="duotone" />
+                                                <Edit2 size={18} className="mx-auto" weight="bold" />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteGroup(group)}
                                                 className="flex-1 md:flex-none p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                                                 title="מחק חוק"
                                             >
-                                                <Trash2 size={18} className="mx-auto" weight="duotone" />
+                                                <Trash2 size={18} className="mx-auto" weight="bold" />
                                             </button>
                                         </div>
                                     )}

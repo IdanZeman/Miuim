@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { logger } from '../../services/loggingService';
 import * as XLSX from 'xlsx';
-import { UploadSimple as Upload, FileXls as FileSpreadsheet, ArrowRight, ArrowLeft, Check, WarningCircle as AlertCircle, Plus, ArrowUpRight, DownloadSimple as Download, X, Warning as AlertTriangle } from '@phosphor-icons/react';
+import { UploadSimple as Upload, FileXls as FileSpreadsheet, ArrowRight, ArrowLeft, Check, WarningCircle as AlertCircle, Plus, ArrowUpRight, X, Warning as AlertTriangle } from '@phosphor-icons/react';
 import { Person, Team, Role } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
 import { GenericModal } from '../../components/ui/GenericModal';
+import { ExportButton } from '../../components/ui/ExportButton';
 
 interface ExcelImportWizardProps {
     isOpen: boolean;
@@ -645,13 +646,14 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                 בחר קובץ מהמחשב
                             </button>
 
-                            <button
-                                onClick={downloadTemplate}
-                                className="w-full py-4 bg-white border-2 border-slate-100 hover:border-slate-200 text-slate-600 rounded-2xl transition-all text-sm font-bold flex items-center justify-center gap-2 group"
-                            >
-                                <Download size={20} weight="duotone" className="group-hover:text-blue-600 transition-colors" />
-                                הורד תבנית אקסל לדוגמה
-                            </button>
+                            <ExportButton
+                                onExport={async () => {
+                                    downloadTemplate();
+                                }}
+                                label="הורד תבנית אקסל לדוגמה"
+                                variant="secondary"
+                                className="w-full py-4 text-sm"
+                            />
                         </div>
                     </div>
                 )}

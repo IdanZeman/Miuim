@@ -57,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                         onClick={() => { handleLogout(); onClose(); }}
                         className="w-full p-2 text-red-600 hover:bg-red-50 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors text-sm border border-red-200"
                     >
-                        <LogOut size={16} weight="duotone" />
+                        <LogOut size={16} weight="bold" />
                         <span>התנתק</span>
                     </button>
                 </div>
@@ -251,7 +251,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('settings'); onClose() }}
                         >
-                            <Settings size={22} weight="duotone" className={currentView === 'settings' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Settings size={22} weight="bold" className={currentView === 'settings' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>הגדרות</span>
                         </button>
                     )}

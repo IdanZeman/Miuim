@@ -9,7 +9,9 @@ import { generateRoster, RosterGenerationResult, PersonHistory } from '@/utils/r
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import { MagicWand as Wand2, CalendarBlank as Calendar, Warning as AlertTriangle, CheckCircle, FloppyDisk as Save, X, Funnel as Filter, ArrowLeft, DownloadSimple as Download, MagnifyingGlass as Search, ArrowRight, Users, CaretDown as ChevronDown, CaretUp as ChevronUp, XCircle, Clock, Calculator, Info, Sparkle as Sparkles, ArrowCounterClockwise as RotateCcw, ArrowsOut as Maximize2, ArrowsIn as Minimize2, CaretRight as ChevronRight } from '@phosphor-icons/react';
+import { MagicWand as Wand2, CalendarBlank as Calendar, Warning as AlertTriangle, CheckCircle, FloppyDisk as Save, X, Funnel as Filter, ArrowLeft, DownloadSimple as Download, MagnifyingGlass as Search, ArrowRight, Users, CaretDown as ChevronDown, CaretUp as ChevronUp, XCircle, Clock, Calculator, Info, Sparkle as Sparkles, ArrowCounterClockwise as RotateCcw, ArrowsOut as Maximize2, ArrowsIn as Minimize2, CaretRight as ChevronRight, FileXls } from '@phosphor-icons/react';
+import { ExportButton } from '../../components/ui/ExportButton';
+
 import { Input } from '@/components/ui/Input';
 import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect';
 import { useToast } from '@/contexts/ToastContext';
@@ -1396,12 +1398,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                             ) : (
                                                 <div className="flex items-center gap-1.5 w-full justify-between">
                                                     <div className="flex items-center gap-1.5">
-                                                        <button
-                                                            onClick={handleExport}
-                                                            className="h-10 w-10 flex items-center justify-center text-green-600 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
-                                                        >
-                                                            <Download size={18} weight="duotone" />
-                                                        </button>
+                                                        <ExportButton
+                                                            onExport={handleExport}
+                                                            iconOnly
+                                                            className="h-10 w-10 rounded-xl"
+                                                            title="ייצוא לאקסל"
+                                                        />
+
 
                                                         <button
                                                             onClick={handleToggleAllTeams}
@@ -1445,13 +1448,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 {/* Desktop Filters & Actions */}
                                 <div className="hidden md:flex flex-row items-center justify-between mb-4 px-1 gap-4">
                                     <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0">
-                                        <button
-                                            onClick={handleExport}
-                                            className="h-10 w-10 flex items-center justify-center text-green-600 bg-white hover:bg-green-50 rounded-lg transition-all border border-green-200 shadow-sm shrink-0"
+                                        <ExportButton
+                                            onExport={handleExport}
+                                            iconOnly
+                                            className="h-10 w-10"
                                             title="ייצוא לאקסל"
-                                        >
-                                            <Download size={20} weight="duotone" />
-                                        </button>
+                                        />
+
                                         <button
                                             onClick={handleToggleAllTeams}
                                             className="h-10 px-3 text-slate-600 bg-white hover:bg-slate-50 rounded-lg transition-all border border-slate-200 flex items-center gap-2 shadow-sm shrink-0"

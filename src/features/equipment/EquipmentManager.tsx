@@ -383,7 +383,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                             className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm shadow-indigo-100/50 hover:bg-indigo-100 transition-colors"
                             title="העתק רשימה"
                         >
-                            <Copy size={20} weight="duotone" />
+                            <Copy size={20} weight="bold" />
                         </button>
                         <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm shadow-indigo-100/50">
                             <Package size={22} weight="duotone" />
@@ -562,7 +562,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                     onClick={() => { setFilterType('all'); setFilterStatus('all'); setSearchTerm(''); }}
                                     className="w-[42px] h-[42px] flex items-center justify-center bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors"
                                 >
-                                    <Trash2 size={18} weight="duotone" />
+                                    <Trash2 size={18} weight="bold" />
                                 </button>
                             )}
                         </div>
@@ -608,7 +608,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                     onClick={() => { setFilterType('all'); setFilterStatus('all'); setSearchTerm(''); }}
                                     className="w-11 h-11 flex items-center justify-center bg-rose-50 text-rose-500 rounded-[1.25rem] hover:bg-rose-100 transition-colors border border-rose-100"
                                 >
-                                    <Trash2 size={20} weight="duotone" />
+                                    <Trash2 size={20} weight="bold" />
                                 </button>
                             )}
                         </div>
@@ -724,7 +724,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                                     className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-sm rounded-xl transition-all border border-transparent hover:border-slate-100"
                                                                     title="עריכה"
                                                                 >
-                                                                    <PencilSimple size={18} weight="duotone" />
+                                                                    <PencilSimple size={18} weight="bold" />
                                                                 </button>
                                                                 <button
                                                                     onClick={() => {
@@ -736,7 +736,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                                     className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-white hover:shadow-sm rounded-xl transition-all border border-transparent hover:border-slate-100"
                                                                     title="מחיקה"
                                                                 >
-                                                                    <Trash2 size={18} weight="duotone" />
+                                                                    <Trash2 size={18} weight="bold" />
                                                                 </button>
                                                             </div>
                                                         )}

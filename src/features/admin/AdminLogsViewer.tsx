@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../features/auth/AuthContext';
-import { Shield as ShieldIcon, MagnifyingGlass as SearchIcon, ArrowsClockwise as RefreshIcon, Funnel as FilterIcon, DownloadSimple as DownloadIcon } from '@phosphor-icons/react';
+import { Shield as ShieldIcon, MagnifyingGlass as SearchIcon, ArrowsClockwise as RefreshIcon, Funnel as FilterIcon } from '@phosphor-icons/react';
 import type { LogLevel } from '../../services/loggingService';
 import { Select } from '../../components/ui/Select';
+import { ExportButton } from '../../components/ui/ExportButton';
 
 interface LogEntry {
     id: string;
@@ -185,13 +186,38 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                 </div>
 
                 <div className="flex items-center gap-3 w-full md:w-auto">
-                    <button
-                        onClick={exportToCSV}
-                        className="flex-1 md:flex-none flex items-center justify-center gap-2 h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition-all text-xs font-bold shadow-lg shadow-slate-200 active:scale-95"
-                    >
-                        <DownloadIcon size={16} weight="bold" />
-                        <span>Export CSV</span>
-                    </button>
+                    <ExportButton
+                        onExport={async () => {
+                            const headers = ['Time', 'Level', 'Category', 'Event', 'Description', 'User', 'Organization', 'Component', 'Performance (ms)', 'Device', 'IP', 'Location'];
+                            const rows = filteredLogs.map(log => [
+                                new Date(log.created_at).toLocaleString('he-IL'),
+                                log.log_level,
+                                log.event_category,
+                                log.event_type,
+                                log.action_description,
+                                log.user_name || log.user_email || 'System',
+                                log.org_name,
+                                log.component_name || '',
+                                log.performance_ms || '',
+                                (log as any).device_type || '',
+                                (log as any).ip_address || '',
+                                `${(log as any).city || ''} ${(log as any).country || ''}`
+                            ]);
+
+                            const csvContent = [
+                                headers.join(','),
+                                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+                            ].join('\n');
+
+                            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(blob);
+                            link.download = `system_logs_${new Date().toISOString().split('T')[0]}.csv`;
+                            link.click();
+                        }}
+                        label="Export CSV"
+                        className="flex-1 md:flex-none h-11 px-6 shadow-lg shadow-slate-200"
+                    />
                 </div>
             </div>
 

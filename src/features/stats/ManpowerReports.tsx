@@ -7,6 +7,9 @@ import { Select } from '../../components/ui/Select';
 import { Input } from '../../components/ui/Input';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { useToast } from '../../contexts/ToastContext';
+import ExcelJS from 'exceljs';
+import { ExportButton } from '../../components/ui/ExportButton';
+
 
 interface ManpowerReportsProps {
     people: Person[];
@@ -144,6 +147,73 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
         return { dailyStats, roleBreakdown, teamBreakdown, trendData, avgAttendance, roleRisks, weekdayAnalysis };
     }, [people, selectedDate, selectedTeamIds, selectedRoleId, roles, teams, trendPeriod]);
 
+    const handleExport = async () => {
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('דוח כוח אדם', { views: [{ rightToLeft: true }] });
+
+            const columns = [
+                { name: 'תאריך', filterButton: true },
+                { name: 'שם מלא', filterButton: true },
+                { name: 'צוות', filterButton: true },
+                ...roles.map(r => ({ name: r.name, filterButton: true })),
+                { name: 'סטטוס נוכחות', filterButton: true }
+            ];
+
+            const filteredPeople = selectedTeamIds.includes('all')
+                ? people
+                : people.filter(p => selectedTeamIds.includes(p.teamId));
+
+            const rows = filteredPeople.map(p => {
+                const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
+                const roleStatuses = roles.map(r => (p.roleIds || [p.roleId]).includes(r.id) ? 'V' : '');
+                const availability = p.dailyAvailability?.[dateKey];
+                const isAvailable = availability ? availability.isAvailable : true;
+                const statusLabel = isAvailable ? 'נוכח' : 'נפקד';
+
+                return [selectedDate.toLocaleDateString('he-IL'), p.name, teamName, ...roleStatuses, statusLabel];
+            });
+
+            worksheet.addTable({
+                name: 'ManpowerReportTable',
+                ref: 'A1',
+                headerRow: true,
+                columns: columns,
+                rows: rows,
+                style: { theme: 'TableStyleMedium2', showRowStripes: true }
+            });
+
+            // Status coloring
+            worksheet.eachRow((row, rowNumber) => {
+                if (rowNumber === 1) return;
+                const statusCell = row.getCell(columns.length);
+                const statusVal = statusCell.value;
+                if (statusVal === 'נפקד') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                    statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                } else if (statusVal === 'נוכח') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                    statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                }
+            });
+
+            worksheet.columns = [{ width: 15 }, { width: 25 }, { width: 20 }, ...roles.map(() => ({ width: 12 })), { width: 15 }];
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `manpower_report_${dateKey}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('דוח כוח אדם יוצא בהצלחה', 'success');
+        } catch (error) {
+            console.error("Export failed:", error);
+            showToast('שגיאה בתהליך הייצוא', 'error');
+        }
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Compact Header / Controls */}
@@ -199,35 +269,13 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                         <div className="w-px h-4 bg-slate-200" />
 
                         {/* Export Button */}
-                        <button
-                            onClick={() => {
-                                const dateStr = selectedDate.toLocaleDateString('he-IL').replace(/\./g, '-');
-                                let csvContent = "שם,צוות,תפקיד,סטטוס\n";
-
-                                const exportPeople = selectedTeamIds.includes('all')
-                                    ? people
-                                    : people.filter(p => selectedTeamIds.includes(p.teamId));
-
-                                exportPeople.forEach(p => {
-                                    const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
-                                    const roleName = roles.find(r => r.id === p.roleId)?.name || 'ללא תפקיד';
-                                    const avail = p.dailyAvailability?.[dateKey];
-                                    const statusString = (avail?.isAvailable ?? true) ? 'נוכח' : 'חסר';
-                                    csvContent += `"${p.name}","${teamName}","${roleName}","${statusString}"\n`;
-                                });
-
-                                const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-                                const link = document.createElement('a');
-                                link.href = URL.createObjectURL(blob);
-                                link.download = `manpower_report_${dateStr}.csv`;
-                                link.click();
-                                showToast('הדו"ח היומי יוצא בהצלחה', 'success');
-                            }}
-                            className="flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-green-600 hover:bg-white transition-colors"
+                        <ExportButton
+                            onExport={handleExport}
+                            iconOnly
+                            className="h-7 w-7 rounded-lg"
                             title="ייצוא לאקסל"
-                        >
-                            <Download size={18} weight="duotone" />
-                        </button>
+                        />
+
                     </div>
                 </div>
 

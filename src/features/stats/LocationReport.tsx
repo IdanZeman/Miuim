@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { Person, Shift, TaskTemplate, Team } from '../../types';
-import { MapPin, House as Home, Briefcase, DownloadSimple as Download, Funnel as Filter, Copy, CaretDown as ChevronDown, Users, SquaresFour as LayoutGrid, ArrowsDownUp as ArrowUpDown, User, CaretRight as ChevronRight, CaretLeft as ChevronLeft, Clock } from '@phosphor-icons/react';
+import { MapPin, House as Home, Briefcase, Funnel as Filter, Copy, CaretDown as ChevronDown, Users, SquaresFour as LayoutGrid, ArrowsDownUp as ArrowUpDown, User, CaretRight as ChevronRight, CaretLeft as ChevronLeft, Clock, DotsThreeVertical as MoreVertical } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { useToast } from '../../contexts/ToastContext';
 import { Select } from '../../components/ui/Select';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import { TimePicker } from '../../components/ui/DatePicker';
 import { logger } from '../../services/loggingService';
+import { ExportButton } from '../../components/ui/ExportButton';
+import { GenericModal } from '../../components/ui/GenericModal';
 
 interface LocationReportProps {
     people: Person[];
@@ -33,6 +35,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
     const [filterTeam, setFilterTeam] = useState<string>('all');
     const [groupBy, setGroupBy] = useState<'status' | 'team' | 'alpha'>('status');
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
 
     const toggleSection = (section: string) => {
         setExpanded(prev => ({ ...prev, [section]: !(prev[section] ?? true) }));
@@ -265,18 +268,35 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
 
     return (
         <div className="bg-transparent min-h-full flex flex-col">
-            <div className="bg-white p-3 border-b border-slate-100 sticky top-0 z-30 flex flex-col gap-3 shadow-sm">
+            <div className="bg-white p-4 md:p-6 border-b border-slate-100 sticky top-0 z-30 flex flex-col gap-4 shadow-sm">
 
-                {/* Top Row: Title & Actions */}
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-black text-slate-800 flex items-center gap-2 shrink-0">
-                        <MapPin className="text-emerald-500" size={20} weight="duotone" />
+                {/* Top Row: Title & Controls */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <h2 className="text-xl md:text-2xl font-black text-slate-800 flex items-center gap-2 shrink-0">
+                        <MapPin className="text-emerald-500" size={24} weight="duotone" />
                         דוח מיקום כוחות
                     </h2>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                        <button
-                            onClick={() => {
+                    {/* Desktop: All Controls */}
+                    <div className="hidden md:flex items-center gap-2">
+                        <DateNavigator
+                            date={selectedDate}
+                            onDateChange={setSelectedDate}
+                            mode="day"
+                            className="h-10"
+                        />
+
+                        <TimePicker
+                            label=""
+                            value={selectedTime}
+                            onChange={setSelectedTime}
+                            className="w-28 h-10"
+                        />
+
+                        <div className="w-px h-6 bg-slate-200 mx-1" />
+
+                        <ExportButton
+                            onExport={async () => {
                                 let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
                                 reportData.forEach(r => {
                                     const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
@@ -297,10 +317,13 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                                     category: 'data'
                                 });
                             }}
-                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors shadow-sm"
-                        >
-                            <Download size={18} weight="duotone" />
-                        </button>
+                            iconOnly
+                            variant="secondary"
+                            size="sm"
+                            className="w-10 h-10 rounded-xl"
+                            title="ייצוא דוח מיקום"
+                        />
+
                         <button
                             onClick={async () => {
                                 let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
@@ -323,33 +346,12 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                                     });
                                 } catch (e) { showToast('שגיאה', 'error'); }
                             }}
-                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
+                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
+                            title="העתק לווצאפ"
                         >
                             <Copy size={18} weight="duotone" />
                         </button>
-                    </div>
-                </div>
 
-                {/* Controls Row */}
-                <div className="flex flex-wrap items-center gap-3">
-                    <DateNavigator
-                        date={selectedDate}
-                        onDateChange={setSelectedDate}
-                        mode="day"
-                        className="h-9 w-fit"
-                    />
-
-                    <div className="w-px h-4 bg-slate-200 mx-1" />
-
-                    <TimePicker
-                        label=""
-                        value={selectedTime}
-                        onChange={setSelectedTime}
-                        className="w-28"
-                    />
-
-                    {/* Filters Container */}
-                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 h-9 shrink-0">
                         <Select
                             triggerMode="icon"
                             value={filterTeam}
@@ -363,9 +365,9 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                             ]}
                             placeholder="סינון לפי צוות"
                             icon={Filter}
-                            className="bg-transparent border-0 h-7 w-7 p-0 hover:bg-white rounded-lg transition-colors text-slate-500 hover:text-blue-600"
+                            className="w-10 h-10 p-0 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
                         />
-                        <div className="w-px h-4 bg-slate-200" />
+
                         <Select
                             triggerMode="icon"
                             value={groupBy}
@@ -377,11 +379,126 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                             ]}
                             placeholder="מיון תצוגה"
                             icon={ArrowUpDown}
-                            className="bg-transparent border-0 h-7 w-7 p-0 hover:bg-white rounded-lg transition-colors text-slate-500 hover:text-blue-600"
+                            className="w-10 h-10 p-0 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
                         />
+                    </div>
+
+                    {/* Mobile: Date, Time & Menu */}
+                    <div className="md:hidden flex items-center gap-2 w-full">
+                        <DateNavigator
+                            date={selectedDate}
+                            onDateChange={setSelectedDate}
+                            mode="day"
+                            className="h-10 flex-1"
+                        />
+
+                        <TimePicker
+                            label=""
+                            value={selectedTime}
+                            onChange={setSelectedTime}
+                            className="w-24 h-10"
+                        />
+
+                        <button
+                            onClick={() => setIsActionsMenuOpen(true)}
+                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-500 active:bg-slate-100 transition-colors shrink-0"
+                            aria-label="פעולות נוספות"
+                        >
+                            <MoreVertical size={20} weight="bold" />
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* Mobile Actions Menu */}
+            <GenericModal
+                isOpen={isActionsMenuOpen}
+                onClose={() => setIsActionsMenuOpen(false)}
+                title="פעולות"
+                size="sm"
+            >
+                <div className="flex flex-col gap-2 p-2">
+                    <button
+                        onClick={async () => {
+                            let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
+                            reportData.forEach(r => {
+                                const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
+                                const team = r.person.teamId || '';
+                                csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
+                            });
+                            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                            const link = document.createElement('a');
+                            const url = URL.createObjectURL(blob);
+                            link.setAttribute('href', url);
+                            link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            setIsActionsMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors text-right"
+                    >
+                        <img src="/images/excel.svg" alt="Excel" width={20} height={20} className="object-contain" />
+                        <span className="font-bold text-slate-800">ייצוא לאקסל</span>
+                    </button>
+
+                    <button
+                        onClick={async () => {
+                            let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
+                            const grouped = {
+                                mission: reportData.filter(r => r.status === 'mission'),
+                                base: reportData.filter(r => r.status === 'base'),
+                                home: reportData.filter(r => r.status === 'home')
+                            };
+                            if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
+                            if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
+                            if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
+
+                            try {
+                                await navigator.clipboard.writeText(text);
+                                showToast('הועתק', 'success');
+                                setIsActionsMenuOpen(false);
+                            } catch (e) { showToast('שגיאה', 'error'); }
+                        }}
+                        className="flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors text-right"
+                    >
+                        <Copy size={20} weight="duotone" className="text-blue-600" />
+                        <span className="font-bold text-slate-800">העתק לווצאפ</span>
+                    </button>
+
+                    <div className="border-t border-slate-100 my-2" />
+
+                    <div className="px-2 py-2">
+                        <label className="text-xs font-bold text-slate-500 mb-2 block">סינון לפי צוות</label>
+                        <Select
+                            value={filterTeam}
+                            onChange={(val) => { setFilterTeam(val); }}
+                            options={[
+                                { value: 'all', label: 'כל הצוותים' },
+                                ...(teams.length > 0
+                                    ? teams.map(t => ({ value: t.id, label: t.name }))
+                                    : Array.from(new Set(people.map(p => p.teamId).filter(Boolean))).map(tid => ({ value: tid!, label: tid! }))
+                                )
+                            ]}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="px-2 py-2">
+                        <label className="text-xs font-bold text-slate-500 mb-2 block">מיון תצוגה</label>
+                        <Select
+                            value={groupBy}
+                            onChange={(val) => { setGroupBy(val as any); }}
+                            options={[
+                                { value: 'status', label: 'לפי סטטוס' },
+                                { value: 'team', label: 'לפי צוות' },
+                                { value: 'alpha', label: 'לפי א-ב' }
+                            ]}
+                            className="w-full"
+                        />
+                    </div>
+                </div>
+            </GenericModal>
 
             <div className="flex-1 overflow-y-auto pt-6 pb-20 custom-scrollbar relative">
                 {renderContent()}

@@ -17,6 +17,8 @@ import { RotaWizardModal } from './RotaWizardModal';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { useAuth } from '@/features/auth/AuthContext';
 import { addHourlyBlockage, updateHourlyBlockage, deleteHourlyBlockage, updateAbsence } from '@/services/api'; // NEW Imports
+import { ExportButton } from '../../components/ui/ExportButton';
+
 
 interface AttendanceManagerProps {
     people: Person[];
@@ -550,12 +552,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 <Sparkles size={18} weight="duotone" />
                             </button>
                         )}
-                        <button
-                            onClick={handleExport}
-                            className="w-9 h-9 flex items-center justify-center bg-slate-50 text-slate-600 rounded-xl border border-slate-100 active:scale-95 transition-all shrink-0"
-                        >
-                            <Download size={18} weight="duotone" />
-                        </button>
+                        <ExportButton
+                            onExport={async () => { await handleExport(); }}
+                            iconOnly
+                            variant="secondary"
+                            size="sm"
+                            className="w-9 h-9 rounded-xl"
+                            title="ייצוא נתוני נוכחות"
+                        />
                     </div>
 
                     {/* Date Navigator - Optimized for Mobile */}
@@ -737,37 +741,50 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             </button>
                         )}
 
+                        <ExportButton
+                            onExport={handleExport}
+                            iconOnly
+                            className="h-9 w-9 rounded-xl hidden md:inline-flex"
+                            title="ייצוא לאקסל"
+                        />
+
+
                         {/* More Actions Menu */}
-                        <div className="relative">
+                        <div className={`relative ${(viewMode === 'table') ? 'flex' : 'md:hidden flex'}`}>
                             <button
                                 onClick={() => setShowMoreActions(!showMoreActions)}
                                 className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors border ${showMoreActions ? 'bg-slate-100 border-slate-300 text-slate-800' : 'bg-white border-transparent hover:bg-slate-50 text-slate-500'}`}
                             >
-                                <MoreVertical size={18} weight="duotone" />
+                                <MoreVertical size={18} weight="bold" />
                             </button>
 
                             {showMoreActions && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setShowMoreActions(false)} />
                                     <div className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
-                                        <button
-                                            onClick={() => { setShowRequiredDetails(!showRequiredDetails); setShowMoreActions(false); }}
-                                            className="w-full text-right px-4 py-2.5 text-xs font-bold hover:bg-slate-50 flex items-center gap-2 text-slate-700"
-                                        >
-                                            <ListChecks size={14} className="text-slate-400" weight="duotone" />
-                                            {showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
-                                        </button>
-                                        <button
-                                            onClick={async () => { await handleExport(); setShowMoreActions(false); }}
-                                            className="w-full text-right px-4 py-2.5 text-xs font-bold hover:bg-slate-50 flex items-center gap-2 text-slate-700"
-                                        >
-                                            <Download size={14} className="text-slate-400" weight="duotone" />
-                                            ייצוא לאקסל
-                                        </button>
+                                        {viewMode === 'table' && (
+                                            <button
+                                                onClick={() => { setShowRequiredDetails(!showRequiredDetails); setShowMoreActions(false); }}
+                                                className="w-full text-right px-4 py-2.5 text-xs font-bold hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                                            >
+                                                <ListChecks size={14} className="text-slate-400" weight="duotone" />
+                                                {showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
+                                            </button>
+                                        )}
+
+                                        <div className="md:hidden">
+                                            <ExportButton
+                                                onExport={async () => { await handleExport(); setShowMoreActions(false); }}
+                                                variant="ghost"
+                                                className="w-full justify-start h-10 px-4 rounded-none border-0 text-slate-700 hover:bg-slate-50"
+                                                label="ייצוא נתוני נוכחות"
+                                            />
+                                        </div>
                                     </div>
                                 </>
                             )}
                         </div>
+
                     </div>
                 </div>
 
