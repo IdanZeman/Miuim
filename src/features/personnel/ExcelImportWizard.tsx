@@ -82,7 +82,6 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         { value: 'role', label: 'תפקיד' },
         { value: 'email', label: 'אימייל' },
         { value: 'mobile', label: 'טלפון נייד' },
-        { value: 'is_commander', label: 'מפקד (כן/לא)' },
         { value: 'is_active', label: 'פעיל (כן/לא)' },
         { value: 'custom_fields', label: 'שדות מותאמים (JSON)' },
         { value: 'ignore', label: 'התעלם' }
@@ -122,7 +121,6 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     else if (h.includes('תפקיד')) field = 'role';
                     else if (h.includes('טלפון') || h.includes('נייד')) field = 'mobile';
                     else if (h.includes('מייל') || h.includes('דוא')) field = 'email';
-                    else if (h.includes('מפקד') || h.includes('commander')) field = 'is_commander';
                     else if (h.includes('פעיל') || h.includes('active')) field = 'is_active';
                     else if (h.includes('custom') || h.includes('מותאם') || h.includes('fields')) field = 'custom_fields';
 
@@ -150,7 +148,6 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             'תפקיד (ניתן להפריד בפסיק)',
             'טלפון נייד',
             'אימייל',
-            'מפקד (כן/לא)',
             'פעיל (כן/לא)'
         ];
 
@@ -162,7 +159,6 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             'מקלען, נהג',
             '050-1234567',
             'yossi@example.com',
-            'כן',
             'כן'
         ];
 
@@ -430,7 +426,6 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 roleIds: roleIds.length > 0 ? roleIds : (basePerson.roleIds || []),
                 email: rowData.email || basePerson.email || '',
                 phone: rowData.mobile || basePerson.phone || '',
-                isCommander: rowData.is_commander !== undefined ? parseBoolean(rowData.is_commander) : (basePerson.isCommander || false),
                 isActive: rowData.is_active !== undefined ? parseBoolean(rowData.is_active) : (basePerson.isActive ?? true),
                 maxShiftsPerWeek: basePerson.maxShiftsPerWeek || 7,
 

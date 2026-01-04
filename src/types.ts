@@ -21,7 +21,7 @@ export interface Battalion {
   created_at: string;
 }
 
-export type CustomFieldType = 
+export type CustomFieldType =
   | 'text'           // Short text input
   | 'textarea'       // Long text input
   | 'number'         // Number input
@@ -145,7 +145,6 @@ export interface Person {
     avoidWeekends: boolean;
   };
   customFields?: Record<string, any>; // NEW
-  isCommander?: boolean; // NEW: Explicitly designates team leadership
 }
 
 export type SchedulingType = 'continuous' | 'one-time';

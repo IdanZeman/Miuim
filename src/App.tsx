@@ -89,7 +89,6 @@ if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' &&
 // Custom hook to manage the massive state of the main application
 const useMainAppState = () => {
     const { organization, user, profile, checkAccess } = useAuth();
-    const isCommander = (organization?.is_hq && profile?.permissions?.dataScope === 'battalion') || profile?.is_super_admin;
     const hasBattalion = !!organization?.battalion_id;
     const { showToast } = useToast();
     const [view, setView] = useState<ViewMode>(() => {
@@ -157,12 +156,17 @@ const useMainAppState = () => {
         }
     }, [organization?.battalion_id]);
 
-    // Auto-select first company if no org is active
+    // Auto-select first company ONLY if user has no assigned organization (e.g., battalion commander)
+    // Regular users should stay in their assigned organization
     useEffect(() => {
-        if (!activeOrgId && battalionCompanies.length > 0) {
+        // Only auto-select if:
+        // 1. No active org is set
+        // 2. User has no assigned organization (profile.organization_id is null)
+        // 3. Battalion companies are available
+        if (!activeOrgId && !profile?.organization_id && battalionCompanies.length > 0) {
             setActiveOrgId(battalionCompanies[0].id);
         }
-    }, [activeOrgId, battalionCompanies]);
+    }, [activeOrgId, profile?.organization_id, battalionCompanies]);
     const [schedulingSuggestions, setSchedulingSuggestions] = useState<SchedulingSuggestion[]>([]);
     const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
 
@@ -1200,7 +1204,7 @@ const useMainAppState = () => {
     usePageTracking(view);
 
     return {
-        view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isCommander, isLinkedToPerson,
+        view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isLinkedToPerson,
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal, handleAutoSchedule,
         scheduleStartDate, isScheduling, handleClearDay, handleNavigate, handleAssign, handleUnassign,
         handleAddShift, handleUpdateShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
@@ -1211,7 +1215,7 @@ const useMainAppState = () => {
 
 const MainApp: React.FC = () => {
     const {
-        view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isCommander, isLinkedToPerson,
+        view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isLinkedToPerson,
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal,
         scheduleStartDate, isScheduling, refetchOrgData, myPerson,
         schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal, renderContent

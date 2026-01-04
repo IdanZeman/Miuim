@@ -219,3 +219,15 @@ export const fetchBattalionPresenceSummary = async (battalionId: string) => {
     if (error) throw error;
     return data;
 };
+
+/**
+ * Unlinks an organization from its battalion.
+ */
+export const unlinkBattalion = async (organizationId: string) => {
+    const { error } = await supabase
+        .from('organizations')
+        .update({ battalion_id: null, is_hq: false })
+        .eq('id', organizationId);
+
+    if (error) throw error;
+};

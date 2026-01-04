@@ -240,16 +240,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
     const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
+    // Only fetch and display battalion name for HQ users with battalion permissions
+    // Regular company users should see their company name
     useEffect(() => {
         const bid = organization?.battalion_id;
-        if (bid) {
+        const isHQUser = organization?.is_hq && (
+            profile?.permissions?.dataScope === 'battalion' ||
+            profile?.is_super_admin
+        );
+
+        if (bid && isHQUser) {
             fetchBattalion(bid)
                 .then(b => setBattalionName(b.name))
                 .catch(err => console.error('Failed to fetch battalion name', err));
         } else {
             setBattalionName(null);
         }
-    }, [organization?.battalion_id]);
+    }, [organization?.battalion_id, organization?.is_hq, profile?.permissions?.dataScope, profile?.is_super_admin]);
 
     const activeTabId = useMemo(() => {
         return TABS.find(tab => tab.views.includes(currentView || 'home'))?.id || null;
@@ -270,7 +277,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
     };
 
     const filteredTabs = TABS.filter(tab => {
-        if (tab.id === 'battalion' && !organization?.battalion_id) return false;
+        // All tabs now rely on RBAC checkAccess - no special cases
         return tab.views.some(v => checkAccess(v as ViewMode));
     });
 
@@ -294,11 +301,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             <span className="text-base font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
                                 {battalionName ? battalionName : (organization?.name || 'מערכת ניהול')}
                             </span>
-                            {!battalionName && organization?.name && (
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
-                                    {organization?.name}
-                                </span>
-                            )}
                         </div>
                     </button>
                 </div>
@@ -331,10 +333,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             >
                                 <button
                                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                                    className="px-4 py-1.5 min-w-[36px] rounded-2xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-800 transition-all shadow-sm hover:border-blue-300 hover:bg-blue-50 group/pill"
+                                    className="flex items-center gap-3 pl-3 pr-1.5 py-1.5 bg-blue-50/30 hover:bg-blue-50 border border-blue-100/50 hover:border-blue-200 rounded-full transition-all group"
                                 >
-                                    <span className="text-xs font-black">{displayName}</span>
-                                    <span className="text-[10px] font-bold text-blue-600 group-hover/pill:text-blue-800 leading-none mt-0.5">אזור אישי</span>
+                                    <div className="w-8 h-8 rounded-full bg-white border border-blue-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 shadow-sm">
+                                        <User className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex flex-col items-start leading-none min-w-[60px]">
+                                        <span className="text-xs font-black text-slate-800 mb-0.5">{displayName}</span>
+                                        <span className="text-[10px] font-bold text-slate-400 group-hover:text-blue-500 transition-colors">אזור אישי</span>
+                                    </div>
+                                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors opacity-50 group-hover:opacity-100" />
                                 </button>
 
                                 <AnimatePresence>
@@ -361,7 +369,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                                             <span>הגדרות ארגון</span>
                                                         </button>
                                                     )}
-                                                    {organization?.battalion_id && (
+                                                    {organization?.battalion_id && checkAccess('battalion-settings') && (
                                                         <button
                                                             onClick={() => { handleNav('battalion-settings'); setIsProfileDropdownOpen(false); }}
                                                             className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all text-right"

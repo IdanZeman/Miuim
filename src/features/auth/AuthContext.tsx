@@ -36,11 +36,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!profile) return false;
 
     // Map 'absences' view to 'attendance' permission, and 'org-logs' to 'logs'
+    // Map battalion views to 'battalion' permission
     const permissionKey = screen === 'absences' ? 'attendance' :
-      screen === 'org-logs' ? 'logs' : screen;
+      screen === 'org-logs' ? 'logs' :
+        screen === 'battalion-home' || screen === 'battalion-personnel' || screen === 'battalion-attendance' || screen === 'battalion-settings' ? 'battalion' :
+          screen;
 
-    // Always allow home, dashboard, contact, faq, battalion-home and gate for authenticated users
-    if (['home', 'dashboard', 'contact', 'faq', 'gate', 'battalion-home'].includes(screen)) return true;
+    // Always allow home, dashboard, contact, faq, and gate for authenticated users
+    // Battalion views require explicit permissions
+    if (['home', 'dashboard', 'contact', 'faq', 'gate'].includes(screen)) return true;
 
     // Super Admin has access to everything
     if (profile.is_super_admin) return true;

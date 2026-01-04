@@ -35,7 +35,6 @@ export const mapPersonFromDB = (p: any): Person => {
         personalRotation,
         organization_id: p.organization_id,
         customFields,
-        isCommander: !!p.is_commander
     };
 };
 
@@ -54,7 +53,6 @@ export const mapPersonToDB = (p: Person) => ({
     personal_rotation: p.personalRotation === undefined ? null : p.personalRotation,
     organization_id: p.organization_id,
     custom_fields: p.customFields || {},
-    is_commander: p.isCommander || false
 });
 
 // Teams

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
-import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon } from '@phosphor-icons/react';
+import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak } from '@phosphor-icons/react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode, Role } from '../../types';
@@ -18,7 +18,7 @@ import { OrganizationMessagesManager } from './OrganizationMessagesManager';
 import { OrganizationUserManagement } from './OrganizationUserManagement';
 import { TimePicker } from '../../components/ui/DatePicker';
 import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
-import { joinBattalion, fetchBattalion } from '../../services/battalionService';
+import { joinBattalion, fetchBattalion, unlinkBattalion } from '../../services/battalionService';
 import { Battalion } from '../../types';
 import { CustomFieldsManager } from '../personnel/CustomFieldsManager';
 
@@ -138,9 +138,19 @@ const RoleTemplateManager: React.FC<{
                     <div key={tmp.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-blue-300 transition-all group shadow-sm">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="font-black text-slate-800 text-lg">{tmp.name}</h3>
-                            <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="sm" icon={Pencil} onClick={() => setEditingTemplate(tmp)} />
-                                <Button variant="ghost" size="sm" icon={Trash2} className="text-red-500 hover:bg-red-50" onClick={() => handleDeleteTemplate(tmp.id)} />
+                            <div className="flex items-center gap-2 pl-1">
+                                <Button
+                                    variant="ghost"
+                                    icon={Pencil}
+                                    onClick={() => setEditingTemplate(tmp)}
+                                    className="h-10 w-10 md:h-8 md:w-8 !p-0 rounded-xl bg-white md:bg-transparent border border-slate-200 md:border-transparent text-slate-500 hover:text-blue-600 shadow-sm md:shadow-none"
+                                />
+                                <Button
+                                    variant="ghost"
+                                    icon={Trash2}
+                                    className="h-10 w-10 md:h-8 md:w-8 !p-0 rounded-xl bg-white md:bg-transparent border border-slate-200 md:border-transparent text-red-500 hover:bg-red-50 shadow-sm md:shadow-none"
+                                    onClick={() => handleDeleteTemplate(tmp.id)}
+                                />
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -368,8 +378,10 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
 
 const BattalionAssociationSettings: React.FC<{ organizationId: string; currentBattalionId: string | null }> = ({ organizationId, currentBattalionId }) => {
     const { showToast } = useToast();
+    const { confirm, modalProps } = useConfirmation();
     const [loading, setLoading] = useState(true);
     const [joining, setJoining] = useState(false);
+    const [unlinking, setUnlinking] = useState(false);
     const [code, setCode] = useState('');
     const [battalion, setBattalion] = useState<Battalion | null>(null);
 
@@ -399,13 +411,38 @@ const BattalionAssociationSettings: React.FC<{ organizationId: string; currentBa
             await joinBattalion(code.trim(), organizationId);
             showToast('הצטרפת לגדוד בהצלחה!', 'success');
             // Reload battalion data instead of full page refresh
-            await loadBattalion();
-            setCode(''); // Clear the input
+            // We need to reload the page or trigger a deeper refresh to update the global auth state,
+            // but for now we can atleast load the battalion details to show the "Connected" state
+            // Note: In a real app we should probably reload window.location.reload() to get fresh permissions/state
+            window.location.reload();
         } catch (err: any) {
             showToast('שגיאה בחיבור לגדוד: ' + err.message, 'error');
-        } finally {
             setJoining(false);
         }
+    };
+
+    const handleUnlink = () => {
+        confirm({
+            title: 'ביטול שיוך לגדוד',
+            message: 'האם אתה בטוח שברצונך לבטל את השיוך לגדוד? הפעולה תנתק את הקשר בין הפלוגה לגדוד.',
+            confirmText: 'כן, בטל שיוך',
+            type: 'danger',
+            onConfirm: async () => {
+                setUnlinking(true);
+                try {
+                    await unlinkBattalion(organizationId);
+                    showToast('השיוך לגדוד בוטל בהצלחה', 'success');
+                    setBattalion(null);
+                    // Reload to clear global state effectively
+                    window.location.reload();
+                } catch (err: any) {
+                    console.error('Unlink error:', err);
+                    showToast('שגיאה בביטול השיוך', 'error');
+                } finally {
+                    setUnlinking(false);
+                }
+            }
+        });
     };
 
     if (loading) return <div className="text-slate-500 text-sm">טוען נתוני גדוד...</div>;
@@ -414,19 +451,31 @@ const BattalionAssociationSettings: React.FC<{ organizationId: string; currentBa
         <div className="space-y-8 max-w-2xl">
             {battalion ? (
                 <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-8 animate-in fade-in slide-in-from-bottom-2">
-                    <div className="flex items-center gap-6">
-                        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
-                            <Shield size={40} />
-                        </div>
-                        <div>
-                            <p className="text-emerald-600 font-bold text-sm mb-1">מחובר לגדוד</p>
-                            <h2 className="text-3xl font-black text-slate-900">{battalion.name}</h2>
-                            <div className="flex items-center gap-2 mt-2">
-                                <span className="bg-white/60 px-3 py-1 rounded-lg text-xs font-mono font-bold text-slate-500 border border-emerald-200">
-                                    קוד גדוד: {battalion.code}
-                                </span>
+                    <div className="flex items-center justify-between gap-6">
+                        <div className="flex items-center gap-6">
+                            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
+                                <Shield size={40} weight="duotone" />
+                            </div>
+                            <div>
+                                <p className="text-emerald-600 font-bold text-sm mb-1">מחובר לגדוד</p>
+                                <h2 className="text-3xl font-black text-slate-900">{battalion.name}</h2>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <span className="bg-white/60 px-3 py-1 rounded-lg text-xs font-mono font-bold text-slate-500 border border-emerald-200">
+                                        קוד גדוד: {battalion.code}
+                                    </span>
+                                </div>
                             </div>
                         </div>
+
+                        <Button
+                            variant="ghost"
+                            className="text-red-500 hover:bg-red-50 hover:text-red-700 font-bold shrink-0"
+                            onClick={handleUnlink}
+                            isLoading={unlinking}
+                            icon={LinkBreak}
+                        >
+                            ביטול שיוך
+                        </Button>
                     </div>
                 </div>
             ) : (
@@ -468,6 +517,7 @@ const BattalionAssociationSettings: React.FC<{ organizationId: string; currentBa
                     </div>
                 </div>
             )}
+            <ConfirmationModal {...modalProps} />
         </div>
     );
 };
@@ -633,8 +683,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         { id: 'general', label: 'כללי', icon: Settings },
         { id: 'roles', label: 'תבניות הרשאות', icon: Shield },
         { id: 'members', label: 'חברים', icon: Users },
-        { id: 'customFields', label: 'שדות מותאמים', icon: Layout },
-        { id: 'messages', label: 'הודעות ועדכונים', icon: Megaphone },
+        { id: 'messages', label: 'הודעות ועדכונים', icon: SpeakerHigh },
         { id: 'battalion', label: 'שיוך גדודי', icon: Anchor },
     ];
 
@@ -720,18 +769,18 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                 <p className="text-slate-500 font-medium text-sm">הגדרות וניהול מערכת</p>
                             </div>
 
-                            <div className="bg-slate-50 p-1.5 rounded-2xl flex border border-slate-200 overflow-x-auto hide-scrollbar">
+                            <div className="bg-slate-50 p-1.5 rounded-2xl flex border border-slate-200 w-full">
                                 {navigationTabs.map(tab => (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id as any)}
-                                        className={`flex-none px-4 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id
+                                        className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${activeTab === tab.id
                                             ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
                                             : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-600'
                                             }`}
+                                        aria-label={tab.label}
                                     >
-                                        <tab.icon size={16} weight={activeTab === tab.id ? 'fill' : 'duotone'} className={tab.id === 'messages' && activeTab !== tab.id ? 'text-slate-500' : ''} />
-                                        <span>{tab.label}</span>
+                                        <tab.icon size={22} weight={activeTab === tab.id ? 'fill' : 'duotone'} className={tab.id === 'messages' && activeTab !== tab.id ? 'text-slate-500' : ''} />
                                     </button>
                                 ))}
                             </div>
@@ -806,29 +855,6 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                             </div>
                         )}
 
-                        {activeTab === 'customFields' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <CustomFieldsManager
-                                    fields={organizationSettings?.customFieldsSchema || []}
-                                    onFieldsChange={async (fields) => {
-                                        try {
-                                            const { error } = await supabase
-                                                .from('organization_settings')
-                                                .update({ custom_fields_schema: fields })
-                                                .eq('organization_id', organization?.id);
-
-                                            if (error) throw error;
-
-                                            setOrganizationSettings(prev => prev ? { ...prev, customFieldsSchema: fields } : prev);
-                                            showToast('שדות מותאמים עודכנו בהצלחה', 'success');
-                                        } catch (error: any) {
-                                            console.error('Error updating custom fields:', error);
-                                            showToast('שגיאה בעדכון שדות מותאמים', 'error');
-                                        }
-                                    }}
-                                />
-                            </div>
-                        )}
 
                         {activeTab === 'messages' && (
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">

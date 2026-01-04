@@ -13,11 +13,8 @@ const SCREENS: { id: ViewMode; label: string; icon: any; isBattalion?: boolean }
     { id: 'equipment', label: 'ניהול אמצעים', icon: Shield },
     { id: 'logs', label: 'יומן פעילות', icon: Activity },
     { id: 'settings', label: 'הגדרות ארגון', icon: Settings },
-    // Battalion Pages
-    { id: 'battalion-home', label: 'דף בית גדודי', icon: Layout, isBattalion: true },
-    { id: 'battalion-personnel', label: 'כוח אדם גדודי', icon: Users, isBattalion: true },
-    { id: 'battalion-attendance', label: 'נוכחות גדודית', icon: UserCircle, isBattalion: true },
-    { id: 'battalion-settings', label: 'הגדרות גדוד', icon: Settings, isBattalion: true },
+    // Battalion - Single unified permission for all battalion screens
+    { id: 'battalion' as ViewMode, label: 'ניהול גדודי', icon: Users, isBattalion: true },
 ];
 
 interface PermissionEditorContentProps {
