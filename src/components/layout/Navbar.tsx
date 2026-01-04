@@ -1,28 +1,28 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-    Users,
-    Activity,
-    Building2,
-    Settings,
-    Bell,
-    ChevronDown,
-    LogOut,
-    User,
-    HelpCircle,
-    Mail,
-    ShieldCheck,
-    Search,
-    Package,
-    LayoutDashboard,
-    ClipboardList,
-    Calendar,
-    Clock,
-    UserX,
-    Car,
-    BarChart3,
-    FileText,
-    Anchor
-} from 'lucide-react';
+    UsersIcon as Users,
+    BuildingsIcon as Building2,
+    GearIcon as Settings,
+    BellIcon as Bell,
+    CaretDownIcon as ChevronDown,
+    SignOutIcon as LogOut,
+    UserIcon,
+    QuestionIcon as HelpCircle,
+    EnvelopeIcon as Mail,
+    ShieldCheckIcon,
+    MagnifyingGlassIcon as Search,
+    PackageIcon,
+    SquaresFourIcon as LayoutDashboard,
+    ClipboardTextIcon as ClipboardList,
+    CalendarBlankIcon as Calendar,
+    ClockIcon,
+    UserMinusIcon as UserX,
+    CarIcon,
+    ChartBarIcon as BarChart3,
+    FileTextIcon,
+    AnchorIcon,
+    ActivityIcon
+} from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ViewMode, Profile } from '../../types';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -83,7 +83,7 @@ const TABS: NavItem[] = [
         views: ['personnel', 'attendance', 'absences'],
         subItems: [
             { label: 'ניהול כוח אדם', view: 'personnel', icon: Users, description: 'ניהול חיילים, צוותים ותפקידים' },
-            { label: 'יומן נוכחות', view: 'attendance', icon: Clock, description: 'מעקב נוכחות ודוחות יומיים' },
+            { label: 'יומן נוכחות', view: 'attendance', icon: ClockIcon, description: 'מעקב נוכחות ודוחות יומיים' },
             { label: 'בקשות יציאה', view: 'absences', icon: UserX, description: 'ניהול היעדרויות ואישורי חופשה' }
         ]
     },
@@ -96,29 +96,29 @@ const TABS: NavItem[] = [
         subItems: [
             { label: 'ניהול משימות', view: 'tasks', icon: ClipboardList, description: 'הגדרת משימות וסיבובי שמירה' },
             { label: 'לוח שיבוצים', view: 'dashboard', icon: Calendar, description: 'מבט שבועי על כל המשימות' },
-            { label: 'ניהול אילוצים', view: 'constraints', icon: Anchor, description: 'ניהול חסימות וזמינות אישית' }
+            { label: 'ניהול אילוצים', view: 'constraints', icon: AnchorIcon, description: 'ניהול חסימות וזמינות אישית' }
         ]
     },
     {
         id: 'logistics',
         label: 'לוגיסטיקה',
-        icon: Package,
+        icon: PackageIcon,
         primaryView: 'equipment',
         views: ['equipment', 'gate'],
         subItems: [
-            { label: 'רשימת ציוד', view: 'equipment', icon: Package, description: 'מעקב אחר אקסים, נשקים וציוד' },
-            { label: 'ש.ג ורכבים', view: 'gate', icon: Car, description: 'רישום כניסות וניהול רכבים' }
+            { label: 'רשימת ציוד', view: 'equipment', icon: PackageIcon, description: 'מעקב אחר אקסים, נשקים וציוד' },
+            { label: 'ש.ג ורכבים', view: 'gate', icon: CarIcon, description: 'רישום כניסות וניהול רכבים' }
         ]
     },
     {
         id: 'admin',
         label: 'דוחות וניהול',
-        icon: Activity,
+        icon: ActivityIcon,
         primaryView: 'stats',
         views: ['stats', 'settings', 'system', 'org-logs'],
         subItems: [
             { label: 'דוחות ונתונים', view: 'stats', icon: BarChart3, description: 'ניתוח עומסים וסטטיסטיקות' },
-            { label: 'יומן פעילות', view: 'org-logs', icon: Activity, description: 'מעקב אחר שינויים במערכת' }
+            { label: 'יומן פעילות', view: 'org-logs', icon: ActivityIcon, description: 'מעקב אחר שינויים במערכת' }
         ]
     },
 ];
@@ -336,7 +336,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                     className="flex items-center gap-3 pl-3 pr-1.5 py-1.5 bg-blue-50/30 hover:bg-blue-50 border border-blue-100/50 hover:border-blue-200 rounded-full transition-all group"
                                 >
                                     <div className="w-8 h-8 rounded-full bg-white border border-blue-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 shadow-sm">
-                                        <User className="w-4 h-4" />
+                                        <UserIcon className="w-4 h-4" />
                                     </div>
                                     <div className="flex flex-col items-start leading-none min-w-[60px]">
                                         <span className="text-xs font-black text-slate-800 mb-0.5">{displayName}</span>
@@ -383,7 +383,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                                             onClick={() => { handleNav('system'); setIsProfileDropdownOpen(false); }}
                                                             className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all text-right"
                                                         >
-                                                            <ShieldCheck className="w-4 h-4" />
+                                                            <ShieldCheckIcon className="w-4 h-4" />
                                                             <span>ניהול מערכת</span>
                                                         </button>
                                                     )}
