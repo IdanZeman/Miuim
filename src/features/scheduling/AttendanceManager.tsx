@@ -816,8 +816,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 teamRotations={teamRotations}
                                 absences={absences}
                                 hourlyBlockages={hourlyBlockages}
-                                currentDate={selectedDate}
-                                onDateChange={setSelectedDate}
+                                currentDate={viewMode === 'table' ? viewDate : selectedDate}
+                                onDateChange={viewMode === 'table' ? setViewDate : setSelectedDate}
                                 viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
                                 onSelectPerson={(p) => {
                                     if (isBulkMode) handleToggleSelectPerson(p.id);

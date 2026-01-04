@@ -418,8 +418,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     { name: 'תפקידים', filterButton: true },
                     { name: 'טלפון', filterButton: true },
                     { name: 'אימייל', filterButton: true },
-                    { name: 'סטטוס', filterButton: true },
-                    { name: 'מפקד', filterButton: true }
+                    { name: 'סטטוס', filterButton: true }
                 ];
 
                 const rows = people.map(p => {
@@ -429,8 +428,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         .filter(Boolean)
                         .join(' | ');
                     const status = p.isActive === false ? 'לא פעיל' : 'פעיל';
-                    const isCommander = !!p.isCommander ? 'כן' : 'לא';
-                    return [p.name, teamName, roleNames, p.phone || '', p.email || '', status, isCommander];
+                    return [p.name, teamName, roleNames, p.phone || '', p.email || '', status];
                 });
 
                 worksheet.addTable({
@@ -444,7 +442,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 });
 
                 worksheet.columns = [
-                    { width: 25 }, { width: 15 }, { width: 30 }, { width: 15 }, { width: 25 }, { width: 12 }, { width: 10 }
+                    { width: 25 }, { width: 15 }, { width: 30 }, { width: 15 }, { width: 25 }, { width: 12 }
                 ];
                 fileName = `people_export_${new Date().toLocaleDateString('en-CA')}.xlsx`;
             } else if (activeTab === 'teams') {
