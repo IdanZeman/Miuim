@@ -63,6 +63,19 @@ interface NavItem {
 
 const TABS: NavItem[] = [
     {
+        id: 'battalion',
+        label: 'ניהול גדודי',
+        icon: Building2,
+        primaryView: 'battalion-home',
+        views: ['battalion-home', 'battalion-personnel', 'battalion-attendance'],
+        isSpecial: true,
+        subItems: [
+            { label: 'מבט גדודי', view: 'battalion-home', icon: LayoutDashboard, description: 'סיכום נתונים וסטטיסטיקות גדוד' },
+            { label: 'סד"כ גדודי', view: 'battalion-personnel', icon: Users, description: 'ניהול כוח אדם רוחבי בגדוד' },
+            { label: 'נוכחות גדודית', view: 'battalion-attendance', icon: Calendar, description: 'ריכוז נוכחות מכל הפלוגות' }
+        ]
+    },
+    {
         id: 'hr',
         label: 'אנשים ונוכחות',
         icon: Users,
@@ -95,19 +108,6 @@ const TABS: NavItem[] = [
         subItems: [
             { label: 'רשימת ציוד', view: 'equipment', icon: Package, description: 'מעקב אחר אקסים, נשקים וציוד' },
             { label: 'ש.ג ורכבים', view: 'gate', icon: Car, description: 'רישום כניסות וניהול רכבים' }
-        ]
-    },
-    {
-        id: 'battalion',
-        label: 'ניהול גדודי',
-        icon: Building2,
-        primaryView: 'battalion-home',
-        views: ['battalion-home', 'battalion-personnel', 'battalion-attendance'],
-        isSpecial: true,
-        subItems: [
-            { label: 'מבט גדודי', view: 'battalion-home', icon: LayoutDashboard, description: 'סיכום נתונים וסטטיסטיקות גדוד' },
-            { label: 'סד"כ גדודי', view: 'battalion-personnel', icon: Users, description: 'ניהול כוח אדם רוחבי בגדוד' },
-            { label: 'נוכחות גדודית', view: 'battalion-attendance', icon: Calendar, description: 'ריכוז נוכחות מכל הפלוגות' }
         ]
     },
     {
@@ -292,9 +292,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
 
                         <div className="flex flex-col items-start leading-tight text-right">
                             <span className="text-base font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
-                                {battalionName ? `גדוד ${battalionName}` : (organization?.name || 'מערכת ניהול')}
+                                {battalionName ? battalionName : (organization?.name || 'מערכת ניהול')}
                             </span>
-                            {battalionName && (
+                            {!battalionName && organization?.name && (
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
                                     {organization?.name}
                                 </span>
@@ -323,7 +323,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             <div className="w-px h-6 bg-slate-100 mx-1 hidden sm:block" />
 
                             <div
-                                className="relative flex flex-col items-center"
+                                className="relative hidden md:flex flex-col items-center"
                                 onMouseEnter={() => setIsProfileDropdownOpen(true)}
                                 onMouseLeave={() => {
                                     setTimeout(() => setIsProfileDropdownOpen(false), 200);
@@ -331,16 +331,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                             >
                                 <button
                                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                                    className="px-4 h-9 min-w-[36px] rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 text-xs font-black hover:border-blue-300 hover:bg-blue-50 transition-all shadow-sm"
+                                    className="px-4 py-1.5 min-w-[36px] rounded-2xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-800 transition-all shadow-sm hover:border-blue-300 hover:bg-blue-50 group/pill"
                                 >
-                                    {displayName}
-                                </button>
-
-                                <button
-                                    onClick={() => handleNav('settings')}
-                                    className="text-[10px] font-bold text-blue-600 hover:text-blue-800 mt-0.5"
-                                >
-                                    אזור אישי
+                                    <span className="text-xs font-black">{displayName}</span>
+                                    <span className="text-[10px] font-bold text-blue-600 group-hover/pill:text-blue-800 leading-none mt-0.5">אזור אישי</span>
                                 </button>
 
                                 <AnimatePresence>

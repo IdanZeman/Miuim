@@ -415,8 +415,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     className={`w-24 shrink-0 flex items-center justify-center border-l border-slate-300 text-[13px] font-black border-b h-full
                                                         ${ratio >= 0.8 ? 'text-emerald-700 bg-emerald-100/50' : ratio >= 0.5 ? 'text-amber-700 bg-amber-100/50' : 'text-red-700 bg-red-100/50'}
                                                     `}
+                                                    dir="ltr"
                                                 >
-                                                    {total} / {present}
+                                                    {present} / {total}
                                                 </div>
                                             );
                                         })}

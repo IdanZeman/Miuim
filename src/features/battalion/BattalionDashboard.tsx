@@ -26,157 +26,181 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
 
     const totalStrength = people.length;
     const activeStrength = people.filter(p => p.isActive !== false).length;
-    const presentOnBase = presenceSummary.filter(p => p.status === 'base').length;
+
+    // Define active statuses for sector presence
+    const SECTOR_STATUSES = ['base', 'full', 'arrival', 'departure'];
+
+    // Calculate global stats
+    const presentOnBase = presenceSummary.filter(p => SECTOR_STATUSES.includes(p.status)).length;
     const atHomeOrLeave = presenceSummary.filter(p => p.status === 'home' || p.status === 'leave').length;
+    const notReportedCount = activeStrength - presenceSummary.length;
 
     const chartData = companies.map(org => {
         const orgPeople = people.filter(p => p.organization_id === org.id);
-        const orgPeopleCount = orgPeople.length;
-        const orgActiveCount = orgPeople.filter(p => p.isActive !== false).length;
-        const percent = orgPeopleCount > 0 ? Math.round((orgActiveCount / orgPeopleCount) * 100) : 0;
+        const orgTotalCount = orgPeople.length;
+        const orgActivePeople = orgPeople.filter(p => p.isActive !== false);
+        const orgActiveCount = orgActivePeople.length;
+
+        const orgPresence = presenceSummary.filter(p => p.organization_id === org.id);
+        const orgPresentInSector = orgPresence.filter(p => SECTOR_STATUSES.includes(p.status)).length;
+
+        // Tag logic: Sector Presence / Total Active
+        const presencePercent = orgActiveCount > 0 ? Math.round((orgPresentInSector / orgActiveCount) * 100) : 0;
+
+        // Legend logic (activity): Active / Total
+        const activityPercent = orgTotalCount > 0 ? Math.round((orgActiveCount / orgTotalCount) * 100) : 0;
 
         return {
             name: org.name,
-            percent,
+            percent: presencePercent, // Using presence for the primary tag
+            activityPercent,
             active: orgActiveCount,
-            total: orgPeopleCount
+            total: orgTotalCount,
+            presentInSector: orgPresentInSector,
+            presentHome: orgPresence.filter(p => p.status === 'home' || p.status === 'leave').length
         };
     }).sort((a, b) => b.percent - a.percent);
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatCard
-                    title="סד&quot;כ כללי"
-                    value={activeStrength}
-                    icon={Users}
-                    color="indigo"
-                    subtitle={`מתוך ${totalStrength} חיילים רשומים`}
-                />
-                <StatCard
-                    title="נוכחים בגזרה"
-                    value={presentOnBase}
-                    icon={Shield}
-                    color="emerald"
-                    subtitle={`${activeStrength > 0 ? Math.round((presentOnBase / activeStrength) * 100) : 0}% מהפעילים`}
-                />
-                <StatCard
-                    title="נמצאים בבית"
-                    value={atHomeOrLeave}
-                    icon={Home}
-                    color="blue"
-                    subtitle="בחופשה / אפטר / בית"
-                />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Presence Chart */}
-                <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-                    <div className="flex items-center justify-between mb-8 border-b border-slate-50 pb-6">
-                        <div>
-                            <h2 className="text-xl font-black text-slate-900 tracking-tight">סטטוס התייצבות לקו</h2>
-                            <p className="text-sm font-bold text-slate-400">אחוז חיילים פעילים מתוך כלל הסד"כ</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                                <span className="text-[10px] font-black text-slate-600">מעל 80%</span>
-                            </div>
-                            <div className="bg-indigo-50 text-indigo-700 p-2 rounded-xl">
-                                <TrendingUp size={20} />
-                            </div>
-                        </div>
+        <div className="bg-white rounded-[40px] border border-slate-200 shadow-sm p-10 min-h-full">
+            {/* Header Section */}
+            <div className="mb-10">
+                <div className="flex items-center gap-4 mb-2">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
+                        <Users size={28} weight="duotone" />
                     </div>
-
-                    <div className="h-[300px] w-full min-w-0">
-                        <ResponsiveContainer width="99%" height="100%">
-                            <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis
-                                    dataKey="name"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#64748b', fontWeight: 700, fontSize: 12 }}
-                                    dy={10}
-                                />
-                                <YAxis
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#64748b', fontWeight: 700, fontSize: 12 }}
-                                    domain={[0, 100]}
-                                    tickFormatter={(v) => `${v}%`}
-                                />
-                                <Tooltip
-                                    cursor={{ fill: 'transparent' }}
-                                    content={({ active, payload }) => {
-                                        if (active && payload && payload.length) {
-                                            const data = payload[0].payload;
-                                            return (
-                                                <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-xl border border-slate-800 animate-in fade-in zoom-in-95 duration-200">
-                                                    <p className="font-black mb-1">{data.name}</p>
-                                                    <p className="text-xs text-slate-400 font-bold">{data.percent}% נוכחות</p>
-                                                    <div className="mt-2 text-sm font-bold">
-                                                        {data.active} מתוך {data.total}
-                                                    </div>
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    }}
-                                />
-                                <Bar dataKey="percent" radius={[8, 8, 0, 0]} barSize={40}>
-                                    {chartData.map((entry, index) => (
-                                        <Cell
-                                            key={`cell-${index}`}
-                                            fill={entry.percent > 80 ? '#10b981' : entry.percent > 50 ? '#6366f1' : '#f43f5e'}
-                                        />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                    <div>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">מבט גדודי יומי</h1>
+                        <p className="text-slate-500 font-bold text-sm tracking-wide uppercase">תמונת מצב נוכחות ופעילות לוחמים</p>
                     </div>
                 </div>
+            </div>
 
-                {/* Company Status List */}
-                <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
-                    <div className="p-6 border-b border-slate-100">
-                        <h2 className="text-lg font-black text-slate-900">סטטוס פלוגות</h2>
-                    </div>
-                    <div className="flex-1 overflow-y-auto">
-                        {chartData.map((org, idx) => (
-                            <div key={idx} className="p-4 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black ${org.percent > 80 ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'
-                                            }`}>
-                                            {org.name.substring(0, 1)}
+            <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <StatCard
+                        title="סד&quot;כ פעיל"
+                        value={activeStrength}
+                        icon={Users}
+                        color="indigo"
+                        subtitle={`מתוך ${totalStrength} רשומים`}
+                    />
+                    <StatCard
+                        title="נוכחים בגזרה"
+                        value={presentOnBase}
+                        icon={Shield}
+                        color="emerald"
+                        subtitle={`${activeStrength > 0 ? Math.round((presentOnBase / activeStrength) * 100) : 0}% מהפעילים`}
+                    />
+                    <StatCard
+                        title="נמצאים בבית"
+                        value={atHomeOrLeave}
+                        icon={Home}
+                        color="blue"
+                        subtitle="בחופשה / אפטר / בית"
+                    />
+                    <StatCard
+                        title="טרם דווחו"
+                        value={notReportedCount}
+                        icon={TrendingUp}
+                        color="rose"
+                        subtitle="חסר דיווח ביומן"
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    {/* Company Status List (Renamed to Line Attendance Status) */}
+                    <div className="lg:col-span-1 bg-slate-50/50 rounded-3xl border border-slate-200 overflow-hidden flex flex-col h-fit">
+                        <div className="p-6 border-b border-slate-200/60 flex items-center justify-between bg-white/50 backdrop-blur-sm">
+                            <h2 className="text-lg font-black text-slate-900">סטטוס התייצבות לקו</h2>
+                            <div className="bg-indigo-50 text-indigo-700 p-1.5 rounded-lg">
+                                <TrendingUp size={18} />
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto max-h-[500px] divide-y divide-slate-100">
+                            {chartData.map((org, idx) => (
+                                <div key={idx} className="p-4 hover:bg-white transition-colors group bg-transparent">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${org.activityPercent > 80 ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'
+                                                }`}>
+                                                {org.name.substring(0, 1)}
+                                            </div>
+                                            <div>
+                                                <p className="font-black text-slate-800 text-sm">{org.name}</p>
+                                                <p className="text-[10px] font-bold text-slate-400" dir="ltr">{org.active} / {org.total}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-black text-slate-800">{org.name}</p>
-                                            <p className="text-xs font-bold text-slate-400">{org.active} פעילים מתוך {org.total}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="font-black text-slate-900">{org.percent}%</p>
-                                        <div className="w-20 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full ${org.percent > 80 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-                                                style={{ width: `${org.percent}%` }}
-                                            />
+                                        <div className="text-left">
+                                            <p className="font-black text-slate-900 text-sm">{org.activityPercent}%</p>
+                                            <div className="w-16 h-1 bg-slate-200 rounded-full mt-1 overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full ${org.activityPercent > 80 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                                                    style={{ width: `${org.activityPercent}%` }}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setView?.('battalion-personnel' as any)}
+                            className="p-4 text-center text-xs font-bold text-blue-600 hover:bg-white transition-colors border-t border-slate-200 flex items-center justify-center gap-2 bg-white/50"
+                        >
+                            צפה בדוח כוח אדם מלא
+                            <ArrowLeft size={14} />
+                        </button>
                     </div>
-                    <button
-                        onClick={() => setView?.('battalion-personnel' as any)}
-                        className="p-4 text-center text-sm font-bold text-blue-600 hover:bg-blue-50 transition-colors border-t border-slate-100 flex items-center justify-center gap-2"
-                    >
-                        צפה בדוח כוח אדם מלא
-                        <ArrowLeft size={16} />
-                    </button>
+
+                    {/* Main Grid: Company Cards */}
+                    <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 h-fit">
+                        {chartData.map((org, idx) => {
+                            return (
+                                <div key={idx} className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors shadow-inner">
+                                                <Shield size={24} weight="duotone" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-black text-slate-900 leading-tight">{org.name}</h3>
+                                                <p className="text-xs font-bold text-slate-400 tracking-wide uppercase">סטטוס פלוגתי</p>
+                                            </div>
+                                        </div>
+                                        <div className={`px-3 py-1.5 rounded-full text-[10px] font-black border shadow-sm ${org.percent >= 80 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                            org.percent >= 50 ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                                'bg-rose-50 text-rose-600 border-rose-100'
+                                            }`}>
+                                            {org.percent}% נוכחים היום בגזרה
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-auto">
+                                        <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">נוכחים היום בגזרה</p>
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="text-3xl font-black text-slate-900">{org.presentInSector}</span>
+                                                <span className="text-sm font-bold text-slate-400">חיילים</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                                            <span className="text-[11px] font-bold text-slate-600">{org.presentInSector} בגזרה</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.3)]" />
+                                            <span className="text-[11px] font-bold text-slate-600">{org.presentHome} בבית</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>
