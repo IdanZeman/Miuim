@@ -22,9 +22,9 @@ export interface HistoryScore {
 }
 
 /**
- * Fetch shifts from the last 30 days (or specified range)
+ * Fetch shifts from the last 30 days (or specified range) for a specific organization
  */
-export const fetchUserHistory = async (endDate: Date, daysBack: number = 30): Promise<Shift[]> => {
+export const fetchUserHistory = async (organizationId: string, endDate: Date, daysBack: number = 30): Promise<Shift[]> => {
   const startDate = new Date(endDate);
   startDate.setDate(startDate.getDate() - daysBack);
   startDate.setHours(0, 0, 0, 0);
@@ -36,11 +36,12 @@ export const fetchUserHistory = async (endDate: Date, daysBack: number = 30): Pr
     const { data, error } = await supabase
       .from('shifts')
       .select('*')
+      .eq('organization_id', organizationId)
       .gte('start_time', startDateStr)
       .lte('end_time', endDateStr);
 
     if (error) throw error;
-    
+
     return data.map(mapShiftFromDB);
   } catch (e) {
     console.warn("Failed to fetch history:", e);
@@ -76,7 +77,7 @@ export const calculateHistoricalLoad = (
     const end = new Date(shift.endTime).getTime();
     const durationHours = (end - start) / (1000 * 60 * 60);
 
-    const isCritical = difficultyScore >= 3; 
+    const isCritical = difficultyScore >= 3;
 
     shift.assignedPersonIds.forEach(pid => {
       if (scores[pid]) {
@@ -161,8 +162,7 @@ export const updateLoadCache = async (
     }
 
     // Fetch shifts in the relevant time range
-    const shifts = await fetchUserHistory(endDate, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
-    const orgShifts = shifts.filter(s => (s as any).organization_id === organizationId);
+    const orgShifts = await fetchUserHistory(organizationId, endDate, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
 
     // Calculate scores
     const scores = calculateHistoricalLoad(orgShifts, tasks, userIds);
@@ -209,12 +209,11 @@ export const getLoadScoresWithCache = async (
 
   // Cache miss or stale - update cache in background and return calculated values
   const endDate = new Date();
-  const shifts = await fetchUserHistory(endDate, 30);
-  const orgShifts = shifts.filter(s => (s as any).organization_id === organizationId);
+  const orgShifts = await fetchUserHistory(organizationId, endDate, 30);
   const scores = calculateHistoricalLoad(orgShifts, tasks, userIds);
 
   // Update cache asynchronously (don't wait)
-  updateLoadCache(organizationId, tasks, userIds, false).catch(e => 
+  updateLoadCache(organizationId, tasks, userIds, false).catch(e =>
     console.warn('Background cache update failed:', e)
   );
 

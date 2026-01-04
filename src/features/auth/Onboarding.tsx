@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
 import { useAuth } from './AuthContext';
-import { Buildings as Building2, Envelope as Mail, CheckCircle, Sparkle as Sparkles, Shield, FileXls as FileSpreadsheet, UploadSimple as Upload, ArrowLeft, Users, MagnifyingGlass as Search, CircleNotch } from '@phosphor-icons/react';
+import { Buildings as Building2, Envelope as Mail, CheckCircle, Sparkle as Sparkles, Shield, FileXls as FileSpreadsheet, UploadSimple as Upload, ArrowLeft, Users, MagnifyingGlass as Search, CircleNotch, CircleNotchIcon, ArrowLeftIcon } from '@phosphor-icons/react';
 import { analytics } from '../../services/analytics';
 import { useToast } from '../../contexts/ToastContext';
 import { ExcelImportWizard } from '../personnel/ExcelImportWizard';
 import { Person, Team, Role } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../services/loggingService';
+import { createBattalion } from '../../services/battalionService';
 
 export const Onboarding: React.FC = () => {
     const { user, profile, refreshProfile, signOut } = useAuth();
@@ -21,6 +22,7 @@ export const Onboarding: React.FC = () => {
         }
     }, [profile]);
     const [step, setStep] = useState<'org_name' | 'path_selection' | 'import_wizard' | 'claim_profile'>('org_name');
+    const [entityType, setEntityType] = useState<'organization' | 'battalion'>('organization');
     const [createdOrgId, setCreatedOrgId] = useState<string | null>(null);
     const [orgName, setOrgName] = useState('');
     const [loading, setLoading] = useState(false);
@@ -165,6 +167,25 @@ export const Onboarding: React.FC = () => {
             logger.error('CREATE', 'Failed to create organization in onboarding', error);
             setError('שגיאה ביצירת הארגון');
         } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateBattalion = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!orgName.trim()) return;
+
+        setLoading(true);
+        try {
+            // Pass the org name as the second parameter - it will create the org if needed
+            await createBattalion(orgName.trim(), orgName.trim());
+            analytics.trackSignup(orgName);
+            // Battalion created, organization created/updated, and profile linked. Reload.
+            await refreshProfile();
+            window.location.reload();
+        } catch (error) {
+            console.error('Error creating battalion:', error);
+            setError('שגיאה ביצירת הגדוד');
             setLoading(false);
         }
     };
@@ -528,15 +549,19 @@ export const Onboarding: React.FC = () => {
                 <div className="bg-white md:rounded-[2.5rem] shadow-2xl max-w-5xl w-full overflow-hidden border-0 md:border border-slate-200/60 flex flex-col md:flex-row h-full md:h-auto">
 
                     {/* Dark Side Branding (Mobile Top, Desktop Left/Sidebar) */}
-                    <div className="w-full md:w-[400px] h-[30vh] md:h-auto bg-emerald-900 p-6 md:p-12 text-white flex flex-col justify-between relative overflow-hidden shrink-0">
+                    <div className={`w-full md:w-[400px] h-[30vh] md:h-auto p-6 md:p-12 text-white flex flex-col justify-between relative overflow-hidden shrink-0 transition-colors duration-500 ${entityType === 'battalion' ? 'bg-blue-600' : 'bg-emerald-900'
+                        }`}>
                         {/* Decorative background elements */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400 opacity-[0.1] rounded-full -translate-y-1/2 translate-x-1/2" aria-hidden="true"></div>
-                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-teal-400 opacity-[0.1] rounded-full translate-y-1/2 -translate-x-1/2" aria-hidden="true"></div>
+                        <div className={`absolute top-0 right-0 w-64 h-64 opacity-[0.1] rounded-full -translate-y-1/2 translate-x-1/2 transition-colors duration-500 ${entityType === 'battalion' ? 'bg-blue-300' : 'bg-emerald-400'
+                            }`} aria-hidden="true"></div>
+                        <div className={`absolute bottom-0 left-0 w-32 h-32 opacity-[0.1] rounded-full translate-y-1/2 -translate-x-1/2 transition-colors duration-500 ${entityType === 'battalion' ? 'bg-sky-400' : 'bg-teal-400'
+                            }`} aria-hidden="true"></div>
 
                         <div className="relative z-10 flex flex-col h-full justify-center md:justify-start">
                             <div className="flex items-center gap-4 mb-2 md:mb-8">
-                                <div className="w-10 h-10 md:w-16 md:h-16 bg-white/10 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center border border-white/10 shrink-0">
-                                    <Shield size={20} className="md:w-8 md:h-8 text-emerald-400" aria-hidden="true" weight="duotone" />
+                                <div className={`w-10 h-10 md:w-16 md:h-16 bg-white/10 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center border border-white/10 shrink-0 transition-colors duration-500`}>
+                                    <Shield size={20} className={`md:w-8 md:h-8 transition-colors duration-500 ${entityType === 'battalion' ? 'text-blue-300' : 'text-emerald-400'
+                                        }`} aria-hidden="true" weight="duotone" />
                                 </div>
                                 <h1 className="text-2xl md:text-4xl font-black leading-tight md:hidden">
                                     {step === 'org_name' ? 'הקמת ארגון' : 'הגדרות'}
@@ -559,8 +584,12 @@ export const Onboarding: React.FC = () => {
 
                         {/* Desktop Step Indicator */}
                         <div className="relative z-10 pt-12 hidden md:block">
-                            <div className="flex items-center gap-4 text-sm text-emerald-200 font-bold uppercase tracking-widest bg-emerald-950/30 p-4 rounded-2xl border border-emerald-500/20">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <div className={`flex items-center gap-4 text-sm font-bold uppercase tracking-widest p-4 rounded-2xl border transition-colors duration-500 ${entityType === 'battalion'
+                                ? 'text-blue-200 bg-blue-950/30 border-blue-400/20'
+                                : 'text-emerald-200 bg-emerald-950/30 border-emerald-500/20'
+                                }`}>
+                                <span className={`w-2 h-2 rounded-full transition-colors duration-500 ${entityType === 'battalion' ? 'bg-blue-400' : 'bg-emerald-400'
+                                    }`}></span>
                                 {step === 'org_name' ? 'שלב 1: פרטי ארגון' : 'שלב 2: בחירת מסלול'}
                             </div>
                         </div>
@@ -570,8 +599,10 @@ export const Onboarding: React.FC = () => {
                     <div className="flex-1 p-6 md:p-16 bg-white rounded-t-3xl -mt-6 md:mt-0 relative z-20 flex flex-col animate-in slide-in-from-bottom-6 duration-500">
                         {/* Mobile Step Indicator */}
                         <div className="md:hidden flex justify-center -mt-3 mb-6">
-                            <div className="bg-white shadow-lg border border-slate-100 text-xs font-bold text-emerald-800 uppercase tracking-wider py-1.5 px-4 rounded-full flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <div className={`bg-white shadow-lg border border-slate-100 text-xs font-bold uppercase tracking-wider py-1.5 px-4 rounded-full flex items-center gap-2 transition-colors duration-500 ${entityType === 'battalion' ? 'text-blue-700' : 'text-emerald-800'
+                                }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${entityType === 'battalion' ? 'bg-blue-500' : 'bg-emerald-500'
+                                    }`}></span>
                                 {step === 'org_name' ? 'שלב 1: פרטי ארגון' : 'שלב 2: בחירת מסלול'}
                             </div>
                         </div>
@@ -583,16 +614,33 @@ export const Onboarding: React.FC = () => {
                                     <p className="text-slate-500 text-base md:text-lg">שם הפלוגה, הגדוד או היחידה שלך.</p>
                                 </div>
 
-                                <form onSubmit={handleCreateOrg} className="space-y-6 md:space-y-8 flex-1 flex flex-col">
+                                <form onSubmit={entityType === 'organization' ? handleCreateOrg : handleCreateBattalion} className="space-y-6 md:space-y-8 flex-1 flex flex-col">
+                                    <div className="flex gap-4 p-1 bg-slate-100/80 rounded-xl">
+                                        <button
+                                            type="button"
+                                            onClick={() => setEntityType('organization')}
+                                            className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${entityType === 'organization' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            פלוגה / יחידה
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setEntityType('battalion')}
+                                            className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${entityType === 'battalion' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            גדוד
+                                        </button>
+                                    </div>
+
                                     <div className="space-y-4">
                                         <div className="relative">
-                                            <Building2 className="absolute right-5 top-1/2 -translate-y-1/2 text-emerald-500" size={24} weight="duotone" />
+                                            <Building2 className={`absolute right-5 top-1/2 -translate-y-1/2 ${entityType === 'organization' ? 'text-emerald-500' : 'text-blue-500'}`} size={24} weight="duotone" />
                                             <input
                                                 type="text"
                                                 value={orgName}
                                                 onChange={handleOrgNameChange}
-                                                placeholder="שם הארגון..."
-                                                className="w-full pr-14 pl-4 py-4 md:pl-6 md:py-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:border-emerald-500 focus:bg-white focus:outline-none text-xl md:text-2xl transition-all font-bold placeholder:font-normal placeholder:text-slate-300 shadow-inner"
+                                                placeholder={entityType === 'organization' ? "שם הארגון..." : "שם הגדוד..."}
+                                                className={`w-full pr-14 pl-4 py-4 md:pl-6 md:py-5 rounded-2xl bg-slate-50 border-2 border-slate-100 focus:bg-white focus:outline-none text-xl md:text-2xl transition-all font-bold placeholder:font-normal placeholder:text-slate-300 shadow-inner ${entityType === 'organization' ? 'focus:border-emerald-500' : 'focus:border-blue-500'}`}
                                                 required
                                                 disabled={loading}
                                                 autoFocus
@@ -609,11 +657,14 @@ export const Onboarding: React.FC = () => {
                                     <button
                                         type="submit"
                                         disabled={loading || !orgName.trim()}
-                                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 md:py-5 px-8 rounded-2xl transition-all shadow-xl shadow-emerald-600/20 hover:shadow-emerald-600/40 hover:-translate-y-1 flex items-center justify-center gap-4 text-lg md:text-xl disabled:opacity-50 disabled:translate-y-0 active:scale-95"
+                                        className={`w-full text-white font-black py-4 md:py-5 px-8 rounded-2xl transition-all shadow-xl hover:-translate-y-1 flex items-center justify-center gap-4 text-lg md:text-xl disabled:opacity-50 disabled:translate-y-0 active:scale-95 ${entityType === 'organization'
+                                            ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20 hover:shadow-emerald-600/40'
+                                            : 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/20 hover:shadow-blue-600/40'
+                                            }`}
                                         aria-label="יצירת ארגון והמשך לשלב הבא"
                                     >
-                                        יצירת ארגון והמשך
-                                        {loading ? <CircleNotch size={24} className="animate-spin text-white" weight="bold" /> : <ArrowLeft size={24} aria-hidden="true" weight="bold" />}
+                                        {entityType === 'organization' ? 'יצירת ארגון והמשך' : 'יצירת גדוד'}
+                                        {loading ? <CircleNotchIcon size={24} className="animate-spin text-white" weight="bold" /> : <ArrowLeftIcon size={24} aria-hidden="true" weight="bold" />}
                                     </button>
                                 </form>
                             </div>

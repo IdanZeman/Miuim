@@ -2,7 +2,7 @@ import React from 'react';
 import { Globe, Check, Shield, Users, Lock, SquaresFour as Layout, UserCircle, Info, Anchor, Gavel, Pulse as Activity, Gear as Settings, CheckCircle, Lightning as Zap } from '@phosphor-icons/react';
 import { UserPermissions, Team, ViewMode } from '../../types';
 
-const SCREENS: { id: ViewMode; label: string; icon: any }[] = [
+const SCREENS: { id: ViewMode; label: string; icon: any; isBattalion?: boolean }[] = [
     { id: 'dashboard', label: 'לוח שיבוצים', icon: Layout },
     { id: 'personnel', label: 'ניהול כוח אדם', icon: Users },
     { id: 'tasks', label: 'משימות', icon: CheckCircle },
@@ -13,18 +13,21 @@ const SCREENS: { id: ViewMode; label: string; icon: any }[] = [
     { id: 'equipment', label: 'ניהול אמצעים', icon: Shield },
     { id: 'logs', label: 'יומן פעילות', icon: Activity },
     { id: 'settings', label: 'הגדרות ארגון', icon: Settings },
+    // Battalion - Single unified permission for all battalion screens
+    { id: 'battalion' as ViewMode, label: 'ניהול גדודי', icon: Users, isBattalion: true },
 ];
 
 interface PermissionEditorContentProps {
     permissions: UserPermissions;
     setPermissions: React.Dispatch<React.SetStateAction<UserPermissions>>;
     teams: Team[];
+    isHq?: boolean;
 }
 
-export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = ({ permissions, setPermissions, teams }) => {
+export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = ({ permissions, setPermissions, teams, isHq }) => {
     const setAllScreens = (lvl: 'none' | 'view' | 'edit') => {
         const nextScreens: any = {};
-        SCREENS.forEach(s => {
+        SCREENS.filter(s => !s.isBattalion || isHq).forEach(s => {
             nextScreens[s.id] = lvl;
         });
         setPermissions(prev => ({
@@ -151,7 +154,7 @@ export const PermissionEditorContent: React.FC<PermissionEditorContentProps> = (
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {SCREENS.map(screen => (
+                            {SCREENS.filter(screen => !screen.isBattalion || isHq).map(screen => (
                                 <tr key={screen.id}>
                                     <td className="px-4 py-3 flex items-center gap-2 font-bold text-slate-700">
                                         <screen.icon size={16} weight="duotone" className="text-slate-400" />

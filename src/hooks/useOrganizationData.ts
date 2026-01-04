@@ -1,212 +1,115 @@
-import React from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../services/supabaseClient';
-import { useAuth } from '../features/auth/AuthContext';
-import { 
-    Person, Shift, TaskTemplate, Role, Team, 
-    SchedulingConstraint, TeamRotation, Absence, Equipment, MissionReport, PermissionTemplate, EquipmentDailyCheck
-} from '../types';
-import { 
-    mapPersonFromDB, mapShiftFromDB, mapTaskFromDB, 
-    mapRoleFromDB, mapTeamFromDB, mapConstraintFromDB, 
-    mapRotationFromDB, mapAbsenceFromDB, mapEquipmentFromDB, mapHourlyBlockageFromDB, mapMissionReportFromDB,
-    mapEquipmentDailyCheckFromDB
-} from '../services/supabaseClient';
+import {
+    mapPersonFromDB,
+    mapTeamFromDB,
+    mapRotationFromDB,
+    mapAbsenceFromDB,
+    mapHourlyBlockageFromDB,
+    mapRoleFromDB,
+    mapShiftFromDB,
+    mapTaskFromDB,
+    mapConstraintFromDB,
+    mapMissionReportFromDB,
+    mapEquipmentFromDB,
+    mapEquipmentDailyCheckFromDB,
+    mapOrganizationSettingsFromDB
+} from '../services/mappers';
+import { Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, OrganizationSettings } from '../types';
 
-// Helper to calculate data scoping (Duplicated from App.tsx for safety)
-const applyDataScoping = (
-    profile: any, 
-    user: any, 
-    people: Person[], 
-    shifts: Shift[], 
-    equipment: Equipment[],
-    permissionTemplates: PermissionTemplate[] = []
-) => {
-    // 1. Identify "Me"
-    const myPerson = people.find(p => p.userId === user?.id || (p as any).email === user?.email);
-    
-    // Resolve Permissions (Dynamic vs Snapshot)
-    let permissions = profile?.permissions;
-    if (profile?.permission_template_id) {
-        const template = permissionTemplates.find(t => t.id === profile.permission_template_id);
-        if (template) {
-            permissions = template.permissions;
-            // console.log('Using Dynamic Permissions from Template:', template.name);
-        }
-    }
+export interface OrganizationData {
+    people: Person[];
+    allPeople: Person[];
+    teams: Team[];
+    rotations: TeamRotation[];
+    absences: Absence[];
+    hourlyBlockages: any[];
+    roles: Role[];
+    shifts: Shift[];
+    taskTemplates: TaskTemplate[];
+    constraints: SchedulingConstraint[];
+    settings: OrganizationSettings | null;
+    missionReports: MissionReport[];
+    equipment: Equipment[];
+    equipmentDailyChecks: any[];
+}
 
-    // 2. Determine effective scope
-    let dataScope = permissions?.dataScope || 'organization';
-    let allowedTeamIds = Array.isArray(permissions?.allowedTeamIds) 
-        ? permissions.allowedTeamIds 
-        : [];
-    
-    // Debug helper for team scope issues
-    if (dataScope === 'team' && allowedTeamIds.length === 0) {
-        console.warn('WarRoom: Team data scope active but no AllowedTeamIds found. User may see only themselves.');
-    }
+export const fetchOrganizationData = async (organizationId: string): Promise<OrganizationData> => {
+    if (!organizationId) throw new Error('No organization ID provided');
 
-    // Elevation: If I am a commander, I can see my team's data even if scope is personal
-    if (dataScope === 'personal' && myPerson?.isCommander && myPerson.teamId) {
-        dataScope = 'team';
-        allowedTeamIds = Array.from(new Set([...allowedTeamIds, myPerson.teamId]));
-    }
+    const [
+        { data: people },
+        { data: teams },
+        { data: rotations },
+        { data: absences },
+        { data: hourlyBlockages },
+        { data: roles },
+        { data: shifts },
+        { data: tasks },
+        { data: constraints },
+        { data: settings },
+        { data: reports },
+        { data: equipment },
+        { data: checks }
+    ] = await Promise.all([
+        supabase.from('people').select('*').eq('organization_id', organizationId),
+        supabase.from('teams').select('*').eq('organization_id', organizationId),
+        supabase.from('team_rotations').select('*').eq('organization_id', organizationId),
+        supabase.from('absences').select('*').eq('organization_id', organizationId),
+        supabase.from('hourly_blockages').select('*').eq('organization_id', organizationId),
+        supabase.from('roles').select('*').eq('organization_id', organizationId),
+        supabase.from('shifts').select('*').eq('organization_id', organizationId),
+        supabase.from('task_templates').select('*').eq('organization_id', organizationId),
+        supabase.from('scheduling_constraints').select('*').eq('organization_id', organizationId),
+        supabase.from('organization_settings').select('*').eq('organization_id', organizationId).maybeSingle(),
+        supabase.from('mission_reports').select('*').eq('organization_id', organizationId),
+        supabase.from('equipment').select('*').eq('organization_id', organizationId),
+        supabase.from('equipment_daily_checks').select('*').eq('organization_id', organizationId)
+    ]);
 
-    // Handle 'my_team' scope: Automatically add user's teamId to allowed list
-    if (dataScope === 'my_team') {
-        if (myPerson?.teamId) {
-            dataScope = 'team';
-            allowedTeamIds = Array.from(new Set([...allowedTeamIds, myPerson.teamId]));
-        } else {
-            // Fallback: If user has no team, they see only themselves (Personal)
-            dataScope = 'personal';
-        }
-    }
+    const mappedPeople = (people || []).map(mapPersonFromDB);
 
-    if (dataScope === 'organization' || profile?.is_super_admin) {
-        return { scopedPeople: people, scopedShifts: shifts, scopedEquipment: equipment };
-    } 
-    
-    if (dataScope === 'team') {
-        const scopedPeople = people.filter(p =>
-            (p.teamId && allowedTeamIds.includes(p.teamId)) ||
-            p.id === myPerson?.id
-        );
-        const visiblePersonIds = scopedPeople.map(p => p.id);
-        const scopedShifts = shifts.filter(s =>
-            s.assignedPersonIds.some(pid => visiblePersonIds.includes(pid)) ||
-            s.assignedPersonIds.length === 0
-        );
-        const scopedEquipment = equipment.filter(e =>
-            !e.assigned_to_id || visiblePersonIds.includes(e.assigned_to_id)
-        );
-        return { scopedPeople, scopedShifts, scopedEquipment };
-    } 
-    
-    if (dataScope === 'personal') {
-        if (myPerson) {
-            return {
-                scopedPeople: [myPerson],
-                scopedShifts: shifts.filter(s => s.assignedPersonIds.includes(myPerson.id)),
-                scopedEquipment: equipment.filter(e => e.assigned_to_id === myPerson.id)
-            };
-        }
-        return { scopedPeople: [], scopedShifts: [], scopedEquipment: [] };
-    }
-
-    return { scopedPeople: people, scopedShifts: shifts, scopedEquipment: equipment };
+    return {
+        people: mappedPeople,
+        allPeople: mappedPeople, // For lottery, usually same unless a broader fetch is needed
+        teams: (teams || []).map(mapTeamFromDB),
+        rotations: (rotations || []).map(mapRotationFromDB),
+        absences: (absences || []).map(mapAbsenceFromDB),
+        hourlyBlockages: (hourlyBlockages || []).map(mapHourlyBlockageFromDB),
+        roles: (roles || []).map(mapRoleFromDB),
+        shifts: (shifts || []).map(mapShiftFromDB),
+        taskTemplates: (tasks || []).map(mapTaskFromDB),
+        constraints: (constraints || []).map(mapConstraintFromDB),
+        settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
+        missionReports: (reports || []).map(mapMissionReportFromDB),
+        equipment: (equipment || []).map(mapEquipmentFromDB),
+        equipmentDailyChecks: (checks || []).map(mapEquipmentDailyCheckFromDB)
+    };
 };
 
-export const useOrganizationData = () => {
-    const { organization, profile, user } = useAuth();
-    const queryClient = useQueryClient();
-
-    const isEnabled = !!organization?.id;
-
-    const { data, isLoading, error, refetch } = useQuery({
-        queryKey: ['organizationData', organization?.id],
-        queryFn: async () => {
-            if (!organization) throw new Error('No organization');
-
-            // 1. Parallel Fetch of ALL required data
-            const [
-                peopleRes, tasksRes, rolesRes, teamsRes, settingsRes,
-                constraintsRes, rotationsRes, absencesRes, equipmentRes,
-                hourlyBlockagesRes, shiftsRes, missionReportsRes, permissionTemplatesRes,
-                equipmentDailyChecksRes
-            ] = await Promise.all([
-                supabase.from('people').select('*').eq('organization_id', organization.id),
-                supabase.from('task_templates').select('*').eq('organization_id', organization.id),
-                supabase.from('roles').select('*').eq('organization_id', organization.id),
-                supabase.from('teams').select('*').eq('organization_id', organization.id),
-                supabase.from('organization_settings').select('*').eq('organization_id', organization.id).maybeSingle(),
-                supabase.from('scheduling_constraints').select('*').eq('organization_id', organization.id),
-                supabase.from('team_rotations').select('*').eq('organization_id', organization.id),
-                supabase.from('absences').select('*').eq('organization_id', organization.id),
-                supabase.from('equipment').select('*').eq('organization_id', organization.id),
-                supabase.from('hourly_blockages').select('*').eq('organization_id', organization.id),
-                // Fetch last 3 months of shifts for history
-                supabase.from('shifts').select('*')
-                    .eq('organization_id', organization.id)
-                    .eq('organization_id', organization.id)
-                    .gte('start_time', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-                supabase.from('mission_reports').select('*').eq('organization_id', organization.id),
-                supabase.from('permission_templates').select('*').eq('organization_id', organization.id),
-                // Fetch equipment daily checks for last 30 days
-                supabase.from('equipment_daily_checks').select('*')
-                    .eq('organization_id', organization.id)
-                    .gte('check_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-            ]);
-
-            return {
-                people: peopleRes.data || [],
-                shifts: shiftsRes.data || [],
-                tasks: tasksRes.data || [],
-                roles: rolesRes.data || [],
-                teams: teamsRes.data || [],
-                settings: settingsRes.data || null,
-                constraints: constraintsRes.data || [],
-                rotations: rotationsRes.data || [],
-                absences: absencesRes.data || [],
-                equipment: equipmentRes.data || [],
-                hourlyBlockages: hourlyBlockagesRes.data || [],
-                missionReports: missionReportsRes.data || [],
-                permissionTemplates: permissionTemplatesRes.data || [],
-                equipmentDailyChecks: equipmentDailyChecksRes.data || []
-            };
-        },
-        enabled: isEnabled,
+export const useOrganizationData = (organizationId?: string | null) => {
+    const result = useQuery({
+        queryKey: ['organizationData', organizationId],
+        queryFn: () => fetchOrganizationData(organizationId!),
+        enabled: !!organizationId,
         staleTime: 1000 * 30, // 30 Seconds - Reduced for better responsiveness
     });
 
-    // 2. Map & Scope Data (Memoized)
-    const processedData = React.useMemo(() => {
-        if (!data) return null;
-
-        const rawPeople = (data.people || []).map(mapPersonFromDB);
-        const rawShifts = (data.shifts || []).map(mapShiftFromDB);
-        const rawEquipment = (data.equipment || []).map(mapEquipmentFromDB);
-
-        const { scopedPeople, scopedShifts, scopedEquipment } = applyDataScoping(
-            profile, user, rawPeople, rawShifts, rawEquipment, (data.permissionTemplates || [])
-        );
-
-        return {
-            people: scopedPeople,
-            allPeople: rawPeople,
-            shifts: scopedShifts,
-            taskTemplates: (data.tasks || []).map(mapTaskFromDB),
-            roles: (data.roles || []).map(mapRoleFromDB),
-            teams: (data.teams || []).map(mapTeamFromDB),
-            settings: (data.settings as any) || null,
-            constraints: (data.constraints || []).map(mapConstraintFromDB),
-            teamRotations: (data.rotations || []).map(mapRotationFromDB),
-            absences: (data.absences || []).map(mapAbsenceFromDB),
-            hourlyBlockages: (data.hourlyBlockages || []).map(mapHourlyBlockageFromDB),
-            missionReports: (data.missionReports || []).map(mapMissionReportFromDB),
-            equipment: scopedEquipment,
-            equipmentDailyChecks: (data.equipmentDailyChecks || []).map(mapEquipmentDailyCheckFromDB)
-        };
-    }, [data, profile, user]);
-
     return {
-        ...processedData,
-        // Safe fallbacks if processing hasn't happened yet
-        people: processedData?.people || [],
-        allPeople: processedData?.allPeople || [],
-        shifts: processedData?.shifts || [],
-        taskTemplates: processedData?.taskTemplates || [],
-        roles: processedData?.roles || [],
-        teams: processedData?.teams || [],
-        settings: processedData?.settings || null,
-        constraints: processedData?.constraints || [],
-        teamRotations: processedData?.teamRotations || [],
-        absences: processedData?.absences || [],
-        missionReports: processedData?.missionReports || [],
-        equipment: processedData?.equipment || [],
-        equipmentDailyChecks: processedData?.equipmentDailyChecks || [],
-        isLoading,
-        error,
-        refetch
+        ...result,
+        people: result.data?.people || [],
+        allPeople: result.data?.allPeople || [],
+        teams: result.data?.teams || [],
+        teamRotations: result.data?.rotations || [],
+        absences: result.data?.absences || [],
+        hourlyBlockages: result.data?.hourlyBlockages || [],
+        roles: result.data?.roles || [],
+        shifts: result.data?.shifts || [],
+        taskTemplates: result.data?.taskTemplates || [],
+        constraints: result.data?.constraints || [],
+        settings: result.data?.settings || null,
+        missionReports: result.data?.missionReports || [],
+        equipment: result.data?.equipment || [],
+        equipmentDailyChecks: result.data?.equipmentDailyChecks || [],
     };
 };

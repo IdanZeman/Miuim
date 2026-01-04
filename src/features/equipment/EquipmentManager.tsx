@@ -229,13 +229,6 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
         // Personal check
         if (item.assigned_to_id === currentPerson.id) return true;
 
-        // Commander check
-        if (currentPerson.isCommander && currentPerson.teamId) {
-            const assignedPerson = people.find(p => p.id === item.assigned_to_id);
-            if (assignedPerson && assignedPerson.teamId === currentPerson.teamId) {
-                return true;
-            }
-        }
 
         // If no specifically restricted scope is found and user has edit access, allow (for admins)
         // We'll trust the component-level isViewer which is driven by dataScope

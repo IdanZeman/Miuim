@@ -45,70 +45,80 @@ export const useGateSystem = () => {
 
     // Fetches all data (logs, vehicles, organization structure)
     const fetchData = useCallback(async () => {
-        if (!organization?.id) return;
-        
-        const battalionId = organization.battalion_id; 
-        
+        const bid = profile?.battalion_id || organization?.battalion_id;
+        const oid = organization?.id;
+
+        if (!oid && !bid) return;
+
+        const battalionId = bid;
+
         setIsLoading(true);
         setError(null);
 
         try {
-            // Run independent queries in parallel
-            const [logsRes, vehiclesRes, orgsRes] = await Promise.all([
-                // 1. Fetch Active Logs
+            // 1. Fetch Battalion Organizations first to use their IDs for filtering
+            let orgsData: { id: string; name: string }[] = [];
+            if (battalionId) {
+                const { data, error: orgsErr } = await supabase
+                    .from('organizations')
+                    .select('id, name')
+                    .eq('battalion_id', battalionId);
+                if (orgsErr) throw orgsErr;
+                orgsData = data || [];
+            } else {
+                orgsData = [{ id: organization?.id || '', name: organization?.name || '' }];
+            }
+            setBattalionOrganizations(orgsData);
+
+            const orgsIds = orgsData.map(o => o.id);
+            if (orgsIds.length === 0 && !battalionId) return;
+
+            // 2. Run Logs and Vehicles queries in parallel using the IDs
+            const [logsRes, vehiclesRes] = await Promise.all([
+                // Fetch Active Logs
                 (() => {
                     let q = supabase
                         .from('gate_logs')
-                        .select('*, organizations!inner(name, battalion_id), entry_reporter:profiles!entry_reported_by(full_name), exit_reporter:profiles!exit_reported_by(full_name)') 
+                        .select('*, organizations(name, battalion_id), entry_reporter:profiles!entry_reported_by(full_name), exit_reporter:profiles!exit_reported_by(full_name)')
                         .eq('status', 'inside')
                         .order('entry_time', { ascending: false });
-                    
-                    if (battalionId) q = q.eq('organizations.battalion_id', battalionId);
-                    else q = q.eq('organization_id', organization.id);
+
+                    if (battalionId && orgsIds.length > 0) {
+                        q = q.in('organization_id', orgsIds);
+                    } else {
+                        q = q.eq('organization_id', organization?.id || '');
+                    }
                     return q;
                 })(),
 
-                // 2. Fetch Authorized Vehicles
+                // Fetch Authorized Vehicles
                 (() => {
                     let q = supabase
                         .from('gate_authorized_vehicles')
-                        .select('*, organizations!inner(name, battalion_id)');
-                    
-                    if (battalionId) q = q.eq('organizations.battalion_id', battalionId);
-                    else q = q.eq('organization_id', organization.id);
+                        .select('*, organizations(name, battalion_id)');
+
+                    if (battalionId && orgsIds.length > 0) {
+                        q = q.in('organization_id', orgsIds);
+                    } else {
+                        q = q.eq('organization_id', organization?.id || '');
+                    }
                     return q;
                 })(),
-
-                // 3. Fetch Battalion Organizations
-                (async () => {
-                    if (battalionId) {
-                        return supabase
-                            .from('organizations')
-                            .select('id, name')
-                            .eq('battalion_id', battalionId);
-                    } else {
-                        return { data: [{ id: organization.id, name: organization.name }], error: null };
-                    }
-                })()
             ]);
 
             if (logsRes.error) throw logsRes.error;
             if (vehiclesRes.error) throw vehiclesRes.error;
-            if (orgsRes.error) throw orgsRes.error;
 
             setActiveLogs((logsRes.data as any) || []);
             setAuthorizedVehicles((vehiclesRes.data as any) || []);
-            setBattalionOrganizations(orgsRes.data || []);
 
-            const orgsIds = orgsRes.data?.map(o => o.id) || [];
-
-            // 3.5 Fetch Teams for these Organizations (Second stage if needed)
+            // 3. Fetch Teams for these Organizations
             if (orgsIds.length > 0) {
                 const { data: teams, error: teamsError } = await supabase
                     .from('teams')
                     .select('id, name, organization_id')
                     .in('organization_id', orgsIds);
-                
+
                 if (teamsError) throw teamsError;
                 setBattalionTeams(teams || []);
             }
@@ -119,7 +129,7 @@ export const useGateSystem = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [organization?.id, organization?.battalion_id, organization?.name]);
+    }, [organization?.id, organization?.battalion_id, organization?.name, profile?.battalion_id]);
 
     // Initial Load
     useEffect(() => {
@@ -146,25 +156,28 @@ export const useGateSystem = () => {
                 },
                 (payload) => {
                     const { eventType, new: newRecord, old: oldRecord } = payload;
-                    
+
                     // Client-Side Filter: Check if the event belongs to our battalion
                     const recordOrgId = (newRecord as any)?.organization_id || (oldRecord as any)?.organization_id;
-                    if (!allowedOrgIds.has(recordOrgId)) {
-                        return; // Ignore events from outside our battalion (if any leak through)
+                    const recordBattalionId = (newRecord as any)?.battalion_id || (oldRecord as any)?.battalion_id;
+
+                    const bid = profile?.battalion_id || organization?.battalion_id;
+                    if (!allowedOrgIds.has(recordOrgId) && recordBattalionId !== bid) {
+                        return; // Ignore events from outside our battalion
                     }
 
                     if (eventType === 'INSERT') {
-                         const log = newRecord as GateLog;
-                         if (log.status === 'inside') {
-                             fetchData(); // Refetch to get joined organization data
-                         }
+                        const log = newRecord as GateLog;
+                        if (log.status === 'inside') {
+                            fetchData(); // Refetch to get joined organization data
+                        }
                     } else if (eventType === 'UPDATE') {
                         const log = newRecord as GateLog;
-                         if (log.status === 'left') {
-                             setActiveLogs((prev) => prev.filter((l) => l.id !== log.id));
-                         } else {
-                             fetchData(); // Refetch updates
-                         }
+                        if (log.status === 'left') {
+                            setActiveLogs((prev) => prev.filter((l) => l.id !== log.id));
+                        } else {
+                            fetchData(); // Refetch updates
+                        }
                     } else if (eventType === 'DELETE') {
                         setActiveLogs((prev) => prev.filter((l) => l.id !== oldRecord.id));
                     }
@@ -179,9 +192,10 @@ export const useGateSystem = () => {
 
     // Dynamic search for people (Used for Pedestrian Entry)
     const searchPeople = useCallback(async (query: string) => {
-        if (!organization?.id || query.length < 2) return [];
-
-        const battalionId = organization.battalion_id;
+        const bid = profile?.battalion_id || organization?.battalion_id;
+        const oid = organization?.id;
+        if (!oid && !bid) return [];
+        if (query.length < 2) return [];
 
         try {
             let q = supabase
@@ -189,11 +203,13 @@ export const useGateSystem = () => {
                 .select('id, name, phone, organization_id, team_id, organizations!inner(battalion_id)')
                 .ilike('name', `%${query}%`)
                 .limit(10);
-            
-            if (battalionId) {
-                q = q.eq('organizations.battalion_id', battalionId);
+
+            if (bid) {
+                // If the column battalion_id exists on people, use q.eq('battalion_id', bid)
+                // For now, it's linked via organizations
+                q = q.eq('organizations.battalion_id', bid);
             } else {
-                q = q.eq('organization_id', organization.id);
+                q = q.eq('organization_id', organization?.id || '');
             }
 
             const { data, error } = await q;
@@ -203,7 +219,7 @@ export const useGateSystem = () => {
             console.error('Error searching people:', err);
             return [];
         }
-    }, [organization?.id, organization?.battalion_id]);
+    }, [organization?.id, organization?.battalion_id, profile?.battalion_id]);
 
     // Enhanced Check Vehicle: Checks loaded auth vehicles
     const checkVehicle = useCallback(async (plateNumber: string) => {
@@ -211,7 +227,7 @@ export const useGateSystem = () => {
         const now = new Date();
         const knownAuth = authorizedVehicles.find((v) => {
             if (v.plate_number !== plateNumber) return false;
-            
+
             // If it's permanent, it's always authorized
             if (v.is_permanent) return true;
 
@@ -224,7 +240,7 @@ export const useGateSystem = () => {
 
             return true;
         });
-        
+
         if (knownAuth) return knownAuth;
 
         // 2. If not found, return null
@@ -232,22 +248,25 @@ export const useGateSystem = () => {
 
     }, [authorizedVehicles]);
 
-    const registerEntry = async (data: { 
-        plate_number: string; 
-        driver_name: string; 
-        notes?: string; 
+    const registerEntry = async (data: {
+        plate_number: string;
+        driver_name: string;
+        notes?: string;
         entry_type?: 'vehicle' | 'pedestrian';
         is_exceptional?: boolean; // NEW
         status?: 'inside' | 'left'; // Allow specifying status
         exit_time?: string; // Allow specifying exit time
     }) => {
-        if (!organization?.id || !profile?.id) return { success: false, error: 'No organization or user ID found' };
+        const bid = profile?.battalion_id || organization?.battalion_id;
+        const oid = organization?.id;
+        if (!oid && !bid) return { success: false, error: 'No organization or battalion ID found' };
+        if (!profile?.id) return { success: false, error: 'No user ID found' };
 
         try {
             // Let's find the vehicle (or person) owner organization
-            let targetOrgId = organization.id;
+            let targetOrgId = oid;
 
-             // Try to find in authorized vehicles (works for both cars and pedestrian IDs if we store them there)
+            // Try to find in authorized vehicles (works for both cars and pedestrian IDs if we store them there)
             const knownVehicle = authorizedVehicles.find(v => v.plate_number === data.plate_number);
             if (knownVehicle) {
                 targetOrgId = knownVehicle.organization_id;
@@ -260,18 +279,18 @@ export const useGateSystem = () => {
 
             const { error } = await supabase.from('gate_logs').insert([
                 {
-                    organization_id: targetOrgId, 
-                    battalion_id: organization.battalion_id, // Fix: Save battalion_id
+                    organization_id: targetOrgId || profile?.organization_id || null,
+                    battalion_id: bid || null,
                     plate_number: data.plate_number,
                     driver_name: data.driver_name,
                     notes: data.notes,
-                    status: data.status || 'inside', // Use passed status or default 'inside'
+                    status: data.status || 'inside',
                     entry_type: data.entry_type || 'vehicle',
-                    is_exceptional: data.is_exceptional || false, // Save exceptional flag
-                    entry_reported_by: profile.id, // NEW: Save reporter
-                    exit_reported_by: data.status === 'left' ? profile.id : null, // NEW: Save exit reporter if immediate exit
+                    is_exceptional: data.is_exceptional || false,
+                    entry_reported_by: profile.id,
+                    exit_reported_by: data.status === 'left' ? profile.id : null,
                     entry_time: entryTime,
-                    exit_time: data.exit_time || null // Save exit_time if provided
+                    exit_time: data.exit_time || null
                 },
             ]);
 
@@ -301,57 +320,40 @@ export const useGateSystem = () => {
                 .eq('id', logId);
 
             if (error) throw error;
-             return { success: true, error: null };
+            return { success: true, error: null };
         } catch (err: any) {
             console.error('Error registering exit:', err);
             setActiveLogs(previousLogs);
             return { success: false, error: err.message };
         }
     };
-    
+
     // Fetch History
-    const fetchGateHistory = useCallback(async (filters: { 
-        search?: string; 
-        orgId?: string; 
-        startDate?: Date | null; 
+    const fetchGateHistory = useCallback(async (filters: {
+        search?: string;
+        orgId?: string;
+        startDate?: Date | null;
         endDate?: Date | null;
-        limit?: number 
+        limit?: number
     }) => {
-        if (!organization?.id) return { data: [], error: 'No organization' };
-        
-        const battalionId = organization.battalion_id;
-        
+        const bid = profile?.battalion_id || organization?.battalion_id;
+        const oid = organization?.id;
+        if (!oid && !bid) return { data: [], error: 'No organization or battalion' };
+
         try {
-            console.log('Fetching history with params:', { battalionId, orgId: organization.id, filters });
-            // Relaxed query: Use left join for organizations to ensure we see logs even if org is deleted/missing
+            console.log('Fetching history with params:', { battalionId: bid, orgId: oid, filters });
+
             let query = supabase
                 .from('gate_logs')
                 .select('*, organizations(name, battalion_id), entry_reporter:profiles!entry_reported_by(full_name), exit_reporter:profiles!exit_reported_by(full_name)')
                 .order('entry_time', { ascending: false })
                 .limit(filters.limit || 50);
 
-            // Battalion Scope - complex filter because of left join
-            if (battalionId) {
-                // If we want to filter by battalion, we CANNOT easily do it on a left joined column without !inner
-                // So we revert to !inner ONLY if we are strictly enforcing battalion scope
-                // OR we fetch all and filter in memory (not ideal for large data)
-                // OR we assume the user has access to these logs via RLS and just show them.
-                
-                // Let's try to trust RLS for now and remove the explicit .eq check IF it's causing issues,
-                // BUT for now, let's keep it but use !inner only on the filter
-                
-                // actually, let's go back to !inner but print what's happening.
-                // If the user says they see it in DB but not here, maybe the ID is wrong?
-                
-                // ALTERNATIVE: Filter by organization_id directly if possible? No, we need battalion.
-                
-                // Let's try removing the filter for a moment to see if ANYTHING returns.
-                // query = query.eq('organizations.battalion_id', battalionId); 
-                
-                // BETTER APPROACH FOR DEBUGGING:
-                console.log('DEBUG: SKIPPING BATTALION FILTER to see all logs user has access to via RLS');
+            // Battalion Scope
+            if (bid) {
+                query = query.eq('battalion_id', bid);
             } else {
-                query = query.eq('organization_id', organization.id);
+                query = query.eq('organization_id', oid);
             }
 
             // Filters
@@ -377,26 +379,27 @@ export const useGateSystem = () => {
 
             const { data, error } = await query;
             if (error) throw error;
-            
+
             return { data: data as GateLog[], error: null };
 
         } catch (err: any) {
-             console.error('Error fetching history:', err);
-             return { data: [], error: err.message };
+            console.error('Error fetching history:', err);
+            return { data: [], error: err.message };
         }
     }, [organization?.id, organization?.battalion_id]);
 
     // CRUD for Authorized Vehicles
     const addAuthorizedVehicle = async (vehicle: Omit<AuthorizedVehicle, 'id'>) => {
+        const bid = profile?.battalion_id || organization?.battalion_id;
         try {
             const { data, error } = await supabase
                 .from('gate_authorized_vehicles')
-                .insert([vehicle])
+                .insert([{ ...vehicle, battalion_id: bid }])
                 .select('*, organizations(name, battalion_id)')
                 .single();
 
             if (error) throw error;
-            
+
             // Optimistic / Real update
             setAuthorizedVehicles(prev => [...prev, data as any]);
             return { success: true, error: null };
@@ -416,7 +419,7 @@ export const useGateSystem = () => {
                 .single();
 
             if (error) throw error;
-            
+
             setAuthorizedVehicles(prev => prev.map(v => v.id === vehicleId ? (data as any) : v));
             return { success: true, error: null };
         } catch (err: any) {
@@ -433,7 +436,7 @@ export const useGateSystem = () => {
                 .eq('id', vehicleId);
 
             if (error) throw error;
-            
+
             setAuthorizedVehicles(prev => prev.filter(v => v.id !== vehicleId));
             return { success: true, error: null };
         } catch (err: any) {

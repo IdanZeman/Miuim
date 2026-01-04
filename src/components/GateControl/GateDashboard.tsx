@@ -801,6 +801,11 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                 ariaLabel="דיווח כניסה/יציאה"
                 className="md:hidden"
             />
+
+            <ManageAuthorizedVehiclesModal
+                isOpen={isAddVehicleModalOpen}
+                onClose={() => setIsAddVehicleModalOpen(false)}
+            />
         </div>
     );
 };

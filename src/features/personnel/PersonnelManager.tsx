@@ -122,7 +122,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const [newTeamId, setNewTeamId] = useState('');
     const [newRoleIds, setNewRoleIds] = useState<string[]>([]);
     const [newCustomFields, setNewCustomFields] = useState<Record<string, any>>({});
-    const [newIsCommander, setNewIsCommander] = useState(false);
 
     // Custom Fields Schema
     const [customFieldsSchema, setCustomFieldsSchema] = useState<CustomFieldDefinition[]>([]);
@@ -369,7 +368,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setNewTeamId('');
         setNewRoleIds([]);
         setNewCustomFields({});
-        setNewIsCommander(false);
         setNewItemName('');
         setNewItemIcon('Shield');
     };
@@ -384,7 +382,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setNewTeamId(person.teamId);
         setNewRoleIds(person.roleIds || []);
         setNewCustomFields(person.customFields || {});
-        setNewIsCommander(!!person.isCommander);
         setIsModalOpen(true);
     };
 
@@ -594,7 +591,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             teamId: newTeamId,
             roleIds: newRoleIds,
             customFields: newCustomFields, // NEW
-            isCommander: newIsCommander, // NEW
             color: 'bg-blue-500' // Default
         };
 
@@ -854,29 +850,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 </div>
                             </div>
 
-                            {/* Commander Toggle */}
-                            <div
-                                className="flex items-center justify-between px-5 py-4 cursor-pointer active:bg-slate-50 transition-colors"
-                                onClick={() => setNewIsCommander(!newIsCommander)}
-                                role="switch"
-                                aria-checked={newIsCommander}
-                                aria-label="מפקד"
-                                tabIndex={0}
-                                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setNewIsCommander(!newIsCommander); } }}
-                            >
-                                <div className="flex items-center">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ml-4 transition-colors ${newIsCommander ? 'bg-yellow-50 text-yellow-600' : 'bg-slate-50 text-slate-400'}`}>
-                                        <Shield size={18} weight="duotone" />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-black text-slate-900">מפקד</div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase">הרשאות ניהול והובלה</div>
-                                    </div>
-                                </div>
-                                <div className={`w-12 h-6 rounded-full transition-all relative ${newIsCommander ? 'bg-yellow-400' : 'bg-slate-200'}`}>
-                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${newIsCommander ? 'left-1' : 'left-7'}`} />
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -1724,11 +1697,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm md:text-xs shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${colorClass}`}>
                                                 {getPersonInitials(person.name)}
                                             </div>
-                                            {person.isCommander && (
-                                                <div className="absolute -top-1 -left-1 w-5 h-5 bg-yellow-400 text-slate-900 rounded-lg flex items-center justify-center shadow-sm ring-2 ring-white">
-                                                    <Shield size={10} fill="currentColor" />
-                                                </div>
-                                            )}
                                         </div>
 
                                         {/* Content Area */}

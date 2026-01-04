@@ -1,14 +1,42 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-    CalendarBlank as CalendarIcon, Users as UsersIcon, ClipboardText as ClipboardListIcon, ChartBar as BarChartIcon, List as MenuIcon, SignOut as LogOutIcon, Clock as ClockIcon,
-    Gear as SettingsIcon, FileText as FileTextIcon, Shield as ShieldIcon, DiceFive as DicesIcon, Envelope as MailIcon, Anchor as AnchorIcon, House as HomeIcon, UserMinus as UserXIcon,
-    Package as PackageIcon, Pulse as ActivityIcon, Question as HelpCircleIcon, CaretDown as ChevronDownIcon, User as UserIcon,
-    SquaresFour as LayoutDashboardIcon, Briefcase as BriefcaseIcon, Database as DatabaseIcon, UserGear as UserCogIcon, Car as CarIcon
-} from '@phosphor-icons/react';
+    Users,
+    Activity,
+    Building2,
+    Settings,
+    Bell,
+    ChevronDown,
+    LogOut,
+    User,
+    HelpCircle,
+    Mail,
+    ShieldCheck,
+    Search,
+    Package,
+    LayoutDashboard,
+    ClipboardList,
+    Calendar,
+    Clock,
+    UserX,
+    Car,
+    BarChart3,
+    FileText,
+    Anchor
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ViewMode, Profile } from '../../types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { analytics } from '../../services/analytics';
-import { logger } from '../../services/loggingService';
+import { fetchBattalion } from '../../services/battalionService';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+/**
+ * Utility for merging tailwind classes efficiently
+ */
+function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
+}
 
 interface NavbarProps {
     currentView?: ViewMode;
@@ -18,20 +46,84 @@ interface NavbarProps {
     onMobileMenuToggle?: () => void;
 }
 
-// Dropdown Component
-const NavDropdown = ({
-    label,
-    icon: Icon,
-    isActive,
-    children,
-    testId
-}: {
+interface NavItem {
+    id: string;
     label: string;
-    icon: React.ElementType;
-    isActive: boolean;
-    children: React.ReactNode;
-    testId?: string;
-}) => {
+    icon: any;
+    primaryView: ViewMode;
+    views: ViewMode[];
+    isSpecial?: boolean;
+    subItems?: {
+        label: string;
+        view: ViewMode;
+        icon: any;
+        description?: string;
+    }[];
+}
+
+const TABS: NavItem[] = [
+    {
+        id: 'battalion',
+        label: 'ניהול גדודי',
+        icon: Building2,
+        primaryView: 'battalion-home',
+        views: ['battalion-home', 'battalion-personnel', 'battalion-attendance'],
+        isSpecial: true,
+        subItems: [
+            { label: 'מבט גדודי', view: 'battalion-home', icon: LayoutDashboard, description: 'סיכום נתונים וסטטיסטיקות גדוד' },
+            { label: 'סד"כ גדודי', view: 'battalion-personnel', icon: Users, description: 'ניהול כוח אדם רוחבי בגדוד' },
+            { label: 'נוכחות גדודית', view: 'battalion-attendance', icon: Calendar, description: 'ריכוז נוכחות מכל הפלוגות' }
+        ]
+    },
+    {
+        id: 'hr',
+        label: 'אנשים ונוכחות',
+        icon: Users,
+        primaryView: 'personnel',
+        views: ['personnel', 'attendance', 'absences'],
+        subItems: [
+            { label: 'ניהול כוח אדם', view: 'personnel', icon: Users, description: 'ניהול חיילים, צוותים ותפקידים' },
+            { label: 'יומן נוכחות', view: 'attendance', icon: Clock, description: 'מעקב נוכחות ודוחות יומיים' },
+            { label: 'בקשות יציאה', view: 'absences', icon: UserX, description: 'ניהול היעדרויות ואישורי חופשה' }
+        ]
+    },
+    {
+        id: 'ops',
+        label: 'מבצעים ומשימות',
+        icon: ClipboardList,
+        primaryView: 'tasks',
+        views: ['tasks', 'dashboard', 'constraints'],
+        subItems: [
+            { label: 'ניהול משימות', view: 'tasks', icon: ClipboardList, description: 'הגדרת משימות וסיבובי שמירה' },
+            { label: 'לוח שיבוצים', view: 'dashboard', icon: Calendar, description: 'מבט שבועי על כל המשימות' },
+            { label: 'ניהול אילוצים', view: 'constraints', icon: Anchor, description: 'ניהול חסימות וזמינות אישית' }
+        ]
+    },
+    {
+        id: 'logistics',
+        label: 'לוגיסטיקה',
+        icon: Package,
+        primaryView: 'equipment',
+        views: ['equipment', 'gate'],
+        subItems: [
+            { label: 'רשימת ציוד', view: 'equipment', icon: Package, description: 'מעקב אחר אקסים, נשקים וציוד' },
+            { label: 'ש.ג ורכבים', view: 'gate', icon: Car, description: 'רישום כניסות וניהול רכבים' }
+        ]
+    },
+    {
+        id: 'admin',
+        label: 'דוחות וניהול',
+        icon: Activity,
+        primaryView: 'stats',
+        views: ['stats', 'settings', 'system', 'org-logs'],
+        subItems: [
+            { label: 'דוחות ונתונים', view: 'stats', icon: BarChart3, description: 'ניתוח עומסים וסטטיסטיקות' },
+            { label: 'יומן פעילות', view: 'org-logs', icon: Activity, description: 'מעקב אחר שינויים במערכת' }
+        ]
+    },
+];
+
+const NavDropdown = ({ tab, isActive, currentView, onNav }: { tab: NavItem, isActive: boolean, currentView: ViewMode, onNav: (v: ViewMode) => void }) => {
     const [isOpen, setIsOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -44,148 +136,131 @@ const NavDropdown = ({
         timeoutRef.current = setTimeout(() => setIsOpen(false), 150);
     };
 
+    const Icon = tab.icon;
+
     return (
         <div
-            className="relative font-medium h-full flex items-center"
+            className="relative h-full flex items-center"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            data-testid={testId}
         >
             <button
-                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-all relative ${isActive || isOpen
-                    ? 'text-blue-700 bg-blue-50/50'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                    }`}
-                aria-expanded={isOpen}
+                onClick={() => onNav(tab.primaryView)}
+                className={cn(
+                    "relative flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all duration-300 rounded-xl z-10",
+                    isActive
+                        ? (tab.isSpecial ? "text-amber-700 hover:text-amber-800" : "text-slate-900 hover:text-slate-950")
+                        : "text-slate-500 hover:text-slate-800"
+                )}
             >
-                <Icon size={18} className={isActive ? 'text-blue-600' : 'text-slate-500'} weight={isActive ? "fill" : "duotone"} />
-                <span>{label}</span>
-                <ChevronDownIcon size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} text-slate-400`} weight="duotone" />
-
-                {/* Active Indicator Line */}
                 {isActive && (
-                    <div className="absolute -bottom-4 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />
+                    <motion.div
+                        layoutId="navbar-active-pill"
+                        className={cn(
+                            "absolute inset-0 rounded-xl shadow-sm z-[-1]",
+                            tab.isSpecial ? "bg-amber-100/50" : "bg-white"
+                        )}
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                )}
+
+                <Icon className={cn(
+                    "w-4 h-4",
+                    isActive
+                        ? (tab.isSpecial ? "text-amber-600" : "text-blue-600")
+                        : "text-slate-400"
+                )} />
+                <span>{tab.label}</span>
+                {tab.subItems && (
+                    <ChevronDown className={cn("w-3 h-3 transition-transform duration-200 opacity-50", isOpen && "rotate-180")} />
                 )}
             </button>
 
-            {/* Dropdown Menu */}
-            {isOpen && (
-                <div className="absolute top-full right-0 w-60 pt-2 z-[100] animate-in fade-in slide-in-from-top-1 duration-200">
-                    <div className="bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 overflow-hidden ring-1 ring-black/5">
-                        {children}
-                    </div>
-                </div>
-            )}
+            <AnimatePresence>
+                {isOpen && tab.subItems && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute top-full left-0 md:left-auto md:right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-[100] ring-1 ring-black/5"
+                    >
+                        <div className="space-y-1">
+                            {tab.subItems.map((item) => {
+                                const SubIcon = item.icon;
+                                const isSubActive = currentView === item.view;
+
+                                return (
+                                    <button
+                                        key={item.view}
+                                        onClick={() => { onNav(item.view); setIsOpen(false); }}
+                                        className={cn(
+                                            "w-full flex items-start gap-4 px-3 py-2.5 rounded-xl transition-all group text-right",
+                                            isSubActive
+                                                ? (tab.isSpecial ? "bg-amber-50" : "bg-blue-50")
+                                                : "hover:bg-slate-50"
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            "mt-0.5 p-1.5 rounded-lg border transition-colors",
+                                            isSubActive
+                                                ? (tab.isSpecial ? "bg-white border-amber-200 text-amber-600" : "bg-white border-blue-200 text-blue-600")
+                                                : "bg-slate-50 border-slate-100 text-slate-400 group-hover:text-slate-600 group-hover:bg-white group-hover:border-slate-200"
+                                        )}>
+                                            <SubIcon className="w-4 h-4" />
+                                        </div>
+                                        <div className="flex flex-col items-start leading-tight">
+                                            <span className={cn(
+                                                "text-sm font-black transition-colors text-right w-full",
+                                                isSubActive
+                                                    ? (tab.isSpecial ? "text-amber-900" : "text-blue-900")
+                                                    : "text-slate-700 group-hover:text-slate-900"
+                                            )}>
+                                                {item.label}
+                                            </span>
+                                            {item.description && (
+                                                <span className="text-[10px] font-bold text-slate-400 mt-0.5 text-right w-full">
+                                                    {item.description}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
 
-const DropdownItem = ({
-    label,
-    icon: Icon,
-    onClick,
-    active,
-    danger = false,
-    testId
-}: {
-    label: string;
-    icon?: React.ElementType;
-    onClick: () => void;
-    active?: boolean;
-    danger?: boolean;
-    testId?: string;
-}) => (
-    <button
-        onClick={() => {
-            onClick();
-        }}
-        data-testid={testId}
-        className={`w-full text-right px-4 py-2.5 text-sm flex items-center gap-3 transition-colors ${active
-            ? 'bg-blue-50 text-blue-700 font-medium'
-            : danger
-                ? 'text-red-600 hover:bg-red-50'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-    >
-        {Icon && <Icon size={18} className={active ? 'text-blue-600' : danger ? 'text-red-500' : 'text-slate-500'} weight={active ? "fill" : "duotone"} />}
-        {label}
-    </button>
-);
-
-
-const UserDropdown = ({
-    user,
-    profile,
-    onLogout,
-    children
-}: {
-    user: any;
-    profile: Profile | null;
-    onLogout: () => void;
-    children: React.ReactNode
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    // Click outside to close
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const displayName = profile?.full_name || user?.email?.split('@')[0] || 'משתמש';
-
-    return (
-        <div className="relative" ref={containerRef}>
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 pl-2 pr-1 py-1 rounded-full border transition-all ${isOpen ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-100' : 'bg-white border-slate-200 hover:border-slate-300'
-                    }`}
-            >
-                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                    <UserIcon size={18} weight="duotone" />
-                </div>
-                <div className="hidden md:flex flex-col items-start min-w-[3rem] max-w-[8rem]">
-                    <span className="text-xs font-bold text-slate-700 truncate w-full dir-ltr text-right">
-                        {displayName}
-                    </span>
-                    <span className="text-[10px] text-slate-400">אזור אישי</span>
-                </div>
-                <ChevronDownIcon size={14} className="text-slate-400 mr-1" weight="duotone" />
-            </button>
-
-            {isOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 z-50 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 py-2 overflow-hidden ring-1 ring-black/5">
-                        <div className="px-4 py-3 border-b border-slate-50 bg-slate-50/50">
-                            <p className="text-sm font-bold text-slate-800">{displayName}</p>
-                            <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-                        </div>
-                        <div className="py-1">
-                            {children}
-                        </div>
-                        <div className="border-t border-slate-100 mt-1 pt-1">
-                            <DropdownItem
-                                label="התנתק"
-                                icon={LogOutIcon}
-                                onClick={onLogout}
-                                danger
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
-export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic = false, checkAccess, onMobileMenuToggle }) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic = false, checkAccess }) => {
     const { user, profile, organization, signOut } = useAuth();
+    const [battalionName, setBattalionName] = useState<string | null>(null);
+    const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false);
+    const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+
+    // Only fetch and display battalion name for HQ users with battalion permissions
+    // Regular company users should see their company name
+    useEffect(() => {
+        const bid = organization?.battalion_id;
+        const isHQUser = organization?.is_hq && (
+            profile?.permissions?.dataScope === 'battalion' ||
+            profile?.is_super_admin
+        );
+
+        if (bid && isHQUser) {
+            fetchBattalion(bid)
+                .then(b => setBattalionName(b.name))
+                .catch(err => console.error('Failed to fetch battalion name', err));
+        } else {
+            setBattalionName(null);
+        }
+    }, [organization?.battalion_id, organization?.is_hq, profile?.permissions?.dataScope, profile?.is_super_admin]);
+
+    const activeTabId = useMemo(() => {
+        return TABS.find(tab => tab.views.includes(currentView || 'home'))?.id || null;
+    }, [currentView]);
 
     const handleLogout = async () => {
         analytics.trackButtonClick('logout', 'header');
@@ -201,228 +276,136 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
         if (setView) setView(view);
     };
 
-    return (
-        <header className="bg-white/80 backdrop-blur-md shadow-sm z-40 relative h-16 flex-none border-b border-slate-200/50">
-            <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between gap-4">
+    const filteredTabs = TABS.filter(tab => {
+        // All tabs now rely on RBAC checkAccess - no special cases
+        return tab.views.some(v => checkAccess(v as ViewMode));
+    });
 
-                {/* Logo & Brand */}
-                <div className="flex items-center gap-6">
+    const displayName = profile?.full_name || user?.email?.split('@')[0] || 'משתמש';
+    const userInitials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+    return (
+        <header className="sticky top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50 h-16 flex-none">
+            <div className="max-w-[1400px] mx-auto px-4 lg:px-6 h-full flex items-center justify-between">
+
+                <div className="flex items-center gap-4 min-w-[200px]">
                     <button
                         onClick={() => handleNav('home')}
-                        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-                        aria-label="חזרה לדף הבית"
+                        className="flex items-center gap-3 px-2 py-1.5 rounded-xl transition-all group"
                     >
-                        <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden p-1.5 border border-slate-100">
-                            <img src="/images/logo.png" alt="App Logo" className="w-full h-full object-contain" aria-hidden="true" />
+                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden shrink-0">
+                            <img src="/images/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
                         </div>
-                        <span className="block text-lg font-bold text-slate-800 tracking-tight">
-                            {isPublic ? 'מערכת ניהול' : (organization?.name || 'מערכת ניהול')}
-                        </span>
+
+                        <div className="flex flex-col items-start leading-tight text-right">
+                            <span className="text-base font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
+                                {battalionName ? battalionName : (organization?.name || 'מערכת ניהול')}
+                            </span>
+                        </div>
                     </button>
-
-                    {/* Desktop Navigation */}
-                    {!isPublic && setView && (
-                        <nav className="hidden md:flex items-center gap-1">
-
-                            {/* 1. Personnel (Single Link) */}
-                            {checkAccess('personnel') && (
-                                <button
-                                    onClick={() => handleNav('personnel')}
-                                    className={`px-3 py-2 text-sm font-medium transition-all flex items-center gap-2 rounded-lg ${currentView === 'personnel'
-                                        ? 'text-slate-900 bg-slate-50'
-                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                        }`}
-                                    aria-label="ניהול כוח אדם"
-                                >
-                                    <UsersIcon size={18} className={currentView === 'personnel' ? 'text-blue-600' : 'text-slate-500'} aria-hidden="true" weight={currentView === 'personnel' ? "fill" : "duotone"} />
-                                    <span>ניהול כוח אדם</span>
-                                </button>
-                            )}
-
-                            {/* 2. Tasks Group */}
-                            {(checkAccess('tasks') || checkAccess('dashboard') || checkAccess('constraints')) && (
-                                <NavDropdown
-                                    label="משימות"
-                                    icon={ClipboardListIcon}
-                                    isActive={['tasks', 'dashboard', 'constraints'].includes(currentView || '')}
-                                >
-                                    {checkAccess('tasks') && (
-                                        <DropdownItem
-                                            label="ניהול משימות"
-                                            icon={ClipboardListIcon}
-                                            active={currentView === 'tasks'}
-                                            onClick={() => handleNav('tasks')}
-                                        />
-                                    )}
-                                    {checkAccess('dashboard') && (
-                                        <DropdownItem
-                                            label="לוח שיבוצים"
-                                            icon={CalendarIcon}
-                                            active={currentView === 'dashboard'}
-                                            onClick={() => handleNav('dashboard')}
-                                        />
-                                    )}
-                                    {checkAccess('constraints') && (
-                                        <DropdownItem
-                                            label="ניהול אילוצים"
-                                            icon={AnchorIcon}
-                                            active={currentView === 'constraints'}
-                                            onClick={() => handleNav('constraints')}
-                                        />
-                                    )}
-                                </NavDropdown>
-                            )}
-
-                            {/* 3. Attendance Group */}
-                            {(checkAccess('attendance') || checkAccess('absences')) && (
-                                <NavDropdown
-                                    label="נוכחות והיעדרויות"
-                                    icon={ClockIcon}
-                                    isActive={['attendance', 'absences'].includes(currentView || '')}
-                                    testId="nav-attendance-group"
-                                >
-                                    {checkAccess('attendance') && (
-                                        <DropdownItem
-                                            label="יומן נוכחות"
-                                            icon={ClockIcon}
-                                            active={currentView === 'attendance'}
-                                            onClick={() => handleNav('attendance')}
-                                            testId="nav-attendance-journal"
-                                        />
-                                    )}
-                                    <DropdownItem
-                                        label="בקשות יציאה"
-                                        icon={UserXIcon}
-                                        active={currentView === 'absences'}
-                                        onClick={() => handleNav('absences')}
-                                        testId="nav-absence-requests"
-                                    />
-                                </NavDropdown>
-                            )}
-
-
-                            {/* Gate Control (Removed standalone) */}
-
-                            {/* 4. Logistics Group */}
-                            {(checkAccess('equipment') || checkAccess('gate')) && (
-                                <NavDropdown
-                                    label="לוגיסטיקה"
-                                    icon={PackageIcon}
-                                    isActive={['equipment', 'gate'].includes(currentView || '')}
-                                >
-                                    <DropdownItem
-                                        label="רשימת ציוד"
-                                        icon={PackageIcon}
-                                        active={currentView === 'equipment'}
-                                        onClick={() => handleNav('equipment')}
-                                    />
-                                    {checkAccess('gate') && (
-                                        <DropdownItem
-                                            label="ש.ג"
-                                            icon={CarIcon}
-                                            active={currentView === 'gate'}
-                                            onClick={() => handleNav('gate')}
-                                        />
-                                    )}
-                                </NavDropdown>
-                            )}
-
-                            {/* 5. Reports Group */}
-                            {(checkAccess('stats') || checkAccess('org-logs')) && (
-                                <NavDropdown
-                                    label="דוחות"
-                                    icon={BarChartIcon}
-                                    isActive={['stats', 'org-logs'].includes(currentView || '')}
-                                >
-                                    {checkAccess('stats') && (
-                                        <DropdownItem
-                                            label="דוחות"
-                                            icon={FileTextIcon}
-                                            active={currentView === 'stats'}
-                                            onClick={() => handleNav('stats')}
-                                        />
-                                    )}
-                                    {(checkAccess('org-logs') || profile?.is_super_admin || profile?.role === 'admin') && (
-                                        <DropdownItem
-                                            label="יומן פעילות"
-                                            icon={ActivityIcon}
-                                            active={currentView === 'org-logs'}
-                                            onClick={() => handleNav('org-logs')}
-                                        />
-                                    )}
-                                </NavDropdown>
-                            )}
-
-                            {/* 6. More Group */}
-                            <NavDropdown
-                                label="עוד"
-                                icon={MenuIcon}
-                                isActive={['lottery', 'contact', 'faq'].includes(currentView || '')}
-                            >
-                                {checkAccess('lottery') && (
-                                    <DropdownItem
-                                        label="הגרלות"
-                                        icon={DicesIcon}
-                                        active={currentView === 'lottery'}
-                                        onClick={() => handleNav('lottery')}
-                                    />
-                                )}
-                                <DropdownItem
-                                    label="צור קשר"
-                                    icon={MailIcon}
-                                    active={currentView === 'contact'}
-                                    onClick={() => handleNav('contact')}
-                                />
-                                <DropdownItem
-                                    label="מרכז מידע"
-                                    icon={HelpCircleIcon}
-                                    active={currentView === 'faq'}
-                                    onClick={() => handleNav('faq')}
-                                />
-                            </NavDropdown>
-
-                        </nav>
-                    )}
                 </div>
 
-                {/* Left: User Profile - Hidden in Public Mode & Mobile */}
                 {!isPublic && (
-                    <div className="hidden md:flex items-center justify-end gap-2 pl-2 flex-shrink-0">
-                        <UserDropdown user={user} profile={profile} onLogout={handleLogout}>
-                            {checkAccess('settings') && (
-                                <DropdownItem
-                                    label="הגדרות ארגון"
-                                    icon={SettingsIcon}
-                                    active={currentView === 'settings'}
-                                    onClick={() => handleNav('settings')}
-                                />
-                            )}
-
-                            {profile?.is_super_admin && (
-                                <DropdownItem
-                                    label="ניהול מערכת"
-                                    icon={ShieldIcon}
-                                    active={currentView === 'system'}
-                                    onClick={() => handleNav('system')}
-                                />
-                            )}
-                            <div className="bg-slate-50 my-1 py-1 border-t border-b border-slate-100">
-                                <DropdownItem
-                                    label="מרכז עזרה"
-                                    icon={HelpCircleIcon}
-                                    active={currentView === 'faq'}
-                                    onClick={() => handleNav('faq')}
-                                />
-                                <DropdownItem
-                                    label="צור קשר"
-                                    icon={MailIcon}
-                                    active={currentView === 'contact'}
-                                    onClick={() => handleNav('contact')}
-                                />
-                            </div>
-                        </UserDropdown>
-                    </div>
+                    <nav className="hidden md:flex items-center bg-slate-50/50 p-1 rounded-2xl border border-slate-100 shadow-sm gap-0.5 h-12">
+                        {filteredTabs.map((tab) => (
+                            <NavDropdown
+                                key={tab.id}
+                                tab={tab}
+                                isActive={activeTabId === tab.id}
+                                currentView={currentView || 'home'}
+                                onNav={handleNav}
+                            />
+                        ))}
+                    </nav>
                 )}
+
+                <div className="flex items-center justify-end gap-3 min-w-[200px]">
+                    {!isPublic && (
+                        <>
+                            <div className="w-px h-6 bg-slate-100 mx-1 hidden sm:block" />
+
+                            <div
+                                className="relative hidden md:flex flex-col items-center"
+                                onMouseEnter={() => setIsProfileDropdownOpen(true)}
+                                onMouseLeave={() => {
+                                    setTimeout(() => setIsProfileDropdownOpen(false), 200);
+                                }}
+                            >
+                                <button
+                                    onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                                    className="flex items-center gap-3 pl-3 pr-1.5 py-1.5 bg-blue-50/30 hover:bg-blue-50 border border-blue-100/50 hover:border-blue-200 rounded-full transition-all group"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-white border border-blue-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 shadow-sm">
+                                        <User className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex flex-col items-start leading-none min-w-[60px]">
+                                        <span className="text-xs font-black text-slate-800 mb-0.5">{displayName}</span>
+                                        <span className="text-[10px] font-bold text-slate-400 group-hover:text-blue-500 transition-colors">אזור אישי</span>
+                                    </div>
+                                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors opacity-50 group-hover:opacity-100" />
+                                </button>
+
+                                <AnimatePresence>
+                                    {isProfileDropdownOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            className="absolute top-full left-0 pt-3 w-64 z-[110]"
+                                        >
+                                            <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 overflow-hidden ring-1 ring-black/5">
+                                                <div className="px-3 py-3 border-b border-slate-50 mb-1 text-right">
+                                                    <p className="text-sm font-black text-slate-800">{displayName}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5 uppercase tracking-tighter">{user?.email}</p>
+                                                </div>
+
+                                                <div className="space-y-0.5">
+                                                    {checkAccess('settings') && (
+                                                        <button
+                                                            onClick={() => { handleNav('settings'); setIsProfileDropdownOpen(false); }}
+                                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all text-right"
+                                                        >
+                                                            <Settings className="w-4 h-4" />
+                                                            <span>הגדרות ארגון</span>
+                                                        </button>
+                                                    )}
+                                                    {organization?.battalion_id && checkAccess('battalion-settings') && (
+                                                        <button
+                                                            onClick={() => { handleNav('battalion-settings'); setIsProfileDropdownOpen(false); }}
+                                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all text-right"
+                                                        >
+                                                            <Building2 className="w-4 h-4" />
+                                                            <span>הגדרות גדוד</span>
+                                                        </button>
+                                                    )}
+                                                    {profile?.is_super_admin && (
+                                                        <button
+                                                            onClick={() => { handleNav('system'); setIsProfileDropdownOpen(false); }}
+                                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all text-right"
+                                                        >
+                                                            <ShieldCheck className="w-4 h-4" />
+                                                            <span>ניהול מערכת</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="h-px bg-slate-50 my-1 mx-2" />
+
+                                                <button
+                                                    onClick={handleLogout}
+                                                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all text-right"
+                                                >
+                                                    <LogOut className="w-4 h-4" />
+                                                    <span>התנתק</span>
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
         </header>
     );

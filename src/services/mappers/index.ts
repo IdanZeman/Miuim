@@ -21,7 +21,7 @@ export const mapPersonFromDB = (p: any): Person => {
 
     return {
         id: p.id,
-        name: p.name,
+        name: p.name || '',
         phone: p.phone,
         email: p.email,
         isActive: p.is_active !== false,
@@ -35,7 +35,6 @@ export const mapPersonFromDB = (p: any): Person => {
         personalRotation,
         organization_id: p.organization_id,
         customFields,
-        isCommander: !!p.is_commander
     };
 };
 
@@ -54,14 +53,14 @@ export const mapPersonToDB = (p: Person) => ({
     personal_rotation: p.personalRotation === undefined ? null : p.personalRotation,
     organization_id: p.organization_id,
     custom_fields: p.customFields || {},
-    is_commander: p.isCommander || false
 });
 
 // Teams
 export const mapTeamFromDB = (t: any): Team => ({
     id: t.id,
-    name: t.name,
-    color: t.color || 'border-slate-500'
+    name: t.name || '',
+    color: t.color || 'border-slate-500',
+    organization_id: t.organization_id
 });
 
 export const mapTeamToDB = (t: Team) => ({
@@ -74,7 +73,7 @@ export const mapTeamToDB = (t: Team) => ({
 // Roles
 export const mapRoleFromDB = (r: any): Role => ({
     id: r.id,
-    name: r.name,
+    name: r.name || '',
     color: r.color || 'bg-slate-200',
     icon: r.icon
 });
@@ -90,7 +89,7 @@ export const mapRoleToDB = (r: Role) => ({
 // Tasks
 export const mapTaskFromDB = (dbTask: any): TaskTemplate => ({
     id: dbTask.id,
-    name: dbTask.name,
+    name: dbTask.name || '',
     difficulty: dbTask.difficulty,
     color: dbTask.color,
     startDate: dbTask.start_date,
@@ -153,7 +152,8 @@ export const mapConstraintFromDB = (dbConstraint: any): SchedulingConstraint => 
     taskId: dbConstraint.task_id,
     startTime: dbConstraint.start_time,
     endTime: dbConstraint.end_time,
-    organization_id: dbConstraint.organization_id
+    organization_id: dbConstraint.organization_id,
+    description: dbConstraint.description
 });
 
 export const mapConstraintToDB = (constraint: SchedulingConstraint) => ({
@@ -165,7 +165,8 @@ export const mapConstraintToDB = (constraint: SchedulingConstraint) => ({
     task_id: constraint.taskId,
     start_time: constraint.startTime,
     end_time: constraint.endTime,
-    organization_id: constraint.organization_id
+    organization_id: constraint.organization_id,
+    description: constraint.description
 });
 
 // Team Rotations
@@ -207,7 +208,7 @@ export const mapAbsenceFromDB = (dbAbsence: any): Absence => ({
     reason: dbAbsence.reason,
     // Note: status, approved_by, approved_at are derived or optimistic, 
     // not stored in the absences table.
-    status: 'pending', 
+    status: 'pending',
     created_at: dbAbsence.created_at
 });
 
@@ -226,8 +227,8 @@ export const mapAbsenceToDB = (absence: Absence) => ({
 export const mapEquipmentFromDB = (e: any): Equipment => ({
     id: e.id,
     organization_id: e.organization_id,
-    type: e.type,
-    serial_number: e.serial_number,
+    type: e.type || '',
+    serial_number: e.serial_number || '',
     assigned_to_id: e.assigned_to_id,
     signed_at: e.signed_at,
     last_verified_at: e.last_verified_at,
@@ -324,4 +325,31 @@ export const mapMissionReportToDB = (report: MissionReport) => ({
     submitted_by: report.submitted_by,
     last_editor_id: report.last_editor_id,
     submitted_at: report.submitted_at
+});
+
+// Organization Settings
+export const mapOrganizationSettingsFromDB = (s: any): import('@/types').OrganizationSettings => ({
+    organization_id: s.organization_id,
+    night_shift_start: s.night_shift_start,
+    night_shift_end: s.night_shift_end,
+    viewer_schedule_days: s.viewer_schedule_days,
+    default_days_on: s.default_days_on,
+    default_days_off: s.default_days_off,
+    rotation_start_date: s.rotation_start_date,
+    min_daily_staff: s.min_daily_staff,
+    optimization_mode: s.optimization_mode,
+    customFieldsSchema: typeof s.custom_fields_schema === 'string' ? JSON.parse(s.custom_fields_schema) : (s.custom_fields_schema || [])
+});
+
+export const mapOrganizationSettingsToDB = (s: import('@/types').OrganizationSettings) => ({
+    organization_id: s.organization_id,
+    night_shift_start: s.night_shift_start,
+    night_shift_end: s.night_shift_end,
+    viewer_schedule_days: s.viewer_schedule_days,
+    default_days_on: s.default_days_on,
+    default_days_off: s.default_days_off,
+    rotation_start_date: s.rotation_start_date,
+    min_daily_staff: s.min_daily_staff,
+    optimization_mode: s.optimization_mode,
+    custom_fields_schema: s.customFieldsSchema || []
 });
