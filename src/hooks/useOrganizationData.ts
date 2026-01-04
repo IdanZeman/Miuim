@@ -88,10 +88,28 @@ export const fetchOrganizationData = async (organizationId: string): Promise<Org
 };
 
 export const useOrganizationData = (organizationId?: string | null) => {
-    return useQuery({
+    const result = useQuery({
         queryKey: ['organizationData', organizationId],
         queryFn: () => fetchOrganizationData(organizationId!),
         enabled: !!organizationId,
         staleTime: 1000 * 30, // 30 Seconds - Reduced for better responsiveness
     });
+
+    return {
+        ...result,
+        people: result.data?.people || [],
+        allPeople: result.data?.allPeople || [],
+        teams: result.data?.teams || [],
+        teamRotations: result.data?.rotations || [],
+        absences: result.data?.absences || [],
+        hourlyBlockages: result.data?.hourlyBlockages || [],
+        roles: result.data?.roles || [],
+        shifts: result.data?.shifts || [],
+        taskTemplates: result.data?.taskTemplates || [],
+        constraints: result.data?.constraints || [],
+        settings: result.data?.settings || null,
+        missionReports: result.data?.missionReports || [],
+        equipment: result.data?.equipment || [],
+        equipmentDailyChecks: result.data?.equipmentDailyChecks || [],
+    };
 };

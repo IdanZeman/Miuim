@@ -216,6 +216,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 onSelectPerson={(p) => setSelectedPersonForCalendar(p)}
                                 className="h-full"
                                 isViewer={true}
+                                companies={companies}
                             />
                         </div>
                     )}
@@ -377,6 +378,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 onSelectPerson={(p) => setSelectedPersonForCalendar(p)}
                                 className="h-full"
                                 isViewer={true}
+                                companies={companies}
                             />
                         </div>
                     )}

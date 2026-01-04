@@ -62,6 +62,7 @@ export const GateDashboard: React.FC = () => {
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
 
     // Dashboard State
     const [historySearchTerm, setHistorySearchTerm] = useState('');
@@ -796,9 +797,9 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
             {/* Standard FAB - Bottom Right (Fixed) */}
             <FloatingActionButton
                 show={currentTab === 'control'}
-                onClick={() => setIsAddVehicleModalOpen(true)}
+                onClick={() => setIsReportModalOpen(true)}
                 icon={PlusIcon}
-                ariaLabel="הוסף רכב מורשה"
+                ariaLabel="דיווח כניסה/יציאה"
                 className="md:hidden"
             />
 

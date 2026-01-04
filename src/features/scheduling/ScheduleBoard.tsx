@@ -412,12 +412,22 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         const dayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
 
         return taskTemplates.filter(task => {
+            // 1. Check Global Task Validity (Start/End Date)
+            // Ensure we use the same date format as shiftUtils
+            const year = selectedDate.getFullYear();
+            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(selectedDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+
+            if (task.startDate && dateStr < task.startDate) return false;
+            if (task.endDate && dateStr > task.endDate) return false;
+
             if (!task.segments || task.segments.length === 0) return false;
 
             return task.segments.some(segment => {
                 if (segment.frequency === 'daily') return true;
                 if (segment.frequency === 'weekly') {
-                    return segment.daysOfWeek?.includes(dayOfWeek);
+                    return segment.daysOfWeek?.map(d => d.toLowerCase()).includes(dayOfWeek);
                 }
                 if (segment.frequency === 'specific_date') {
                     return segment.specificDate === dateKey;

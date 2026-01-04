@@ -84,6 +84,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         { value: 'mobile', label: 'טלפון נייד' },
         { value: 'is_commander', label: 'מפקד (כן/לא)' },
         { value: 'is_active', label: 'פעיל (כן/לא)' },
+        { value: 'custom_fields', label: 'שדות מותאמים (JSON)' },
         { value: 'ignore', label: 'התעלם' }
     ];
 
@@ -123,6 +124,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     else if (h.includes('מייל') || h.includes('דוא')) field = 'email';
                     else if (h.includes('מפקד') || h.includes('commander')) field = 'is_commander';
                     else if (h.includes('פעיל') || h.includes('active')) field = 'is_active';
+                    else if (h.includes('custom') || h.includes('מותאם') || h.includes('fields')) field = 'custom_fields';
 
                     return { excelColumn: header, systemField: field };
                 });
@@ -433,7 +435,21 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 maxShiftsPerWeek: basePerson.maxShiftsPerWeek || 7,
 
                 preferences: basePerson.preferences || { preferNight: false, avoidWeekends: false },
-                color: color !== 'bg-slate-500' ? color : (basePerson.color || 'bg-slate-500')
+                color: color !== 'bg-slate-500' ? color : (basePerson.color || 'bg-slate-500'),
+                customFields: (() => {
+                    let cf = basePerson.customFields || {};
+                    if (rowData.custom_fields) {
+                        try {
+                            const parsed = typeof rowData.custom_fields === 'string'
+                                ? JSON.parse(rowData.custom_fields)
+                                : rowData.custom_fields;
+                            cf = { ...cf, ...parsed };
+                        } catch (e) {
+                            console.warn('Failed to parse custom_fields JSON', rowData.custom_fields);
+                        }
+                    }
+                    return cf;
+                })()
             } as Person;
         }).filter(Boolean) as Person[];
 

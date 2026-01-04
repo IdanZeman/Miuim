@@ -22,10 +22,11 @@ interface AttendanceTableProps {
     isViewer?: boolean; // NEW: Security prop
     searchTerm?: string; // NEW: Controlled search term
     showRequiredDetails?: boolean; // NEW: Toggle required row
+    companies?: import('@/types').Organization[]; // NEW: For battalion view
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
-    teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false
+    teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = []
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
@@ -144,7 +145,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     style={{ backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6' }}
                                                 />
                                                 <div className="flex flex-col">
-                                                    <h3 className="text-lg font-black text-slate-900 tracking-tight leading-none">{team.name}</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-lg font-black text-slate-900 tracking-tight leading-none">{team.name}</h3>
+                                                        {companies.length > 0 && (
+                                                            <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[10px] font-black border border-blue-100/50">
+                                                                {companies.find(c => c.id === team.organization_id)?.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">{members.length} לוחמים</span>
                                                 </div>
                                             </div>
@@ -429,11 +437,18 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 className={`flex sticky z-[75] ${showRequiredDetails ? 'top-[160px]' : 'top-[112px]'} group cursor-pointer bg-white h-12`}
                                             >
                                                 {/* Sticky Name Part */}
-                                                <div className="w-60 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex items-center gap-2 shadow-md sticky right-0 z-[80] px-4">
-                                                    <div className={`transition-transform duration-300 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
-                                                        <ChevronDown size={18} className="text-slate-600" weight="duotone" />
+                                                <div className="w-60 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex flex-col justify-center gap-0.5 sticky right-0 z-[80] px-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`transition-transform duration-300 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
+                                                            <ChevronDown size={14} className="text-slate-600" weight="duotone" />
+                                                        </div>
+                                                        <span className="text-sm font-black text-slate-900 tracking-tight truncate">{team.name}</span>
                                                     </div>
-                                                    <span className="text-base font-black text-slate-900 tracking-tight truncate">{team.name}</span>
+                                                    {companies.length > 0 && (
+                                                        <span className="text-[10px] font-bold text-blue-600 pr-5 truncate">
+                                                            {companies.find(c => c.id === team.organization_id)?.name}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 {/* Per-Day Team Stats View */}
                                                 <div className="flex bg-white h-full">
@@ -487,9 +502,19 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     <span className="text-base font-black text-slate-800 truncate group-hover/row:text-blue-600 transition-colors">
                                                                         {person.name}
                                                                     </span>
-                                                                    <span className="text-[11px] text-slate-400 font-bold truncate tracking-wide">
-                                                                        {person.roleId ? team.name : 'לוחם במילואים'}
-                                                                    </span>
+                                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                                        <span className="text-[11px] text-slate-400 font-bold truncate tracking-wide">
+                                                                            {person.roleId ? team.name : 'לוחם'}
+                                                                        </span>
+                                                                        {companies.length > 0 && (
+                                                                            <>
+                                                                                <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                                                                <span className="text-[11px] text-blue-500 font-black truncate">
+                                                                                    {companies.find(c => c.id === person.organization_id)?.name}
+                                                                                </span>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
 

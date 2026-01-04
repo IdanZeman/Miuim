@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Chat as MessageSquare, WarningCircle as AlertCircle, SquaresFour as LayoutDashboard, Megaphone } from '@phosphor-icons/react';
+import { Shield, Chat as MessageSquare, WarningCircle as AlertCircle, SquaresFour as LayoutDashboard, Megaphone, Buildings, Users } from '@phosphor-icons/react';
 
 import { AdminLogsViewer } from '../features/admin/AdminLogsViewer';
 import { SupportTicketsPage } from './SupportTicketsPage';
@@ -7,8 +7,10 @@ import { useAuth } from '../features/auth/AuthContext';
 
 import { GlobalStats } from '../features/admin/GlobalStats';
 import { SystemMessagesManager } from '../features/admin/SystemMessagesManager';
+import { SuperAdminOrgSwitcher } from '../features/admin/SuperAdminOrgSwitcher';
+import { GlobalUserManagement } from '../features/admin/GlobalUserManagement';
 
-type Tab = 'dashboard' | 'logs' | 'tickets' | 'messages';
+type Tab = 'dashboard' | 'logs' | 'tickets' | 'messages' | 'organizations' | 'users';
 
 export const SystemManagementPage: React.FC = () => {
     const { user, profile } = useAuth();
@@ -33,7 +35,7 @@ export const SystemManagementPage: React.FC = () => {
                     <Shield className="text-slate-700" size={28} weight="duotone" />
                     <h1 className="text-2xl font-bold text-slate-800">ניהול מערכת</h1>
                 </div>
-                <p className="text-slate-500">מרכז שליטה למנהלי מערכת: צפייה בלוגים וטיפול בפניות.</p>
+                <p className="text-slate-500">מרכז שליטה למנהלי מערכת: ניהול פלוגות ומשתמשים, צפייה בלוגים וטיפול בפניות.</p>
 
                 {/* Tabs */}
                 <div className="flex gap-1 mt-6 border-b border-slate-100 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
@@ -47,6 +49,28 @@ export const SystemManagementPage: React.FC = () => {
                     >
                         <LayoutDashboard size={18} weight="duotone" />
                         <span className="hidden md:inline">דשבורד</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('users')}
+                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${activeTab === 'users'
+                            ? 'bg-purple-50 text-purple-900 border-b-2 border-purple-900'
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
+                        title="ניהול משתמשים"
+                    >
+                        <Users size={18} weight="duotone" />
+                        <span className="hidden md:inline">ניהול משתמשים</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('organizations')}
+                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${activeTab === 'organizations'
+                            ? 'bg-blue-50 text-blue-900 border-b-2 border-blue-900'
+                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
+                        title="ניהול פלוגות"
+                    >
+                        <Buildings size={18} weight="duotone" />
+                        <span className="hidden md:inline">ניהול פלוגות</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('logs')}
@@ -87,6 +111,8 @@ export const SystemManagementPage: React.FC = () => {
             {/* Content Area */}
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                 {activeTab === 'dashboard' && <GlobalStats />}
+                {activeTab === 'users' && <GlobalUserManagement />}
+                {activeTab === 'organizations' && <SuperAdminOrgSwitcher />}
                 {activeTab === 'logs' && <AdminLogsViewer />}
                 {activeTab === 'tickets' && <SupportTicketsPage />}
                 {activeTab === 'messages' && <SystemMessagesManager />}

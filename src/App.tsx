@@ -52,7 +52,7 @@ import {
 import { solveSchedule, SchedulingSuggestion, SchedulingResult } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
 import { FloatingActionButton } from './components/ui/FloatingActionButton';
-import { MagicWand as Wand2, SparkleIcon as Sparkles, Shield, X, CalendarBlank as Calendar, WarningCircle as AlertCircle, CircleNotch as Loader2, Users } from '@phosphor-icons/react';
+import { MagicWandIcon as Wand2, SparkleIcon as Sparkles, ShieldIcon, XIcon as X, CalendarBlankIcon as Calendar, WarningCircleIcon as AlertCircle, CircleNotchIcon as Loader2, UsersIcon as Users } from '@phosphor-icons/react';
 import { v4 as uuidv4 } from 'uuid';
 import { generateShiftsForTask } from './utils/shiftUtils';
 import JoinPage from './features/auth/JoinPage';
@@ -329,7 +329,7 @@ const useMainAppState = () => {
             const { error } = await supabase.from('people').insert(dbPayload);
             if (error) throw error;
             await logger.logCreate('person', dbPayload.id, p.name, p);
-            await refreshData();
+            refreshData(); // Re-fetch in background
             showToast('החייל נוסף בהצלחה', 'success');
         } catch (e: any) {
             console.error("Add Person Error", e);
@@ -343,7 +343,7 @@ const useMainAppState = () => {
             const { error } = await supabase.from('people').update(mapPersonToDB(p)).eq('id', p.id);
             if (error) throw error;
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
-            await refreshData(); // Re-fetch and await result
+            refreshData(); // Re-fetch in background
         } catch (e: any) {
             console.warn("DB Update Failed:", e);
             throw e;
@@ -362,7 +362,7 @@ const useMainAppState = () => {
                 category: 'data',
                 metadata: { details: `Updated ${peopleToUpdate.length} people` }
             });
-            await refreshData();
+            refreshData();
         } catch (e) {
             console.warn("Bulk DB Update Failed", e);
             showToast("שגיאה בעדכון קבוצתי", 'error');
@@ -373,14 +373,14 @@ const useMainAppState = () => {
         try {
             await supabase.from('people').delete().eq('id', id);
             await logger.logDelete('person', id, state.people.find(p => p.id === id)?.name || 'אדם', state.people.find(p => p.id === id));
-            await refreshData();
+            refreshData();
         } catch (e) { console.warn("DB Delete Failed", e); }
     };
 
     const handleDeletePeople = async (ids: string[]) => {
         try {
             await supabase.from('people').delete().in('id', ids);
-            await refreshData();
+            refreshData();
         } catch (e) { console.warn("Bulk DB Delete Failed", e); }
     };
 
@@ -1038,7 +1038,7 @@ const useMainAppState = () => {
         if (view !== 'contact' && !checkAccess(view)) {
             return (
                 <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-                    <Shield size={64} className="text-slate-300 mb-4" weight="duotone" />
+                    <ShieldIcon size={64} className="text-slate-300 mb-4" weight="duotone" />
                     <h2 className="text-2xl font-bold text-slate-800 mb-2">אין לך הרשאה לצפות בעמוד זה</h2>
                     <p className="text-slate-500 mb-6">אנא פנה למנהל הארגון לקבלת הרשאות מתאימות.</p>
                     <button
@@ -1253,7 +1253,7 @@ const MainApp: React.FC = () => {
                             <div className="overflow-y-auto p-6 space-y-6">
                                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-right" dir="rtl">
                                     <div className="bg-blue-100 p-2 rounded-lg h-fit text-blue-600">
-                                        <Shield size={20} weight="duotone" />
+                                        <ShieldIcon size={20} weight="duotone" />
                                     </div>
                                     <p className="text-blue-900 text-sm leading-relaxed">
                                         השיבוץ בוצע במצב <strong>"אורגניות צוות"</strong> קשיח. המשימות הבאות לא הושלמו במלואן כדי שלא לערבב צוותים, אך נמצאו אנשים מצוותים אחרים שיכולים להתאים:

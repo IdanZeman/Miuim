@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe } from '@phosphor-icons/react';
-import { Person, Team, Role } from '../../types';
+import { Person, Team, Role, CustomFieldDefinition } from '../../types';
+import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../services/loggingService';
@@ -80,7 +81,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const [filterTeamId, setFilterTeamId] = useState<string>('all');
     const [filterRoleId, setFilterRoleId] = useState<string>('all');
     const [filterCustomField, setFilterCustomField] = useState<string>('all');
-    const [filterCustomValue, setFilterCustomValue] = useState<string>('');
+    const [filterCustomValue, setFilterCustomValue] = useState<string | string[]>('');
 
     // NEW: Advanced View/Sort State
     const [viewGroupBy, setViewGroupBy] = useState<'teams' | 'roles' | 'none'>('teams');
@@ -119,8 +120,102 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const [newTeamId, setNewTeamId] = useState('');
     const [newRoleIds, setNewRoleIds] = useState<string[]>([]);
     const [newCustomFields, setNewCustomFields] = useState<Record<string, any>>({});
-    const [newIsCommander, setNewIsCommander] = useState(false); // NEW
-    const [tempCustomKey, setTempCustomKey] = useState(''); // NEW // NEW
+    const [newIsCommander, setNewIsCommander] = useState(false);
+
+    // Custom Fields Schema
+    const [customFieldsSchema, setCustomFieldsSchema] = useState<CustomFieldDefinition[]>([]);
+    const { organization } = useAuth(); // Needed for fetching settings
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            if (!organization) return;
+            const { data } = await supabase
+                .from('organization_settings')
+                .select('custom_fields_schema')
+                .eq('organization_id', organization.id)
+                .single();
+
+            if (data?.custom_fields_schema) {
+                setCustomFieldsSchema(data.custom_fields_schema);
+            }
+        };
+        fetchSettings();
+    }, [organization]);
+
+    // New State for Field Creation
+    const [isCreatingField, setIsCreatingField] = useState(false);
+    const [creatingFieldData, setCreatingFieldData] = useState<{
+        label: string;
+        type: string;
+        optionsString: string;
+    }>({ label: '', type: 'text', optionsString: '' });
+
+    const handleCreateField = async () => {
+        if (!creatingFieldData.label || !organization) return;
+
+        const newField: CustomFieldDefinition = {
+            id: crypto.randomUUID(),
+            key: creatingFieldData.label,
+            label: creatingFieldData.label,
+            type: creatingFieldData.type as any,
+            order: customFieldsSchema.length,
+            options: creatingFieldData.type === 'select' || creatingFieldData.type === 'multiselect'
+                ? creatingFieldData.optionsString.split(',').map(s => s.trim()).filter(Boolean)
+                : undefined
+        };
+
+        const updatedSchema = [...customFieldsSchema, newField];
+        setCustomFieldsSchema(updatedSchema);
+        setIsCreatingField(false);
+        setCreatingFieldData({ label: '', type: 'text', optionsString: '' });
+
+        // Persist to DB
+        try {
+            await supabase
+                .from('organization_settings')
+                .update({ custom_fields_schema: updatedSchema })
+                .eq('organization_id', organization.id);
+        } catch (error) {
+            console.error('Error saving custom schema:', error);
+        }
+    };
+
+    const handleDeleteFieldGlobally = (key: string) => {
+        requestConfirm(
+            'מחיקת שדה והנתונים שלו',
+            'שים לב: פעולה זו תמחק את השדה מההגדרות וגם תמחק את כל הנתונים שהוזנו בשדה זה עבור כל החיילים. הפעולה אינה הפיכה. האם להמשיך?',
+            async () => {
+                const updatedSchema = customFieldsSchema.filter(f => f.key !== key);
+                setCustomFieldsSchema(updatedSchema);
+                setConfirmModal(prev => ({ ...prev, isOpen: false })); // סגירה מיידית של חלון האישור
+
+                try {
+                    if (organization?.id) {
+                        // 1. Delete actual data from people records
+                        const { error: rpcError } = await supabase.rpc('delete_custom_field_data', {
+                            p_field_key: key,
+                            p_org_id: organization.id
+                        });
+
+                        if (rpcError) throw rpcError;
+
+                        // 2. Update schema definition
+                        await supabase
+                            .from('organization_settings')
+                            .update({ custom_fields_schema: updatedSchema })
+                            .eq('organization_id', organization.id);
+
+                        showToast('השדה והנתונים נמחקו בהצלחה', 'success');
+                        onUpdatePeople([]); // רענון ברקע
+                    }
+                } catch (error) {
+                    console.error('Error saving custom schema:', error);
+                    showToast('שגיאה במחיקת שדה', 'error');
+                }
+            },
+            'danger'
+        );
+    };
 
     // Generic Items (Team/Role)
     const [newItemName, setNewItemName] = useState('');
@@ -273,7 +368,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setNewRoleIds([]);
         setNewCustomFields({});
         setNewIsCommander(false);
-        setTempCustomKey('');
         setNewItemName('');
         setNewItemIcon('Shield');
     };
@@ -515,6 +609,15 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             if (!newName.trim()) { showToast('נא להזין שם', 'error'); return; }
             if (!newTeamId && teams.length > 0) { showToast('נא לבחור צוות', 'error'); return; }
 
+            // Validate Required Custom Fields
+            for (const field of customFieldsSchema) {
+                const val = newCustomFields[field.key];
+                if (field.required && (val === undefined || val === null || (typeof val === 'string' && val.trim() === ''))) {
+                    showToast(`נא להזין ${field.label}`, 'error');
+                    return;
+                }
+            }
+
             // Duplicate Check (Manual Creation)
             if (!editingPersonId) {
                 const dup = people.find(p =>
@@ -582,35 +685,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         return '';
     };
 
-    const handleDeleteFieldGlobally = (fieldName: string) => {
-        requestConfirm(
-            'מחיקת שדה מכלל החיילים',
-            `האם אתה בטוח שברצונך למחוק את השדה "${fieldName}" מכלל החיילים במערכת? פעולה זו תמחוק את כל המידע השמור בשדה זה עבור כולם.`,
-            async () => {
-                const peopleWithField = people.filter(p => p.customFields && Object.prototype.hasOwnProperty.call(p.customFields, fieldName));
 
-                const updates = peopleWithField.map(p => {
-                    const nextFields = { ...p.customFields };
-                    delete nextFields[fieldName];
-                    return { ...p, customFields: nextFields };
-                });
-
-                if (updates.length > 0) {
-                    onUpdatePeople(updates);
-                }
-
-                // Also update current form if it's there
-                if (newCustomFields[fieldName] !== undefined) {
-                    const next = { ...newCustomFields };
-                    delete next[fieldName];
-                    setNewCustomFields(next);
-                }
-
-                showToast(`השדה "${fieldName}" נמחק מ-${updates.length} חיילים`, 'success');
-            },
-            'danger'
-        );
-    };
 
     // Use effect to open modal when state changes if needed, 
     // but we control it explicitly in click handlers
@@ -785,75 +860,233 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         </div>
                     </div>
 
-                    {/* 4. Custom Fields Group */}
+                    {/* 4. Custom Fields Group - Schema Based */}
                     <div className="space-y-3">
                         <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">נתונים נוספים</h3>
-                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden divide-y divide-slate-100">
-                            {Object.entries(newCustomFields || {}).map(([key, value]) => (
-                                <div key={key} className="flex items-center px-5 py-4 group bg-white">
-                                    <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                        <Layers size={18} weight="duotone" />
-                                    </div>
-                                    <div className="flex-1 min-w-0 mr-1">
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5 truncate">{key}</label>
-                                        <input
-                                            value={value}
-                                            onChange={(e) => setNewCustomFields({ ...newCustomFields, [key]: e.target.value })}
-                                            className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300"
-                                        />
-                                    </div>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                        <button
-                                            onClick={() => handleDeleteFieldGlobally(key)}
-                                            className="p-2 text-slate-300 hover:text-red-500 transition-colors flex flex-col items-center group/global"
-                                            title="מחק לכולם"
-                                        >
-                                            <Globe size={18} weight="duotone" className="group-hover/global:animate-pulse" />
-                                            <span className="text-[7px] font-black opacity-0 group-hover/global:opacity-100 transition-opacity whitespace-nowrap">לכולם</span>
-                                        </button>
-                                        <button onClick={() => {
-                                            const next = { ...newCustomFields };
-                                            delete next[key];
-                                            setNewCustomFields(next);
-                                        }} className="p-2 text-slate-400 hover:text-red-500 transition-colors">
-                                            <X size={20} weight="bold" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
 
-                            {/* Add Field Row */}
-                            <div className="flex items-center px-5 py-4 bg-slate-50/50">
-                                <div className="w-10 h-10 rounded-xl bg-white text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 ml-4 shadow-sm">
-                                    <Plus size={20} weight="bold" />
-                                </div>
-                                <div className="flex-1">
-                                    <input
-                                        value={tempCustomKey}
-                                        onChange={(e) => setTempCustomKey(e.target.value)}
-                                        placeholder="שדה חדש (לדוג: מידת נעליים, מספר חדש...)"
-                                        list="custom-hits-sheet"
-                                        className="w-full bg-transparent text-sm font-black outline-none text-slate-700 placeholder:text-slate-400"
-                                    />
-                                    <datalist id="custom-hits-sheet">
-                                        {Array.from(new Set(people.flatMap(p => Object.keys(p.customFields || {})))).map(k => (
-                                            <option key={k} value={k} />
-                                        ))}
-                                    </datalist>
-                                </div>
+                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden p-5 space-y-4">
+                            {customFieldsSchema
+                                .sort((a, b) => (a.order || 0) - (b.order || 0))
+                                .map(field => {
+                                    const value = newCustomFields[field.key];
+
+                                    return (
+                                        <div key={field.key} className="space-y-1.5 group">
+                                            <div className="flex items-center justify-between">
+                                                <label className="block text-xs font-bold text-slate-700">
+                                                    {field.label}
+                                                    {field.required && <span className="text-red-500 mr-1">*</span>}
+                                                </label>
+                                                {canEdit && (
+                                                    <button
+                                                        onClick={() => handleDeleteFieldGlobally(field.key)}
+                                                        className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                        title="מחק שדה מהארגון"
+                                                    >
+                                                        <Trash size={14} weight="bold" />
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {/* Render Input based on Type */}
+                                            {field.type === 'boolean' ? (
+                                                <div
+                                                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors"
+                                                    onClick={() => setNewCustomFields({ ...newCustomFields, [field.key]: !value })}
+                                                >
+                                                    <div className={`w-10 h-6 rounded-full transition-all relative ${value ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${value ? 'left-1' : 'left-5'}`} />
+                                                    </div>
+                                                    <span className="text-sm font-medium text-slate-600">
+                                                        {value ? 'כן' : 'לא'}
+                                                    </span>
+                                                </div>
+                                            ) : field.type === 'select' ? (
+                                                <Select
+                                                    value={value}
+                                                    onChange={(val) => setNewCustomFields({ ...newCustomFields, [field.key]: val })}
+                                                    options={[
+                                                        { value: '', label: field.placeholder || 'בחר...' },
+                                                        ...(field.options || []).map(opt => ({ value: opt, label: opt }))
+                                                    ]}
+                                                    placeholder={field.placeholder || "בחר..."}
+                                                    className="bg-slate-50 border-slate-200 rounded-xl"
+                                                />
+                                            ) : field.type === 'multiselect' ? (
+                                                <div className="space-y-2">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {((value as string[]) || []).map((val: string) => (
+                                                            <span key={val} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
+                                                                {val}
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const current = (value as string[]) || [];
+                                                                        setNewCustomFields({
+                                                                            ...newCustomFields,
+                                                                            [field.key]: current.filter(v => v !== val)
+                                                                        });
+                                                                    }}
+                                                                    className="hover:text-red-500"
+                                                                >
+                                                                    <X size={12} weight="bold" />
+                                                                </button>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                    <select
+                                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                        onChange={(e) => {
+                                                            if (!e.target.value) return;
+                                                            const current = (value as string[]) || [];
+                                                            if (!current.includes(e.target.value)) {
+                                                                setNewCustomFields({
+                                                                    ...newCustomFields,
+                                                                    [field.key]: [...current, e.target.value]
+                                                                });
+                                                            }
+                                                            e.target.value = '';
+                                                        }}
+                                                    >
+                                                        <option value="">{field.placeholder || "הוסף אפשרות..."}</option>
+                                                        {(field.options || []).filter(opt => !((value as string[]) || []).includes(opt)).map(opt => (
+                                                            <option key={opt} value={opt}>{opt}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            ) : field.type === 'textarea' ? (
+                                                <textarea
+                                                    value={value || ''}
+                                                    onChange={(e) => setNewCustomFields({ ...newCustomFields, [field.key]: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 min-h-[80px]"
+                                                    placeholder={field.placeholder}
+                                                />
+                                            ) : (
+                                                <Input
+                                                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
+                                                    value={value || ''}
+                                                    onChange={(e) => setNewCustomFields({ ...newCustomFields, [field.key]: e.target.value })}
+                                                    placeholder={field.placeholder}
+                                                    className="bg-slate-50 border-slate-200 rounded-xl"
+                                                />
+                                            )}
+
+                                            {field.helpText && (
+                                                <p className="text-[10px] text-slate-400 mr-1">{field.helpText}</p>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+
+                            {/* 2. Orphaned / Legacy Fields (Not in Schema) */}
+                            {Object.entries(newCustomFields || {})
+                                .filter(([key]) => !customFieldsSchema.some(f => f.key === key))
+                                .map(([key, value]) => (
+                                    <div key={key} className="flex items-center gap-2 group">
+                                        <div className="flex-1">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5 truncate flex items-center gap-1">
+                                                {key}
+                                                <span className="bg-slate-100 text-slate-500 px-1 py-0.5 rounded text-[8px] font-normal">לא מוגדר</span>
+                                            </label>
+                                            <input
+                                                value={value}
+                                                onChange={(e) => setNewCustomFields({ ...newCustomFields, [key]: e.target.value })}
+                                                className="block w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold shadow-sm"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const next = { ...newCustomFields };
+                                                delete next[key];
+                                                setNewCustomFields(next);
+                                            }}
+                                            className="p-2 text-slate-400 hover:text-red-500 transition-colors mt-4 bg-slate-50 rounded-xl"
+                                            title="מחק שדה"
+                                        >
+                                            <Trash size={16} weight="bold" />
+                                        </button>
+                                    </div>
+                                ))
+                            }
+
+                            {/* 3. New Field Creator */}
+                            <div className="pt-4 border-t border-slate-100">
                                 <button
-                                    onClick={() => {
-                                        const key = tempCustomKey.trim();
-                                        if (key && !newCustomFields[key]) {
-                                            setNewCustomFields(prev => ({ ...prev, [key]: '' }));
-                                            setTempCustomKey('');
-                                        }
-                                    }}
-                                    disabled={!tempCustomKey}
-                                    className="bg-indigo-600 text-white rounded-xl px-4 py-2 text-xs font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 disabled:shadow-none transition-all"
+                                    onClick={() => setIsCreatingField(true)}
+                                    className="w-full py-3 border border-dashed border-slate-300 rounded-xl text-slate-500 text-xs font-bold hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2 group"
                                 >
-                                    הוסף
+                                    <div className="w-6 h-6 rounded-lg bg-white border border-slate-200 flex items-center justify-center group-hover:bg-indigo-50 group-hover:border-indigo-200 transition-colors">
+                                        <Plus size={14} weight="bold" />
+                                    </div>
+                                    <span>הוסף שדה מותאם חדש</span>
                                 </button>
+
+                                <GenericModal
+                                    isOpen={isCreatingField}
+                                    onClose={() => setIsCreatingField(false)}
+                                    title="הגדרת שדה חדש"
+                                    size="sm"
+                                    footer={
+                                        <div className="flex gap-3 w-full">
+                                            <Button
+                                                variant="primary"
+                                                onClick={handleCreateField}
+                                                disabled={!creatingFieldData.label}
+                                                className="flex-1"
+                                            >
+                                                שמור שדה
+                                            </Button>
+                                            <Button
+                                                variant="secondary"
+                                                onClick={() => setIsCreatingField(false)}
+                                                className="flex-1"
+                                            >
+                                                ביטול
+                                            </Button>
+                                        </div>
+                                    }
+                                >
+                                    <div className="space-y-4 py-2">
+                                        <div className="space-y-1.5">
+                                            <label className="text-sm font-bold text-slate-700">שם השדה</label>
+                                            <Input
+                                                placeholder="לדוגמה: מידת נעליים"
+                                                value={creatingFieldData.label}
+                                                onChange={e => setCreatingFieldData({ ...creatingFieldData, label: e.target.value })}
+                                                autoFocus
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <label className="text-sm font-bold text-slate-700">סוג שדה</label>
+                                            <Select
+                                                value={creatingFieldData.type}
+                                                onChange={val => setCreatingFieldData({ ...creatingFieldData, type: val })}
+                                                options={[
+                                                    { value: 'text', label: 'טקסט חופשי' },
+                                                    { value: 'number', label: 'מספר' },
+                                                    { value: 'date', label: 'תאריך' },
+                                                    { value: 'boolean', label: 'כן/לא' },
+                                                    { value: 'select', label: 'רשימת בחירה' },
+                                                    { value: 'multiselect', label: 'בחירה מרובה' },
+                                                    { value: 'textarea', label: 'טקסט ארוך' }
+                                                ]}
+                                                className="w-full"
+                                            />
+                                        </div>
+
+                                        {(creatingFieldData.type === 'select' || creatingFieldData.type === 'multiselect') && (
+                                            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                                                <label className="text-sm font-bold text-slate-700">אפשרויות בחירה</label>
+                                                <Input
+                                                    placeholder="הפרד בפסיק (דוגמה: S,M,L,XL)"
+                                                    value={creatingFieldData.optionsString}
+                                                    onChange={e => setCreatingFieldData({ ...creatingFieldData, optionsString: e.target.value })}
+                                                />
+                                                <p className="text-[11px] text-slate-400">הזן את הערכים האפשריים מופרדים בפסיקים</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </GenericModal>
                             </div>
                         </div>
                     </div>
@@ -926,6 +1159,85 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </div>
                 )}
                 <div className="h-4" />
+            </div>
+        );
+    };
+
+    const renderCustomFilterInput = () => {
+        if (filterCustomField === 'all') return null;
+        const field = customFieldsSchema.find(f => f.key === filterCustomField);
+        if (!field) return null;
+
+        // 1. Boolean
+        if (field.type === 'boolean') {
+            return (
+                <div className="space-y-1.5 animate-in fade-in zoom-in duration-200">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">ערך לסינון</label>
+                    <Select
+                        value={typeof filterCustomValue === 'string' ? filterCustomValue : ''}
+                        onChange={(val) => setFilterCustomValue(val)}
+                        options={[
+                            { value: '', label: 'הכל' },
+                            { value: 'true', label: 'כן' },
+                            { value: 'false', label: 'לא' }
+                        ]}
+                        placeholder="בחר..."
+                        className="bg-slate-50 md:bg-white border-transparent md:border-slate-200 rounded-xl h-12 md:h-11 font-bold"
+                    />
+                </div>
+            );
+        }
+
+        // 2. Select / MultiSelect
+        if (field.type === 'select' || field.type === 'multiselect') {
+            const currentValues = Array.isArray(filterCustomValue) ? filterCustomValue : [];
+
+            return (
+                <div className="space-y-1.5 animate-in fade-in zoom-in duration-200">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">ערכים שנבחרו (ניתן לבחור כמה)</label>
+                    <div className="flex flex-wrap gap-2 mb-2 min-h-[30px] bg-slate-50/50 p-2 rounded-xl">
+                        {currentValues.length === 0 && <span className="text-xs text-slate-400 italic">כל הערכים...</span>}
+                        {currentValues.map(val => (
+                            <span key={val} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100 animate-in zoom-in duration-200">
+                                {val}
+                                <button
+                                    onClick={() => setFilterCustomValue(currentValues.filter(v => v !== val))}
+                                    className="hover:text-red-500"
+                                >
+                                    <X size={12} weight="bold" />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                    <select
+                        className="w-full bg-slate-50 md:bg-white border border-transparent md:border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 h-12 md:h-11"
+                        onChange={(e) => {
+                            if (!e.target.value) return;
+                            if (!currentValues.includes(e.target.value)) {
+                                setFilterCustomValue([...currentValues, e.target.value]);
+                            }
+                            e.target.value = '';
+                        }}
+                    >
+                        <option value="">הוסף ערך לסינון...</option>
+                        {(field.options || []).filter(opt => !currentValues.includes(opt)).map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                    </select>
+                </div>
+            );
+        }
+
+        // 3. Text / Default
+        return (
+            <div className="space-y-1.5 animate-in fade-in zoom-in duration-200">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">ערך לסינון</label>
+                <input
+                    value={typeof filterCustomValue === 'string' ? filterCustomValue : ''}
+                    onChange={(e) => setFilterCustomValue(e.target.value)}
+                    placeholder="הקלד לסינון..."
+                    className="block w-full h-12 md:h-11 px-4 bg-slate-50 md:bg-white border-transparent md:border-slate-200 rounded-xl text-slate-900 font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-300"
+                />
             </div>
         );
     };
@@ -1199,6 +1511,17 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 className="bg-slate-50 border-transparent rounded-xl h-12 font-bold"
                             />
                         </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">סינון לפי שדה</label>
+                            <Select
+                                value={filterCustomField}
+                                onChange={(val) => { setFilterCustomField(val); setFilterCustomValue(''); }}
+                                options={[{ value: 'all', label: 'ללא סינון' }, ...customFieldsSchema.map(f => ({ value: f.key, label: f.label }))]}
+                                placeholder="בחר שדה"
+                                className="bg-slate-50 border-transparent rounded-xl h-12 font-bold"
+                            />
+                        </div>
+                        {renderCustomFilterInput()}
                     </div>
                 </GenericModal>
             </div>
@@ -1206,7 +1529,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             {/* Filters Panel - Desktop Only */}
             {
                 showFilters && (
-                    <div className="hidden md:grid mt-4 p-5 bg-white/50 backdrop-blur-sm rounded-[2rem] border border-slate-200/50 grid-cols-2 gap-4 animate-in slide-in-from-top-4 fade-in duration-300 shadow-xl shadow-slate-200/20 mx-4 md:mx-0">
+                    <div className="hidden md:grid mt-4 p-5 bg-white/50 backdrop-blur-sm rounded-[2rem] border border-slate-200/50 grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-top-4 fade-in duration-300 shadow-xl shadow-slate-200/20 mx-4 md:mx-0">
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">צוות</label>
                             <Select
@@ -1227,6 +1550,17 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 className="bg-white border-slate-200 rounded-xl h-11 font-bold"
                             />
                         </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">סינון לפי שדה</label>
+                            <Select
+                                value={filterCustomField}
+                                onChange={(val) => { setFilterCustomField(val); setFilterCustomValue(''); }}
+                                options={[{ value: 'all', label: 'ללא סינון' }, ...customFieldsSchema.map(f => ({ value: f.key, label: f.label }))]}
+                                placeholder="בחר שדה"
+                                className="bg-white border-slate-200 rounded-xl h-11 font-bold"
+                            />
+                        </div>
+                        {renderCustomFilterInput()}
                     </div>
                 )
             }
@@ -1244,7 +1578,28 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
                                 .filter(p => filterTeamId === 'all' || (filterTeamId === 'no-team' ? !p.teamId : p.teamId === filterTeamId))
                                 .filter(p => filterRoleId === 'all' || (p.roleIds || []).includes(filterRoleId))
-                                .filter(p => filterCustomField === 'all' || (p.customFields?.[filterCustomField]?.toString().toLowerCase().includes(filterCustomValue.toLowerCase())));
+                                .filter(p => {
+                                    if (filterCustomField === 'all') return true;
+                                    const val = p.customFields?.[filterCustomField];
+                                    if (val === undefined || val === null) return false;
+
+                                    if (Array.isArray(filterCustomValue)) {
+                                        if (filterCustomValue.length === 0) return true;
+                                        if (typeof val === 'boolean') {
+                                            return filterCustomValue.includes(val.toString());
+                                        }
+                                        if (Array.isArray(val)) {
+                                            return val.some(v => filterCustomValue.includes(v));
+                                        }
+                                        return filterCustomValue.includes(val.toString());
+                                    }
+
+                                    if (!filterCustomValue) return true;
+                                    if (typeof val === 'boolean') {
+                                        return val.toString() === filterCustomValue;
+                                    }
+                                    return val.toString().toLowerCase().includes(filterCustomValue.toLowerCase());
+                                });
 
                             // 2. Sort Helper
                             const sortList = (list: Person[]) => {
@@ -1274,7 +1629,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         onTouchStart={(e) => canEdit && handleTouchStart(e, person)}
                                         onTouchEnd={handleTouchEnd}
                                         onContextMenu={handleContextMenu}
-                                        onClick={() => {
+                                        onClick={(e) => {
+                                            if (e.detail > 1) return;
                                             if (selectedItemIds.size > 0 || isSelected) {
                                                 toggleSelection(person.id);
                                             } else if (canEdit) {
@@ -1341,6 +1697,34 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                         {person.phone}
                                                     </div>
                                                 )}
+
+                                                {/* Schema Custom Fields */}
+                                                {(customFieldsSchema || []).map(field => {
+                                                    let val = person.customFields?.[field.key];
+                                                    if (val === undefined || val === null || val === '') return null;
+
+                                                    if (field.type === 'boolean') val = val ? 'כן' : 'לא';
+                                                    if (Array.isArray(val)) val = val.join(', ');
+
+                                                    return (
+                                                        <div key={field.key} className="flex items-center gap-1 text-[10px] bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 max-w-[150px]">
+                                                            <span className="text-slate-400 font-medium">{field.label}:</span>
+                                                            <span className="font-bold text-slate-600 truncate">{val.toString()}</span>
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                {/* Orphaned Custom Fields */}
+                                                {Object.entries(person.customFields || {}).map(([key, val]) => {
+                                                    if (customFieldsSchema.some(f => f.key === key)) return null;
+                                                    if (!val) return null;
+                                                    return (
+                                                        <div key={key} className="flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 max-w-[150px]">
+                                                            <span className="text-amber-400 font-medium">{key}:</span>
+                                                            <span className="font-bold text-amber-700 truncate">{val.toString()}</span>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
 
@@ -1476,7 +1860,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             <div
                                 key={team.id}
                                 className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
-                                onClick={() => {
+                                onClick={(e) => {
+                                    if (e.detail > 1) return;
                                     if (selectedItemIds.size > 0 || isSelected) toggleSelection(team.id);
                                     else if (canEdit) handleEditTeamClick(team);
                                 }}
@@ -1560,7 +1945,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             <div
                                 key={role.id}
                                 className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
-                                onClick={() => {
+                                onClick={(e) => {
+                                    if (e.detail > 1) return;
                                     if (selectedItemIds.size > 0 || isSelected) toggleSelection(role.id);
                                     else if (canEdit) handleEditRoleClick(role);
                                 }}

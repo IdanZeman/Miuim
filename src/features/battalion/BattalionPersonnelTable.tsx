@@ -241,9 +241,14 @@ export const BattalionPersonnelTable: React.FC = () => {
                                                                             <User size={20} />
                                                                         </div>
                                                                         <div className="flex-1">
-                                                                            <p className="font-black text-slate-900">{person.name}</p>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <p className="font-black text-slate-900 leading-none">{person.name}</p>
+                                                                                <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[9px] font-black border border-blue-100/50">
+                                                                                    {companies.find(c => c.id === person.organization_id)?.name}
+                                                                                </span>
+                                                                            </div>
                                                                             {personRoles.length > 0 && (
-                                                                                <p className="text-xs font-bold text-slate-500 mt-0.5">
+                                                                                <p className="text-xs font-bold text-slate-500 mt-1">
                                                                                     {personRoles.join(', ')}
                                                                                 </p>
                                                                             )}
@@ -280,9 +285,14 @@ export const BattalionPersonnelTable: React.FC = () => {
                                                         <User size={20} />
                                                     </div>
                                                     <div className="flex-1">
-                                                        <p className="font-black text-slate-900">{person.name}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="font-black text-slate-900 leading-none">{person.name}</p>
+                                                            <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[9px] font-black border border-blue-100/50">
+                                                                {companies.find(c => c.id === person.organization_id)?.name}
+                                                            </span>
+                                                        </div>
                                                         {personRoles.length > 0 && (
-                                                            <p className="text-xs font-bold text-slate-500 mt-0.5">
+                                                            <p className="text-xs font-bold text-slate-500 mt-1">
                                                                 {personRoles.join(', ')}
                                                             </p>
                                                         )}
