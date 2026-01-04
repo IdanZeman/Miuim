@@ -3,11 +3,14 @@ import { useAuth } from '../auth/AuthContext';
 import { useBattalionData } from '../../hooks/useBattalionData';
 import { Person } from '@/types';
 import { CalendarBlank as Calendar, ListChecks, Users, CircleNotch as Loader2, DownloadSimple as Download, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, X } from '@phosphor-icons/react';
+import { ExportButton } from '../../components/ui/ExportButton';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import { GlobalTeamCalendar } from '../scheduling/GlobalTeamCalendar';
 import { AttendanceTable } from '../scheduling/AttendanceTable';
 import { PersonalAttendanceCalendar } from '../scheduling/PersonalAttendanceCalendar';
 import { PageInfo } from '@/components/ui/PageInfo';
+import { getEffectiveAvailability } from '@/utils/attendanceUtils';
+import ExcelJS from 'exceljs';
 
 export const BattalionAttendanceManager: React.FC = () => {
     const { organization } = useAuth();
@@ -37,61 +40,260 @@ export const BattalionAttendanceManager: React.FC = () => {
         setViewMode('day_detail');
     };
 
-    const handleExport = () => {
-        if (viewMode === 'calendar' || viewMode === 'table') {
-            // Export monthly battalion report
-            const year = viewDate.getFullYear();
-            const month = viewDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const handleExport = async () => {
+        try {
+            const workbook = new ExcelJS.Workbook();
 
-            let csvContent = `דוח נוכחות גדודי חודשי - ${viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })}\n`;
-            csvContent += 'תאריך,פלוגה,שם מלא,צוות,סטטוס,הערות\n';
+            if (viewMode === 'calendar' || viewMode === 'table') {
+                // --- Monthly Matrix Export (Styled) ---
+                const worksheet = workbook.addWorksheet('דוח גדודי מרוכז', { views: [{ rightToLeft: true }] });
+                const year = viewDate.getFullYear();
+                const month = viewDate.getMonth();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-            for (let d = 1; d <= daysInMonth; d++) {
-                const date = new Date(year, month, d);
-                const dateStr = date.toLocaleDateString('he-IL');
+                // 1. Headers
+                const headers = ['שם מלא', 'פלוגה', 'צוות'];
+                const dateKeys: string[] = [];
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const date = new Date(year, month, d);
+                    dateKeys.push(date.toLocaleDateString('en-CA'));
+                    headers.push(date.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }));
+                }
+                headers.push('סיכום (בסיס/בית)');
 
-                people.forEach(person => {
-                    const company = companies.find(c => c.id === person.organization_id);
-                    const team = teams.find(t => t.id === person.teamId);
-                    const presence = presenceSummary.find(p => p.person_id === person.id);
-
-                    const status = presence?.status === 'base' ? 'בבסיס' : presence?.status === 'home' ? 'בבית' : 'לא הוזן';
-
-                    csvContent += `${dateStr},"${company?.name || '-'}","${person.name}","${team?.name || '-'}",${status},-\n`;
+                const headerRow = worksheet.addRow(headers);
+                headerRow.font = { bold: true, size: 12 };
+                headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+                headerRow.eachCell((cell) => {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 });
+
+                // 2. Data Rows
+                // Sort by Company -> Team -> Name
+                const sortedPeople = [...people].sort((a, b) => {
+                    const companyA = companies.find(c => c.id === a.organization_id)?.name || '';
+                    const companyB = companies.find(c => c.id === b.organization_id)?.name || '';
+                    if (companyA !== companyB) return companyA.localeCompare(companyB);
+                    const teamA = teams.find(t => t.id === a.teamId)?.name || '';
+                    const teamB = teams.find(t => t.id === b.teamId)?.name || '';
+                    if (teamA !== teamB) return teamA.localeCompare(teamB);
+                    return a.name.localeCompare(b.name);
+                });
+
+                sortedPeople.forEach(person => {
+                    const companyName = companies.find(c => c.id === person.organization_id)?.name || '-';
+                    const teamName = teams.find(t => t.id === person.teamId)?.name || '-';
+
+                    const rowValues = [person.name, companyName, teamName];
+                    let baseCount = 0;
+                    let homeCount = 0;
+
+                    dateKeys.forEach(dateKey => {
+                        const dateObj = new Date(dateKey);
+                        // Access effective availability for this person/date from Battalion Data
+                        // Note: Battalion data might not have full history for everyone if not fetched.
+                        // Assuming getEffectiveAvailability can work with provided data.
+                        const avail = getEffectiveAvailability(person, dateObj, teamRotations, absences, hourlyBlockages);
+
+                        let cellText = '';
+                        let cellColor = '';
+                        let textColor = '';
+
+                        if (avail.status === 'base' || avail.status === 'full') {
+                            cellText = 'בבסיס';
+                            cellColor = 'FFD1FAE5'; // Green 100
+                            textColor = 'FF065F46'; // Green 800
+                            baseCount++;
+                        } else if (avail.status === 'home') {
+                            cellText = 'בית';
+                            cellColor = 'FFFEE2E2'; // Red 100
+                            textColor = 'FF991B1B'; // Red 800
+                            homeCount++;
+                        } else if (avail.status === 'unavailable') {
+                            cellText = 'אילוץ';
+                            cellColor = 'FFFEF3C7'; // Amber 100
+                            textColor = 'FF92400E'; // Amber 800
+                            homeCount++;
+                        } else if (avail.status === 'arrival') {
+                            cellText = `הגעה (${avail.startHour || '?'})`;
+                            cellColor = 'FFD1FAE5'; // Green 100
+                            textColor = 'FF065F46';
+                            baseCount++;
+                        } else if (avail.status === 'departure') {
+                            cellText = `יציאה (${avail.endHour || '?'})`;
+                            cellColor = 'FFFEE2E2'; // Red 100 (Count as Home day usually? Or Base? Logic dependent)
+                            cellColor = 'FFFEF3C7'; // Amber for transition
+                            textColor = 'FF92400E';
+                            homeCount++;
+                        } else if (avail.status === 'sick') {
+                            cellText = 'גימלים';
+                            cellColor = 'FFFFE4E6'; // Rose 100
+                            textColor = 'FFBE123C'; // Rose 700
+                            homeCount++;
+                        } else if (avail.status === 'leave') {
+                            cellText = 'חופשה';
+                            cellColor = 'FFE0E7FF'; // Indigo 100
+                            textColor = 'FF3730A3'; // Indigo 700
+                            homeCount++;
+                        } else {
+                            cellText = 'לא הוזן';
+                        }
+
+                        // Add absence/exit request info if exists
+                        const relevantAbsence = absences.find(a =>
+                            a.person_id === person.id &&
+                            dateKey >= a.start_date &&
+                            dateKey <= a.end_date &&
+                            (a.status === 'approved' || a.status === 'pending')
+                        );
+                        if (relevantAbsence) {
+                            const reasonText = relevantAbsence.reason || 'בקשת יציאה';
+                            const statusText = relevantAbsence.status === 'pending' ? '(ממתין) ' : '';
+                            cellText += ` [${statusText}${reasonText}]`;
+                        }
+
+                        rowValues.push(cellText);
+                    });
+
+                    rowValues.push(`${baseCount} / ${homeCount}`);
+                    const row = worksheet.addRow(rowValues);
+
+                    // Style Cells
+                    row.eachCell((cell, colNumber) => {
+                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        if (colNumber > 3 && colNumber < rowValues.length + 1) { // Date Columns
+                            const val = cell.value?.toString() || '';
+                            if (val.includes('בית')) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                                cell.font = { color: { argb: 'FF991B1B' } };
+                            } else if (val.includes('בבסיס') || val.includes('הגעה')) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                                cell.font = { color: { argb: 'FF065F46' } };
+                            } else if (val.includes('אילוץ') || val.includes('יציאה')) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                                cell.font = { color: { argb: 'FF92400E' } };
+                            } else if (val.includes('גימלים')) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE4E6' } };
+                                cell.font = { color: { argb: 'FFBE123C' } };
+                            } else if (val.includes('חופשה')) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
+                                cell.font = { color: { argb: 'FF3730A3' } };
+                            }
+                        }
+                    });
+                });
+
+                worksheet.columns = [
+                    { width: 20 }, { width: 15 }, { width: 15 }, // Meta
+                    ...dateKeys.map(() => ({ width: 15 })), // Dates
+                    { width: 15 } // Summary
+                ];
+
+            } else {
+                // --- Daily Report (Styled) ---
+                const worksheet = workbook.addWorksheet('דוח יומי', { views: [{ rightToLeft: true }] });
+                const headers = ['פלוגה', 'שם מלא', 'צוות', 'סטטוס', 'שעות', 'סיבה/הערות'];
+                const headerRow = worksheet.addRow(headers);
+                headerRow.font = { bold: true };
+                headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+                headerRow.eachCell(cell => {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                });
+
+                const dateKey = selectedDate.toLocaleDateString('en-CA');
+
+                // Sort by Company -> Team -> Name
+                const sortedPeople = [...people].sort((a, b) => {
+                    const companyA = companies.find(c => c.id === a.organization_id)?.name || '';
+                    const companyB = companies.find(c => c.id === b.organization_id)?.name || '';
+                    if (companyA !== companyB) return companyA.localeCompare(companyB);
+                    const teamA = teams.find(t => t.id === a.teamId)?.name || '';
+                    const teamB = teams.find(t => t.id === b.teamId)?.name || '';
+                    if (teamA !== teamB) return teamA.localeCompare(teamB);
+                    return a.name.localeCompare(b.name);
+                });
+
+                sortedPeople.forEach(person => {
+                    const companyName = companies.find(c => c.id === person.organization_id)?.name || '-';
+                    const teamName = teams.find(t => t.id === person.teamId)?.name || '-';
+                    const avail = getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);
+
+                    const isAtBase = avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
+
+                    let statusLabel = 'לא הוזן';
+                    let cellColor = '';
+                    let textColor = '';
+
+                    if (isAtBase) {
+                        statusLabel = avail.status === 'arrival' ? 'הגעה' : (avail.status === 'departure' ? 'יציאה' : 'בבסיס');
+                        cellColor = 'FFD1FAE5'; // Green
+                        textColor = 'FF065F46';
+                    } else if (avail.status === 'home') {
+                        statusLabel = 'בית';
+                        cellColor = 'FFFEE2E2'; // Red
+                        textColor = 'FF991B1B';
+                    } else if (avail.status === 'unavailable') {
+                        statusLabel = 'אילוץ';
+                        cellColor = 'FFFEF3C7'; // Amber
+                        textColor = 'FF92400E';
+                    } else if (avail.status === 'sick') {
+                        statusLabel = 'גימלים';
+                        cellColor = 'FFFFE4E6'; // Rose
+                        textColor = 'FFBE123C';
+                    } else if (avail.status === 'leave') {
+                        statusLabel = 'חופשה';
+                        cellColor = 'FFE0E7FF'; // Indigo
+                        textColor = 'FF3730A3';
+                    }
+
+                    const hours = isAtBase ? `${avail.startHour} - ${avail.endHour}` : '-';
+
+                    let blockReason = (avail as any).reason;
+                    if (!blockReason && avail.unavailableBlocks && avail.unavailableBlocks.length > 0) {
+                        blockReason = avail.unavailableBlocks.map((b: any) => b.reason).join(', ');
+                    }
+                    let reason = blockReason || (avail.source === 'rotation' ? 'סבב' : 'ידני');
+                    const relevantAbsence = absences.find(a => a.person_id === person.id && dateKey >= a.start_date && dateKey <= a.end_date);
+                    if (relevantAbsence) {
+                        reason += ` | [${relevantAbsence.status === 'pending' ? '(ממתין) ' : ''}${relevantAbsence.reason || 'בקשת יציאה'}]`;
+                    }
+
+                    const row = worksheet.addRow([companyName, person.name, teamName, statusLabel, hours, reason]);
+
+                    // Style Cells
+                    row.eachCell((cell, colNumber) => {
+                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        if (colNumber === 4 && cellColor) { // Status Column
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: cellColor } };
+                            cell.font = { color: { argb: textColor }, bold: true };
+                            cell.alignment = { horizontal: 'center' };
+                        }
+                    });
+                });
+
+                worksheet.columns = [
+                    { width: 15 }, // Company
+                    { width: 25 }, // Name
+                    { width: 15 }, // Team
+                    { width: 12 }, // Status
+                    { width: 18 }, // Hours
+                    { width: 45 }  // Reason
+                ];
             }
 
-            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute('download', `battalion_attendance_${month + 1}_${year}.csv`);
-            document.body.appendChild(link);
+            link.href = url;
+            link.download = `battalion_attendance_${viewMode === 'calendar' ? (viewDate.getMonth() + 1) + '_' + viewDate.getFullYear() : selectedDate.toLocaleDateString('en-CA')}.xlsx`;
             link.click();
-            document.body.removeChild(link);
-        } else {
-            // Export daily battalion report
-            const dateStr = selectedDate.toLocaleDateString('he-IL');
-            let csvContent = `דוח נוכחות גדודי ליום ${dateStr}\n`;
-            csvContent += 'פלוגה,שם מלא,צוות,סטטוס,הערות\n';
+            URL.revokeObjectURL(url);
 
-            people.forEach(person => {
-                const company = companies.find(c => c.id === person.organization_id);
-                const team = teams.find(t => t.id === person.teamId);
-                const presence = presenceSummary.find(p => p.person_id === person.id);
-
-                const status = presence?.status === 'base' ? 'בבסיס' : presence?.status === 'home' ? 'בבית' : 'לא הוזן';
-
-                csvContent += `"${company?.name || '-'}","${person.name}","${team?.name || '-'}",${status},-\n`;
-            });
-
-            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute('download', `battalion_attendance_${selectedDate.toLocaleDateString('en-CA')}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        } catch (error) {
+            console.error("Export error:", error);
         }
     };
 
@@ -148,12 +350,14 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 <span className="text-xs">יומי</span>
                             </button>
                         </div>
-                        <button
-                            onClick={handleExport}
-                            className="w-9 h-9 flex items-center justify-center bg-slate-50 text-slate-600 rounded-xl border border-slate-100 active:scale-95 transition-all shrink-0"
-                        >
-                            <Download size={18} weight="duotone" />
-                        </button>
+                        <ExportButton
+                            onExport={handleExport}
+                            iconOnly
+                            variant="secondary"
+                            size="sm"
+                            className="w-9 h-9 rounded-xl"
+                            title="ייצוא לאקסל"
+                        />
                     </div>
 
                     {/* Date Navigator */}
@@ -320,30 +524,12 @@ export const BattalionAttendanceManager: React.FC = () => {
                             mode={(viewMode === 'calendar' || viewMode === 'table') ? 'month' : 'day'}
                         />
 
-                        {/* More Actions */}
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowMoreActions(!showMoreActions)}
-                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors border ${showMoreActions ? 'bg-slate-100 border-slate-300 text-slate-800' : 'bg-white border-transparent hover:bg-slate-50 text-slate-500'}`}
-                            >
-                                <MoreVertical size={18} weight="duotone" />
-                            </button>
-
-                            {showMoreActions && (
-                                <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setShowMoreActions(false)} />
-                                    <div className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
-                                        <button
-                                            onClick={() => { handleExport(); setShowMoreActions(false); }}
-                                            className="w-full text-right px-4 py-2.5 text-xs font-bold hover:bg-slate-50 flex items-center gap-2 text-slate-700"
-                                        >
-                                            <Download size={14} className="text-slate-400" weight="duotone" />
-                                            ייצוא לאקסל
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
+                        <ExportButton
+                            onExport={handleExport}
+                            iconOnly
+                            className="h-9 w-9 rounded-xl hidden md:inline-flex"
+                            title="ייצוא לאקסל"
+                        />
                     </div>
                 </div>
 

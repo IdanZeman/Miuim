@@ -3,6 +3,8 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { useBattalionData } from '../../hooks/useBattalionData';
 import { Person } from '@/types';
 import { MagnifyingGlass as Search, DownloadSimple as Download, CircleNotch as Loader2, User, CaretDown, CaretRight, Users, Eye } from '@phosphor-icons/react';
+import { ExportButton } from '../../components/ui/ExportButton';
+import ExcelJS from 'exceljs';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 
@@ -91,34 +93,81 @@ export const BattalionPersonnelTable: React.FC = () => {
         });
     }, [people, searchTerm, showInactive]);
 
-    const handleExport = () => {
-        const headers = ['Name', 'Company', 'Team', 'Roles', 'Status'];
-        const rows = filteredPeople.map(p => {
-            const org = companies.find(c => c.id === p.organization_id);
-            const team = teams.find(t => t.id === p.teamId);
-            const personRoles = getPersonRoles(p).join('; ');
-            const presence = getPersonPresence(p.id);
-            return [
-                p.name,
-                org?.name || '-',
-                team?.name || '-',
-                personRoles || '-',
-                presence.label
+    const handleExport = async () => {
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('סד"כ גדודי', { views: [{ rightToLeft: true }] });
+
+            // Headers
+            const headers = ['שם מלא', 'פלוגה', 'צוות', 'תפקידים', 'מצב נוכחות', 'פירוט'];
+            const headerRow = worksheet.addRow(headers);
+            headerRow.font = { bold: true };
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+            headerRow.eachCell(cell => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }; // Slate 200
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            });
+
+            // Data
+            filteredPeople.forEach(p => {
+                const org = companies.find(c => c.id === p.organization_id);
+                const team = teams.find(t => t.id === p.teamId);
+                const personRoles = getPersonRoles(p).join(', ');
+                const presence = getPersonPresence(p.id);
+
+                const row = worksheet.addRow([
+                    p.name,
+                    org?.name || '-',
+                    team?.name || '-',
+                    personRoles || '-',
+                    presence.label,
+                    presence.details || '-'
+                ]);
+
+                // Style Status Cell
+                const statusCell = row.getCell(5);
+                statusCell.alignment = { horizontal: 'center' };
+                if (presence.status === 'base') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // Green
+                    statusCell.font = { color: { argb: 'FF065F46' } };
+                } else if (presence.status === 'home') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Red
+                    statusCell.font = { color: { argb: 'FF991B1B' } };
+                } else if (presence.status === 'sick') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE4E6' } }; // Rose
+                    statusCell.font = { color: { argb: 'FFBE123C' } };
+                } else if (presence.status === 'leave') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } }; // Indigo
+                    statusCell.font = { color: { argb: 'FF3730A3' } };
+                }
+
+                // General borders
+                row.eachCell(cell => {
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                });
+            });
+
+            // Column Widths
+            worksheet.columns = [
+                { width: 20 }, // Name
+                { width: 15 }, // Company
+                { width: 15 }, // Team
+                { width: 25 }, // Roles
+                { width: 15 }, // Status
+                { width: 30 }  // Details
             ];
-        });
 
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.join(','))
-        ].join('\n');
-
-        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', `battalion_personnel_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `battalion_personnel_${new Date().toLocaleDateString('en-CA')}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Export Error:', error);
+        }
     };
 
     if (isLoading) {
@@ -136,14 +185,14 @@ export const BattalionPersonnelTable: React.FC = () => {
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
-                        <Button
+                        <ExportButton
+                            onExport={handleExport}
                             variant="primary"
-                            icon={Download}
-                            onClick={handleExport}
+                            size="md"
+                            iconOnly
                             className="shadow-lg shadow-blue-100"
-                        >
-                            ייצוא לאקסל (CSV)
-                        </Button>
+                            title="ייצוא לאקסל"
+                        />
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
                                 type="checkbox"
