@@ -1,5 +1,6 @@
 import { handleAppError } from '../../utils/errorUtils';
 import { logger } from '../../lib/logger';
+import ExcelJS from 'exceljs';
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
@@ -849,12 +850,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
     // Optimization: Pre-calculate absence map for quick lookup in render
     const absenceLookup = React.useMemo(() => {
-        const map = new Map<string, string>(); // Key: personId-date, Value: Reason or ''
+        const map = new Map<string, { reason: string; status: string }>(); // Key: personId-date, Value: { reason, status }
         const start = new Date(startDate);
         const end = new Date(endDate);
 
         absences.forEach(a => {
-            if (a.status !== 'approved' && a.status !== 'pending') return;
+            // Include rejected absences so we can show them with a warning in the UI
+            if (a.status !== 'approved' && a.status !== 'pending' && a.status !== 'rejected') return;
 
             const aStart = new Date(a.start_date);
             const aEnd = new Date(a.end_date);
@@ -865,9 +867,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
             for (let d = new Date(effectiveStart); d <= effectiveEnd; d.setDate(d.getDate() + 1)) {
                 const key = `${a.person_id}-${d.toLocaleDateString('en-CA')}`;
-                // Prefer existing reason if multiple (or simply overwrite)
-                // Use explicit reason if available, else marker that implies default
-                map.set(key, a.reason || 'EMPTY_REASON');
+                map.set(key, { reason: a.reason || 'EMPTY_REASON', status: a.status });
             }
         });
         return map;
@@ -963,123 +963,156 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         </div>
     );
 
-    const handleExport = () => {
+    const handleExport = async () => {
         if (!result) return;
 
-        // 1. Headers
-        const headers = ['שם', 'צוות'];
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const dateKeys: string[] = [];
-
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-            const dateKey = d.toLocaleDateString('en-CA');
-            dateKeys.push(dateKey);
-            headers.push(d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }));
-        }
-
-        // 2. Rows
-        const rows = people
-            .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId))
-            .map(p => {
-                const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא';
-                const rowData = [p.name, teamName];
-
-                dateKeys.forEach((dateKey, idx) => {
-                    const override = manualOverrides[`${p.id}-${dateKey}`];
-                    let cellVal = 'בבסיס';
-                    let status = result.personStatuses?.[dateKey]?.[p.id] || 'base';
-                    // Re-resolve status if override exists (similar to preview)
-                    if (override) {
-                        if (override.status === 'arrival') {
-                            cellVal = `הגעה (${override.startTime || userArrivalHour})`;
-                            rowData.push(cellVal);
-                            return;
-                        }
-                        if (override.status === 'departure') {
-                            cellVal = `יציאה (${override.endTime || userDepartureHour})`;
-                            rowData.push(cellVal);
-                            return;
-                        }
-                        status = override.status;
-                    }
-
-                    // Standard Logic (Override or Algorithm)
-                    if (status === 'home') {
-                        // Check if it's implicitly Departure (Home following Base)
-                        // ONLY if NOT overridden? No, if manually set to Home, it IS Home.
-                        // If manually set to Base/Arrival/Departure, we handled it above.
-                        // If manually set to Home, we want explicit Home.
-                        // If Algorithm Home, we apply inference.
-
-                        if (override) {
-                            cellVal = 'בית';
-                        } else {
-                            const prevKey = idx > 0 ? dateKeys[idx - 1] : null;
-                            // Need effective prev status
-                            let prevStatus = 'base';
-                            if (prevKey) {
-                                const prevOv = manualOverrides[`${p.id}-${prevKey}`];
-                                if (prevOv) prevStatus = prevOv.status === 'arrival' || prevOv.status === 'departure' ? 'base' : prevOv.status;
-                                else prevStatus = result.personStatuses?.[prevKey]?.[p.id] || 'base';
-                            }
-
-                            if (prevStatus === 'base') cellVal = `יציאה (${userDepartureHour})`;
-                            else cellVal = 'בית';
-                        }
-                    } else if (status === 'unavailable') {
-                        if (override) {
-                            cellVal = 'בית (אילוץ)';
-                        } else {
-                            const prevKey = idx > 0 ? dateKeys[idx - 1] : null;
-                            // Need effective prev status
-                            let prevStatus = 'base';
-                            if (prevKey) {
-                                const prevOv = manualOverrides[`${p.id}-${prevKey}`];
-                                if (prevOv) prevStatus = prevOv.status === 'arrival' || prevOv.status === 'departure' ? 'base' : prevOv.status;
-                                else prevStatus = result.personStatuses?.[prevKey]?.[p.id] || 'base';
-                            }
-
-                            if (prevStatus === 'base') cellVal = `יציאה (${userDepartureHour})`;
-                            else cellVal = 'בית (אילוץ)';
-                        }
-                    } else if (status === 'base') {
-                        // Check Arrival
-                        if (override) {
-                            // If base override, checks custom times
-                            if (override.startTime && override.startTime !== '00:00' && override.startTime !== '23:59') {
-                                // Maybe custom?
-                                cellVal = `בבסיס (${override.startTime}-${override.endTime})`;
-                            } else {
-                                cellVal = 'בבסיס';
-                            }
-                        } else {
-                            // Standard Base (Full Day)
-                            cellVal = 'בבסיס';
-                        }
-                    }
-
-                    rowData.push(cellVal);
-                });
-                return rowData;
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('שיבוץ פלוגתי', {
+                views: [{ rightToLeft: true }]
             });
 
-        // 3. Generate CSV Content
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(r => r.join(','))
-        ].join('\n');
+            // 1. Headers
+            const headers = ['שם', 'צוות'];
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const dateKeys: string[] = [];
 
-        // 4. Download
-        const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `rota_export_${startDate}_${endDate}.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const dateKey = d.toLocaleDateString('en-CA');
+                dateKeys.push(dateKey);
+                headers.push(d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }));
+            }
+            headers.push('סיכום (בסיס/בית)');
 
-        showToast('הקובץ ירד בהצלחה', 'success');
+            const headerRow = worksheet.addRow(headers);
+            headerRow.font = { bold: true, size: 12 };
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+            headerRow.eachCell((cell) => {
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFE2E8F0' } // Slate 200
+                };
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+            });
+
+            // 2. Rows
+            people
+                .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId))
+                .forEach(p => {
+                    const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא';
+                    const rowValues = [p.name, teamName];
+                    let baseCount = 0;
+                    let homeCount = 0;
+
+                    dateKeys.forEach((dateKey, idx) => {
+                        const override = manualOverrides[`${p.id}-${dateKey}`];
+                        let cellVal = 'בבסיס';
+                        let status = result.personStatuses?.[dateKey]?.[p.id] || 'base';
+                        const absence = absenceLookup.get(`${p.id}-${dateKey}`);
+
+                        if (override) {
+                            if (override.status === 'arrival') {
+                                cellVal = `הגעה (${override.startTime || userArrivalHour})`;
+                            } else if (override.status === 'departure') {
+                                cellVal = `יציאה (${override.endTime || userDepartureHour})`;
+                            } else {
+                                status = override.status;
+                                cellVal = status === 'home' ? 'בית' : (status === 'unavailable' ? 'אילוץ' : 'בבסיס');
+                            }
+                        } else {
+                            if (status === 'home') {
+                                const prevKey = idx > 0 ? dateKeys[idx - 1] : null;
+                                let prevStatus = 'base';
+                                if (prevKey) {
+                                    const prevOv = manualOverrides[`${p.id}-${prevKey}`];
+                                    if (prevOv) prevStatus = prevOv.status === 'arrival' || prevOv.status === 'departure' ? 'base' : prevOv.status;
+                                    else prevStatus = result.personStatuses?.[prevKey]?.[p.id] || 'base';
+                                }
+                                if (prevStatus === 'base') cellVal = `יציאה (${userDepartureHour})`;
+                                else cellVal = 'בית';
+                            } else if (status === 'unavailable') {
+                                cellVal = 'בית (אילוץ)';
+                            } else if (status === 'base') {
+                                const prevKey = idx > 0 ? dateKeys[idx - 1] : null;
+                                let prevStatus = 'home';
+                                if (prevKey) {
+                                    const prevOv = manualOverrides[`${p.id}-${prevKey}`];
+                                    if (prevOv) prevStatus = prevOv.status === 'arrival' || prevOv.status === 'departure' ? 'base' : prevOv.status;
+                                    else prevStatus = result.personStatuses?.[prevKey]?.[p.id] || 'home';
+                                }
+                                if (prevStatus === 'home' || prevStatus === 'unavailable') cellVal = `הגעה (${userArrivalHour})`;
+                                else cellVal = 'בבסיס';
+                            }
+                        }
+
+                        if (absence) {
+                            const reasonText = absence.reason === 'EMPTY_REASON' ? 'בקשת יציאה' : absence.reason;
+                            cellVal += ` [${reasonText}]`;
+                        }
+
+                        if (status === 'home' || status === 'unavailable' || cellVal.includes('יציאה')) homeCount++;
+                        else baseCount++;
+
+                        rowValues.push(cellVal);
+                    });
+
+                    rowValues.push(`${baseCount} / ${homeCount}`);
+                    const row = worksheet.addRow(rowValues);
+
+                    // Style the cells
+                    row.eachCell((cell, colNumber) => {
+                        cell.border = {
+                            top: { style: 'thin' },
+                            left: { style: 'thin' },
+                            bottom: { style: 'thin' },
+                            right: { style: 'thin' }
+                        };
+
+                        if (colNumber > 2 && colNumber < rowValues.length) {
+                            const val = cell.value?.toString() || '';
+                            if (val.includes('בית') || val.includes('אילוץ')) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Red 100
+                                cell.font = { color: { argb: 'FF991B1B' } }; // Red 800
+                            } else if (val.includes('יציאה') || val.includes('הגעה')) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; // Amber 100
+                                cell.font = { color: { argb: 'FF92400E' } }; // Amber 800
+                            } else if (val.includes('בסיס')) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // Emerald 100
+                                cell.font = { color: { argb: 'FF065F46' } }; // Emerald 800
+                            }
+                        }
+                    });
+                });
+
+            // Column Widths
+            worksheet.columns = [
+                { width: 20 }, // Name
+                { width: 15 }, // Team
+                ...dateKeys.map(() => ({ width: 15 })), // Dates
+                { width: 18 }  // Summary
+            ];
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `rota_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            showToast('הקובץ יוצא בהצלחה כפורמט אקסל מעוצב', 'success');
+        } catch (error) {
+            console.error("Export error:", error);
+            showToast('שגיאה בתהליך הייצוא', 'error');
+        }
     };
 
     const modalTitle = (
@@ -1755,11 +1788,16 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                             let content = null;
                                                             let cellClass = "bg-white";
 
+                                                            const relevantAbsence = absenceLookup.get(`${person.id}-${dateKey}`);
+                                                            const isExitRequest = !!relevantAbsence;
+                                                            const isUnapprovedExit = isExitRequest && relevantAbsence?.status !== 'approved';
+                                                            const constraintText = isExitRequest ? (relevantAbsence.reason === 'EMPTY_REASON' ? 'בקשת יציאה' : relevantAbsence.reason) : '';
+
+
                                                             if (status === 'home' || status === 'unavailable') {
                                                                 const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
-                                                                const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
 
-                                                                if (!isOverridden && prevStatus === 'base' && status !== 'unavailable' && !absenceReason) {
+                                                                if (!isOverridden && prevStatus === 'base' && status !== 'unavailable' && !isExitRequest) {
                                                                     cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
                                                                     content = (
                                                                         <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
@@ -1769,13 +1807,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                     );
                                                                 } else {
                                                                     cellClass = "bg-red-100 text-red-800 border-l border-slate-100";
-                                                                    const isConstraint = status === 'unavailable' || !!absenceReason;
+                                                                    const isConstraint = status === 'unavailable' || isExitRequest;
                                                                     content = (
                                                                         <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-bold leading-tight">
                                                                             <span className="text-red-900">בית</span>
                                                                             {isConstraint && (
-                                                                                <span className="text-[9px] font-bold truncate max-w-full px-0.5" title={absenceReason || 'בקשת יציאה'}>
-                                                                                    {absenceReason ? (absenceReason === 'EMPTY_REASON' ? 'בקשת יציאה' : absenceReason) : 'בקשת יציאה'}
+                                                                                <span className="text-[9px] font-bold truncate max-w-full px-0.5" title={constraintText}>
+                                                                                    {constraintText}
                                                                                 </span>
                                                                             )}
                                                                         </div>
@@ -1804,9 +1842,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                             } else if (status === 'base') {
                                                                 const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
                                                                 const isPrevHome = prevStatus === 'home' || prevStatus === 'unavailable';
-                                                                const absenceReason = absenceLookup.get(`${person.id}-${dateKey}`);
 
-                                                                if (!isOverridden && isPrevHome && !absenceReason) {
+                                                                if (!isOverridden && isPrevHome && !isExitRequest) {
                                                                     cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
                                                                     content = (
                                                                         <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
@@ -1825,8 +1862,14 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                     cellClass = "bg-green-100 text-green-800 border-l border-slate-100";
                                                                     content = (
                                                                         <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center relative">
-                                                                            {absenceReason && <div className="absolute top-[1px] left-[1px] text-red-600 animate-pulse"><AlertTriangle size={10} weight="bold" /></div>}
+                                                                            {isExitRequest && <div className="absolute top-[1px] left-[1px] text-red-600 animate-pulse"><AlertTriangle size={10} weight="bold" /></div>}
                                                                             <span className="font-bold">{label}</span>
+                                                                            {isExitRequest && (
+                                                                                <span className={`text-[8px] font-bold text-red-600 truncate max-w-full px-1 leading-tight text-center ${isUnapprovedExit ? 'bg-red-50 rounded px-0.5' : ''}`} title={constraintText}>
+                                                                                    {constraintText}
+                                                                                    {isUnapprovedExit && <span className="block text-[7px] opacity-70">לא אושר</span>}
+                                                                                </span>
+                                                                            )}
                                                                             {subLabel && <span className="text-[9px] font-mono">{subLabel}</span>}
                                                                         </div>
                                                                     );
