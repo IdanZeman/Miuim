@@ -245,8 +245,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
     useEffect(() => {
         const bid = organization?.battalion_id;
         const isHQUser = organization?.is_hq && (
-            profile?.permissions?.dataScope === 'battalion' ||
-            profile?.is_super_admin
+            profile?.permissions?.dataScope === 'battalion'
         );
 
         if (bid && isHQUser) {
@@ -277,6 +276,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
     };
 
     const filteredTabs = TABS.filter(tab => {
+        // Special logic for Battalion Tab: Hide if NOT in HQ context
+        if (tab.id === 'battalion' && (!organization || !organization.is_hq)) {
+            return false;
+        }
         // All tabs now rely on RBAC checkAccess - no special cases
         return tab.views.some(v => checkAccess(v as ViewMode));
     });
@@ -369,7 +372,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                                             <span>הגדרות ארגון</span>
                                                         </button>
                                                     )}
-                                                    {organization?.battalion_id && checkAccess('battalion-settings') && (
+                                                    {organization?.battalion_id && organization?.is_hq && checkAccess('battalion-settings') && (
                                                         <button
                                                             onClick={() => { handleNav('battalion-settings'); setIsProfileDropdownOpen(false); }}
                                                             className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all text-right"
