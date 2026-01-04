@@ -30,7 +30,8 @@ import {
     ArrowLeft,
     FileText,
     ShieldCheck,
-    Info
+    Info,
+    ArrowsDownUp
 } from '@phosphor-icons/react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -81,6 +82,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const [isSortOpen, setIsSortOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null); // NEW // NEW
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isMobileFilterModalOpen, setIsMobileFilterModalOpen] = useState(false);
+    const [isMobileSortModalOpen, setIsMobileSortModalOpen] = useState(false);
 
     // Permissions
     const canApprove = profile?.permissions?.canApproveRequests || profile?.is_super_admin;
@@ -580,52 +584,62 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                     className="block w-full h-12 pr-12 pl-4 bg-slate-100/60 border border-transparent rounded-2xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-base"
                                 />
                             </div>
-                            {isSidebarOpen ? (
+                            <div className="relative">
                                 <button
-                                    onClick={() => {
-                                        const areAllCollapsed = teams.length > 0 && teams.every(t => collapsedTeams[t.id]);
-                                        if (areAllCollapsed) expandAllTeams();
-                                        else collapseAllTeams();
-                                    }}
-                                    className="h-12 px-3 rounded-2xl border border-slate-200 bg-white text-slate-500 hover:text-blue-600 transition-all flex items-center justify-center gap-2 shrink-0 font-bold text-xs"
+                                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                                    className={`h-12 w-12 rounded-2xl border border-slate-200 transition-all flex items-center justify-center shrink-0 ${isMobileMenuOpen ? 'bg-slate-100 text-slate-900 border-slate-300' : 'bg-white text-slate-500'}`}
                                 >
-                                    {teams.length > 0 && teams.every(t => collapsedTeams[t.id]) ? (
-                                        <><ChevronDown size={18} weight="bold" /> פתח הכל</>
-                                    ) : (
-                                        <><ChevronUp size={18} weight="bold" /> כווץ הכל</>
-                                    )}
+                                    <MoreVertical size={24} weight="bold" />
                                 </button>
-                            ) : (
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                        className={`h-12 w-12 rounded-2xl border border-slate-200 transition-all flex items-center justify-center shrink-0 ${filterStatus !== 'all' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200' : 'bg-white text-slate-500'}`}
-                                    >
-                                        <Filter size={20} weight="bold" />
-                                    </button>
-                                    {isFilterOpen && (
-                                        <>
-                                            <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)}></div>
-                                            <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                                                {[
-                                                    { id: 'all', label: 'כל הסטטוסים' },
-                                                    { id: 'pending', label: 'ממתין לאישור' },
-                                                    { id: 'approved', label: 'מאושרים' },
-                                                    { id: 'rejected', label: 'נדחו' }
-                                                ].map(f => (
-                                                    <button
-                                                        key={f.id}
-                                                        onClick={() => { setFilterStatus(f.id as any); setIsFilterOpen(false); }}
-                                                        className={`w-full text-right px-4 py-2.5 text-sm font-bold transition-colors ${filterStatus === f.id ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
-                                                    >
-                                                        {f.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            )}
+
+                                {isMobileMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setIsMobileMenuOpen(false)}></div>
+                                        <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden">
+                                            <button
+                                                onClick={() => {
+                                                    setIsMobileMenuOpen(false);
+                                                    setIsMobileFilterModalOpen(true);
+                                                }}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors text-right border-b border-slate-50"
+                                            >
+                                                <Filter size={18} className="text-emerald-500" />
+                                                סנן בקשות
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setIsMobileMenuOpen(false);
+                                                    setIsMobileSortModalOpen(true);
+                                                }}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors text-right border-b border-slate-50"
+                                            >
+                                                <ArrowsDownUp size={18} className="text-purple-500" />
+                                                מיין לפי
+                                            </button>
+
+                                            {isSidebarOpen && (
+                                                <button
+                                                    onClick={() => {
+                                                        const areAllCollapsed = teams.length > 0 && teams.every(t => collapsedTeams[t.id]);
+                                                        if (areAllCollapsed) expandAllTeams();
+                                                        else collapseAllTeams();
+                                                        setIsMobileMenuOpen(false);
+                                                    }}
+                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors text-right"
+                                                >
+                                                    {teams.length > 0 && teams.every(t => collapsedTeams[t.id]) ? (
+                                                        <ChevronDown size={18} className="text-blue-500" />
+                                                    ) : (
+                                                        <ChevronUp size={18} className="text-blue-500" />
+                                                    )}
+                                                    {teams.length > 0 && teams.every(t => collapsedTeams[t.id]) ? "פתח את הכל" : "כווץ את הכל"}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
 
                         {/* Mobile Segmented Control */}
@@ -1211,7 +1225,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                     {editingAbsence ? 'עריכת היעדרות' : 'בקשת יציאה חדשה'}
                                 </h3>
                                 <div className="flex items-center gap-2 text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">
-                                    <Tag size={12} className="text-emerald-500" weight="duotone" />
+                                    <Tag size={12} className="text-emerald-500" />
                                     <span>{editingAbsence ? 'עדכון פרטי בקשה' : 'דיווח אילוץ או חופשה'}</span>
                                 </div>
                             </div>
@@ -1368,6 +1382,111 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                     <TimePicker label="שעת חזרה" value={approvalReturnTime} onChange={setApprovalReturnTime} />
                                 </div>
                             </div>
+                        </div>
+                    </GenericModal>
+
+                    {/* Mobile Filter Modal */}
+                    <GenericModal
+                        isOpen={isMobileFilterModalOpen}
+                        onClose={() => setIsMobileFilterModalOpen(false)}
+                        title={
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                                    <Filter size={20} weight="duotone" />
+                                </div>
+                                <h3 className="text-xl font-black text-slate-800">סינון בקשות</h3>
+                            </div>
+                        }
+                        size="sm"
+                        footer={
+                            <Button
+                                onClick={() => setIsMobileFilterModalOpen(false)}
+                                className="w-full font-black text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
+                            >
+                                סגור
+                            </Button>
+                        }
+                    >
+                        <div className="space-y-2 py-2">
+                            {[
+                                { id: 'all', label: 'כל הסטטוסים', icon: CalendarDays, color: 'text-slate-500', bg: 'bg-slate-100' },
+                                { id: 'pending', label: 'ממתין לאישור', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-100' },
+                                { id: 'approved', label: 'מאושרים', icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-100' },
+                                { id: 'rejected', label: 'נדחו', icon: XCircle, color: 'text-rose-500', bg: 'bg-rose-100' }
+                            ].map(f => (
+                                <button
+                                    key={f.id}
+                                    onClick={() => { setFilterStatus(f.id as any); setIsMobileFilterModalOpen(false); }}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${filterStatus === f.id
+                                        ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200'
+                                        : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${f.bg} ${f.color}`}>
+                                            <f.icon size={16} weight="bold" />
+                                        </div>
+                                        <span className={`font-bold ${filterStatus === f.id ? 'text-blue-900' : 'text-slate-700'}`}>
+                                            {f.label}
+                                        </span>
+                                    </div>
+                                    {filterStatus === f.id && (
+                                        <Check size={18} weight="bold" className="text-blue-600" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </GenericModal>
+
+                    {/* Mobile Sort Modal */}
+                    <GenericModal
+                        isOpen={isMobileSortModalOpen}
+                        onClose={() => setIsMobileSortModalOpen(false)}
+                        title={
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600">
+                                    <ArrowsDownUp size={20} weight="duotone" />
+                                </div>
+                                <h3 className="text-xl font-black text-slate-800">מיון בקשות</h3>
+                            </div>
+                        }
+                        size="sm"
+                        footer={
+                            <Button
+                                onClick={() => setIsMobileSortModalOpen(false)}
+                                className="w-full font-black text-purple-600 bg-purple-50 hover:bg-purple-100"
+                            >
+                                סגור
+                            </Button>
+                        }
+                    >
+                        <div className="space-y-2 py-2">
+                            {[
+                                { id: 'date', label: 'תאריך', icon: CalendarDays },
+                                { id: 'name', label: 'שם חייל', icon: Tag },
+                                { id: 'status', label: 'סטטוס בקשה', icon: Info }
+                            ].map(s => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => { setSortBy(s.id as any); setIsMobileSortModalOpen(false); }}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${sortBy === s.id
+                                        ? 'bg-purple-50 border-purple-200 ring-1 ring-purple-200'
+                                        : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sortBy === s.id ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500'}`}>
+                                            <s.icon size={16} weight="bold" />
+                                        </div>
+                                        <span className={`font-bold ${sortBy === s.id ? 'text-purple-900' : 'text-slate-700'}`}>
+                                            {s.label}
+                                        </span>
+                                    </div>
+                                    {sortBy === s.id && (
+                                        <Check size={18} weight="bold" className="text-purple-600" />
+                                    )}
+                                </button>
+                            ))}
                         </div>
                     </GenericModal>
 
