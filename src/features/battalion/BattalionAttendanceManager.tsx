@@ -9,6 +9,7 @@ import { GlobalTeamCalendar } from '../scheduling/GlobalTeamCalendar';
 import { AttendanceTable } from '../scheduling/AttendanceTable';
 import { PersonalAttendanceCalendar } from '../scheduling/PersonalAttendanceCalendar';
 import { PageInfo } from '@/components/ui/PageInfo';
+import { ActionBar } from '@/components/ui/ActionBar';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import ExcelJS from 'exceljs';
 
@@ -19,7 +20,6 @@ export const BattalionAttendanceManager: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [viewDate, setViewDate] = useState(new Date());
     const [searchTerm, setSearchTerm] = useState('');
-    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [showMoreActions, setShowMoreActions] = useState(false);
     const [selectedPersonForCalendar, setSelectedPersonForCalendar] = useState<Person | null>(null);
 
@@ -429,92 +429,64 @@ export const BattalionAttendanceManager: React.FC = () => {
 
             {/* Desktop View */}
             <div className="hidden md:flex flex-col flex-1 overflow-hidden">
-                {/* Desktop Header */}
-                <div className="bg-white/50 backdrop-blur-sm border-b border-slate-100 p-4 justify-between items-center shrink-0 z-20 relative flex gap-4">
-                    <div className="flex items-center gap-4">
-                        <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                            <Calendar className="text-blue-600" size={24} weight="duotone" />
-                            יומן נוכחות גדודי
-                            <PageInfo
-                                title="יומן נוכחות גדודי"
-                                description={
-                                    <>
-                                        <p className="mb-2">מבט מרוכז על נוכחות כל הלוחמים בגדוד.</p>
-                                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
-                                            <li><b>תצוגת לוח שנה:</b> מבט חודשי על כל הפלוגות.</li>
-                                            <li><b>תצוגת טבלה:</b> טבלה חודשית מפורטת.</li>
-                                            <li><b>תצוגת רשימה:</b> פירוט יומי לפי פלוגות.</li>
-                                        </ul>
-                                        <p className="text-sm bg-blue-50 p-2 rounded text-blue-800">
-                                            יומן זה הוא לצפייה בלבד. עריכת נוכחות מתבצעת ברמת הפלוגה.
-                                        </p>
-                                    </>
-                                }
-                            />
-                        </h2>
+                {/* Desktop Action Bar */}
+                <ActionBar
+                    searchTerm={viewMode !== 'calendar' ? searchTerm : ''}
+                    onSearchChange={setSearchTerm}
+                    onExport={handleExport}
+                    className="p-4"
+                    leftActions={
+                        <div className="flex items-center gap-4">
+                            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <Calendar className="text-blue-600" size={24} weight="duotone" />
+                                יומן נוכחות גדודי
+                                <PageInfo
+                                    title="יומן נוכחות גדודי"
+                                    description={
+                                        <>
+                                            <p className="mb-2">מבט מרוכז על נוכחות כל הלוחמים בגדוד.</p>
+                                            <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                                <li><b>תצוגת לוח שנה:</b> מבט חודשי על כל הפלוגות.</li>
+                                                <li><b>תצוגת טבלה:</b> טבלה חודשית מפורטת.</li>
+                                                <li><b>תצוגת רשימה:</b> פירוט יומי לפי פלוגות.</li>
+                                            </ul>
+                                            <p className="text-sm bg-blue-50 p-2 rounded text-blue-800">
+                                                יומן זה הוא לצפייה בלבד. עריכת נוכחות מתבצעת ברמת הפלוגה.
+                                            </p>
+                                        </>
+                                    }
+                                />
+                            </h2>
 
-                        <div className="h-6 w-px bg-slate-200 mx-2" />
+                            <div className="h-6 w-px bg-slate-200 mx-1" />
 
-                        {/* View Mode Selector */}
-                        <div className="flex bg-slate-100/80 rounded-xl p-1 border border-slate-200/50">
-                            <button
-                                onClick={() => setViewMode('calendar')}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <Calendar size={14} weight="duotone" />
-                                לוח שנה
-                            </button>
-                            <button
-                                onClick={() => setViewMode('table')}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <ListChecks size={14} weight="duotone" />
-                                טבלה חודשית
-                            </button>
-                            <button
-                                onClick={() => setViewMode('day_detail')}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'day_detail' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <Users size={14} weight="duotone" />
-                                רשימה יומית
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        {/* Search */}
-                        {viewMode !== 'calendar' && (
-                            <div className={`relative transition-all duration-300 ease-in-out ${isSearchExpanded || searchTerm ? 'w-48' : 'w-9'}`}>
-                                {isSearchExpanded || searchTerm ? (
-                                    <div className="relative w-full">
-                                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} weight="duotone" />
-                                        <input
-                                            autoFocus
-                                            type="text"
-                                            placeholder="חיפוש..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            onBlur={() => { if (!searchTerm) setIsSearchExpanded(false); }}
-                                            className="w-full h-9 pr-9 pl-8 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm placeholder:font-medium"
-                                        />
-                                        <button
-                                            onClick={() => { setSearchTerm(''); setIsSearchExpanded(false); }}
-                                            className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-                                        >
-                                            <X size={12} weight="bold" />
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={() => setIsSearchExpanded(true)}
-                                        className="w-9 h-9 flex items-center justify-center bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-500 transition-colors"
-                                    >
-                                        <Search size={16} weight="duotone" />
-                                    </button>
-                                )}
+                            {/* View Mode Selector */}
+                            <div className="flex bg-slate-100/80 rounded-xl p-1 border border-slate-200/50">
+                                <button
+                                    onClick={() => setViewMode('calendar')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <Calendar size={14} weight="duotone" />
+                                    לוח שנה
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <ListChecks size={14} weight="duotone" />
+                                    טבלה חודשית
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('day_detail')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'day_detail' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <Users size={14} weight="duotone" />
+                                    רשימה יומית
+                                </button>
                             </div>
-                        )}
-
+                        </div>
+                    }
+                    rightActions={
                         <DateNavigator
                             date={(viewMode === 'calendar' || viewMode === 'table') ? viewDate : selectedDate}
                             onDateChange={(d) => {
@@ -523,15 +495,8 @@ export const BattalionAttendanceManager: React.FC = () => {
                             }}
                             mode={(viewMode === 'calendar' || viewMode === 'table') ? 'month' : 'day'}
                         />
-
-                        <ExportButton
-                            onExport={handleExport}
-                            iconOnly
-                            className="h-9 w-9 rounded-xl hidden md:inline-flex"
-                            title="ייצוא לאקסל"
-                        />
-                    </div>
-                </div>
+                    }
+                />
 
                 {/* Desktop Content */}
                 <div className="flex-1 overflow-hidden flex flex-col isolate z-10">
@@ -558,8 +523,8 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 teamRotations={teamRotations}
                                 absences={absences}
                                 hourlyBlockages={hourlyBlockages}
-                                currentDate={selectedDate}
-                                onDateChange={setSelectedDate}
+                                currentDate={viewMode === 'table' ? viewDate : selectedDate}
+                                onDateChange={viewMode === 'table' ? setViewDate : setSelectedDate}
                                 viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
                                 onSelectPerson={(p) => setSelectedPersonForCalendar(p)}
                                 className="h-full"
