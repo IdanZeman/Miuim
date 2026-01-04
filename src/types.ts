@@ -138,6 +138,7 @@ export interface Person {
   email?: string;
   phone?: string; // NEW: Phone number
   isActive?: boolean; // NEW: Active status (default true)
+  isCommander?: boolean; // NEW: Commander status for display/filtering
   organization_id?: string;
 
   preferences?: {

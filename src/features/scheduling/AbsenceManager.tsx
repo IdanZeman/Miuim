@@ -1,4 +1,7 @@
 import React, { useState, useMemo } from 'react';
+import ExcelJS from 'exceljs';
+import { ActionBar } from '@/components/ui/ActionBar';
+import { PageInfo } from '@/components/ui/PageInfo';
 import { Person, Absence } from '@/types';
 import { addAbsence, deleteAbsence, updateAbsence, upsertDailyPresence } from '@/services/supabaseClient';
 import { useToast } from '@/contexts/ToastContext';
@@ -41,7 +44,6 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Select } from '@/components/ui/Select';
 import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
 import { logger } from '@/services/loggingService';
-import { PageInfo } from '@/components/ui/PageInfo';
 import { GenericModal } from '@/components/ui/GenericModal';
 
 
@@ -78,13 +80,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
     // Filter State
     const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-    const [isFilterOpen, setIsFilterOpen] = useState(false);
-    const [isSortOpen, setIsSortOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
-    const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null); // NEW // NEW
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isMobileFilterModalOpen, setIsMobileFilterModalOpen] = useState(false);
-    const [isMobileSortModalOpen, setIsMobileSortModalOpen] = useState(false);
 
     // Permissions
     const canApprove = profile?.permissions?.canApproveRequests || profile?.is_super_admin;
@@ -103,6 +99,47 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const [formStartTime, setFormStartTime] = useState<string>('08:00');
     const [formEndTime, setFormEndTime] = useState<string>('17:00');
     const [isFullDay, setIsFullDay] = useState(true);
+
+    const handleExport = async () => {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('בקשות היעדרות');
+
+        worksheet.columns = [
+            { header: 'שם חייל', key: 'name', width: 20 },
+            { header: 'תאריך התחלה', key: 'startDate', width: 15 },
+            { header: 'תאריך סיום', key: 'endDate', width: 15 },
+            { header: 'שעות', key: 'times', width: 15 },
+            { header: 'סיבה', key: 'reason', width: 30 },
+            { header: 'סטטוס', key: 'status', width: 15 }
+        ];
+
+        absences.forEach(absence => {
+            const person = people.find(p => p.id === absence.person_id);
+            const times = absence.start_time && absence.end_time ? `${absence.start_time} - ${absence.end_time}` : 'יום מלא';
+            worksheet.addRow({
+                name: person?.name || 'לא ידוע',
+                startDate: new Date(absence.start_date).toLocaleDateString('he-IL'),
+                endDate: new Date(absence.end_date).toLocaleDateString('he-IL'),
+                times: times,
+                reason: absence.reason || '',
+                status: absence.status === 'approved' ? 'מאושר' : absence.status === 'pending' ? 'ממתין' : 'נדחה'
+            });
+        });
+
+        // Styling
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).alignment = { horizontal: 'center' };
+        worksheet.views = [{ rightToLeft: true }];
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `absences_${new Date().toISOString().split('T')[0]}.xlsx`;
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+    };
 
     // Approval Modal State
     const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
@@ -558,153 +595,101 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
             <div className="relative z-10 max-w-[1600px] mx-auto pt-0 md:pt-6 px-0 md:px-6 pb-6 h-screen flex flex-col">
                 <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 overflow-hidden flex flex-col flex-1">
 
-                    {/* Premium Mobile Header - Glassmorphism */}
-                    <div className="md:hidden sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 px-5 pt-8 pb-4 space-y-4 shrink-0">
-                        <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                                <h1 className="text-2xl font-black text-slate-900 tracking-tight">בקשות והיעדרויות</h1>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">ניהול אילוצים ובקשות יציאה</span>
-                            </div>
-                            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm shadow-emerald-100/50">
-                                <CalendarDays size={26} weight="duotone" />
-                            </div>
-                        </div>
-
-                        {/* Mobile Search & Action Toolbar */}
-                        <div className="flex items-center gap-3">
-                            <div className="flex-1 relative group">
-                                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-600 transition-colors">
-                                    <Search size={18} strokeWidth={2.5} />
+                    {/* Unified Action Bar */}
+                    <ActionBar
+                        searchTerm={searchTerm}
+                        onSearchChange={setSearchTerm}
+                        onExport={handleExport}
+                        className="px-4 md:px-6 sticky top-0 z-40 bg-white border-b border-slate-100"
+                        leftActions={
+                            <div className="flex items-center gap-3">
+                                <div className="hidden md:flex w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl items-center justify-center">
+                                    <CalendarDays size={22} weight="duotone" />
                                 </div>
-                                <input
-                                    placeholder="חפש חייל..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    inputMode="search"
-                                    className="block w-full h-12 pr-12 pl-4 bg-slate-100/60 border border-transparent rounded-2xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-base"
+                                <div className="flex flex-col">
+                                    <h2 className="text-lg md:text-xl font-black text-slate-800 tracking-tight leading-tight">ניהול היעדרויות</h2>
+                                    <span className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest">אילוצים ובקשות יציאה</span>
+                                </div>
+                                <PageInfo
+                                    title="ניהול היעדרויות"
+                                    description={
+                                        <div className="space-y-3">
+                                            <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-start gap-3">
+                                                <Info size={20} className="text-emerald-600 shrink-0 mt-0.5" weight="duotone" />
+                                                <div className="text-sm">
+                                                    <h4 className="font-black text-emerald-900 mb-1">בקשות יציאה וחופשות</h4>
+                                                    <p className="text-emerald-700/80 leading-relaxed font-medium">כאן מנהלים את כל בקשות היציאה, החופשות והסיווגים של אנשי הצוות.</p>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                <div className="flex items-center gap-2 text-sm text-slate-600 font-bold">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                    <span><b>אישור בקשה:</b> מעדכן אוטומטית את יומן הנוכחות כ"חופשה".</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm text-slate-600 font-bold">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                    <span><b>דחיית בקשה:</b> מסמן את החייל כ"בבסיס".</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm text-slate-600 font-bold">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                    <span><b>תצוגה אישית:</b> לחיצה על שם חייל תפתח יומן שנתי עבורו.</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
                                 />
                             </div>
-                            <div className="relative">
+                        }
+                        centerActions={
+                            <div className="bg-slate-100/80 p-1 rounded-xl flex items-center gap-1 w-full md:w-auto">
                                 <button
-                                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                    className={`h-12 w-12 rounded-2xl border border-slate-200 transition-all flex items-center justify-center shrink-0 ${isMobileMenuOpen ? 'bg-slate-100 text-slate-900 border-slate-300' : 'bg-white text-slate-500'}`}
+                                    onClick={() => setIsSidebarOpen(true)}
+                                    className={`flex-1 md:flex-none px-4 md:px-6 py-2 rounded-[0.875rem] text-xs font-black transition-all ${isSidebarOpen
+                                        ? 'bg-white text-slate-900 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                        }`}
                                 >
-                                    <MoreVertical size={24} weight="bold" />
+                                    רשימת שמות
                                 </button>
-
-                                {isMobileMenuOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-40" onClick={() => setIsMobileMenuOpen(false)}></div>
-                                        <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden">
-                                            <button
-                                                onClick={() => {
-                                                    setIsMobileMenuOpen(false);
-                                                    setIsMobileFilterModalOpen(true);
-                                                }}
-                                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors text-right border-b border-slate-50"
-                                            >
-                                                <Filter size={18} className="text-emerald-500" />
-                                                סנן בקשות
-                                            </button>
-
-                                            <button
-                                                onClick={() => {
-                                                    setIsMobileMenuOpen(false);
-                                                    setIsMobileSortModalOpen(true);
-                                                }}
-                                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors text-right border-b border-slate-50"
-                                            >
-                                                <ArrowsDownUp size={18} className="text-purple-500" />
-                                                מיין לפי
-                                            </button>
-
-                                            {isSidebarOpen && (
-                                                <button
-                                                    onClick={() => {
-                                                        const areAllCollapsed = teams.length > 0 && teams.every(t => collapsedTeams[t.id]);
-                                                        if (areAllCollapsed) expandAllTeams();
-                                                        else collapseAllTeams();
-                                                        setIsMobileMenuOpen(false);
-                                                    }}
-                                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors text-right"
-                                                >
-                                                    {teams.length > 0 && teams.every(t => collapsedTeams[t.id]) ? (
-                                                        <ChevronDown size={18} className="text-blue-500" />
-                                                    ) : (
-                                                        <ChevronUp size={18} className="text-blue-500" />
-                                                    )}
-                                                    {teams.length > 0 && teams.every(t => collapsedTeams[t.id]) ? "פתח את הכל" : "כווץ את הכל"}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
+                                <button
+                                    onClick={() => { setIsSidebarOpen(false); setSelectedPersonId(null); }}
+                                    className={`flex-1 md:flex-none px-4 md:px-6 py-2 rounded-[0.875rem] text-xs font-black transition-all ${!isSidebarOpen
+                                        ? 'bg-white text-slate-900 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                        }`}
+                                >
+                                    בקשות ({activeAbsences.length})
+                                </button>
                             </div>
-                        </div>
-
-                        {/* Mobile Segmented Control */}
-                        <div className="flex p-1.5 bg-slate-100 rounded-2xl gap-1">
-                            <button
-                                onClick={() => setIsSidebarOpen(true)}
-                                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all duration-300 ${isSidebarOpen || selectedPersonId
-                                    ? 'bg-white text-slate-900 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700'
-                                    }`}
-                            >
-                                רשימת שמות
-                            </button>
-                            <button
-                                onClick={() => { setIsSidebarOpen(false); setSelectedPersonId(null); }}
-                                className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all duration-300 ${!isSidebarOpen && !selectedPersonId
-                                    ? 'bg-white text-slate-900 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700'
-                                    }`}
-                            >
-                                בקשות ({activeAbsences.length})
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Desktop Header Container (Hidden on Mobile) */}
-                    <div className="hidden md:flex sticky top-0 bg-white/95 backdrop-blur-md z-40 py-3 mb-0 px-6 transition-all border-b border-slate-100 shadow-sm items-center justify-between shrink-0">
-                        <div className="flex items-center gap-4 shrink-0">
-                            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
-                                <CalendarDays size={24} weight="duotone" />
-                            </div>
-                            <div className="flex flex-col">
-                                <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1">בקשות יציאה והיעדרויות</h1>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול אילוצים ובקשות יציאה</span>
-                                    <PageInfo
-                                        title="ניהול היעדרויות"
-                                        description={
-                                            <div className="space-y-2">
-                                                <p>כאן מנהלים את כל בקשות היציאה, החופשות והסיווגים של אנשי הצוות.</p>
-                                                <ul className="list-disc list-inside space-y-1 text-sm font-medium text-slate-600">
-                                                    <li><b>אישור בקשה:</b> מעדכן אוטומטית את יומן הנוכחות כ"בבית".</li>
-                                                    <li><b>דחיית בקשה:</b> מסמן את החייל כ"בבסיס".</li>
-                                                    <li><b>תצוגה אישית:</b> לחיצה על שם חייל תפתח יומן שנתי עבורו.</li>
-                                                </ul>
-                                            </div>
-                                        }
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            {/* Active Filters Display */}
-                            {filterStatus !== 'all' && (
-                                <span className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider border border-emerald-100 flex items-center gap-2">
-                                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                                    סינון: {filterStatus === 'pending' ? 'ממתין' : filterStatus === 'approved' ? 'מאושר' : 'נדחה'}
-                                    <button onClick={() => setFilterStatus('all')} className="hover:text-emerald-800 transition-colors"><X size={14} weight="bold" /></button>
-                                </span>
-                            )}
-
-
-                        </div>
-                    </div>
+                        }
+                        filters={[
+                            {
+                                id: 'status',
+                                value: filterStatus,
+                                onChange: (val) => setFilterStatus(val as any),
+                                options: [
+                                    { value: 'all', label: 'כל הסטטוסים' },
+                                    { value: 'pending', label: 'ממתין' },
+                                    { value: 'approved', label: 'מאושר' },
+                                    { value: 'rejected', label: 'נדחה' }
+                                ],
+                                placeholder: 'סינון לפי סטטוס',
+                                icon: Filter
+                            },
+                            {
+                                id: 'sort',
+                                value: sortBy,
+                                onChange: (val) => setSortBy(val as any),
+                                options: [
+                                    { value: 'date', label: 'מיין לפי תאריך' },
+                                    { value: 'name', label: 'מיין לפי שם' },
+                                    { value: 'status', label: 'מיין לפי סטטוס' }
+                                ],
+                                placeholder: 'מיון',
+                                icon: ArrowsDownUp
+                            }
+                        ]}
+                    />
 
                     <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative">
                         {/* Sidebar: People List */}
@@ -906,66 +891,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                         {activeAbsences.length}
                                                     </span>
                                                 </h3>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            {/* Desktop Sort Controls */}
-                                            <div className="hidden md:flex items-center bg-slate-100 p-1 rounded-xl gap-1">
-                                                <button
-                                                    onClick={() => setSortBy('date')}
-                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${sortBy === 'date' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                                >
-                                                    תאריך
-                                                </button>
-                                                <button
-                                                    onClick={() => setSortBy('name')}
-                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${sortBy === 'name' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                                >
-                                                    שם
-                                                </button>
-                                                <button
-                                                    onClick={() => setSortBy('status')}
-                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${sortBy === 'status' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                                >
-                                                    סטטוס
-                                                </button>
-                                            </div>
-
-                                            <div className="h-6 w-px bg-slate-100 hidden md:block mx-1"></div>
-
-                                            {/* Filter Status */}
-                                            <div className="relative">
-                                                <button
-                                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                                    className={`h-9 px-3 rounded-xl text-[10px] font-black border transition-all flex items-center gap-2 ${filterStatus !== 'all' ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                                                >
-                                                    <Filter size={14} weight="bold" />
-                                                    <span>
-                                                        {filterStatus === 'all' ? 'כל הסטטוסים' : filterStatus === 'pending' ? 'ממתין' : filterStatus === 'approved' ? 'מאושר' : 'נדחה'}
-                                                    </span>
-                                                </button>
-
-                                                {isFilterOpen && (
-                                                    <>
-                                                        <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)}></div>
-                                                        <div className="absolute top-full left-0 mt-2 w-40 bg-white rounded-[1.25rem] shadow-2xl border border-slate-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                            {[
-                                                                { id: 'all', label: 'כל הסטטוסים' },
-                                                                { id: 'pending', label: 'ממתין לאישור' },
-                                                                { id: 'approved', label: 'מאושרים' },
-                                                                { id: 'rejected', label: 'נדחו' }
-                                                            ].map(f => (
-                                                                <button
-                                                                    key={f.id}
-                                                                    onClick={() => { setFilterStatus(f.id as any); setIsFilterOpen(false); }}
-                                                                    className={`w-full text-right px-4 py-2 text-xs font-bold transition-colors ${filterStatus === f.id ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
-                                                                >
-                                                                    {f.label}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </>
-                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -1385,110 +1310,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                         </div>
                     </GenericModal>
 
-                    {/* Mobile Filter Modal */}
-                    <GenericModal
-                        isOpen={isMobileFilterModalOpen}
-                        onClose={() => setIsMobileFilterModalOpen(false)}
-                        title={
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
-                                    <Filter size={20} weight="duotone" />
-                                </div>
-                                <h3 className="text-xl font-black text-slate-800">סינון בקשות</h3>
-                            </div>
-                        }
-                        size="sm"
-                        footer={
-                            <Button
-                                onClick={() => setIsMobileFilterModalOpen(false)}
-                                className="w-full font-black text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
-                            >
-                                סגור
-                            </Button>
-                        }
-                    >
-                        <div className="space-y-2 py-2">
-                            {[
-                                { id: 'all', label: 'כל הסטטוסים', icon: CalendarDays, color: 'text-slate-500', bg: 'bg-slate-100' },
-                                { id: 'pending', label: 'ממתין לאישור', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-100' },
-                                { id: 'approved', label: 'מאושרים', icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-100' },
-                                { id: 'rejected', label: 'נדחו', icon: XCircle, color: 'text-rose-500', bg: 'bg-rose-100' }
-                            ].map(f => (
-                                <button
-                                    key={f.id}
-                                    onClick={() => { setFilterStatus(f.id as any); setIsMobileFilterModalOpen(false); }}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${filterStatus === f.id
-                                        ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200'
-                                        : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${f.bg} ${f.color}`}>
-                                            <f.icon size={16} weight="bold" />
-                                        </div>
-                                        <span className={`font-bold ${filterStatus === f.id ? 'text-blue-900' : 'text-slate-700'}`}>
-                                            {f.label}
-                                        </span>
-                                    </div>
-                                    {filterStatus === f.id && (
-                                        <Check size={18} weight="bold" className="text-blue-600" />
-                                    )}
-                                </button>
-                            ))}
-                        </div>
-                    </GenericModal>
-
-                    {/* Mobile Sort Modal */}
-                    <GenericModal
-                        isOpen={isMobileSortModalOpen}
-                        onClose={() => setIsMobileSortModalOpen(false)}
-                        title={
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600">
-                                    <ArrowsDownUp size={20} weight="duotone" />
-                                </div>
-                                <h3 className="text-xl font-black text-slate-800">מיון בקשות</h3>
-                            </div>
-                        }
-                        size="sm"
-                        footer={
-                            <Button
-                                onClick={() => setIsMobileSortModalOpen(false)}
-                                className="w-full font-black text-purple-600 bg-purple-50 hover:bg-purple-100"
-                            >
-                                סגור
-                            </Button>
-                        }
-                    >
-                        <div className="space-y-2 py-2">
-                            {[
-                                { id: 'date', label: 'תאריך', icon: CalendarDays },
-                                { id: 'name', label: 'שם חייל', icon: Tag },
-                                { id: 'status', label: 'סטטוס בקשה', icon: Info }
-                            ].map(s => (
-                                <button
-                                    key={s.id}
-                                    onClick={() => { setSortBy(s.id as any); setIsMobileSortModalOpen(false); }}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${sortBy === s.id
-                                        ? 'bg-purple-50 border-purple-200 ring-1 ring-purple-200'
-                                        : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${sortBy === s.id ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500'}`}>
-                                            <s.icon size={16} weight="bold" />
-                                        </div>
-                                        <span className={`font-bold ${sortBy === s.id ? 'text-purple-900' : 'text-slate-700'}`}>
-                                            {s.label}
-                                        </span>
-                                    </div>
-                                    {sortBy === s.id && (
-                                        <Check size={18} weight="bold" className="text-purple-600" />
-                                    )}
-                                </button>
-                            ))}
-                        </div>
-                    </GenericModal>
 
                     {/* Conflict Warning Modal */}
                     <ConfirmationModal

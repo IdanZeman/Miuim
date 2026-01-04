@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import ExcelJS from 'exceljs';
 import { Person, Equipment, EquipmentStatus, Team, EquipmentDailyCheck } from '@/types';
 import {
     Package,
@@ -6,6 +7,7 @@ import {
     Plus,
     User,
     CheckCircle as CheckCircle2,
+    CheckCircle,
     WarningCircle as AlertCircle,
     ClockCounterClockwise as History,
     QrCode,
@@ -29,11 +31,13 @@ import {
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { PageInfo } from '@/components/ui/PageInfo';
+import { ActionBar } from '@/components/ui/ActionBar';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
 import { useToast } from '@/contexts/ToastContext';
 import { DatePicker } from '@/components/ui/DatePicker';
+import { PersonSearchSelect } from '@/components/ui/PersonSearchSelect';
 
 interface EquipmentManagerProps {
     people: Person[];
@@ -48,92 +52,6 @@ interface EquipmentManagerProps {
     currentPerson: Person | null;
 }
 
-const PersonSearchSelect = ({
-    people,
-    teams,
-    value,
-    onChange
-}: {
-    people: Person[],
-    teams: Team[],
-    value: string | null,
-    onChange: (id: string | null) => void
-}) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedTeamId, setSelectedTeamId] = useState<string | 'all'>('all');
-
-    const filteredPeople = useMemo(() => {
-        return people.filter(p => {
-            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesTeam = selectedTeamId === 'all' || p.teamId === selectedTeamId;
-            return matchesSearch && matchesTeam;
-        });
-    }, [people, searchTerm, selectedTeamId]);
-
-    const selectedPerson = people.find(p => p.id === value);
-
-    return (
-        <div className="space-y-4">
-            <div className="flex flex-col md:flex-row gap-2.5">
-                <div className="relative flex-1">
-                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} weight="duotone" />
-                    <input
-                        type="text"
-                        placeholder="חפש חייל לפי שם..."
-                        className="w-full h-11 pr-11 pl-4 bg-slate-100/50 border border-transparent rounded-xl text-base font-bold outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <div className="w-full md:w-52">
-                    <Select
-                        value={selectedTeamId}
-                        onChange={(val) => setSelectedTeamId(val)}
-                        options={[{ value: 'all', label: 'כל הצוותים' }, ...teams.map(t => ({ value: t.id, label: t.name }))]}
-                        className="bg-slate-100/50 border-transparent rounded-xl h-11 text-base font-bold"
-                    />
-                </div>
-            </div>
-
-            <div className="max-h-60 overflow-y-auto border border-slate-100 rounded-2xl divide-y divide-slate-50 custom-scrollbar bg-slate-50/30 shadow-inner shadow-slate-200/5">
-                <button
-                    onClick={() => onChange(null)}
-                    className={`w-full text-right px-5 py-3 text-[13px] flex items-center justify-between transition-all active:scale-[0.99] ${value === null ? 'bg-indigo-50/80 text-indigo-700 font-black' : 'hover:bg-white text-slate-500 font-bold'}`}
-                >
-                    <span>ללא חתימה (ניטרלי)</span>
-                    {value === null && <Check size={16} weight="bold" className="text-indigo-600" />}
-                </button>
-                {filteredPeople.map(p => {
-                    const team = teams.find(t => t.id === p.teamId);
-                    return (
-                        <button
-                            key={p.id}
-                            onClick={() => onChange(p.id)}
-                            className={`w-full text-right px-5 py-3 text-[13px] flex items-center justify-between transition-all active:scale-[0.99] ${value === p.id ? 'bg-indigo-50/80 text-indigo-700 font-black' : 'hover:bg-white text-slate-700 font-bold'}`}
-                        >
-                            <div className="flex flex-col text-right">
-                                <span>{p.name}</span>
-                                {team && <span className="text-[10px] text-slate-400 font-black uppercase tracking-tight">{team.name}</span>}
-                            </div>
-                            {value === p.id && <Check size={16} weight="bold" className="text-indigo-600" />}
-                        </button>
-                    );
-                })}
-                {filteredPeople.length === 0 && (
-                    <div className="p-8 text-center text-slate-400 text-xs font-bold italic opacity-60">לא נמצאו תוצאות לחיפוש זה</div>
-                )}
-            </div>
-            {selectedPerson && (
-                <div className="flex items-center gap-3 px-4 py-2.5 bg-indigo-50/50 rounded-xl border border-indigo-100/50 animate-in slide-in-from-top-1">
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                        <User size={12} weight="bold" />
-                    </div>
-                    <span className="text-[13px] font-black text-indigo-700">חתום על ידי: {selectedPerson.name}</span>
-                </div>
-            )}
-        </div>
-    );
-};
 
 export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
     people,
@@ -152,8 +70,6 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
-    const [showMobileTypeFilter, setShowMobileTypeFilter] = useState(false);
-    const [showMobileStatusFilter, setShowMobileStatusFilter] = useState(false);
 
     // Optimistic UI State
     const [optimisticIds, setOptimisticIds] = useState<Record<string, Equipment>>({});
@@ -314,102 +230,65 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
         return date.toDateString() === new Date().toDateString();
     };
 
-    const handleExportToClipboard = async () => {
+    const handleExport = async () => {
         try {
-            const header = viewMode === 'list'
-                ? ['מספר צלם', 'סוג', 'שיוך', 'סטטוס', 'הערות'].join('\t')
-                : [`מספר צלם`, 'סוג', `סטטוס בדיקה (${selectedDate.toLocaleDateString('he-IL')})`].join('\t');
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('ציוד');
 
-            const rows = (viewMode === 'list' || viewMode === 'verify' ? displayedEquipment : []).map(item => {
-                // Filter logic should ideally match "filteredItems" but standard export usually exports CURRENT view.
-                // NOTE: Using 'filteredItems' to respect search/filter
+            // Set RTL
+            worksheet.views = [{ rightToLeft: true }];
+
+            // Headers
+            const headers = viewMode === 'list'
+                ? ['מספר צלם', 'סוג', 'שיוך', 'סטטוס', 'הערות']
+                : ['מספר צלם', 'סוג', `סטטוס בדיקה (${selectedDate.toLocaleDateString('he-IL')})`];
+
+            const headerRow = worksheet.addRow(headers);
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } }; // Indigo-600
+            headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+
+            // Data
+            const itemsToExport = filteredItems;
+            itemsToExport.forEach(item => {
+                let row;
                 if (viewMode === 'list') {
                     const person = people.find(p => p.id === item.assigned_to_id)?.name || '-';
                     const statusLabel = getStatusLabel(item.status);
-                    const cleanNotes = (item.notes || '').replace(/[\n\r]+/g, ' '); // Remove newlines for CSV/TSV safety
-                    return [item.serial_number, item.type, person, statusLabel, cleanNotes].join('\t');
+                    row = worksheet.addRow([item.serial_number, item.type, person, statusLabel, item.notes || '']);
                 } else {
                     const isVerified = item.last_verified_at && new Date(item.last_verified_at).toDateString() === selectedDate.toDateString();
                     const status = isVerified ? getStatusLabel(item.status) : 'טרם דווח';
-                    return [item.serial_number, item.type, status].join('\t');
+                    row = worksheet.addRow([item.serial_number, item.type, status]);
                 }
+
+                // Add border to all cells
+                row.eachCell(cell => {
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                });
             });
 
-            // If using filteredItems:
-            const itemsToExport = filteredItems;
-            const exportRows = itemsToExport.map(item => {
-                if (viewMode === 'list') {
-                    const person = people.find(p => p.id === item.assigned_to_id)?.name || '-';
-                    const statusLabel = getStatusLabel(item.status);
-                    const cleanNotes = (item.notes || '').replace(/[\n\r]+/g, ' ');
-                    return [item.serial_number, item.type, person, statusLabel, cleanNotes].join('\t');
-                } else {
-                    const isVerified = item.last_verified_at && new Date(item.last_verified_at).toDateString() === selectedDate.toDateString();
-                    const status = isVerified ? getStatusLabel(item.status) : 'טרם דווח';
-                    return [item.serial_number, item.type, status].join('\t');
-                }
-            }).join('\n');
+            // Adjust column widths
+            worksheet.columns = headers.map(h => ({ width: Math.max(15, h.length * 2) }));
 
-            const content = `${header}\n${exportRows}`;
-            await navigator.clipboard.writeText(content);
-            showToast('הטבלה הועתקה ללוח בהצלחה', 'success');
+            // Generate and download
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `equipment_export_${new Date().toLocaleDateString('en-CA')}.xlsx`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showToast('הקובץ יוצא בהצלחה', 'success');
         } catch (err) {
             console.error('Export failed', err);
-            showToast('שגיאה בהעתקה ללוח', 'error');
+            showToast('שגיאה בייצוא קובץ', 'error');
         }
     };
 
     return (
         <div className="bg-slate-50 md:bg-white rounded-[2rem] md:rounded-2xl shadow-xl md:shadow-none border md:border-slate-100 p-0 md:p-6 min-h-[600px] relative overflow-hidden" dir="rtl">
-            {/* Mobile Hero Header - Adapt from AbsenceManager style */}
-            <div className="md:hidden sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 px-5 pt-6 pb-4 space-y-4 shrink-0 transition-all rounded-b-[2rem]">
-                <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                            רשימת ציוד
-                        </h2>
-                        <span className="text-[10px] font-black text-slate-400 upper-case tracking-widest mt-0.5">שו"ב אמצעים ומלאי יחידתי</span>
-                    </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handleExportToClipboard}
-                            className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm shadow-indigo-100/50 hover:bg-indigo-100 transition-colors"
-                            title="העתק רשימה"
-                        >
-                            <Copy size={20} weight="bold" />
-                        </button>
-                        <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm shadow-indigo-100/50">
-                            <Package size={22} weight="duotone" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Mobile View Toggle */}
-                <div className="flex p-1 bg-slate-200/50 rounded-2xl gap-1">
-                    <button
-                        onClick={() => setViewMode('list')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'list'
-                            ? 'bg-white text-indigo-700 shadow-md scale-[1.02]'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <span>רשימה</span>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${viewMode === 'list' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-300/50 text-slate-600'}`}>
-                            {displayedEquipment.length}
-                        </span>
-                    </button>
-                    <button
-                        onClick={() => setViewMode('verify')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-black transition-all ${viewMode === 'verify'
-                            ? 'bg-white text-indigo-700 shadow-md scale-[1.02]'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        <span>בדיקה יומית</span>
-                        <ClipboardText size={16} weight="duotone" />
-                    </button>
-                </div>
-            </div>
 
             <div className="pb-32">
 
@@ -417,195 +296,109 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                 <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 px-4 py-6 min-h-[70vh] md:mt-2">
 
 
-                    {/* Header Section (Desktop Only Title) */}
-                    <div className="hidden md:flex items-center gap-2 border-b border-slate-100 pb-4 mb-6">
-                        <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                            <div className="p-2.5 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-                                <Package size={24} weight="duotone" />
-                            </div>
-                            רשימת ציוד
-                            <PageInfo
-                                title="רשימת ציוד"
-                                description={
-                                    <div className="space-y-3 font-medium">
-                                        <p>מערכת למעקב וניהול הציוד היחידתי (נשק, אופטיקה, קשר וכו').</p>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            <div className="flex items-start gap-2 text-sm">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                                                <span><b>מעקב חתימות:</b> מי חתום על איזה ציוד כרגע.</span>
-                                            </div>
-                                            <div className="flex items-start gap-2 text-sm">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                                                <span><b>סטטוס תקינות:</b> דיווח ומעקב אחר ציוד תקול, חסר או בתיקון.</span>
-                                            </div>
-                                            <div className="flex items-start gap-2 text-sm">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                                                <span><b>בדיקה יומית:</b> (בלשונית 'בדיקה יומית') ביצוע ספירת מלאי יומית ואימות הימצאות הציוד.</span>
-                                            </div>
-                                        </div>
-                                        <p className="text-sm bg-indigo-50 p-3 rounded-xl text-indigo-800 border border-indigo-100 mt-2">
-                                            ניהול נכון כאן מונע אובדן ציוד ומבטיח כשירות מבצעית.
-                                        </p>
+                    {/* Unified Action Bar */}
+                    <ActionBar
+                        searchTerm={searchTerm}
+                        onSearchChange={setSearchTerm}
+                        onExport={handleExport}
+                        isSearchHidden={viewMode !== 'list'}
+                        className="px-4 md:px-6 sticky top-0 md:top-auto z-40 bg-white border border-slate-100 rounded-t-[2rem] md:rounded-[1.5rem] shadow-sm mb-4"
+                        leftActions={
+                            <div className="flex items-center gap-2">
+                                <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-100/50">
+                                    <Package size={20} weight="duotone" />
+                                </div>
+                                <h2 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-1.5 min-w-0">
+                                    <span className="truncate">רשימת ציוד</span>
+                                    <div className="hidden md:block">
+                                        <PageInfo
+                                            title="ניהול ציוד"
+                                            description={
+                                                <div className="space-y-4">
+                                                    <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-start gap-3">
+                                                        <Package size={20} className="text-indigo-600 shrink-0 mt-0.5" weight="duotone" />
+                                                        <div className="text-sm">
+                                                            <h4 className="font-black text-indigo-900 mb-1">ניהול אמצעים ומלאי</h4>
+                                                            <p className="text-indigo-700/80 leading-relaxed font-medium">מעקב אחר חתימות ציוד, תקינות, ובדיקות יומיות של אמצעי לחימה ואופטיקה.</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-3">
+                                                        <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                                                            <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-indigo-600">
+                                                                <Tag size={18} weight="duotone" />
+                                                            </div>
+                                                            <span className="text-sm font-bold text-slate-700">סיווג לפי סוגי ציוד</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                                                            <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-emerald-600">
+                                                                <CheckCircle size={18} weight="duotone" />
+                                                            </div>
+                                                            <span className="text-sm font-bold text-slate-700">בדיקה יומית ודיווח סטטוס</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        />
                                     </div>
-                                }
-                            />
-                        </h2>
-                    </div>
-
-                    {/* DESKTOP: Stats Strip */}
-                    <div className="hidden md:flex items-center gap-6 mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-                                <Package size={24} weight="duotone" />
+                                </h2>
                             </div>
-                            <div>
-                                <p className="text-sm text-slate-500 font-bold">סה"כ פריטים</p>
-                                <p className="text-2xl font-black text-slate-800">{stats.total}</p>
-                            </div>
-                        </div>
-                        <div className="w-px h-10 bg-slate-200" />
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-                                <AlertCircle size={24} weight="duotone" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-slate-500 font-bold">ציוד תקול</p>
-                                <p className="text-2xl font-black text-slate-800">{stats.faulty}</p>
-                            </div>
-                        </div>
-                        <div className="w-px h-10 bg-slate-200" />
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
-                                <History size={24} weight="duotone" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-slate-500 font-bold">חסרים / אבודים</p>
-                                <p className="text-2xl font-black text-slate-800">{stats.missing}</p>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    {/* DESKTOP View Toggle */}
-                    <div className="hidden md:flex items-center justify-between mb-6">
-                        <div className="bg-slate-100/80 p-1.5 rounded-2xl flex items-center gap-1">
-                            <button
-                                onClick={() => setViewMode('list')}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all ${viewMode === 'list'
-                                    ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-black/5'
-                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                                    }`}
-                            >
-                                <Package size={18} weight={viewMode === 'list' ? 'duotone' : 'regular'} />
-                                רשימת ציוד
-                            </button>
-                            <button
-                                onClick={() => setViewMode('verify')}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all ${viewMode === 'verify'
-                                    ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-black/5'
-                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                                    }`}
-                            >
-                                <ClipboardText size={18} weight={viewMode === 'verify' ? 'duotone' : 'regular'} />
-                                בדיקה יומית
-                            </button>
-                        </div>
-
-                        <button
-                            onClick={handleExportToClipboard}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all border border-indigo-100"
-                            title="העתק טבלה ללוח"
-                        >
-                            <Copy size={18} weight="bold" />
-                            <span>העתק טבלה</span>
-                        </button>
-                    </div>
-
-                    {/* MOBILE Controls (Only for List View) */}
-                    {viewMode === 'list' && (
-                        <div className="md:hidden flex items-center gap-2 mb-6">
-                            <div className="relative flex-1">
-                                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} weight="duotone" />
-                                <input
-                                    type="text"
-                                    placeholder="חיפוש..."
-                                    className="w-full pr-10 pl-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 text-base font-medium"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                            <div className="w-[42px] shrink-0">
+                        }
+                        centerActions={
+                            <div className="bg-slate-100/80 p-1 rounded-xl flex items-center gap-1">
                                 <button
-                                    className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl border transition-colors ${filterType !== 'all' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
-                                    onClick={() => setShowMobileTypeFilter(true)}
+                                    onClick={() => setViewMode('list')}
+                                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-black transition-all ${viewMode === 'list'
+                                        ? 'bg-white text-indigo-700 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                                        }`}
                                 >
-                                    <Tag size={18} weight="duotone" />
+                                    רשימה
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('verify')}
+                                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-black transition-all ${viewMode === 'verify'
+                                        ? 'bg-white text-indigo-700 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                                        }`}
+                                >
+                                    בדיקה יומית
                                 </button>
                             </div>
-                            <div className="w-[42px] shrink-0">
-                                <button
-                                    className={`w-[42px] h-[42px] flex items-center justify-center rounded-xl border transition-colors ${filterStatus !== 'all' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
-                                    onClick={() => setShowMobileStatusFilter(true)}
-                                >
-                                    <Filter size={18} weight="duotone" />
-                                </button>
+                        }
+                        filters={viewMode === 'list' ? [
+                            {
+                                id: 'type',
+                                value: filterType,
+                                onChange: setFilterType,
+                                options: [{ value: 'all', label: 'כל הסוגים' }, ...equipmentTypes.map(t => ({ value: t, label: t }))],
+                                placeholder: 'סינון לפי סוג',
+                                icon: Tag
+                            },
+                            {
+                                id: 'status',
+                                value: filterStatus,
+                                onChange: setFilterStatus,
+                                options: [
+                                    { value: 'all', label: 'כל הסטטוסים' },
+                                    { value: 'present', label: 'נמצא' },
+                                    { value: 'missing', label: 'חסר' },
+                                    { value: 'damaged', label: 'תקול' },
+                                    { value: 'lost', label: 'אבד' }
+                                ],
+                                placeholder: 'סינון לפי סטטוס',
+                                icon: Filter
+                            }
+                        ] : []}
+                        rightActions={
+                            <div className="flex items-center gap-2">
+                                {/* Stats Badge - Desktop Only */}
+                                <div className="hidden lg:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                                    <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stats.total} פריטים</span>
+                                </div>
                             </div>
-                            {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
-                                <button
-                                    onClick={() => { setFilterType('all'); setFilterStatus('all'); setSearchTerm(''); }}
-                                    className="w-[42px] h-[42px] flex items-center justify-center bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors"
-                                >
-                                    <Trash2 size={18} weight="bold" />
-                                </button>
-                            )}
-                        </div>
-                    )}
-
-                    {/* DESKTOP Controls (Only for List View) */}
-                    {viewMode === 'list' && (
-                        <div className="hidden md:flex items-center gap-4 mb-6">
-                            <div className="relative flex-1 max-w-md">
-                                <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                <input
-                                    type="text"
-                                    placeholder="חיפוש לפי צלם, שם חייל, או סוג..."
-                                    className="w-full h-11 pr-11 pl-4 bg-slate-100/50 border border-transparent rounded-[1.25rem] focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-base font-bold"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                            <div className="w-56">
-                                <Select
-                                    value={filterType}
-                                    onChange={setFilterType}
-                                    options={[{ value: 'all', label: 'סינון לפי סוג: הכל' }, ...equipmentTypes.map(t => ({ value: t, label: t }))]}
-                                    className="bg-slate-100/50 border-transparent rounded-[1.25rem] h-11"
-                                />
-                            </div>
-                            <div className="w-56">
-                                <Select
-                                    value={filterStatus}
-                                    onChange={setFilterStatus}
-                                    options={[
-                                        { value: 'all', label: 'סינון לפי סטטוס: הכל' },
-                                        { value: 'present', label: 'נמצא' },
-                                        { value: 'missing', label: 'חסר' },
-                                        { value: 'damaged', label: 'תקול' },
-                                        { value: 'lost', label: 'אבד' }
-                                    ]}
-                                    className="bg-slate-100/50 border-transparent rounded-[1.25rem] h-11"
-                                />
-                            </div>
-                            {(filterType !== 'all' || filterStatus !== 'all' || searchTerm) && (
-                                <button
-                                    onClick={() => { setFilterType('all'); setFilterStatus('all'); setSearchTerm(''); }}
-                                    className="w-11 h-11 flex items-center justify-center bg-rose-50 text-rose-500 rounded-[1.25rem] hover:bg-rose-100 transition-colors border border-rose-100"
-                                >
-                                    <Trash2 size={20} weight="bold" />
-                                </button>
-                            )}
-                        </div>
-                    )}
+                        }
+                    />
 
                     {/* Content Area */}
                     <div className="space-y-2">
@@ -1078,80 +871,6 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                     </div>
                 </GenericModal>
 
-                {/* Mobile Type Filter - Transform to Sheet-like behavior or clean Modal */}
-                <GenericModal
-                    isOpen={showMobileTypeFilter}
-                    onClose={() => setShowMobileTypeFilter(false)}
-                    title="סינון לפי סוג ציוד"
-                    size="full"
-                >
-                    <div className="grid grid-cols-2 gap-3 p-1">
-                        <button
-                            onClick={() => { setFilterType('all'); setShowMobileTypeFilter(false); }}
-                            className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 ${filterType === 'all'
-                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg'
-                                : 'bg-white border-slate-100 text-slate-600 shadow-sm'
-                                }`}
-                        >
-                            <span className="font-black text-sm uppercase tracking-widest">הצג הכל</span>
-                        </button>
-                        {equipmentTypes.map(type => (
-                            <button
-                                key={type}
-                                onClick={() => { setFilterType(type); setShowMobileTypeFilter(false); }}
-                                className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all active:scale-95 ${filterType === type
-                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg'
-                                    : 'bg-white border-slate-100 text-slate-600 shadow-sm'
-                                    }`}
-                            >
-                                <span className="font-black text-sm text-center truncate w-full">{type}</span>
-                            </button>
-                        ))}
-                    </div>
-                </GenericModal>
-
-                {/* Mobile Status Filter */}
-                <GenericModal
-                    isOpen={showMobileStatusFilter}
-                    onClose={() => setShowMobileStatusFilter(false)}
-                    title="סינון לפי סטטוס"
-                    size="full"
-                >
-                    <div className="space-y-3 p-1">
-                        <button
-                            onClick={() => { setFilterStatus('all'); setShowMobileStatusFilter(false); }}
-                            className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all active:scale-[0.98] ${filterStatus === 'all'
-                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg'
-                                : 'bg-white border-slate-100 text-slate-600 shadow-sm'
-                                }`}
-                        >
-                            <span className="font-black text-sm uppercase tracking-widest">כל הסטטוסים</span>
-                            {filterStatus === 'all' && <Check size={18} weight="bold" />}
-                        </button>
-                        {[
-                            { value: 'present', label: 'נמצא', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-                            { value: 'missing', label: 'חסר', color: 'bg-rose-50 text-rose-600 border-rose-100' },
-                            { value: 'damaged', label: 'תקול', color: 'bg-amber-50 text-amber-600 border-amber-100' },
-                            { value: 'lost', label: 'אבד', color: 'bg-slate-100 text-slate-600 border-slate-200' }
-                        ].map(status => (
-                            <button
-                                key={status.value}
-                                onClick={() => { setFilterStatus(status.value); setShowMobileStatusFilter(false); }}
-                                className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all active:scale-[0.98] ${filterStatus === status.value
-                                    ? 'bg-slate-900 border-slate-900 text-white shadow-lg'
-                                    : 'bg-white border-slate-100 text-slate-600 shadow-sm'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <span className={`px-3 py-1 rounded-xl text-xs font-black border ${status.color}`}>
-                                        {status.label}
-                                    </span>
-                                </div>
-                                {filterStatus === status.value && <Check size={18} weight="bold" />}
-                            </button>
-                        ))}
-                    </div>
-                </GenericModal>
             </div>
         </div>
     );

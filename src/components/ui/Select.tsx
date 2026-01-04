@@ -179,7 +179,7 @@ export const Select: React.FC<SelectProps> = ({
                     type="button"
                     onClick={toggleOpen}
                     disabled={disabled}
-                    className={`w-full py-2.5 pr-4 pl-10 rounded-xl border bg-slate-50 flex items-center justify-between transition-all shadow-sm text-slate-700 text-base font-bold text-right
+                    className={`w-full py-2.5 ${Icon ? 'pr-11' : 'pr-4'} pl-10 rounded-xl border bg-slate-50 flex items-center justify-between transition-all shadow-sm text-slate-700 text-base font-bold text-right
                         ${isOpen ? 'ring-2 ring-blue-100 border-blue-500 bg-white' : 'border-slate-200 hover:border-slate-300 hover:bg-white'}
                         ${disabled ? 'opacity-60 cursor-not-allowed bg-slate-100' : 'cursor-pointer'}
                         ${className}
