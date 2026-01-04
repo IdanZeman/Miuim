@@ -1057,7 +1057,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             cellVal += ` [${reasonText}]`;
                         }
 
-                        if (status === 'home' || status === 'unavailable' || cellVal.includes('יציאה')) homeCount++;
+                        if (status === 'home' || status === 'unavailable' || cellVal.startsWith('יציאה')) homeCount++;
                         else baseCount++;
 
                         rowValues.push(cellVal);
@@ -1077,13 +1077,13 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
                         if (colNumber > 2 && colNumber < rowValues.length) {
                             const val = cell.value?.toString() || '';
-                            if (val.includes('בית') || val.includes('אילוץ')) {
+                            if (val.startsWith('בית') || val.startsWith('אילוץ')) {
                                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Red 100
                                 cell.font = { color: { argb: 'FF991B1B' } }; // Red 800
-                            } else if (val.includes('יציאה') || val.includes('הגעה')) {
+                            } else if (val.startsWith('יציאה') || val.startsWith('הגעה')) {
                                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; // Amber 100
                                 cell.font = { color: { argb: 'FF92400E' } }; // Amber 800
-                            } else if (val.includes('בסיס')) {
+                            } else if (val.startsWith('בסיס') || val.startsWith('בבסיס')) {
                                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // Emerald 100
                                 cell.font = { color: { argb: 'FF065F46' } }; // Emerald 800
                             }
@@ -1675,7 +1675,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 <div key={team.id}>
                                     {/* Team Header */}
                                     <div
-                                        className="flex items-center h-8 bg-slate-50 border-b border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors"
+                                        className="flex items-center h-8 bg-slate-50 border-b border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors sticky top-[72px] z-30"
                                         onClick={() => toggleTeam(team.id)}
                                     >
                                         <div className="w-32 shrink-0 sticky right-0 bg-slate-50 border-l border-slate-200 z-20 flex items-center px-2 py-1 gap-1">
@@ -1797,12 +1797,23 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                             if (status === 'home' || status === 'unavailable') {
                                                                 const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
 
-                                                                if (!isOverridden && prevStatus === 'base' && status !== 'unavailable' && !isExitRequest) {
+                                                                if (!isOverridden && prevStatus === 'base') {
                                                                     cellClass = "bg-amber-50 text-amber-900 border-l border-amber-100";
                                                                     content = (
-                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none relative">
+                                                                            {isExitRequest && (
+                                                                                <div className="absolute top-[1px] left-[1px] text-red-600 animate-pulse">
+                                                                                    <AlertTriangle size={10} weight="bold" />
+                                                                                </div>
+                                                                            )}
                                                                             <span className="font-bold mb-0.5">יציאה</span>
                                                                             <span className="text-[9px]">{userDepartureHour}</span>
+                                                                            {isExitRequest && (
+                                                                                <span className={`text-[8px] font-bold text-red-600 truncate max-w-full px-1 leading-tight text-center mt-0.5 ${isUnapprovedExit ? 'bg-red-50 rounded px-0.5' : ''}`} title={constraintText}>
+                                                                                    {constraintText}
+                                                                                    {isUnapprovedExit && <span className="block text-[7px] opacity-70">לא אושר</span>}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
                                                                     );
                                                                 } else {
@@ -1843,12 +1854,23 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                                 const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
                                                                 const isPrevHome = prevStatus === 'home' || prevStatus === 'unavailable';
 
-                                                                if (!isOverridden && isPrevHome && !isExitRequest) {
+                                                                if (!isOverridden && isPrevHome) {
                                                                     cellClass = "bg-emerald-50 text-emerald-800 border-l border-emerald-100";
                                                                     content = (
-                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none">
+                                                                        <div className="w-full h-full flex flex-col items-center justify-center text-[10px] leading-none relative">
+                                                                            {isExitRequest && (
+                                                                                <div className="absolute top-[1px] left-[1px] text-red-600 animate-pulse">
+                                                                                    <AlertTriangle size={10} weight="bold" />
+                                                                                </div>
+                                                                            )}
                                                                             <span className="font-bold mb-0.5">הגעה</span>
                                                                             <span className="text-[9px]">{userArrivalHour}</span>
+                                                                            {isExitRequest && (
+                                                                                <span className={`text-[8px] font-bold text-red-600 truncate max-w-full px-1 leading-tight text-center mt-0.5 ${isUnapprovedExit ? 'bg-red-50 rounded px-0.5' : ''}`} title={constraintText}>
+                                                                                    {constraintText}
+                                                                                    {isUnapprovedExit && <span className="block text-[7px] opacity-70">לא אושר</span>}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
                                                                     );
                                                                 } else {
