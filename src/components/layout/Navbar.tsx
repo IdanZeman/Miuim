@@ -349,52 +349,54 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                             initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                             animate={{ opacity: 1, y: 0, scale: 1 }}
                                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                            className="absolute top-full left-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 overflow-hidden ring-1 ring-black/5 z-[110]"
+                                            className="absolute top-full left-0 pt-3 w-64 z-[110]"
                                         >
-                                            <div className="px-3 py-3 border-b border-slate-50 mb-1 text-right">
-                                                <p className="text-sm font-black text-slate-800">{displayName}</p>
-                                                <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5 uppercase tracking-tighter">{user?.email}</p>
+                                            <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 overflow-hidden ring-1 ring-black/5">
+                                                <div className="px-3 py-3 border-b border-slate-50 mb-1 text-right">
+                                                    <p className="text-sm font-black text-slate-800">{displayName}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5 uppercase tracking-tighter">{user?.email}</p>
+                                                </div>
+
+                                                <div className="space-y-0.5">
+                                                    {checkAccess('settings') && (
+                                                        <button
+                                                            onClick={() => { handleNav('settings'); setIsProfileDropdownOpen(false); }}
+                                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all text-right"
+                                                        >
+                                                            <Settings className="w-4 h-4" />
+                                                            <span>הגדרות ארגון</span>
+                                                        </button>
+                                                    )}
+                                                    {organization?.battalion_id && (
+                                                        <button
+                                                            onClick={() => { handleNav('battalion-settings'); setIsProfileDropdownOpen(false); }}
+                                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all text-right"
+                                                        >
+                                                            <Building2 className="w-4 h-4" />
+                                                            <span>הגדרות גדוד</span>
+                                                        </button>
+                                                    )}
+                                                    {profile?.is_super_admin && (
+                                                        <button
+                                                            onClick={() => { handleNav('system'); setIsProfileDropdownOpen(false); }}
+                                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all text-right"
+                                                        >
+                                                            <ShieldCheck className="w-4 h-4" />
+                                                            <span>ניהול מערכת</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="h-px bg-slate-50 my-1 mx-2" />
+
+                                                <button
+                                                    onClick={handleLogout}
+                                                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all text-right"
+                                                >
+                                                    <LogOut className="w-4 h-4" />
+                                                    <span>התנתק</span>
+                                                </button>
                                             </div>
-
-                                            <div className="space-y-0.5">
-                                                {checkAccess('settings') && (
-                                                    <button
-                                                        onClick={() => { handleNav('settings'); setIsProfileDropdownOpen(false); }}
-                                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all text-right"
-                                                    >
-                                                        <Settings className="w-4 h-4" />
-                                                        <span>הגדרות ארגון</span>
-                                                    </button>
-                                                )}
-                                                {organization?.battalion_id && (
-                                                    <button
-                                                        onClick={() => { handleNav('battalion-settings'); setIsProfileDropdownOpen(false); }}
-                                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all text-right"
-                                                    >
-                                                        <Building2 className="w-4 h-4" />
-                                                        <span>הגדרות גדוד</span>
-                                                    </button>
-                                                )}
-                                                {profile?.is_super_admin && (
-                                                    <button
-                                                        onClick={() => { handleNav('system'); setIsProfileDropdownOpen(false); }}
-                                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all text-right"
-                                                    >
-                                                        <ShieldCheck className="w-4 h-4" />
-                                                        <span>ניהול מערכת</span>
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            <div className="h-px bg-slate-50 my-1 mx-2" />
-
-                                            <button
-                                                onClick={handleLogout}
-                                                className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all text-right"
-                                            >
-                                                <LogOut className="w-4 h-4" />
-                                                <span>התנתק</span>
-                                            </button>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>

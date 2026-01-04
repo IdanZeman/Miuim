@@ -1,16 +1,8 @@
 import { useMemo } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { fetchBattalionCompanies, fetchBattalionPresenceSummary } from '../services/battalionService';
-import { fetchOrganizationData } from './useOrganizationData';
-import { Organization, Person, Team, TeamRotation, Absence } from '../types';
-import {
-    mapPersonFromDB,
-    mapTeamFromDB,
-    mapRotationFromDB,
-    mapAbsenceFromDB,
-    mapHourlyBlockageFromDB,
-    mapRoleFromDB
-} from '../services/mappers';
+import { fetchOrganizationData } from '../hooks/useOrganizationData';
+import { Organization, Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment } from '../types';
 
 /**
  * useBattalionData aggregates data from all organizations within a battalion.
@@ -27,7 +19,6 @@ export const useBattalionData = (battalionId?: string | null) => {
     });
 
     // 2. Fetch specific organization data for each company in parallel
-    // These keys match exactly what BackgroundPrefetcher logic uses
     const companyQueries = useQueries({
         queries: companies.map(company => ({
             queryKey: ['organizationData', company.id],
@@ -56,18 +47,30 @@ export const useBattalionData = (battalionId?: string | null) => {
         const teamRotations: TeamRotation[] = [];
         const absences: Absence[] = [];
         const hourlyBlockages: any[] = [];
-        const roles: any[] = [];
+        const roles: Role[] = [];
+        const shifts: Shift[] = [];
+        const taskTemplates: TaskTemplate[] = [];
+        const constraints: SchedulingConstraint[] = [];
+        const missionReports: MissionReport[] = [];
+        const equipment: Equipment[] = [];
+        const equipmentDailyChecks: any[] = [];
 
         companyQueries.forEach((query) => {
             const data = query.data;
             if (!data) return;
 
-            if (data.people) people.push(...data.people.map(mapPersonFromDB));
-            if (data.teams) teams.push(...data.teams.map(mapTeamFromDB));
-            if (data.rotations) teamRotations.push(...data.rotations.map(mapRotationFromDB));
-            if (data.absences) absences.push(...data.absences.map(mapAbsenceFromDB));
-            if (data.hourlyBlockages) hourlyBlockages.push(...data.hourlyBlockages.map(mapHourlyBlockageFromDB));
-            if (data.roles) roles.push(...data.roles.map(mapRoleFromDB));
+            if (data.people) people.push(...data.people);
+            if (data.teams) teams.push(...data.teams);
+            if (data.rotations) teamRotations.push(...data.rotations);
+            if (data.absences) absences.push(...data.absences);
+            if (data.hourlyBlockages) hourlyBlockages.push(...data.hourlyBlockages);
+            if (data.roles) roles.push(...data.roles);
+            if (data.shifts) shifts.push(...data.shifts);
+            if (data.taskTemplates) taskTemplates.push(...data.taskTemplates);
+            if (data.constraints) constraints.push(...data.constraints);
+            if (data.missionReports) missionReports.push(...data.missionReports);
+            if (data.equipment) equipment.push(...data.equipment);
+            if (data.equipmentDailyChecks) equipmentDailyChecks.push(...data.equipmentDailyChecks);
         });
 
         return {
@@ -78,6 +81,12 @@ export const useBattalionData = (battalionId?: string | null) => {
             absences,
             hourlyBlockages,
             roles,
+            shifts,
+            taskTemplates,
+            constraints,
+            missionReports,
+            equipment,
+            equipmentDailyChecks,
             presenceSummary
         };
     }, [companyQueries, companies, isAnyCompanyLoading, presenceSummary]);

@@ -174,19 +174,16 @@ export const fetchBattalionCompanies = async (battalionId: string): Promise<Orga
  * Fetches all people belonging to a battalion.
  */
 export const fetchBattalionPeople = async (battalionId: string): Promise<Person[]> => {
+    const { data: companies } = await supabase.from('organizations').select('id').eq('battalion_id', battalionId);
+    if (!companies || companies.length === 0) return [];
+
+    const ids = companies.map(c => c.id);
     const { data, error } = await supabase
         .from('people')
-        .select('*, organizations!inner(battalion_id)')
-        .eq('organizations.battalion_id', battalionId);
+        .select('*')
+        .in('organization_id', ids);
 
     if (error) throw error;
-    // Remove the joined organization data before mapping if needed, or mapPersonFromDB handles extras gracefully?
-    // mapPersonFromDB usually takes the flat object. Supabase returns flattened object usually or nested?
-    // With `organizations!inner(...)`, `organizations` property will be present.
-    // mapPersonFromDB might not expect it, but it shouldn't crash unless strict.
-    // Let's check mapPersonFromDB if possible, or just strip it.
-    // Actually Supabase returns { ...person fields..., organizations: { battalion_id: ... } }
-    // We can cast or ignore.
     return (data || []).map(p => mapPersonFromDB(p as any));
 };
 
@@ -194,7 +191,12 @@ export const fetchBattalionPeople = async (battalionId: string): Promise<Person[
  * Fetches today's presence summary for the entire battalion.
  */
 export const fetchBattalionPresenceSummary = async (battalionId: string) => {
+    const { data: companies } = await supabase.from('organizations').select('id').eq('battalion_id', battalionId);
+    if (!companies || companies.length === 0) return [];
+
+    const ids = companies.map(c => c.id);
     const today = new Date().toISOString().split('T')[0];
+
     const { data, error } = await supabase
         .from('daily_presence')
         .select(`
@@ -202,12 +204,16 @@ export const fetchBattalionPresenceSummary = async (battalionId: string) => {
             status,
             person_id,
             organization_id,
+            date,
+            start_time,
+            end_time,
+            arrival_date,
+            departure_date,
             people (
                 name
-            ),
-            organizations!inner(battalion_id)
+            )
         `)
-        .eq('organizations.battalion_id', battalionId)
+        .in('organization_id', ids)
         .eq('date', today);
 
     if (error) throw error;

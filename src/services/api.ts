@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { SchedulingConstraint, Absence, Equipment, HourlyBlockage } from '@/types';
-import { mapAbsenceFromDB, mapAbsenceToDB, mapEquipmentFromDB, mapEquipmentToDB, mapHourlyBlockageFromDB, mapHourlyBlockageToDB } from './mappers';
+import { mapAbsenceFromDB, mapAbsenceToDB, mapEquipmentFromDB, mapEquipmentToDB, mapHourlyBlockageFromDB, mapHourlyBlockageToDB, mapConstraintFromDB, mapConstraintToDB } from './mappers';
 
 // Constraints
 export const fetchConstraints = async (organizationId: string): Promise<SchedulingConstraint[]> => {
@@ -8,58 +8,25 @@ export const fetchConstraints = async (organizationId: string): Promise<Scheduli
         .from('scheduling_constraints')
         .select('*')
         .eq('organization_id', organizationId);
-    
+
     if (error) throw error;
-    
-    return data.map((c: any) => ({
-        id: c.id,
-        personId: c.person_id,
-        teamId: c.team_id,
-        roleId: c.role_id,
-        type: c.type,
-        taskId: c.task_id,
-        startTime: c.start_time,
-        endTime: c.end_time,
-        organization_id: c.organization_id,
-        description: c.description
-    }));
+
+    return data.map(mapConstraintFromDB);
 };
 
 export const addConstraint = async (constraint: Omit<SchedulingConstraint, 'id'>) => {
-    const sanitizeUuid = (id: string | undefined | null) => (id && id.length > 0 ? id : null);
-
-    const dbConstraint = {
-        person_id: sanitizeUuid(constraint.personId),
-        team_id: sanitizeUuid(constraint.teamId),
-        role_id: sanitizeUuid(constraint.roleId),
-        type: constraint.type,
-        task_id: sanitizeUuid(constraint.taskId),
-        start_time: constraint.startTime,
-        end_time: constraint.endTime,
-        organization_id: constraint.organization_id,
-        description: constraint.description
-    };
+    const dbConstraint = mapConstraintToDB(constraint as SchedulingConstraint);
+    delete (dbConstraint as any).id;
 
     const { data, error } = await supabase
         .from('scheduling_constraints')
         .insert([dbConstraint])
         .select()
         .single();
-    
+
     if (error) throw error;
 
-    return {
-        id: data.id,
-        personId: data.person_id,
-        teamId: data.team_id,
-        roleId: data.role_id,
-        type: data.type,
-        taskId: data.task_id,
-        startTime: data.start_time,
-        endTime: data.end_time,
-        organization_id: data.organization_id,
-        description: data.description
-    };
+    return mapConstraintFromDB(data);
 };
 
 export const deleteConstraint = async (id: string) => {
@@ -67,7 +34,7 @@ export const deleteConstraint = async (id: string) => {
         .from('scheduling_constraints')
         .delete()
         .eq('id', id);
-    
+
     if (error) throw error;
 };
 
@@ -77,9 +44,9 @@ export const fetchAbsences = async (organizationId: string): Promise<Absence[]> 
         .from('absences')
         .select('*')
         .eq('organization_id', organizationId);
-    
+
     if (error) throw error;
-    
+
     return data.map(mapAbsenceFromDB);
 };
 
@@ -95,7 +62,7 @@ export const addAbsence = async (absence: Omit<Absence, 'id'>) => {
         .insert([dbAbsence])
         .select()
         .single();
-    
+
     if (error) throw error;
 
     return mapAbsenceFromDB(data);
@@ -104,12 +71,12 @@ export const addAbsence = async (absence: Omit<Absence, 'id'>) => {
 export const updateAbsence = async (absence: Absence) => {
     const dbAbsence = mapAbsenceToDB(absence);
     const { id, ...updateData } = dbAbsence as any;
-    
+
     const { error } = await supabase
         .from('absences')
         .update(updateData)
         .eq('id', absence.id);
-    
+
     if (error) throw error;
 };
 
@@ -118,7 +85,7 @@ export const deleteAbsence = async (id: string) => {
         .from('absences')
         .delete()
         .eq('id', id);
-    
+
     if (error) throw error;
 };
 // Daily Presence
@@ -128,7 +95,7 @@ export const upsertDailyPresence = async (updates: any[]) => {
     const { error } = await supabase
         .from('daily_presence')
         .upsert(updates, { onConflict: 'date,person_id,organization_id' });
-    
+
     if (error) throw error;
 };
 
@@ -138,9 +105,9 @@ export const fetchHourlyBlockages = async (organizationId: string): Promise<Hour
         .from('hourly_blockages')
         .select('*')
         .eq('organization_id', organizationId);
-    
+
     if (error) throw error;
-    
+
     return data.map(mapHourlyBlockageFromDB);
 };
 
@@ -148,16 +115,16 @@ export const addHourlyBlockage = async (block: Omit<HourlyBlockage, 'id'>) => {
     // Generate UUID if not using backend defaults, but let's assume we pass one or let DB generate.
     // Assuming backend generates ID if omitted, but mapper expects ID. 
     // We can cast like we did for Absence or just pass it.
-    
+
     const dbBlock = mapHourlyBlockageToDB(block as HourlyBlockage);
-    delete (dbBlock as any).id; 
+    delete (dbBlock as any).id;
 
     const { data, error } = await supabase
         .from('hourly_blockages')
         .insert([dbBlock])
         .select()
         .single();
-    
+
     if (error) throw error;
 
     return mapHourlyBlockageFromDB(data);
@@ -171,7 +138,7 @@ export const updateHourlyBlockage = async (block: HourlyBlockage) => {
         .from('hourly_blockages')
         .update(updateData)
         .eq('id', block.id);
-    
+
     if (error) throw error;
 };
 
@@ -180,6 +147,6 @@ export const deleteHourlyBlockage = async (id: string) => {
         .from('hourly_blockages')
         .delete()
         .eq('id', id);
-    
+
     if (error) throw error;
 };

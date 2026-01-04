@@ -89,8 +89,8 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
                         </div>
                     </div>
 
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[300px] w-full min-w-0">
+                        <ResponsiveContainer width="99%" height="100%">
                             <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis
@@ -108,11 +108,12 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
                                     tickFormatter={(v) => `${v}%`}
                                 />
                                 <Tooltip
+                                    cursor={{ fill: 'transparent' }}
                                     content={({ active, payload }) => {
                                         if (active && payload && payload.length) {
                                             const data = payload[0].payload;
                                             return (
-                                                <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-xl border border-slate-800">
+                                                <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-xl border border-slate-800 animate-in fade-in zoom-in-95 duration-200">
                                                     <p className="font-black mb-1">{data.name}</p>
                                                     <p className="text-xs text-slate-400 font-bold">{data.percent}% נוכחות</p>
                                                     <div className="mt-2 text-sm font-bold">

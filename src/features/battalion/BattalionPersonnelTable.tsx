@@ -9,14 +9,7 @@ import { Modal } from '../../components/ui/Modal';
 export const BattalionPersonnelTable: React.FC = () => {
     const { organization } = useAuth();
 
-    // UI State
-    const [searchTerm, setSearchTerm] = useState('');
-    const [showInactive, setShowInactive] = useState(false);
-    const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
-    const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
-    const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-
-    // Optimized Data Hook
+    // Optimized Data Hook - Must be first to avoid reference errors
     const {
         companies = [],
         people = [],
@@ -25,6 +18,16 @@ export const BattalionPersonnelTable: React.FC = () => {
         presenceSummary = [],
         isLoading
     } = useBattalionData(organization?.battalion_id);
+
+    // UI State - Initialize after data is available
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showInactive, setShowInactive] = useState(false);
+    const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+    const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
+    const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
+
+    // Companies start collapsed by default
+    // Users can expand them manually by clicking
 
     const getPersonPresence = (personId: string) => {
         const entry = presenceSummary.find(p => p.person_id === personId);
@@ -81,8 +84,9 @@ export const BattalionPersonnelTable: React.FC = () => {
 
     const filteredPeople = useMemo(() => {
         return people.filter(p => {
-            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesActive = showInactive || p.isActive !== false;
+            const name = p?.name || '';
+            const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesActive = showInactive || p?.isActive !== false;
             return matchesSearch && matchesActive;
         });
     }, [people, searchTerm, showInactive]);
@@ -167,7 +171,7 @@ export const BattalionPersonnelTable: React.FC = () => {
             </div>
 
             {/* Hierarchical List */}
-            <div className="space-y-4">
+            <div className="space-y-4" key={`companies-${expandedCompanies.size}`}>
                 {companies.map(company => {
                     const companyPeople = filteredPeople.filter(p => p.organization_id === company.id);
                     const companyTeams = teams.filter(t => t.organization_id === company.id);
@@ -183,8 +187,8 @@ export const BattalionPersonnelTable: React.FC = () => {
                                 className="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-colors"
                             >
                                 <div className="flex items-center gap-4">
-                                    {isExpanded ? <CaretDown size={20} weight="bold" /> : <CaretRight size={20} weight="bold" />}
-                                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg">
+                                    {isExpanded ? <CaretDown size={20} weight="bold" className="text-blue-600" /> : <CaretRight size={20} weight="bold" className="text-slate-400" />}
+                                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg shadow-sm">
                                         {company.name.charAt(0)}
                                     </div>
                                     <div className="text-right">

@@ -83,10 +83,8 @@ export const useGateSystem = () => {
                         .eq('status', 'inside')
                         .order('entry_time', { ascending: false });
 
-                    if (battalionId) {
-                        // Use a valid OR filter with battalion_id and the list of organization IDs
-                        const idList = orgsIds.length > 0 ? `,organization_id.in.(${orgsIds.join(',')})` : '';
-                        q = q.or(`battalion_id.eq.${battalionId}${idList}`);
+                    if (battalionId && orgsIds.length > 0) {
+                        q = q.in('organization_id', orgsIds);
                     } else {
                         q = q.eq('organization_id', organization?.id || '');
                     }
@@ -99,9 +97,8 @@ export const useGateSystem = () => {
                         .from('gate_authorized_vehicles')
                         .select('*, organizations(name, battalion_id)');
 
-                    if (battalionId) {
-                        const idList = orgsIds.length > 0 ? `,organization_id.in.(${orgsIds.join(',')})` : '';
-                        q = q.or(`battalion_id.eq.${battalionId}${idList}`);
+                    if (battalionId && orgsIds.length > 0) {
+                        q = q.in('organization_id', orgsIds);
                     } else {
                         q = q.eq('organization_id', organization?.id || '');
                     }

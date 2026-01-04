@@ -267,6 +267,8 @@ export interface DailyPresence {
   updated_at?: string;
   start_time?: string; // HH:MM
   end_time?: string;   // HH:MM
+  arrival_date?: string; // ISO string or date
+  departure_date?: string; // ISO string or date
 }
 
 export interface Absence {

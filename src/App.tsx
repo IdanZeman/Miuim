@@ -218,14 +218,6 @@ const useMainAppState = () => {
         }
     }, [orgError]);
 
-    // Error Handling
-    useEffect(() => {
-        if (orgError) {
-            console.error("Error fetching organization data:", orgError);
-            showToast("שגיאה בטעינת הנתונים - נסה לרענן", 'error');
-        }
-    }, [orgError]);
-
     // DB Mutation Handlers (Now just wrapper around Supabase + Refetch/Invalidate)
     // For V1 Performance: We simply invalidate the query to refetch fresh data
     const queryClient = useQueryClient();

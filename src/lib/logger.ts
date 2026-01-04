@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 // Log Levels (from most verbose to least)
 export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL';
 
-export type LogAction = 
+export type LogAction =
     | 'LOGIN' | 'LOGOUT' | 'SIGNUP'
     | 'CREATE' | 'UPDATE' | 'DELETE'
     | 'ASSIGN' | 'UNASSIGN'
@@ -13,8 +13,8 @@ export type LogAction =
     | 'IMPORT_DATA' | 'APP_LAUNCH'
     | 'GENERATE' | 'SAVE' | 'SYNC' | 'CHECK_IN' | 'AUTH';
 
-export type EntityType = 
-    | 'person' | 'shift' | 'task' | 'role' | 'team' 
+export type EntityType =
+    | 'person' | 'shift' | 'task' | 'role' | 'team'
     | 'organization' | 'profile' | 'attendance' | 'button' | 'page' | 'form'
     | 'absence' | 'rotation' | 'equipment';
 
@@ -55,6 +55,8 @@ class LoggingService {
     private isSuperAdmin: boolean = false;
     private SESSION_STORAGE_KEY = 'miuim_session_id';
     private geoFetchPromise: Promise<void> | null = null;
+    private geoData: any = null;
+    private GEO_CACHE_KEY = 'miuim_geo_cache';
 
     constructor() {
         this.fetchSessionId();
@@ -64,7 +66,7 @@ class LoggingService {
             this.minLogLevel = storedLevel as LogLevel;
         } else {
             // Default to TRACE (Highest Level) as per user request to capture all data
-            this.minLogLevel = 'TRACE'; 
+            this.minLogLevel = 'TRACE';
         }
 
         // Start fetching geo data immediately
@@ -128,8 +130,6 @@ class LoggingService {
             }
 
             // Skip persistence for Super Admins
-
-            // Skip persistence for Super Admins
             if (this.isSuperAdmin) return;
 
             // Skip persistence for unauthenticated users (prevents 401 on landing page)
@@ -145,14 +145,13 @@ class LoggingService {
             }
 
             // Ensure we strictly follow DB Schema to avoid 400 errors
-            // Add extra fields to metadata instead of top-level
             metadata.url = window.location.href;
             metadata.user_agent = navigator.userAgent;
             metadata.client_timestamp = new Date().toISOString();
             metadata.entity_name = entry.entityName;
+            metadata.device_type = this.getDeviceType();
 
-            await supabase.from('audit_logs').insert({
-                organization_id: this.organizationId,
+            const payload: any = {
                 user_id: this.userId,
                 user_email: this.userEmail,
                 user_name: this.userName,
@@ -161,23 +160,30 @@ class LoggingService {
                 event_type: entry.action,
                 entity_type: entry.entityType,
                 entity_id: entry.entityId,
-                // entity_name: entry.entityName, // REMOVED - not in DB
-                action_description: entry.actionDescription,
+                action_description: entry.actionDescription || entry.action || 'No description provided',
                 event_category: entry.category || 'system',
                 component_name: entry.component,
                 performance_ms: entry.performanceMs,
                 before_data: entry.oldData || null,
                 after_data: entry.newData || null,
                 metadata: metadata || null,
-                // user_agent: navigator.userAgent // REMOVED - moved to metadata to avoid schema mismatch
-                // url and client_timestamp REMOVED from top level
-            });
+            };
+
+            // Only include organization_id if we have it, to avoid NOT NULL constraints if DB isn't ready
+            if (this.organizationId) {
+                payload.organization_id = this.organizationId;
+            }
+
+            const { error: dbError } = await supabase.from('audit_logs').insert(payload);
+
+            if (dbError) {
+                // If it fails, log to console but don't crash
+                console.error('❌ Database Logging Failed:', dbError.message, dbError.details);
+                if (dbError.hint) console.warn('Hint:', dbError.hint);
+            }
 
         } catch (error) {
-            console.error('❌ Failed to persist log:', error);
-            if ((error as any)?.message) console.error('Error Message:', (error as any).message);
-            if ((error as any)?.details) console.error('Error Details:', (error as any).details);
-            if ((error as any)?.hint) console.error('Error Hint:', (error as any).hint);
+            console.error('❌ Failed to persist log (Exception):', error);
         }
     }
 
@@ -197,14 +203,14 @@ class LoggingService {
     }
 
     public error(action: LogAction, description: string, error?: any, componentStack?: string) {
-        this.log({ 
-            level: 'ERROR', 
-            action, 
-            actionDescription: description, 
-            metadata: { 
+        this.log({
+            level: 'ERROR',
+            action,
+            actionDescription: description,
+            metadata: {
                 error: error?.message || error,
                 stack: error?.stack,
-                componentStack 
+                componentStack
             },
             category: 'system'
         });
@@ -224,7 +230,7 @@ class LoggingService {
             level: 'TRACE',
             action: 'CLICK',
             category: 'ui',
-            actionDescription: `Clicked ${label}`,
+            actionDescription: `Clicked ${label}${component ? ` in ${component}` : ''}`,
             component,
             entityType: 'button',
             entityId: label
@@ -240,15 +246,9 @@ class LoggingService {
             entityType: 'page',
             entityId: pageName
         });
-        
-        // Auto-fetch geo once per session
-        this.ensureGeoData();
     }
 
-    private geoData: any = null;
-    private GEO_CACHE_KEY = 'miuim_geo_cache';
-
-    private async ensureGeoData() {
+    public async ensureGeoData() {
         if (this.geoData || typeof window === 'undefined') return;
         if (this.geoFetchPromise) return this.geoFetchPromise;
 
@@ -286,9 +286,9 @@ class LoggingService {
                         const res = await fetch('https://ipwho.is/');
                         if (res.ok) {
                             const data = await res.json();
-                            this.geoData = { 
-                                ip: data.ip, 
-                                city: data.city, 
+                            this.geoData = {
+                                ip: data.ip,
+                                city: data.city,
                                 country_name: data.country,
                                 latitude: data.latitude,
                                 longitude: data.longitude
@@ -311,7 +311,7 @@ class LoggingService {
                             } else throw new Error(res.statusText);
                         } catch (e3) {
                             console.warn('⚠️ Geo: ipapi.co failed, trying ipinfo.io...', e3);
-                             // Try 4: ipinfo.io
+                            // Try 4: ipinfo.io
                             try {
                                 const res = await fetch('https://ipinfo.io/json');
                                 if (res.ok) {
@@ -333,7 +333,7 @@ class LoggingService {
                     }
                 }
             } catch (fatal) {
-                 console.error('❌ Geo: Fatal error in fetch chain', fatal);
+                console.error('❌ Geo: Fatal error in fetch chain', fatal);
             }
 
             if (this.geoData) {
