@@ -295,7 +295,7 @@ const MainApp: React.FC = () => {
             const { error } = await supabase.from('people').insert(dbPayload);
             if (error) throw error;
             await logger.logCreate('person', dbPayload.id, p.name, p);
-            await refreshData(); // Re-fetch
+            refreshData(); // Re-fetch in background
             showToast('העובד נוסף בהצלחה', 'success');
         } catch (e: any) {
             console.warn("DB Insert Failed", e);
@@ -309,7 +309,7 @@ const MainApp: React.FC = () => {
             const { error } = await supabase.from('people').update(mapPersonToDB(p)).eq('id', p.id);
             if (error) throw error;
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
-            await refreshData(); // Re-fetch and await result
+            refreshData(); // Re-fetch in background
         } catch (e: any) {
             console.warn("DB Update Failed:", e);
             throw e;
@@ -328,7 +328,7 @@ const MainApp: React.FC = () => {
                 category: 'data',
                 metadata: { details: `Updated ${peopleToUpdate.length} people` }
             });
-            await refreshData();
+            refreshData();
         } catch (e) {
             console.warn("Bulk DB Update Failed", e);
             showToast("שגיאה בעדכון קבוצתי", 'error');
@@ -339,14 +339,14 @@ const MainApp: React.FC = () => {
         try {
             await supabase.from('people').delete().eq('id', id);
             await logger.logDelete('person', id, state.people.find(p => p.id === id)?.name || 'אדם', state.people.find(p => p.id === id));
-            await refreshData();
+            refreshData();
         } catch (e) { console.warn("DB Delete Failed", e); }
     };
 
     const handleDeletePeople = async (ids: string[]) => {
         try {
             await supabase.from('people').delete().in('id', ids);
-            await refreshData();
+            refreshData();
         } catch (e) { console.warn("Bulk DB Delete Failed", e); }
     };
 
@@ -355,7 +355,7 @@ const MainApp: React.FC = () => {
             const { error } = await supabase.from('teams').insert(mapTeamToDB({ ...t, organization_id: organization.id }));
             if (error) throw error;
             await logger.logCreate('team', t.id, t.name, t);
-            await refreshData();
+            refreshData();
         } catch (e: any) {
             logger.error('ERROR', 'Failed to add team', e);
             console.warn(e);
@@ -365,14 +365,14 @@ const MainApp: React.FC = () => {
     const handleUpdateTeam = async (t: Team) => {
         try {
             await supabase.from('teams').update(mapTeamToDB(t)).eq('id', t.id);
-            await refreshData();
+            refreshData();
         } catch (e) { console.warn(e); }
     };
 
     const handleDeleteTeam = async (id: string) => {
         try {
             await supabase.from('teams').delete().eq('id', id);
-            await refreshData();
+            refreshData();
         } catch (e) { console.warn(e); }
     };
 
@@ -380,21 +380,21 @@ const MainApp: React.FC = () => {
         if (!organization) return;
         try {
             await supabase.from('roles').insert(mapRoleToDB({ ...r, organization_id: organization.id }));
-            await refreshData();
+            refreshData();
         } catch (e) { console.warn(e); }
     };
 
     const handleUpdateRole = async (r: Role) => {
         try {
             await supabase.from('roles').update(mapRoleToDB(r)).eq('id', r.id);
-            await refreshData();
+            refreshData();
         } catch (e) { console.warn(e); }
     };
 
     const handleDeleteRole = async (id: string) => {
         try {
             await supabase.from('roles').delete().eq('id', id);
-            await refreshData();
+            refreshData();
         } catch (e) { console.warn(e); }
     };
 

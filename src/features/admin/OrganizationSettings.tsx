@@ -15,8 +15,10 @@ import { Select } from '../../components/ui/Select';
 import { PermissionEditorContent } from './PermissionEditorContent';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { OrganizationMessagesManager } from './OrganizationMessagesManager';
+import { OrganizationUserManagement } from './OrganizationUserManagement';
 import { TimePicker } from '../../components/ui/DatePicker';
 import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
+import { CustomFieldsManager } from '../personnel/CustomFieldsManager';
 
 import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../../utils/permissions';
 
@@ -363,7 +365,8 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const [searchTerm, setSearchTerm] = useState('');
     const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
     const [roles, setRoles] = useState<Role[]>([]); // New State
-    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles' | 'messages' | 'teams'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles' | 'messages' | 'teams' | 'customFields'>('general');
+    const [organizationSettings, setOrganizationSettings] = useState<any>(null); // New organization settings state
     const [isCreating, setIsCreating] = useState(false);
 
     const { showToast } = useToast();
@@ -384,9 +387,26 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
             fetchMembers(),
             fetchInvites(),
             fetchTemplates(),
-            fetchRoles()
+            fetchRoles(),
+            fetchOrganizationSettings()
         ]);
         setLoading(false);
+    };
+
+    const fetchOrganizationSettings = async () => {
+        if (!organization) return;
+        const { data, error } = await supabase
+            .from('organization_settings')
+            .select('*')
+            .eq('organization_id', organization.id)
+            .single();
+
+        if (!error && data) {
+            setOrganizationSettings({
+                ...data,
+                customFieldsSchema: data.custom_fields_schema || []
+            });
+        }
     };
 
     const fetchTemplates = async () => {
@@ -495,6 +515,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         { id: 'general', label: 'כללי', icon: Settings },
         { id: 'roles', label: 'תבניות הרשאות', icon: Shield },
         { id: 'members', label: 'חברים', icon: Users },
+        { id: 'customFields', label: 'שדות מותאמים', icon: Layout },
         { id: 'messages', label: 'הודעות ועדכונים', icon: Megaphone },
     ];
 
@@ -580,18 +601,18 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                 <p className="text-slate-500 font-medium text-sm">הגדרות וניהול מערכת</p>
                             </div>
 
-                            <div className="bg-slate-50 p-1.5 rounded-2xl flex border border-slate-200">
+                            <div className="bg-slate-50 p-1.5 rounded-2xl flex border border-slate-200 overflow-x-auto hide-scrollbar">
                                 {navigationTabs.map(tab => (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id as any)}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === tab.id
+                                        className={`flex-none px-4 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id
                                             ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
                                             : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-600'
                                             }`}
                                     >
-                                        <tab.icon size={16} weight="duotone" />
-                                        <span className={activeTab === tab.id ? 'inline' : 'hidden sm:inline'}>{tab.label}</span>
+                                        <tab.icon size={16} weight={activeTab === tab.id ? 'fill' : 'duotone'} className={tab.id === 'messages' && activeTab !== tab.id ? 'text-slate-500' : ''} />
+                                        <span>{tab.label}</span>
                                     </button>
                                 ))}
                             </div>
@@ -660,75 +681,32 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                         )}
 
                         {activeTab === 'members' && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-4">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
-                                    <div>
-                                        <h2 className="text-xl font-black text-slate-800">חברי ארגון ({members.length})</h2>
-                                        <p className="text-sm text-slate-500">ניהול משתמשים והרשאות</p>
-                                    </div>
-                                    <div className="w-full sm:w-auto">
-                                        <Input
-                                            placeholder="חפש חבר..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            icon={Search}
-                                            className="!bg-gray-50 rounded-full"
-                                        />
-                                    </div>
-                                </div>
+                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <OrganizationUserManagement teams={teams} />
+                            </div>
+                        )}
 
-                                <div className="space-y-2">
-                                    {members.filter(m =>
-                                    (m.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                        m.email.toLowerCase().includes(searchTerm.toLowerCase()))
-                                    ).map((member) => (
-                                        <div key={member.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-xl border border-slate-200 hover:border-blue-300 transition-colors gap-3 group">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-slate-200 text-slate-700 font-bold shadow-sm">
-                                                    {member.email.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div className="truncate">
-                                                    <p className="font-bold text-slate-800 text-sm truncate flex items-center gap-2">
-                                                        {member.full_name || member.email.split('@')[0]}
-                                                        {member.id === user?.id && <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded-md">אתה</span>}
-                                                    </p>
-                                                    <p className="text-xs text-slate-500 truncate">{member.email}</p>
-                                                </div>
-                                            </div>
+                        {activeTab === 'customFields' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <CustomFieldsManager
+                                    fields={organizationSettings?.customFieldsSchema || []}
+                                    onFieldsChange={async (fields) => {
+                                        try {
+                                            const { error } = await supabase
+                                                .from('organization_settings')
+                                                .update({ custom_fields_schema: fields })
+                                                .eq('organization_id', organization?.id);
 
-                                            <div className="flex items-center gap-2 pl-1 self-end sm:self-auto">
-                                                <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${member.permission_template_id ? (templates.find(t => t.id === member.permission_template_id) ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700') : 'bg-slate-200 text-slate-600'}`}>
-                                                    {(() => {
-                                                        // 1. Try to find by ID in current templates
-                                                        const activeTmp = templates.find(t => t.id === member.permission_template_id);
-                                                        if (activeTmp) return activeTmp.name;
+                                            if (error) throw error;
 
-                                                        // 2. Try to match by virtual system ID
-                                                        const sysPreset = SYSTEM_ROLE_PRESETS.find(p => p.id === member.permission_template_id);
-                                                        if (sysPreset) return sysPreset.name;
-
-                                                        // 3. Fallback: If no template or missing row, infer from properties
-                                                        if (member.is_super_admin) return 'מנהל על';
-                                                        if (member.permissions?.screens?.['settings'] === 'edit') return 'מנהל מלא';
-                                                        if (member.permissions?.dataScope === 'organization') return 'עורך / צופה';
-
-                                                        return member.permission_template_id ? 'תבנית לא נמצאה' : 'תבנית אישית';
-                                                    })()}
-                                                </span>
-                                                {member.id !== user?.id && (
-                                                    <Button
-                                                        onClick={() => handleOpenPermissionEditor(member)}
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-slate-400 hover:text-blue-600 hover:bg-white"
-                                                    >
-                                                        <Pencil size={14} weight="duotone" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                            setOrganizationSettings(prev => prev ? { ...prev, customFieldsSchema: fields } : prev);
+                                            showToast('שדות מותאמים עודכנו בהצלחה', 'success');
+                                        } catch (error: any) {
+                                            console.error('Error updating custom fields:', error);
+                                            showToast('שגיאה בעדכון שדות מותאמים', 'error');
+                                        }
+                                    }}
+                                />
                             </div>
                         )}
 

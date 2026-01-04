@@ -73,7 +73,10 @@ export const GenericModal: React.FC<GenericModalProps> = ({
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-                onClick={onClose}
+                onClick={(e) => {
+                    if (e.detail > 1) return;
+                    onClose();
+                }}
             />
 
             {/* Modal Container */}

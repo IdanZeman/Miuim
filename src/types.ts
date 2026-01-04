@@ -13,11 +13,35 @@ export interface Organization {
   battalion_id?: string;
 }
 
+export type CustomFieldType = 
+  | 'text'           // Short text input
+  | 'textarea'       // Long text input
+  | 'number'         // Number input
+  | 'boolean'        // Toggle/Checkbox
+  | 'select'         // Single choice dropdown
+  | 'multiselect'    // Multiple choice
+  | 'date'           // Date picker
+  | 'phone'          // Phone number
+  | 'email';         // Email input
+
 export interface CustomFieldDefinition {
-  key: string;
-  label: string;
-  type: 'text' | 'number' | 'boolean' | 'date' | 'select';
-  options?: string[];
+  id: string;                    // Unique identifier
+  key: string;                   // Field key for data storage
+  label: string;                 // Display label
+  type: CustomFieldType;         // Field type
+  required?: boolean;            // Is field required
+  placeholder?: string;          // Placeholder text
+  defaultValue?: any;            // Default value
+  options?: string[];            // For select/multiselect
+  validation?: {                 // Validation rules
+    min?: number;                // Min value/length
+    max?: number;                // Max value/length
+    pattern?: string;            // Regex pattern
+  };
+  helpText?: string;             // Help text below field
+  order?: number;                // Display order
+  created_at?: string;           // Creation timestamp
+  updated_at?: string;           // Last update timestamp
 }
 
 export interface OrganizationSettings {
