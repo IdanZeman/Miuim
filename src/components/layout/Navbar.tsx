@@ -394,6 +394,25 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
 
                                                 <div className="h-px bg-slate-50 my-1 mx-2" />
 
+                                                <div className="space-y-0.5">
+                                                    <button
+                                                        onClick={() => { handleNav('faq'); setIsProfileDropdownOpen(false); }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all text-right"
+                                                    >
+                                                        <HelpCircle className="w-4 h-4" />
+                                                        <span>מדריכי שימוש</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { handleNav('contact'); setIsProfileDropdownOpen(false); }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all text-right"
+                                                    >
+                                                        <Mail className="w-4 h-4" />
+                                                        <span>צור קשר ומשוב</span>
+                                                    </button>
+                                                </div>
+
+                                                <div className="h-px bg-slate-50 my-1 mx-2" />
+
                                                 <button
                                                     onClick={handleLogout}
                                                     className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all text-right"
