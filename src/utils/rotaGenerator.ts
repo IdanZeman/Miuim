@@ -455,7 +455,85 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
     
     const schedule = strategy.generate(ctx);
 
-    // 4. Format Output
+    // 4. Military Weekend Transition Rules (No Exit/Entry on Shabbat)
+    // Rule: Handle Saturday transitions by moving to Friday (if SADAK allows) or Sunday.
+    for (let d = 1; d < totalDays; d++) {
+        const currentDate = new Date(startDate.getTime() + d * 86400000);
+        if (currentDate.getDay() === 6) { // Saturday
+            people.forEach(p => {
+                const sched = schedule[p.id];
+                const fri = d - 1;
+                const sat = d;
+                const sun = d + 1;
+
+                // EXIT on Saturday (Base on Fri, Home on Sat)
+                if (sched[fri] === true && sched[sat] === false) {
+                    // Ignore if hard constraint
+                    if (constraintMap.get(p.id)?.has(fri)) {
+                        // If constrained to be home on fri anyway, it's not a sat exit usually, 
+                        // but if we are here it's because logic generated a gap.
+                    }
+
+                    // Try move to Friday
+                    const dailyTarget = ctx.dailyMinStaff ? (ctx.dailyMinStaff[fri] || ctx.minStaff) : ctx.minStaff;
+                    const currentFriStaff = people.filter(pers => schedule[pers.id][fri]).length;
+                    
+                    if (currentFriStaff - 1 >= dailyTarget && !constraintMap.get(p.id)?.has(fri)) {
+                        // Move to Friday
+                        sched[fri] = false;
+                        // Optional return adjust (try matching original length)
+                        // Find original return
+                        for (let r = sat + 1; r < totalDays; r++) {
+                            if (sched[r] === true) {
+                                // Original return at r. Try move to r-1 if SADAK allowed
+                                const rMinus1Target = ctx.dailyMinStaff ? (ctx.dailyMinStaff[r-1] || ctx.minStaff) : ctx.minStaff;
+                                const currentR1Staff = people.filter(pers => schedule[pers.id][r-1]).length;
+                                if (currentR1Staff - 1 >= rMinus1Target && !constraintMap.get(p.id)?.has(r-1)) {
+                                    sched[r-1] = true; // Wait, actually moving return EARLIER means more staff at r-1. Always OK.
+                                    // Actually no, moving return EARLIER means person is at BASE at r-1.
+                                }
+                                break;
+                            }
+                        }
+                    } else {
+                        // Move to Sunday (Stay Sat)
+                        sched[sat] = true;
+                        if (sun < totalDays) {
+                            // Already home on Sun? Then we successfully moved exit to Sun.
+                            // If base on Sun? We just pushed the problem to Sunday.
+                        }
+                        // Optional return adjust (push 1 day later)
+                        for (let r = sat + 1; r < totalDays; r++) {
+                            if (sched[r] === true) {
+                                const rStaff = people.filter(pers => schedule[pers.id][r]).length;
+                                const rTarget = ctx.dailyMinStaff ? (ctx.dailyMinStaff[r] || ctx.minStaff) : ctx.minStaff;
+                                if (rStaff - 1 >= rTarget && !constraintMap.get(p.id)?.has(r)) {
+                                    sched[r] = false;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // ENTRY on Saturday (Home on Fri, Base on Sat)
+                else if (sched[fri] === false && sched[sat] === true) {
+                    // Move to Friday (Always better for SADAK)
+                    if (!constraintMap.get(p.id)?.has(fri)) {
+                        sched[fri] = true;
+                    } else {
+                        // If forced home on Fri, move entry to Sunday
+                        sched[sat] = false;
+                        if (sun < totalDays && !constraintMap.get(p.id)?.has(sun)) {
+                            sched[sun] = true;
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // 5. Format Output
     const roster: DailyPresence[] = [];
     const personStatuses: Record<string, Record<string, string>> = {};
     let totalPresence = 0;

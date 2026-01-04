@@ -144,18 +144,15 @@ export const TimePicker: React.FC<TimePickerProps> = ({ label, value, onChange, 
         <div className={`flex flex-col gap-1.5 w-full ${className}`}>
             {label && <label htmlFor={id} className="text-xs font-bold text-slate-500 mb-0.5 px-0.5">{label}</label>}
             <div
-                className="relative flex items-center gap-3 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-500 rounded-xl px-4 py-3 cursor-pointer transition-all duration-300 group w-full shadow-sm"
+                className="relative flex items-center gap-3 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-500 rounded-xl px-3 py-2 cursor-pointer transition-all duration-300 group w-full shadow-sm h-full"
                 onClick={handleClick}
             >
-                <div className="text-blue-600 bg-white p-2 rounded-lg border border-slate-100 shadow-sm group-hover:scale-110 transition-transform">
+                <div className="text-blue-600 bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm group-hover:scale-110 transition-transform">
                     <Clock size={18} weight="duotone" />
                 </div>
-                <div className="flex flex-col min-w-0">
+                <div className="flex flex-col min-w-0 justify-center">
                     <span className="text-base font-bold text-slate-800">
                         {value || '00:00'}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-400">
-                        שעה
                     </span>
                 </div>
                 <input

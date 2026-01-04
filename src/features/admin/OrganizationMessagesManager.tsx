@@ -304,13 +304,13 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
                                                         onClick={() => handleEdit(msg)}
                                                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                     >
-                                                        <Edit2 size={18} weight="duotone" />
+                                                        <Edit2 size={18} weight="bold" />
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(msg.id)}
                                                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                     >
-                                                        <Trash2 size={18} weight="duotone" />
+                                                        <Trash2 size={18} weight="bold" />
                                                     </button>
                                                 </div>
                                             </td>
@@ -340,7 +340,7 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
                     <div className="flex gap-3 w-full justify-between">
                         {editingId && (
                             <Button variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-600 font-bold" onClick={() => { handleDelete(editingId); resetForm(); }}>
-                                <Trash2 size={18} weight="duotone" className="mr-2" /> מחק
+                                <Trash2 size={18} weight="bold" className="mr-2" /> מחק
                             </Button>
                         )}
                         <div className="flex gap-3 mr-auto">

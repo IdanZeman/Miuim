@@ -15,6 +15,8 @@ import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
 import { ROLE_ICONS } from '../../constants';
+import ExcelJS from 'exceljs';
+import { ExportButton } from '../../components/ui/ExportButton';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -398,71 +400,121 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         setIsModalOpen(true);
     };
 
-    const handleExport = () => {
+    const handleExport = async () => {
         if (!canEdit) {
             showToast('אין לך הרשאה לייצא נתונים', 'error');
             return;
         }
 
-        let itemCount = 0;
-        if (activeTab === 'people') itemCount = people.length;
-        else if (activeTab === 'teams') itemCount = teams.length;
-        else if (activeTab === 'roles') itemCount = roles.length;
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('ייצוא נתונים', { views: [{ rightToLeft: true }] });
+            let fileName = '';
 
-        logger.log({
-            action: 'EXPORT',
-            entityName: activeTab,
-            category: 'data',
-            metadata: { count: itemCount }
-        });
-        let csvContent = '';
-        let fileName = '';
+            if (activeTab === 'people') {
+                const columns = [
+                    { name: 'שם מלא', filterButton: true },
+                    { name: 'צוות', filterButton: true },
+                    { name: 'תפקידים', filterButton: true },
+                    { name: 'טלפון', filterButton: true },
+                    { name: 'אימייל', filterButton: true },
+                    { name: 'סטטוס', filterButton: true },
+                    { name: 'מפקד', filterButton: true }
+                ];
 
-        if (activeTab === 'people') {
-            const header = 'שם,צוות,תפקידים,טלפון,אימייל,סטטוס\n';
-            const rows = people.map(p => {
-                const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
-                const roleNames = (p.roleIds || [])
-                    .map(id => roles.find(r => r.id === id)?.name)
-                    .filter(Boolean)
-                    .join(' | ');
-                const status = p.isActive === false ? 'לא פעיל' : 'פעיל';
-                // Escape commas in fields
-                const safeName = p.name ? `"${p.name.replace(/"/g, '""')}"` : '';
-                const safeTeam = `"${teamName.replace(/"/g, '""')}"`;
-                const safeRoles = `"${roleNames.replace(/"/g, '""')}"`;
+                const rows = people.map(p => {
+                    const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
+                    const roleNames = (p.roleIds || [])
+                        .map(id => roles.find(r => r.id === id)?.name)
+                        .filter(Boolean)
+                        .join(' | ');
+                    const status = p.isActive === false ? 'לא פעיל' : 'פעיל';
+                    const isCommander = !!p.isCommander ? 'כן' : 'לא';
+                    return [p.name, teamName, roleNames, p.phone || '', p.email || '', status, isCommander];
+                });
 
-                return `${safeName},${safeTeam},${safeRoles},${p.phone || ''},${p.email || ''},${status}`;
-            }).join('\n');
-            csvContent = header + rows;
-            fileName = `people_export_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.csv`;
-        } else if (activeTab === 'teams') {
-            const header = 'שם צוות,מספר חברים,צבע\n';
-            const rows = sortedTeamsAsc.map(t => {
-                const memberCount = people.filter(p => p.teamId === t.id).length;
-                return `"${t.name}",${memberCount},${t.color}`;
-            }).join('\n');
-            csvContent = header + rows;
-            fileName = `teams_export_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.csv`;
-        } else if (activeTab === 'roles') {
-            const header = 'שם תפקיד,מספר משובצים,צבע\n';
-            const rows = sortedRolesAsc.map(r => {
-                const count = people.filter(p => (p.roleIds || []).includes(r.id)).length;
-                return `"${r.name}",${count},${r.color}`;
-            }).join('\n');
-            csvContent = header + rows;
-            fileName = `roles_export_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.csv`;
+                worksheet.addTable({
+                    name: 'PeopleTable',
+                    ref: 'A1',
+                    headerRow: true,
+                    totalsRow: false,
+                    style: { theme: 'TableStyleMedium2', showRowStripes: true },
+                    columns: columns,
+                    rows: rows,
+                });
+
+                worksheet.columns = [
+                    { width: 25 }, { width: 15 }, { width: 30 }, { width: 15 }, { width: 25 }, { width: 12 }, { width: 10 }
+                ];
+                fileName = `people_export_${new Date().toLocaleDateString('en-CA')}.xlsx`;
+            } else if (activeTab === 'teams') {
+                const columns = [
+                    { name: 'שם צוות', filterButton: true },
+                    { name: 'מספר חברים', filterButton: true },
+                    { name: 'צבע', filterButton: true }
+                ];
+
+                const rows = sortedTeamsAsc.map(t => {
+                    const memberCount = people.filter(p => p.teamId === t.id).length;
+                    return [t.name, memberCount, t.color];
+                });
+
+                worksheet.addTable({
+                    name: 'TeamsTable',
+                    ref: 'A1',
+                    headerRow: true,
+                    columns: columns,
+                    rows: rows,
+                    style: { theme: 'TableStyleMedium2', showRowStripes: true }
+                });
+
+                worksheet.columns = [{ width: 25 }, { width: 15 }, { width: 20 }];
+                fileName = `teams_export_${new Date().toLocaleDateString('en-CA')}.xlsx`;
+            } else if (activeTab === 'roles') {
+                const columns = [
+                    { name: 'שם תפקיד', filterButton: true },
+                    { name: 'מספר משובצים', filterButton: true },
+                    { name: 'צבע', filterButton: true }
+                ];
+
+                const rows = sortedRolesAsc.map(r => {
+                    const count = people.filter(p => (p.roleIds || []).includes(r.id)).length;
+                    return [r.name, count, r.color];
+                });
+
+                worksheet.addTable({
+                    name: 'RolesTable',
+                    ref: 'A1',
+                    headerRow: true,
+                    columns: columns,
+                    rows: rows,
+                    style: { theme: 'TableStyleMedium2', showRowStripes: true }
+                });
+
+                worksheet.columns = [{ width: 25 }, { width: 15 }, { width: 20 }];
+                fileName = `roles_export_${new Date().toLocaleDateString('en-CA')}.xlsx`;
+            }
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast('הקובץ יוצא בהצלחה', 'success');
+
+            logger.log({
+                action: 'EXPORT',
+                entityName: activeTab,
+                category: 'data',
+                metadata: { fileName }
+            });
+        } catch (error) {
+            console.error('Export failed:', error);
+            showToast('שגיאה בייצוא הנתונים', 'error');
         }
-
-        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', fileName);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     };
 
     const handleBulkImport = async (importedPeople: Person[], newTeams: Team[] = [], newRoles: Role[] = []) => {
@@ -1345,8 +1397,18 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             className="h-11 w-11 rounded-xl border border-slate-200 bg-white text-slate-500 flex items-center justify-center transition-colors hover:bg-slate-50"
                             title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
                         >
-                            {sortOrder === 'asc' ? <SortDescendingIcon size={20} /> : <SortAscendingIcon size={20} />}
+                            {sortOrder === 'asc' ? <SortAscending size={20} /> : <SortDescending size={20} />}
                         </button>
+
+                        {/* Export Button */}
+                        <ExportButton
+                            onExport={handleExport}
+                            iconOnly
+                            className="h-11 w-11 rounded-xl hidden md:inline-flex"
+                            title="ייצוא לאקסל"
+                        />
+
+
 
                         {/* Bulk Delete Action */}
                         {canEdit && selectedItemIds.size > 0 && (
@@ -1360,13 +1422,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         )}
 
                         {/* Kebab Menu */}
-                        <div className="relative">
+                        <div className={`relative ${activeTab === 'people' ? 'flex' : 'md:hidden flex'}`}>
                             <button
                                 onClick={() => setShowMoreMenu(!showMoreMenu)}
                                 className="h-11 w-11 rounded-xl border border-slate-200 bg-white text-slate-500 flex items-center justify-center transition-colors hover:bg-slate-50"
                             >
                                 <DotsThreeVertical size={20} weight="bold" />
                             </button>
+
 
                             {showMoreMenu && (
                                 <>
@@ -1375,28 +1438,34 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         {activeTab === 'people' && canEdit && (
                                             <button onClick={() => { setIsImportWizardOpen(true); setShowMoreMenu(false); }} className="w-full text-right px-4 py-3.5 hover:bg-slate-50 text-[13px] font-black flex items-center gap-3 text-slate-700 transition-colors">
                                                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                                    <FileXls size={16} strokeWidth={2.5} />
+                                                    <FileSpreadsheet size={16} strokeWidth={2.5} />
                                                 </div>
                                                 ייבוא מאקסל
                                             </button>
                                         )}
-                                        {canEdit && (
-                                            <button onClick={() => { handleExport(); setShowMoreMenu(false); }} className="w-full text-right px-4 py-3.5 hover:bg-slate-50 text-[13px] font-black flex items-center gap-3 text-slate-700 transition-colors">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                                                    <DownloadSimple size={16} weight="bold" />
+
+                                        {activeTab === 'people' && (
+                                            <div className="px-5 py-4 border-t border-slate-50 flex items-center justify-between">
+                                                <span className="text-[13px] font-black text-slate-700">הצג לא פעילים</span>
+                                                <div
+                                                    onClick={() => setShowInactive(!showInactive)}
+                                                    className={`w-11 h-6 rounded-full transition-all relative cursor-pointer ${showInactive ? 'bg-indigo-500' : 'bg-slate-200'}`}
+                                                >
+                                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showInactive ? 'left-1' : 'left-6'}`} />
                                                 </div>
-                                                ייצוא נתונים
-                                            </button>
-                                        )}
-                                        <div className="px-5 py-4 border-t border-slate-50 flex items-center justify-between">
-                                            <span className="text-[13px] font-black text-slate-700">הצג לא פעילים</span>
-                                            <div
-                                                onClick={() => setShowInactive(!showInactive)}
-                                                className={`w-11 h-6 rounded-full transition-all relative cursor-pointer ${showInactive ? 'bg-indigo-500' : 'bg-slate-200'}`}
-                                            >
-                                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${showInactive ? 'left-1' : 'left-6'}`} />
                                             </div>
+                                        )}
+
+
+                                        <div className="md:hidden border-t border-slate-50">
+                                            <ExportButton
+                                                onExport={async () => { await handleExport(); setShowMoreMenu(false); }}
+                                                variant="ghost"
+                                                className="w-full justify-start h-12 px-4 rounded-none border-0 text-slate-700 hover:bg-slate-50 font-black text-[13px]"
+                                                label="ייצוא לאקסל"
+                                            />
                                         </div>
+
                                     </div>
                                 </>
                             )}

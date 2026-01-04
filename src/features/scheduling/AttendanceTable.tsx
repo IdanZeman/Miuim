@@ -264,7 +264,12 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             <div className="flex items-center gap-3 shrink-0 bg-inherit relative z-10">
                                                                 {isExitRequest ? (
                                                                     <span className="text-[11px] font-black text-red-600 bg-red-50 px-2 py-1 rounded-lg border border-red-100 animate-pulse">
-                                                                        {isViewer ? 'היעדרות' : (relevantAbsence?.reason || 'בקשת יציאה')}
+                                                                        {isViewer ? 'היעדרות' : (
+                                                                            <>
+                                                                                {relevantAbsence?.status === 'rejected' && <span className="text-[10px] opacity-70 ml-1">(נדחה)</span>}
+                                                                                {relevantAbsence?.reason || 'בקשת יציאה'}
+                                                                            </>
+                                                                        )}
                                                                     </span>
                                                                 ) : (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
                                                                     <div className="flex -space-x-1 rtl:space-x-reverse h-3 items-center">
@@ -552,11 +557,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     const isExitRequest = !!relevantAbsence;
 
                                                                     // Show Text if there is a matching Absence Record
+                                                                    const isUnapprovedExit = isExitRequest && relevantAbsence?.status !== 'approved';
                                                                     const constraintText = isExitRequest ? (
                                                                         <span
                                                                             data-testid="exit-request-label"
-                                                                            className="text-[9px] font-bold text-red-600/80 -mt-0.5 whitespace-nowrap scale-90"
+                                                                            className={`text-[9px] font-bold -mt-0.5 whitespace-nowrap scale-90 flex items-center gap-1 ${isUnapprovedExit ? 'text-red-600' : 'text-red-600/80'}`}
                                                                         >
+                                                                            {relevantAbsence?.status === 'rejected' && <span className="opacity-60 text-[8px]">(נדחה)</span>}
+                                                                            {relevantAbsence?.status === 'pending' && <span className="opacity-60 text-[8px]">(ממתין)</span>}
                                                                             {isViewer ? 'היעדרות' : (relevantAbsence?.reason || 'בקשת יציאה')}
                                                                         </span>
                                                                     ) : null;
@@ -576,9 +584,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         cellBg = "bg-amber-50/60 text-amber-900";
                                                                         themeColor = "bg-amber-500";
                                                                         content = (
-                                                                            <div className="flex flex-col items-center justify-center">
-                                                                                <MapPin size={12} className="text-amber-500 mb-0.5" weight="duotone" />
-                                                                                <span className="text-[10px] font-black">יציאה</span>
+                                                                            <div className="flex flex-col items-center justify-center relative w-full h-full">
+                                                                                {isUnapprovedExit && (
+                                                                                    <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
+                                                                                        <AlertCircle size={10} weight="fill" />
+                                                                                    </div>
+                                                                                )}
+                                                                                <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="duotone" />
+                                                                                <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יציאה</span>
                                                                                 <span className="text-[9px] font-bold opacity-70">
                                                                                     {avail.startHour !== '00:00' ? avail.startHour : ''}
                                                                                 </span>
@@ -606,8 +619,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                             cellBg = "bg-emerald-50 text-emerald-800";
                                                                             themeColor = "bg-emerald-500";
                                                                             content = (
-                                                                                <div className="flex flex-col items-center justify-center">
-                                                                                    <span className="text-[10px] font-black">יום בודד</span>
+                                                                                <div className="flex flex-col items-center justify-center relative w-full h-full">
+                                                                                    {isUnapprovedExit && (
+                                                                                        <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
+                                                                                            <AlertCircle size={10} weight="fill" />
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יום בודד</span>
                                                                                     <span className="text-[9px] font-bold opacity-70">{avail.startHour}-{avail.endHour}</span>
                                                                                     {constraintText}
                                                                                 </div>
@@ -616,9 +634,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                             cellBg = "bg-emerald-50/60 text-emerald-800";
                                                                             themeColor = "bg-emerald-500";
                                                                             content = (
-                                                                                <div className="flex flex-col items-center justify-center">
-                                                                                    <MapPin size={12} className="text-emerald-500 mb-0.5" weight="duotone" />
-                                                                                    <span className="text-[10px] font-black">הגעה</span>
+                                                                                <div className="flex flex-col items-center justify-center relative w-full h-full">
+                                                                                    {isUnapprovedExit && (
+                                                                                        <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
+                                                                                            <AlertCircle size={10} weight="fill" />
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-emerald-500"} weight="duotone" />
+                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>הגעה</span>
                                                                                     <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.startHour}</span>
                                                                                     {constraintText}
                                                                                 </div>
@@ -628,9 +651,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                             cellBg = "bg-amber-50/60 text-amber-900";
                                                                             themeColor = "bg-amber-500";
                                                                             content = (
-                                                                                <div className="flex flex-col items-center justify-center">
-                                                                                    <MapPin size={12} className="text-amber-500 mb-0.5" weight="duotone" />
-                                                                                    <span className="text-[10px] font-black">יציאה</span>
+                                                                                <div className="flex flex-col items-center justify-center relative w-full h-full">
+                                                                                    {isUnapprovedExit && (
+                                                                                        <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
+                                                                                            <AlertCircle size={10} weight="fill" />
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="duotone" />
+                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יציאה</span>
                                                                                     <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour}</span>
                                                                                     {constraintText}
                                                                                 </div>
@@ -639,10 +667,18 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                             cellBg = "bg-emerald-50/40 text-emerald-800";
                                                                             themeColor = "bg-emerald-500";
                                                                             content = (
-                                                                                <div className="flex flex-col items-center justify-center gap-0.5">
-                                                                                    <MapPin size={14} className="text-emerald-500/50" weight="duotone" />
-                                                                                    <span className="text-[10px] font-black">בסיס</span>
+                                                                                <div className="flex flex-col items-center justify-center gap-0.5 relative w-full h-full">
+                                                                                    {isUnapprovedExit && (
+                                                                                        <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
+                                                                                            <AlertCircle size={10} weight="fill" />
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <MapPin size={14} className={isUnapprovedExit ? "text-red-500" : "text-emerald-500/50"} weight="duotone" />
+                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>בסיס</span>
                                                                                     {constraintText}
+                                                                                    {isUnapprovedExit && (
+                                                                                        <span className="text-[8px] font-bold text-red-500/60 leading-tight">לא אושר</span>
+                                                                                    )}
                                                                                 </div>
                                                                             );
                                                                         }

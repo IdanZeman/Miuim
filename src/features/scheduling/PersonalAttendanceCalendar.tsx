@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Person, TeamRotation, Absence } from '@/types';
-import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, DownloadSimple as Download } from '@phosphor-icons/react';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/Switch';
 import { TimePicker } from '@/components/ui/DatePicker';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
 import { logger } from '@/services/loggingService';
+import { ExportButton } from '@/components/ui/ExportButton';
 import { getPersonInitials } from '@/utils/nameUtils';
 
 interface PersonalAttendanceCalendarProps {
@@ -230,8 +231,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
     const modalHeaderActions = (
         <div className="flex items-center gap-2">
-            <button
-                onClick={() => {
+            <ExportButton
+                onExport={async () => {
                     const csvHeader = 'תאריך,סטטוס,שעות\n';
                     const rows = [];
                     for (let d = 1; d <= daysInMonth; d++) {
@@ -253,11 +254,10 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     document.body.removeChild(link);
                     logger.info('EXPORT', `Exported attendance data for ${person.name}`, { month: month + 1, year });
                 }}
-                className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
-                title="ייצוא ל-CSV"
-            >
-                <Download size={20} weight="duotone" />
-            </button>
+                iconOnly
+                className="w-10 h-10 rounded-full"
+                title="ייצוא נתוני נוכחות"
+            />
             {!isViewer && (
                 <button
                     onClick={() => setShowRotationSettings(true)}

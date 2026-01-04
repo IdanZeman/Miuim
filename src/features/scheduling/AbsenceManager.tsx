@@ -580,12 +580,52 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                     className="block w-full h-12 pr-12 pl-4 bg-slate-100/60 border border-transparent rounded-2xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-bold text-base"
                                 />
                             </div>
-                            <button
-                                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                className={`h-12 w-12 rounded-2xl border border-slate-200 transition-all flex items-center justify-center shrink-0 ${filterStatus !== 'all' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200' : 'bg-white text-slate-500'}`}
-                            >
-                                <Filter size={20} weight="bold" />
-                            </button>
+                            {isSidebarOpen ? (
+                                <button
+                                    onClick={() => {
+                                        const areAllCollapsed = teams.length > 0 && teams.every(t => collapsedTeams[t.id]);
+                                        if (areAllCollapsed) expandAllTeams();
+                                        else collapseAllTeams();
+                                    }}
+                                    className="h-12 px-3 rounded-2xl border border-slate-200 bg-white text-slate-500 hover:text-blue-600 transition-all flex items-center justify-center gap-2 shrink-0 font-bold text-xs"
+                                >
+                                    {teams.length > 0 && teams.every(t => collapsedTeams[t.id]) ? (
+                                        <><ChevronDown size={18} weight="bold" /> פתח הכל</>
+                                    ) : (
+                                        <><ChevronUp size={18} weight="bold" /> כווץ הכל</>
+                                    )}
+                                </button>
+                            ) : (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                        className={`h-12 w-12 rounded-2xl border border-slate-200 transition-all flex items-center justify-center shrink-0 ${filterStatus !== 'all' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200' : 'bg-white text-slate-500'}`}
+                                    >
+                                        <Filter size={20} weight="bold" />
+                                    </button>
+                                    {isFilterOpen && (
+                                        <>
+                                            <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)}></div>
+                                            <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                                                {[
+                                                    { id: 'all', label: 'כל הסטטוסים' },
+                                                    { id: 'pending', label: 'ממתין לאישור' },
+                                                    { id: 'approved', label: 'מאושרים' },
+                                                    { id: 'rejected', label: 'נדחו' }
+                                                ].map(f => (
+                                                    <button
+                                                        key={f.id}
+                                                        onClick={() => { setFilterStatus(f.id as any); setIsFilterOpen(false); }}
+                                                        className={`w-full text-right px-4 py-2.5 text-sm font-bold transition-colors ${filterStatus === f.id ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                                                    >
+                                                        {f.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Mobile Segmented Control */}
@@ -648,22 +688,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                 </span>
                             )}
 
-                            <div className="h-10 w-px bg-slate-100 mx-2"></div>
 
-                            <button
-                                onClick={() => {
-                                    const areAllCollapsed = teams.length > 0 && teams.every(t => collapsedTeams[t.id]);
-                                    if (areAllCollapsed) expandAllTeams();
-                                    else collapseAllTeams();
-                                }}
-                                className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-emerald-600 transition-all px-4 py-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100"
-                            >
-                                {teams.length > 0 && teams.every(t => collapsedTeams[t.id]) ? (
-                                    <><ChevronDown size={16} weight="bold" /> פתח הכל</>
-                                ) : (
-                                    <><ChevronUp size={16} weight="bold" /> כווץ הכל</>
-                                )}
-                            </button>
                         </div>
                     </div>
 
@@ -676,7 +701,22 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">רשימת שמות</h3>
                                     <span className="text-[10px] text-slate-400 font-bold">{activePeople.length} חיילים פעילים</span>
                                 </div>
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            const areAllCollapsed = teams.length > 0 && teams.every(t => collapsedTeams[t.id]);
+                                            if (areAllCollapsed) expandAllTeams();
+                                            else collapseAllTeams();
+                                        }}
+                                        className="text-[10px] font-black text-slate-400 hover:text-blue-600 transition-all px-2 py-1.5 rounded-md hover:bg-blue-50 border border-transparent flex items-center gap-1 whitespace-nowrap"
+                                        title={teams.length > 0 && teams.every(t => collapsedTeams[t.id]) ? "פתח הכל" : "כווץ הכל"}
+                                    >
+                                        {teams.length > 0 && teams.every(t => collapsedTeams[t.id]) ? (
+                                            <><ChevronDown size={12} weight="bold" /> פתח הכל</>
+                                        ) : (
+                                            <><ChevronUp size={12} weight="bold" /> כווץ הכל</>
+                                        )}
+                                    </button>
                                     <button
                                         onClick={() => setIsSearchOpen(!isSearchOpen)}
                                         className={`p-2 rounded-lg transition-colors ${isSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100'}`}

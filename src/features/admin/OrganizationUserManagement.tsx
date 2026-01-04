@@ -239,7 +239,7 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                                                     className="text-slate-600 hover:text-green-600 hover:bg-green-50"
                                                     title="נהל קישור לאדם"
                                                 >
-                                                    <LinkIcon size={18} weight="duotone" />
+                                                    <LinkIcon size={18} weight="bold" />
                                                 </Button>
                                                 {user.id !== myProfile?.id && (
                                                     <Button
@@ -249,7 +249,7 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                                                         className="text-slate-600 hover:text-blue-600 hover:bg-blue-50"
                                                         title="ערוך הרשאות"
                                                     >
-                                                        <PencilSimple size={18} weight="duotone" />
+                                                        <PencilSimple size={18} weight="bold" />
                                                     </Button>
                                                 )}
                                             </div>

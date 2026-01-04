@@ -23,6 +23,7 @@ import { AssignmentModal } from './AssignmentModal';
 import { MissionReportModal } from './MissionReportModal';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { ExportScheduleModal } from './ExportScheduleModal';
+import { ExportButton } from '../../components/ui/ExportButton';
 import { FileArrowDown as FileDown } from '@phosphor-icons/react';
 
 export interface ScheduleBoardProps {
@@ -628,10 +629,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         <div className="flex gap-2 w-auto relative">
                             {/* Desktop Actions */}
                             <div className="hidden md:flex gap-2">
-                                <button onClick={() => setIsExportModalOpen(true)} className="flex items-center justify-center gap-2 text-slate-700 hover:text-blue-700 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 h-9 px-4 rounded-xl text-xs font-bold transition-all shadow-sm">
-                                    <FileDown size={14} weight="duotone" />
-                                    <span>ייצוא</span>
-                                </button>
+                                <ExportButton
+                                    onExport={async () => { setIsExportModalOpen(true); }}
+                                    label="ייצוא"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="h-9 px-4"
+                                />
 
                                 <button onClick={handleExportClick} className="flex items-center justify-center gap-2 text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 h-9 px-4 rounded-xl text-xs font-bold transition-all shadow-sm">
                                     <Copy size={14} weight="duotone" />
@@ -653,7 +657,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     className="w-12 h-12 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 active:bg-slate-50 transition-colors !shadow-none" // Rule 1: 48px touch target
                                     aria-label="More actions"
                                 >
-                                    <MoreVertical size={24} weight="duotone" /> {/* Rule 2: Larger icon for readability */}
+                                    <MoreVertical size={24} weight="bold" /> {/* Rule 2: Larger icon for readability */}
                                 </button>
 
                                 <GenericModal
@@ -667,8 +671,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                             onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
                                             className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
                                         >
-                                            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                                                <FileDown size={22} weight="duotone" />
+                                            <div className="p-2 bg-emerald-50 rounded-lg flex items-center justify-center">
+                                                <img src="/images/excel.svg" alt="Excel" width={22} height={22} className="object-contain" />
                                             </div>
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-base text-slate-800">ייצוא נתונים</span>

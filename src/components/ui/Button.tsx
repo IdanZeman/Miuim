@@ -46,7 +46,7 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
     // Default to 'bold' for action buttons to avoid duotone 'shadow' effect, 
     // otherwise default to 'duotone'.
-    const effectiveIconWeight = iconWeight || (variant === 'action' ? 'bold' : 'duotone');
+    const effectiveIconWeight = iconWeight || 'bold';
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         // Track the click
         let label = '';

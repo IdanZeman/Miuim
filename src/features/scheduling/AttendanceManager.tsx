@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import ExcelJS from 'exceljs';
 import { Person, Team, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
 import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical as MoreVertical, DownloadSimple as Download } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
@@ -16,6 +17,8 @@ import { RotaWizardModal } from './RotaWizardModal';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { useAuth } from '@/features/auth/AuthContext';
 import { addHourlyBlockage, updateHourlyBlockage, deleteHourlyBlockage, updateAbsence } from '@/services/api'; // NEW Imports
+import { ExportButton } from '../../components/ui/ExportButton';
+
 
 interface AttendanceManagerProps {
     people: Person[];
@@ -397,79 +400,116 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הסטטוס עודכן בהצלחה', 'success');
     };
 
-    const handleExport = () => {
+    const handleExport = async () => {
         if (isViewer) {
             showToast('אין לך הרשאה לייצא נתונים', 'error');
             return;
         }
-        if (viewMode === 'calendar') {
-            // Export Month
-            const year = viewDate.getFullYear();
-            const month = viewDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-            let csvContent = `דוח נוכחות חודשי - ${viewDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })} \n`;
-            csvContent += 'תאריך,שם מלא,צוות,סטטוס,שעות,סיבה\n';
+        try {
+            const workbook = new ExcelJS.Workbook();
+            let fileName = '';
 
-            for (let d = 1; d <= daysInMonth; d++) {
-                const date = new Date(year, month, d);
-                const dateStr = date.toLocaleDateString('he-IL');
+            if (viewMode === 'calendar' || viewMode === 'table') {
+                const worksheet = workbook.addWorksheet('דוח חודשי', { views: [{ rightToLeft: true }] });
+                const year = viewDate.getFullYear();
+                const month = viewDate.getMonth();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-                people.forEach(person => {
-                    const avail = getEffectiveAvailability(person, date, teamRotations, absences);
-                    const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
-                    const status = avail.isAvailable ? 'נמצא' : 'בבית';
-                    const hours = avail.isAvailable ? `${avail.startHour} - ${avail.endHour} ` : '-';
-                    const reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'כרגיל'));
-
-                    // Safe strings
-                    const sName = `"${person.name.replace(/"/g, '""')}"`;
-                    const sTeam = `"${teamName.replace(/"/g, '""')}"`;
-
-                    csvContent += `${dateStr},${sName},${sTeam},${status},${hours},${reason}\n`;
+                const headers = ['תאריך', 'שם מלא', 'צוות', 'סטטוס', 'שעות', 'סיבה/הערות'];
+                const headerRow = worksheet.addRow(headers);
+                headerRow.font = { bold: true };
+                headerRow.eachCell(cell => {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 });
+
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const date = new Date(year, month, d);
+                    const dateStr = date.toLocaleDateString('he-IL');
+                    const dateKey = date.toLocaleDateString('en-CA');
+
+                    people.forEach(person => {
+                        const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+                        const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
+
+                        const relevantAbsence = absences.find(a =>
+                            a.person_id === person.id &&
+                            dateKey >= a.start_date &&
+                            dateKey <= a.end_date
+                        );
+
+                        const isAtBase = avail.status === 'base' || avail.status === 'arrival' || avail.status === 'departure' || avail.status === 'full';
+                        const statusLabel = isAtBase ? 'בבסיס' : (avail.status === 'home' ? 'בית' : 'אילוץ');
+                        const hours = isAtBase ? `${avail.startHour} - ${avail.endHour}` : '-';
+
+                        let reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'רגיל'));
+
+                        if (relevantAbsence) {
+                            const statusDesc = relevantAbsence.status === 'approved' ? 'מאושר' : (relevantAbsence.status === 'pending' ? 'ממתין' : 'נדחה');
+                            const absenceReason = relevantAbsence.reason || 'בקשת יציאה';
+                            reason = `${reason} | היעדרות (${statusDesc}): ${absenceReason}`;
+                        }
+
+                        const row = worksheet.addRow([dateStr, person.name, teamName, statusLabel, hours, reason]);
+
+                        const statusCell = row.getCell(4);
+                        if (statusLabel === 'בית') {
+                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                            statusCell.font = { color: { argb: 'FF991B1B' } };
+                        } else if (statusLabel === 'בבסיס') {
+                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                            statusCell.font = { color: { argb: 'FF065F46' } };
+                        } else if (statusLabel === 'אילוץ') {
+                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                            statusCell.font = { color: { argb: 'FF92400E' } };
+                        }
+                    });
+                }
+                worksheet.columns = [{ width: 12 }, { width: 20 }, { width: 15 }, { width: 12 }, { width: 15 }, { width: 40 }];
+                fileName = `attendance_month_${month + 1}_${year}.xlsx`;
+            } else {
+                const worksheet = workbook.addWorksheet('דוח יומי', { views: [{ rightToLeft: true }] });
+                const headers = ['שם מלא', 'צוות', 'סטטוס', 'שעות', 'סיבה/הערות'];
+                const headerRow = worksheet.addRow(headers);
+                headerRow.font = { bold: true };
+                headerRow.eachCell(cell => cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } });
+
+                const dateKey = selectedDate.toLocaleDateString('en-CA');
+                people.forEach(person => {
+                    const avail = getPersonAvailability(person);
+                    const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
+                    const relevantAbsence = absences.find(a => a.person_id === person.id && dateKey >= a.start_date && dateKey <= a.end_date);
+                    const isAtBase = avail.status === 'base' || avail.status === 'arrival' || avail.status === 'departure' || avail.status === 'full';
+                    const statusLabel = isAtBase ? 'בבסיס' : (avail.status === 'home' ? 'בית' : 'אילוץ');
+                    const hours = isAtBase ? `${avail.startHour} - ${avail.endHour}` : '-';
+                    let reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'רגיל'));
+                    if (relevantAbsence) {
+                        const statusDesc = relevantAbsence.status === 'approved' ? 'מאושר' : (relevantAbsence.status === 'pending' ? 'ממתין' : 'נדחה');
+                        reason = `${reason} | היעדרות (${statusDesc}): ${relevantAbsence.reason || 'בקשת יציאה'}`;
+                    }
+                    const row = worksheet.addRow([person.name, teamName, statusLabel, hours, reason]);
+                    const statusCell = row.getCell(3);
+                    if (statusLabel === 'בית') statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                    else if (statusLabel === 'בבסיס') statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                });
+                worksheet.columns = [{ width: 20 }, { width: 15 }, { width: 12 }, { width: 15 }, { width: 40 }];
+                fileName = `attendance_${selectedDate.toLocaleDateString('en-CA')}.xlsx`;
             }
 
-            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `attendance_month_${month + 1}_${year}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            logger.info('EXPORT', 'Exported monthly attendance report', { month: month + 1, year });
-        } else {
-            // Export Day (Existing logic)
-            const dateStr = selectedDate.toLocaleDateString('he-IL');
-            let csvContent = `דוח נוכחות ליום ${dateStr}\n`;
-            csvContent += 'שם מלא,צוות,סטטוס,שעות,סיבה/מקור\n';
-
-            people.forEach(person => {
-                const avail = getPersonAvailability(person);
-                const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
-                const status = avail.isAvailable ? 'נמצא' : 'לא נמצא';
-                const hours = avail.isAvailable ? `${avail.startHour} - ${avail.endHour}` : '-';
-                const reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'כרגיל'));
-
-                // Safe strings
-                const sName = `"${person.name.replace(/"/g, '""')}"`;
-                const sTeam = `"${teamName.replace(/"/g, '""')}"`;
-
-                csvContent += `${sName},${sTeam},${status},${hours},${reason}\n`;
-            });
-
-            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `attendance_${selectedDate.toLocaleDateString('en-CA')}.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
+            link.href = url;
+            link.download = fileName;
             link.click();
-            document.body.removeChild(link);
-            logger.info('EXPORT', 'Exported daily attendance report', { date: selectedDate.toLocaleDateString('en-CA') });
+            URL.revokeObjectURL(url);
+            showToast('הקובץ יוצא בהצלחה', 'success');
+            logger.info('EXPORT', `Exported attendance report: ${fileName}`);
+        } catch (error) {
+            console.error("Export error:", error);
+            showToast('שגיאה בתהליך הייצוא', 'error');
         }
     };
 
@@ -512,12 +552,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 <Sparkles size={18} weight="duotone" />
                             </button>
                         )}
-                        <button
-                            onClick={handleExport}
-                            className="w-9 h-9 flex items-center justify-center bg-slate-50 text-slate-600 rounded-xl border border-slate-100 active:scale-95 transition-all shrink-0"
-                        >
-                            <Download size={18} weight="duotone" />
-                        </button>
+                        <ExportButton
+                            onExport={async () => { await handleExport(); }}
+                            iconOnly
+                            variant="secondary"
+                            size="sm"
+                            className="w-9 h-9 rounded-xl"
+                            title="ייצוא נתוני נוכחות"
+                        />
                     </div>
 
                     {/* Date Navigator - Optimized for Mobile */}
@@ -699,37 +741,50 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             </button>
                         )}
 
+                        <ExportButton
+                            onExport={handleExport}
+                            iconOnly
+                            className="h-9 w-9 rounded-xl hidden md:inline-flex"
+                            title="ייצוא לאקסל"
+                        />
+
+
                         {/* More Actions Menu */}
-                        <div className="relative">
+                        <div className={`relative ${(viewMode === 'table') ? 'flex' : 'md:hidden flex'}`}>
                             <button
                                 onClick={() => setShowMoreActions(!showMoreActions)}
                                 className={`w-9 h-9 flex items-center justify-center rounded-xl transition-colors border ${showMoreActions ? 'bg-slate-100 border-slate-300 text-slate-800' : 'bg-white border-transparent hover:bg-slate-50 text-slate-500'}`}
                             >
-                                <MoreVertical size={18} weight="duotone" />
+                                <MoreVertical size={18} weight="bold" />
                             </button>
 
                             {showMoreActions && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setShowMoreActions(false)} />
                                     <div className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
-                                        <button
-                                            onClick={() => { setShowRequiredDetails(!showRequiredDetails); setShowMoreActions(false); }}
-                                            className="w-full text-right px-4 py-2.5 text-xs font-bold hover:bg-slate-50 flex items-center gap-2 text-slate-700"
-                                        >
-                                            <ListChecks size={14} className="text-slate-400" weight="duotone" />
-                                            {showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
-                                        </button>
-                                        <button
-                                            onClick={() => { handleExport(); setShowMoreActions(false); }}
-                                            className="w-full text-right px-4 py-2.5 text-xs font-bold hover:bg-slate-50 flex items-center gap-2 text-slate-700"
-                                        >
-                                            <Download size={14} className="text-slate-400" weight="duotone" />
-                                            ייצוא לאקסל
-                                        </button>
+                                        {viewMode === 'table' && (
+                                            <button
+                                                onClick={() => { setShowRequiredDetails(!showRequiredDetails); setShowMoreActions(false); }}
+                                                className="w-full text-right px-4 py-2.5 text-xs font-bold hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                                            >
+                                                <ListChecks size={14} className="text-slate-400" weight="duotone" />
+                                                {showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
+                                            </button>
+                                        )}
+
+                                        <div className="md:hidden">
+                                            <ExportButton
+                                                onExport={async () => { await handleExport(); setShowMoreActions(false); }}
+                                                variant="ghost"
+                                                className="w-full justify-start h-10 px-4 rounded-none border-0 text-slate-700 hover:bg-slate-50"
+                                                label="ייצוא נתוני נוכחות"
+                                            />
+                                        </div>
                                     </div>
                                 </>
                             )}
                         </div>
+
                     </div>
                 </div>
 
