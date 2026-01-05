@@ -8,6 +8,7 @@ import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { ExportButton } from '../../components/ui/ExportButton';
+import { formatPhoneNumber } from '../../utils/nameUtils';
 
 interface ExcelImportWizardProps {
     isOpen: boolean;
@@ -426,7 +427,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 teamId: teamId || basePerson.teamId || '',
                 roleIds: roleIds.length > 0 ? roleIds : (basePerson.roleIds || []),
                 email: rowData.email || basePerson.email || '',
-                phone: rowData.mobile || basePerson.phone || '',
+                phone: formatPhoneNumber(rowData.mobile) || basePerson.phone || '',
                 isActive: rowData.is_active !== undefined ? parseBoolean(rowData.is_active) : (basePerson.isActive ?? true),
                 maxShiftsPerWeek: basePerson.maxShiftsPerWeek || 7,
 

@@ -28,3 +28,14 @@ export const getPersonFullInitials = (fullName: string): string => {
 export const formatPersonName = (fullName: string, useInitials: boolean = false): string => {
     return useInitials ? getPersonInitials(fullName) : fullName;
 };
+
+// Normalize and format phone numbers, preserving leading zeros for Israeli numbers
+export const formatPhoneNumber = (phone: string | number | undefined): string => {
+    if (!phone) return '';
+    const s = phone.toString().trim().replace(/[-\s]/g, '');
+    // Israeli mobile: 9 digits starting with 5 (e.g. 501234567)
+    if (/^5[0-9]{8}$/.test(s)) return '0' + s;
+    // Israeli landline with area code: 8 digits starting with 2,3,4,8,9 (e.g. 31234567)
+    if (/^[23489][0-9]{7}$/.test(s)) return '0' + s;
+    return s;
+};

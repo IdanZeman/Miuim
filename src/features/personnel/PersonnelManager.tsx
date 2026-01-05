@@ -19,6 +19,7 @@ import ExcelJS from 'exceljs';
 import { ExportButton } from '../../components/ui/ExportButton';
 import { ActionBar, ActionListItem } from '../../components/ui/ActionBar';
 import { Eye, EyeSlash } from '@phosphor-icons/react';
+import { getPersonInitials, formatPhoneNumber } from '../../utils/nameUtils';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -37,6 +38,7 @@ interface PersonnelManagerProps {
     onUpdateRole: (role: Role) => void;
     initialTab?: 'people' | 'teams' | 'roles';
     isViewer?: boolean;
+    organizationId?: string; // NEW: Explicit ID for multi-org management
 }
 
 type Tab = 'people' | 'teams' | 'roles';
@@ -57,7 +59,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     onDeleteRole,
     onUpdateRole,
     initialTab = 'people',
-    isViewer = false
+    isViewer = false,
+    organizationId: propOrgId
 }) => {
     // Log component view
     useEffect(() => {
@@ -126,15 +129,18 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
     // Custom Fields Schema
     const [customFieldsSchema, setCustomFieldsSchema] = useState<CustomFieldDefinition[]>([]);
-    const { organization } = useAuth(); // Needed for fetching settings
+    const { organization } = useAuth(); // Needed for fallback
+
+    // Determine the truly active organization ID we are managing
+    const activeOrgId = propOrgId || organization?.id;
 
     useEffect(() => {
         const fetchSettings = async () => {
-            if (!organization) return;
+            if (!activeOrgId) return;
             const { data } = await supabase
                 .from('organization_settings')
                 .select('custom_fields_schema')
-                .eq('organization_id', organization.id)
+                .eq('organization_id', activeOrgId)
                 .single();
 
             if (data?.custom_fields_schema) {
@@ -142,7 +148,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             }
         };
         fetchSettings();
-    }, [organization]);
+    }, [activeOrgId]);
 
     // New State for Field Creation
     const [isCreatingField, setIsCreatingField] = useState(false);
@@ -153,7 +159,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     }>({ label: '', type: 'text', optionsString: '' });
 
     const handleCreateField = async () => {
-        if (!creatingFieldData.label || !organization) return;
+        if (!creatingFieldData.label || !activeOrgId) return;
 
         const newField: CustomFieldDefinition = {
             id: crypto.randomUUID(),
@@ -176,7 +182,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             await supabase
                 .from('organization_settings')
                 .update({ custom_fields_schema: updatedSchema })
-                .eq('organization_id', organization.id);
+                .eq('organization_id', activeOrgId);
         } catch (error) {
             console.error('Error saving custom schema:', error);
         }
@@ -192,23 +198,36 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 setConfirmModal(prev => ({ ...prev, isOpen: false })); // סגירה מיידית של חלון האישור
 
                 try {
-                    if (organization?.id) {
-                        // 1. Delete actual data from people records
-                        const { error: rpcError } = await supabase.rpc('delete_custom_field_data', {
-                            p_field_key: key,
-                            p_org_id: organization.id
-                        });
-
-                        if (rpcError) throw rpcError;
-
-                        // 2. Update schema definition
-                        await supabase
+                    if (activeOrgId) {
+                        // 1. Update schema definition
+                        const { error: schemaError } = await supabase
                             .from('organization_settings')
                             .update({ custom_fields_schema: updatedSchema })
-                            .eq('organization_id', organization.id);
+                            .eq('organization_id', activeOrgId);
+
+                        if (schemaError) throw schemaError;
+
+                        // 2. Cleanse all people locally and update DB (as fallback/primary mechanism)
+                        // -- LEAK PREVENTION: Only propagate to people in the SAME organization --
+                        const modifiedPeople = people
+                            .filter(p => p.organization_id === activeOrgId && p.customFields && Object.prototype.hasOwnProperty.call(p.customFields, key))
+                            .map(p => {
+                                const newFields = { ...p.customFields };
+                                delete newFields[key];
+                                return { ...p, customFields: newFields };
+                            });
+
+                        if (modifiedPeople.length > 0) {
+                            await onUpdatePeople(modifiedPeople);
+                        }
+
+                        // 3. Try RPC as well for comprehensive cleanup (in case some people aren't loaded)
+                        await supabase.rpc('delete_custom_field_data', {
+                            p_field_key: key,
+                            p_org_id: activeOrgId
+                        });
 
                         showToast('השדה והנתונים נמחקו בהצלחה', 'success');
-                        onUpdatePeople([]); // רענון ברקע
                     }
                 } catch (error) {
                     console.error('Error saving custom schema:', error);
@@ -581,15 +600,30 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     };
 
     const executeSavePerson = async () => {
-        setIsSaving(true);
+        // Clean up empty orphaned fields before saving
+        const cleanedCustomFields = { ...newCustomFields };
+        Object.entries(cleanedCustomFields).forEach(([key, value]) => {
+            const inSchema = customFieldsSchema.some(f => f.key === key);
+            if (!inSchema && (value === undefined || value === null || value === "")) {
+                delete cleanedCustomFields[key];
+            }
+        });
+
+        // Specific normalization for phone/email fields in custom data
+        customFieldsSchema.forEach(field => {
+            if (field.type === 'phone' && cleanedCustomFields[field.key]) {
+                cleanedCustomFields[field.key] = formatPhoneNumber(cleanedCustomFields[field.key]);
+            }
+        });
+
         const personData: any = {
             name: newName,
             email: newEmail,
-            phone: newPhone,
+            phone: formatPhoneNumber(newPhone),
             isActive: newItemActive,
             teamId: newTeamId,
             roleIds: newRoleIds,
-            customFields: newCustomFields, // NEW
+            customFields: cleanedCustomFields,
             color: 'bg-blue-500' // Default
         };
 
@@ -618,8 +652,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 // We have new columns to propagate to everyone else!
                 setIsPropagating(true);
 
+                // IMPORTANT: Only propagate to people in the SAME organization as the person being edited
+                // to prevent leakage across companies in battalion view.
+                const targetOrgId = editingPersonId
+                    ? people.find(p => p.id === editingPersonId)?.organization_id
+                    : organization?.id;
+
                 const peopleToUpdate = people
-                    .filter(p => p.id !== editingPersonId) // Skip the person we just saved
+                    .filter(p => p.id !== editingPersonId && p.organization_id === targetOrgId)
                     .map(p => {
                         const pFields = p.customFields || {};
                         const missingKeys = addedKeys.filter(k => !Object.prototype.hasOwnProperty.call(pFields, k));
@@ -1003,7 +1043,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                             {/* 2. Orphaned / Legacy Fields (Not in Schema) */}
                             {Object.entries(newCustomFields || {})
-                                .filter(([key]) => !customFieldsSchema.some(f => f.key === key))
+                                .filter(([key, value]) => {
+                                    const inSchema = customFieldsSchema.some(f => f.key === key);
+                                    if (inSchema) return false;
+                                    // Only show if it has an actual value (even "false" for boolean)
+                                    return value !== undefined && value !== null && value !== "";
+                                })
                                 .map(([key, value]) => (
                                     <div key={key} className="flex items-center gap-2 group">
                                         <div className="flex-1">
@@ -1088,6 +1133,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                 options={[
                                                     { value: 'text', label: 'טקסט חופשי' },
                                                     { value: 'number', label: 'מספר' },
+                                                    { value: 'phone', label: 'טלפון' },
+                                                    { value: 'email', label: 'אימייל' },
                                                     { value: 'date', label: 'תאריך' },
                                                     { value: 'boolean', label: 'כן/לא' },
                                                     { value: 'select', label: 'רשימת בחירה' },
@@ -1573,7 +1620,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                         {person.phone && (
                                                             <div className="flex items-center gap-1 text-[11px] text-slate-400 font-bold tracking-tight">
                                                                 <div className="w-1 h-1 rounded-full bg-slate-200" />
-                                                                {person.phone}
+                                                                {formatPhoneNumber(person.phone)}
                                                             </div>
                                                         )}
 
