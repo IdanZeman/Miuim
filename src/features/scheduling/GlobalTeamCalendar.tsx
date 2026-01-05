@@ -94,13 +94,13 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
                         {d}
                     </span>
 
-                    {/* Percentage Indicator */}
+                    {/* Attendance Indicator */}
                     <div className="flex flex-col items-center">
                         <span className={`text-sm md:text-xl font-black ${percentage >= 80 ? 'text-emerald-700' : percentage >= 50 ? 'text-amber-700' : 'text-red-700'}`}>
-                            {percentage}%
+                            {presentPeople}/{totalPeople}
                         </span>
-                        <span className="hidden md:inline text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                            {presentPeople}/{totalPeople} נוכחים
+                        <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                            {percentage}% נוכחים
                         </span>
                     </div>
                 </div>
