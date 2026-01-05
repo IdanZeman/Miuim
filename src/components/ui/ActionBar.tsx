@@ -264,9 +264,9 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                             {/* Personnel Manager uses mobileMoreActions for its specific items */}
                             {mobileMoreActions}
 
-                            {/* Generic rightActions (e.g. Sort, Delete) should be rendered here too */}
+                            {/* Generic rightActions (e.g. Sort, Delete) - Only show in modal on mobile */}
                             {rightActions && (
-                                <div className="space-y-2">
+                                <div className="space-y-2 md:hidden">
                                     {rightActions}
                                 </div>
                             )}

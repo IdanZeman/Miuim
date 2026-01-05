@@ -1346,6 +1346,17 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 ] : []}
                 rightActions={
                     <div className="flex items-center gap-2">
+                        {/* Show Inactive Toggle - Desktop */}
+                        <label className="hidden md:flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 transition-colors hover:bg-slate-100 shadow-sm mr-2">
+                            <input
+                                type="checkbox"
+                                checked={showInactive}
+                                onChange={(e) => setShowInactive(e.target.checked)}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">הצג לא פעילים</span>
+                        </label>
+
                         {/* Custom Filter Value Input (Desktop only) */}
                         {filterCustomField !== 'all' && (
                             <div className="hidden md:flex items-center gap-2">
@@ -1447,7 +1458,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 {(() => {
                                     // 1. Filter
                                     const filtered = people
-                                        .filter(p => !p.isActive ? showInactive : true)
+                                        .filter(p => p.isActive === false ? showInactive : true)
                                         .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
                                         .filter(p => filterTeamId === 'all' || (filterTeamId === 'no-team' ? !p.teamId : p.teamId === filterTeamId))
                                         .filter(p => filterRoleId === 'all' || (p.roleIds || []).includes(filterRoleId))
@@ -2133,6 +2144,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     />
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
