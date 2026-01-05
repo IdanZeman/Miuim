@@ -457,33 +457,31 @@ export const BattalionAttendanceManager: React.FC = () => {
                                     }
                                 />
                             </h2>
-
-                            <div className="h-6 w-px bg-slate-200 mx-1" />
-
-                            {/* View Mode Selector */}
-                            <div className="flex bg-slate-100/80 rounded-xl p-1 border border-slate-200/50">
-                                <button
-                                    onClick={() => setViewMode('calendar')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    <Calendar size={14} weight="duotone" />
-                                    לוח שנה
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('table')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    <ListChecks size={14} weight="duotone" />
-                                    טבלה חודשית
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('day_detail')}
-                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'day_detail' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                                >
-                                    <Users size={14} weight="duotone" />
-                                    רשימה יומית
-                                </button>
-                            </div>
+                        </div>
+                    }
+                    centerActions={
+                        <div className="flex bg-slate-100/80 rounded-xl p-1 border border-slate-200/50">
+                            <button
+                                onClick={() => setViewMode('calendar')}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'calendar' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Calendar size={14} weight="duotone" />
+                                לוח שנה
+                            </button>
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <ListChecks size={14} weight="duotone" />
+                                טבלה חודשית
+                            </button>
+                            <button
+                                onClick={() => setViewMode('day_detail')}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-2 h-7 ${viewMode === 'day_detail' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Users size={14} weight="duotone" />
+                                רשימה יומית
+                            </button>
                         </div>
                     }
                     rightActions={

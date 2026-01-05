@@ -5,6 +5,8 @@ import { Person } from '@/types';
 import { MagnifyingGlass as Search, DownloadSimple as Download, CircleNotch as Loader2, User, CaretDown, CaretRight, Users, Eye } from '@phosphor-icons/react';
 import { ExportButton } from '../../components/ui/ExportButton';
 import ExcelJS from 'exceljs';
+import { ActionBar } from '../../components/ui/ActionBar';
+import { PageInfo } from '../../components/ui/PageInfo';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 
@@ -180,296 +182,301 @@ export const BattalionPersonnelTable: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Header & Controls */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <ActionBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                onExport={handleExport}
+                className="p-4"
+                leftActions={
                     <div className="flex items-center gap-4">
-                        <ExportButton
-                            onExport={handleExport}
-                            variant="primary"
-                            size="md"
-                            iconOnly
-                            className="shadow-lg shadow-blue-100"
-                            title="ייצוא לאקסל"
-                        />
-                        <label className="flex items-center gap-2 cursor-pointer">
+                        <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                            <Users className="text-blue-600" size={24} weight="duotone" />
+                            סד"כ גדודי
+                            <PageInfo
+                                title={'סד"כ גדודי'}
+                                description={
+                                    <>
+                                        <p className="mb-2">מבט מרוכז על כלל כוח האדם בגדוד.</p>
+                                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                            <li><b>חלוקה:</b> הרשימה מחולקת לפי פלוגות וצוותים.</li>
+                                            <li><b>חיפוש:</b> ניתן לחפש חייל לפי שם בכל הרמות.</li>
+                                            <li><b>ייצוא:</b> ניתן לייצא את כל נתוני הסד"כ לאקסל.</li>
+                                        </ul>
+                                    </>
+                                }
+                            />
+                        </h2>
+                    </div>
+                }
+                rightActions={
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 transition-colors hover:bg-slate-100 shadow-sm">
                             <input
                                 type="checkbox"
                                 checked={showInactive}
                                 onChange={(e) => setShowInactive(e.target.checked)}
                                 className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <span className="text-sm font-bold text-slate-600">הצג לא פעילים</span>
+                            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">הצג לא פעילים</span>
                         </label>
                     </div>
-                </div>
+                }
+            />
 
-                <div className="mt-6">
-                    <div className="relative group">
-                        <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
-                        <input
-                            type="text"
-                            placeholder="חיפוש לפי שם..."
-                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pr-12 pl-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* Hierarchical List */}
+                <div className="space-y-4" key={`companies-${expandedCompanies.size}`}>
+                    {companies.map(company => {
+                        const companyPeople = filteredPeople.filter(p => p.organization_id === company.id);
+                        const companyTeams = teams.filter(t => t.organization_id === company.id);
+                        const isExpanded = expandedCompanies.has(company.id);
 
-            {/* Hierarchical List */}
-            <div className="space-y-4" key={`companies-${expandedCompanies.size}`}>
-                {companies.map(company => {
-                    const companyPeople = filteredPeople.filter(p => p.organization_id === company.id);
-                    const companyTeams = teams.filter(t => t.organization_id === company.id);
-                    const isExpanded = expandedCompanies.has(company.id);
+                        if (companyPeople.length === 0) return null;
 
-                    if (companyPeople.length === 0) return null;
-
-                    return (
-                        <div key={company.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                            {/* Company Header */}
-                            <button
-                                onClick={() => toggleCompany(company.id)}
-                                className="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-colors"
-                            >
-                                <div className="flex items-center gap-4">
-                                    {isExpanded ? <CaretDown size={20} weight="bold" className="text-blue-600" /> : <CaretRight size={20} weight="bold" className="text-slate-400" />}
-                                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg shadow-sm">
-                                        {company.name.charAt(0)}
-                                    </div>
-                                    <div className="text-right">
-                                        <h3 className="text-xl font-black text-slate-900">{company.name}</h3>
-                                        <p className="text-sm font-bold text-slate-400">{companyPeople.length} חיילים</p>
-                                    </div>
-                                </div>
-                            </button>
-
-                            {/* Company Content */}
-                            {isExpanded && (
-                                <div className="border-t border-slate-100">
-                                    {/* Teams */}
-                                    {companyTeams.map(team => {
-                                        const teamPeople = companyPeople.filter(p => p.teamId === team.id);
-                                        const isTeamExpanded = expandedTeams.has(team.id);
-
-                                        if (teamPeople.length === 0) return null;
-
-                                        return (
-                                            <div key={team.id} className="border-b border-slate-50 last:border-0">
-                                                {/* Team Header */}
-                                                <button
-                                                    onClick={() => toggleTeam(team.id)}
-                                                    className="w-full p-4 pr-12 flex items-center justify-between hover:bg-slate-50 transition-colors"
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        {isTeamExpanded ? <CaretDown size={16} weight="bold" /> : <CaretRight size={16} weight="bold" />}
-                                                        <Users size={18} className="text-blue-500" weight="duotone" />
-                                                        <span className="font-bold text-slate-700">{team.name}</span>
-                                                        <span className="text-xs font-bold text-slate-400">({teamPeople.length})</span>
-                                                    </div>
-                                                </button>
-
-                                                {/* Team People */}
-                                                {isTeamExpanded && (
-                                                    <div className="bg-slate-50/50 divide-y divide-slate-100">
-                                                        {teamPeople.map(person => {
-                                                            const presence = getPersonPresence(person.id);
-                                                            const personRoles = getPersonRoles(person);
-
-                                                            return (
-                                                                <div
-                                                                    key={person.id}
-                                                                    className="p-4 pr-16 flex items-center justify-between hover:bg-white transition-colors group cursor-pointer"
-                                                                    onClick={() => setSelectedPerson(person)}
-                                                                >
-                                                                    <div className="flex items-center gap-4 flex-1">
-                                                                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                                                                            <User size={20} />
-                                                                        </div>
-                                                                        <div className="flex-1">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <p className="font-black text-slate-900 leading-none">{person.name}</p>
-                                                                                <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[9px] font-black border border-blue-100/50">
-                                                                                    {companies.find(c => c.id === person.organization_id)?.name}
-                                                                                </span>
-                                                                            </div>
-                                                                            {personRoles.length > 0 && (
-                                                                                <p className="text-xs font-bold text-slate-500 mt-1">
-                                                                                    {personRoles.join(', ')}
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className={`px-3 py-1.5 rounded-xl text-xs font-black ${presence.class}`}>
-                                                                            {presence.label}
-                                                                        </div>
-                                                                        <Eye size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-
-                                    {/* People without team */}
-                                    {companyPeople.filter(p => !p.teamId).map(person => {
-                                        const presence = getPersonPresence(person.id);
-                                        const personRoles = getPersonRoles(person);
-
-                                        return (
-                                            <div
-                                                key={person.id}
-                                                className="p-4 pr-12 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer border-b border-slate-50 last:border-0"
-                                                onClick={() => setSelectedPerson(person)}
-                                            >
-                                                <div className="flex items-center gap-4 flex-1">
-                                                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                                                        <User size={20} />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="font-black text-slate-900 leading-none">{person.name}</p>
-                                                            <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[9px] font-black border border-blue-100/50">
-                                                                {companies.find(c => c.id === person.organization_id)?.name}
-                                                            </span>
-                                                        </div>
-                                                        {personRoles.length > 0 && (
-                                                            <p className="text-xs font-bold text-slate-500 mt-1">
-                                                                {personRoles.join(', ')}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`px-3 py-1.5 rounded-xl text-xs font-black ${presence.class}`}>
-                                                        {presence.label}
-                                                    </div>
-                                                    <Eye size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Person Details Modal */}
-            {selectedPerson && (
-                <Modal
-                    isOpen={true}
-                    onClose={() => setSelectedPerson(null)}
-                    title={
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                                <User size={24} weight="duotone" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-black text-slate-800">{selectedPerson.name}</h2>
-                                <p className="text-sm font-bold text-slate-400">פרטי חייל</p>
-                            </div>
-                        </div>
-                    }
-                    size="lg"
-                >
-                    <div className="space-y-4">
-                        {/* Organization & Team */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-50 p-4 rounded-xl">
-                                <p className="text-xs font-bold text-slate-400 mb-1">פלוגה</p>
-                                <p className="font-black text-slate-900">
-                                    {companies.find(c => c.id === selectedPerson.organization_id)?.name || '-'}
-                                </p>
-                            </div>
-                            <div className="bg-slate-50 p-4 rounded-xl">
-                                <p className="text-xs font-bold text-slate-400 mb-1">צוות</p>
-                                <p className="font-black text-slate-900">
-                                    {teams.find(t => t.id === selectedPerson.teamId)?.name || 'ללא צוות'}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Roles */}
-                        <div className="bg-slate-50 p-4 rounded-xl">
-                            <p className="text-xs font-bold text-slate-400 mb-2">תפקידים</p>
-                            <div className="flex flex-wrap gap-2">
-                                {getPersonRoles(selectedPerson).map((role, idx) => (
-                                    <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-bold">
-                                        {role}
-                                    </span>
-                                ))}
-                                {getPersonRoles(selectedPerson).length === 0 && (
-                                    <span className="text-slate-400 font-bold">אין תפקידים</span>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Presence Status */}
-                        <div className="bg-slate-50 p-4 rounded-xl">
-                            <p className="text-xs font-bold text-slate-400 mb-2">סטטוס נוכחות</p>
-                            <div className="space-y-1">
-                                <div className={`inline-flex px-3 py-1.5 rounded-xl text-sm font-black ${getPersonPresence(selectedPerson.id).class}`}>
-                                    {getPersonPresence(selectedPerson.id).label}
-                                </div>
-                                {getPersonPresence(selectedPerson.id).details && (
-                                    <p className="text-xs font-bold text-slate-500 mt-1">
-                                        {getPersonPresence(selectedPerson.id).details}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Contact Information */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {selectedPerson.phone && (
-                                <div className="bg-slate-50 p-4 rounded-xl">
-                                    <p className="text-xs font-bold text-slate-400 mb-1">טלפון</p>
-                                    <p className="font-black text-slate-900 direction-ltr text-right">{selectedPerson.phone}</p>
-                                </div>
-                            )}
-                            {selectedPerson.email && (
-                                <div className="bg-slate-50 p-4 rounded-xl">
-                                    <p className="text-xs font-bold text-slate-400 mb-1">אימייל</p>
-                                    <p className="font-bold text-slate-900 text-sm break-all">{selectedPerson.email}</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Custom Fields */}
-                        {selectedPerson.customFields && Object.keys(selectedPerson.customFields).length > 0 && (
-                            <div className="bg-slate-50 p-4 rounded-xl">
-                                <p className="text-xs font-bold text-slate-400 mb-3">פרטים נוספים</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    {Object.entries(selectedPerson.customFields).map(([key, value]) => (
-                                        <div key={key} className="bg-white p-3 rounded-lg">
-                                            <p className="text-xs font-bold text-slate-400 mb-0.5 capitalize">{key}</p>
-                                            <p className="font-bold text-slate-900 text-sm">{String(value)}</p>
+                        return (
+                            <div key={company.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                                {/* Company Header */}
+                                <button
+                                    onClick={() => toggleCompany(company.id)}
+                                    className="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        {isExpanded ? <CaretDown size={20} weight="bold" className="text-blue-600" /> : <CaretRight size={20} weight="bold" className="text-slate-400" />}
+                                        <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg shadow-sm">
+                                            {company.name.charAt(0)}
                                         </div>
-                                    ))}
+                                        <div className="text-right">
+                                            <h3 className="text-xl font-black text-slate-900">{company.name}</h3>
+                                            <p className="text-sm font-bold text-slate-400">{companyPeople.length} חיילים</p>
+                                        </div>
+                                    </div>
+                                </button>
+
+                                {/* Company Content */}
+                                {isExpanded && (
+                                    <div className="border-t border-slate-100">
+                                        {/* Teams */}
+                                        {companyTeams.map(team => {
+                                            const teamPeople = companyPeople.filter(p => p.teamId === team.id);
+                                            const isTeamExpanded = expandedTeams.has(team.id);
+
+                                            if (teamPeople.length === 0) return null;
+
+                                            return (
+                                                <div key={team.id} className="border-b border-slate-50 last:border-0">
+                                                    {/* Team Header */}
+                                                    <button
+                                                        onClick={() => toggleTeam(team.id)}
+                                                        className="w-full p-4 pr-12 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            {isTeamExpanded ? <CaretDown size={16} weight="bold" /> : <CaretRight size={16} weight="bold" />}
+                                                            <Users size={18} className="text-blue-500" weight="duotone" />
+                                                            <span className="font-bold text-slate-700">{team.name}</span>
+                                                            <span className="text-xs font-bold text-slate-400">({teamPeople.length})</span>
+                                                        </div>
+                                                    </button>
+
+                                                    {/* Team People */}
+                                                    {isTeamExpanded && (
+                                                        <div className="bg-slate-50/50 divide-y divide-slate-100">
+                                                            {teamPeople.map(person => {
+                                                                const presence = getPersonPresence(person.id);
+                                                                const personRoles = getPersonRoles(person);
+
+                                                                return (
+                                                                    <div
+                                                                        key={person.id}
+                                                                        className="p-4 pr-16 flex items-center justify-between hover:bg-white transition-colors group cursor-pointer"
+                                                                        onClick={() => setSelectedPerson(person)}
+                                                                    >
+                                                                        <div className="flex items-center gap-4 flex-1">
+                                                                            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                                                                                <User size={20} />
+                                                                            </div>
+                                                                            <div className="flex-1">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <p className="font-black text-slate-900 leading-none">{person.name}</p>
+                                                                                    <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[9px] font-black border border-blue-100/50">
+                                                                                        {companies.find(c => c.id === person.organization_id)?.name}
+                                                                                    </span>
+                                                                                </div>
+                                                                                {personRoles.length > 0 && (
+                                                                                    <p className="text-xs font-bold text-slate-500 mt-1">
+                                                                                        {personRoles.join(', ')}
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className={`px-3 py-1.5 rounded-xl text-xs font-black ${presence.class}`}>
+                                                                                {presence.label}
+                                                                            </div>
+                                                                            <Eye size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+
+                                        {/* People without team */}
+                                        {companyPeople.filter(p => !p.teamId).map(person => {
+                                            const presence = getPersonPresence(person.id);
+                                            const personRoles = getPersonRoles(person);
+
+                                            return (
+                                                <div
+                                                    key={person.id}
+                                                    className="p-4 pr-12 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer border-b border-slate-50 last:border-0"
+                                                    onClick={() => setSelectedPerson(person)}
+                                                >
+                                                    <div className="flex items-center gap-4 flex-1">
+                                                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                                                            <User size={20} />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="font-black text-slate-900 leading-none">{person.name}</p>
+                                                                <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[9px] font-black border border-blue-100/50">
+                                                                    {companies.find(c => c.id === person.organization_id)?.name}
+                                                                </span>
+                                                            </div>
+                                                            {personRoles.length > 0 && (
+                                                                <p className="text-xs font-bold text-slate-500 mt-1">
+                                                                    {personRoles.join(', ')}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`px-3 py-1.5 rounded-xl text-xs font-black ${presence.class}`}>
+                                                            {presence.label}
+                                                        </div>
+                                                        <Eye size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Person Details Modal */}
+                {selectedPerson && (
+                    <Modal
+                        isOpen={true}
+                        onClose={() => setSelectedPerson(null)}
+                        title={
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                                    <User size={24} weight="duotone" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-800">{selectedPerson.name}</h2>
+                                    <p className="text-sm font-bold text-slate-400">פרטי חייל</p>
                                 </div>
                             </div>
-                        )}
+                        }
+                        size="lg"
+                    >
+                        <div className="space-y-4">
+                            {/* Organization & Team */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50 p-4 rounded-xl">
+                                    <p className="text-xs font-bold text-slate-400 mb-1">פלוגה</p>
+                                    <p className="font-black text-slate-900">
+                                        {companies.find(c => c.id === selectedPerson.organization_id)?.name || '-'}
+                                    </p>
+                                </div>
+                                <div className="bg-slate-50 p-4 rounded-xl">
+                                    <p className="text-xs font-bold text-slate-400 mb-1">צוות</p>
+                                    <p className="font-black text-slate-900">
+                                        {teams.find(t => t.id === selectedPerson.teamId)?.name || 'ללא צוות'}
+                                    </p>
+                                </div>
+                            </div>
 
-                        {/* Additional Info */}
-                        <div className="grid grid-cols-1 gap-4">
-                            {selectedPerson.isActive === false && (
-                                <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl">
-                                    <p className="text-sm font-black text-rose-700">חייל לא פעיל</p>
+                            {/* Roles */}
+                            <div className="bg-slate-50 p-4 rounded-xl">
+                                <p className="text-xs font-bold text-slate-400 mb-2">תפקידים</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {getPersonRoles(selectedPerson).map((role, idx) => (
+                                        <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-bold">
+                                            {role}
+                                        </span>
+                                    ))}
+                                    {getPersonRoles(selectedPerson).length === 0 && (
+                                        <span className="text-slate-400 font-bold">אין תפקידים</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Presence Status */}
+                            <div className="bg-slate-50 p-4 rounded-xl">
+                                <p className="text-xs font-bold text-slate-400 mb-2">סטטוס נוכחות</p>
+                                <div className="space-y-1">
+                                    <div className={`inline-flex px-3 py-1.5 rounded-xl text-sm font-black ${getPersonPresence(selectedPerson.id).class}`}>
+                                        {getPersonPresence(selectedPerson.id).label}
+                                    </div>
+                                    {getPersonPresence(selectedPerson.id).details && (
+                                        <p className="text-xs font-bold text-slate-500 mt-1">
+                                            {getPersonPresence(selectedPerson.id).details}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Contact Information */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {selectedPerson.phone && (
+                                    <div className="bg-slate-50 p-4 rounded-xl">
+                                        <p className="text-xs font-bold text-slate-400 mb-1">טלפון</p>
+                                        <p className="font-black text-slate-900 direction-ltr text-right">{selectedPerson.phone}</p>
+                                    </div>
+                                )}
+                                {selectedPerson.email && (
+                                    <div className="bg-slate-50 p-4 rounded-xl">
+                                        <p className="text-xs font-bold text-slate-400 mb-1">אימייל</p>
+                                        <p className="font-bold text-slate-900 text-sm break-all">{selectedPerson.email}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Custom Fields */}
+                            {selectedPerson.customFields && Object.keys(selectedPerson.customFields).length > 0 && (
+                                <div className="bg-slate-50 p-4 rounded-xl">
+                                    <p className="text-xs font-bold text-slate-400 mb-3">פרטים נוספים</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {Object.entries(selectedPerson.customFields).map(([key, value]) => (
+                                            <div key={key} className="bg-white p-3 rounded-lg">
+                                                <p className="text-xs font-bold text-slate-400 mb-0.5 capitalize">{key}</p>
+                                                <p className="font-bold text-slate-900 text-sm">{String(value)}</p>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
+
+                            {/* Additional Info */}
+                            <div className="grid grid-cols-1 gap-4">
+                                {selectedPerson.isActive === false && (
+                                    <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl">
+                                        <p className="text-sm font-black text-rose-700">חייל לא פעיל</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                </Modal>
-            )}
+                    </Modal>
+                )}
+            </div>
         </div>
     );
 };
