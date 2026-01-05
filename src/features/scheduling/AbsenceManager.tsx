@@ -34,7 +34,9 @@ import {
     FileText,
     ShieldCheck,
     Info,
-    ArrowsDownUp
+    ArrowsDownUp,
+    SortAscending,
+    SortDescending
 } from '@phosphor-icons/react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -159,6 +161,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     }>({ isOpen: false, conflicts: [] });
 
     const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('date');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
     // --- Helpers ---
     // Dynamic Status Calculation based on DAILY AVAILABILITY (Source of Truth)
@@ -227,19 +230,30 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
         return filtered
             .sort((a, b) => {
+                let comparison = 0;
+
+                // Primary Sort Category
                 if (sortBy === 'status') {
                     const statusA = a.status || 'pending';
                     const statusB = b.status || 'pending';
-                    return statusA.localeCompare(statusB);
+                    comparison = statusA.localeCompare(statusB);
+                } else if (sortBy === 'date') {
+                    comparison = new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+                } else {
+                    const personA = people.find(p => p.id === a.person_id)?.name || '';
+                    const personB = people.find(p => p.id === b.person_id)?.name || '';
+                    comparison = personA.localeCompare(personB, 'he');
                 }
-                if (a.status === 'pending' && b.status !== 'pending') return -1;
-                if (a.status !== 'pending' && b.status === 'pending') return 1;
-                if (sortBy === 'date') return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
-                const personA = people.find(p => p.id === a.person_id)?.name || '';
-                const personB = people.find(p => p.id === b.person_id)?.name || '';
-                return personA.localeCompare(personB, 'he');
+
+                // If values are equal, fallback to date
+                if (comparison === 0 && sortBy !== 'date') {
+                    comparison = new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+                }
+
+                // Apply Sort Order
+                return sortOrder === 'desc' ? -comparison : comparison;
             });
-    }, [activeAbsences, sortBy, people, filterStatus]);
+    }, [activeAbsences, sortBy, sortOrder, people, filterStatus]);
 
     const getMonthDays = (date: Date) => {
         const year = date.getFullYear();
@@ -641,7 +655,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             </div>
                         }
                         centerActions={
-                            <div className="bg-slate-100/80 p-1 rounded-xl flex items-center gap-1 w-full md:w-auto">
+                            <div className="md:hidden bg-slate-100/80 p-1 rounded-xl flex items-center gap-1 w-full md:w-auto">
                                 <button
                                     onClick={() => setIsSidebarOpen(true)}
                                     className={`flex-1 md:flex-none px-4 md:px-6 py-2 rounded-[0.875rem] text-xs font-black transition-all ${isSidebarOpen
@@ -687,6 +701,17 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                 ],
                                 placeholder: 'מיון',
                                 icon: ArrowsDownUp
+                            },
+                            {
+                                id: 'sortOrder',
+                                value: sortOrder,
+                                onChange: (val) => setSortOrder(val as any),
+                                options: [
+                                    { value: 'asc', label: 'סדר עולה' },
+                                    { value: 'desc', label: 'סדר יורד' }
+                                ],
+                                placeholder: 'סדר מיון',
+                                icon: sortOrder === 'asc' ? SortAscending : SortDescending
                             }
                         ]}
                     />
