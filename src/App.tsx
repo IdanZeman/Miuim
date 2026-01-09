@@ -1115,6 +1115,9 @@ const useMainAppState = () => {
                             onUpdateShift={handleUpdateShift}
                             onToggleCancelShift={handleToggleCancelShift}
                             teamRotations={state.teamRotations}
+                            absences={state.absences}
+                            hourlyBlockages={state.hourlyBlockages}
+                            settings={state.organizationSettings}
                             onRefreshData={refetchOrgData}
                         />
 

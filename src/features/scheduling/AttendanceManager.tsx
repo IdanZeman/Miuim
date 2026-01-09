@@ -902,7 +902,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 )
             }
 
-
         </div >
     );
 };

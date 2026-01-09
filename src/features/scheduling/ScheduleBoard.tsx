@@ -4,7 +4,7 @@ import { GenericModal } from '../../components/ui/GenericModal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
-import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, MissionReport } from '../../types';
+import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, MissionReport, Absence, DailyPresence } from '../../types';
 import { generateShiftsForTask } from '../../utils/shiftUtils';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
@@ -24,6 +24,8 @@ import { MissionReportModal } from './MissionReportModal';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { ExportScheduleModal } from './ExportScheduleModal';
 import { ExportButton } from '../../components/ui/ExportButton';
+import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
+import { RotaWizardModal } from './RotaWizardModal';
 import { FileArrowDown as FileDown } from '@phosphor-icons/react';
 
 export interface ScheduleBoardProps {
@@ -48,6 +50,9 @@ export interface ScheduleBoardProps {
     onToggleCancelShift?: (shiftId: string) => void;
     teamRotations: TeamRotation[];
     missionReports: MissionReport[];
+    absences?: Absence[];
+    hourlyBlockages?: import('../../types').HourlyBlockage[];
+    settings?: import('../../types').OrganizationSettings | null;
     onRefreshData?: () => void;
 }
 
@@ -244,9 +249,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     shifts, missionReports, people, taskTemplates, roles, teams, constraints,
     selectedDate, onDateChange, onSelect, onDelete, isViewer,
     acknowledgedWarnings: propAcknowledgedWarnings, onClearDay, onNavigate, onAssign,
-    onUnassign, onAddShift, onUpdateShift, onToggleCancelShift, teamRotations, onRefreshData
+    onUnassign, onAddShift, onUpdateShift, onToggleCancelShift, teamRotations, onRefreshData,
+    absences = [], hourlyBlockages = [], settings = null
 }) => {
     const activePeople = useMemo(() => people.filter(p => p.isActive !== false), [people]);
+    const { profile } = useAuth();
     // Scroll Synchronization Refs
     const headerScrollRef = useRef<HTMLDivElement>(null);
     const bodyScrollRef = useRef<HTMLDivElement>(null);
@@ -355,6 +362,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     // Export Modal State
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New state for mobile action menu
+    const [showRotaWizard, setShowRotaWizard] = useState(false);
 
     // Helper to resolve warnings based on prop or local state
     // If prop is provided, we can't set it locally easily without callback. 
@@ -977,6 +985,32 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 confirmText={confirmationState.confirmText || "אשר שיבוץ"}
                 cancelText="ביטול"
                 type={confirmationState.type || "warning"}
+            />
+
+            {showRotaWizard && (
+                <RotaWizardModal
+                    isOpen={showRotaWizard}
+                    onClose={() => setShowRotaWizard(false)}
+                    people={activePeople}
+                    teams={teams}
+                    roles={roles}
+                    tasks={taskTemplates}
+                    constraints={constraints}
+                    absences={absences}
+                    settings={settings}
+                    teamRotations={teamRotations}
+                    hourlyBlockages={hourlyBlockages}
+                    onSaveRoster={(roster: DailyPresence[]) => { }}
+                />
+            )}
+
+            <FloatingActionButton
+                icon={Sparkles}
+                onClick={() => setShowRotaWizard(true)}
+                ariaLabel="מחולל סבבים"
+                show={(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin)}
+                className="md:hidden"
+                variant="action"
             />
         </div>
     );
