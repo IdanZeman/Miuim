@@ -515,7 +515,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] relative overflow-hidden">
+        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100dvh-80px)] md:h-[calc(100vh-100px)] relative overflow-hidden">
             {/* --- GREEN HEADER (Mobile & Desktop Unified or Mobile Only?) --- */}
 
             {/* --- UNIFIED MOBILE CONTAINER --- */}

@@ -606,8 +606,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     return (
         <div className="relative min-h-screen bg-transparent" dir="rtl">
             {/* Main Premium Container */}
-            <div className="relative z-10 max-w-[1600px] mx-auto pt-0 md:pt-6 px-0 md:px-6 pb-6 h-screen flex flex-col">
-                <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 overflow-hidden flex flex-col flex-1">
+            <div className="relative z-10 max-w-[1600px] mx-auto pt-0 md:pt-6 px-0 md:px-6 pb-6 h-[calc(100dvh-64px)] md:h-[calc(100vh-48px)] flex flex-col">
+                <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 overflow-hidden flex flex-col flex-1 relative">
 
                     {/* Unified Action Bar */}
                     <ActionBar
@@ -770,7 +770,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                 </div>
                             )}
 
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 pb-32 md:pb-2 space-y-1">
                                 <div className="flex items-center justify-between px-2 mb-2">
                                     <button
                                         onClick={() => setSelectedPersonId(null)}
@@ -919,7 +919,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex-1 overflow-y-auto p-4">
+                                    <div className="flex-1 overflow-y-auto p-4 pb-32 md:pb-4">
                                         {activeAbsences.length === 0 ? (
                                             <div className="flex flex-col items-center justify-center h-full text-slate-400">
                                                 <CalendarIcon size={48} className="mb-4 opacity-20" weight="duotone" />
