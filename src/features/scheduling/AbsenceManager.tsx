@@ -47,6 +47,7 @@ import { Select } from '@/components/ui/Select';
 import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
 import { logger } from '@/services/loggingService';
 import { GenericModal } from '@/components/ui/GenericModal';
+import { SheetModal } from '@/components/ui/SheetModal';
 
 
 
@@ -101,6 +102,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const [formStartTime, setFormStartTime] = useState<string>('08:00');
     const [formEndTime, setFormEndTime] = useState<string>('17:00');
     const [isFullDay, setIsFullDay] = useState(true);
+    const [formStatus, setFormStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
+    const [initialFormStatus, setInitialFormStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
+    const [activeMobileMenu, setActiveMobileMenu] = useState<string | null>(null);
 
     const handleExport = async () => {
         const workbook = new ExcelJS.Workbook();
@@ -163,6 +167,11 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('date');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
+    // Sync pendingUpdates when props change
+    React.useEffect(() => {
+        setPendingUpdates({});
+    }, [absences.length, selectedPersonId]);
+
     // --- Helpers ---
     // Dynamic Status Calculation based on DAILY AVAILABILITY (Source of Truth)
     const getComputedAbsenceStatus = (person: Person, absence: Absence): { status: 'approved' | 'rejected' | 'pending' | 'partially_approved' } => {
@@ -195,8 +204,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
         if (homeDays === totalDays && totalDays > 0) return { status: 'approved' };
         if (homeDays > 0 && homeDays < totalDays) return { status: 'partially_approved' };
-        // REMOVED: if (baseDays > 0) return { status: 'rejected' };
-        // Pending request should remain pending even if currently scheduled as base.
+        if (baseDays === totalDays && totalDays > 0 && absence.status === 'rejected') return { status: 'rejected' };
 
         return { status: 'pending' };
     };
@@ -222,7 +230,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 if (!person) return false;
                 const status = getComputedAbsenceStatus(person, a).status;
                 if (filterStatus === 'pending') return status === 'pending';
-                if (filterStatus === 'approved') return status === 'approved' || status === 'partially_approved';
+                if (filterStatus === 'approved') return status === 'approved' || (status as string) === 'partially_approved';
                 if (filterStatus === 'rejected') return status === 'rejected';
                 return true;
             });
@@ -279,6 +287,8 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
         // Reset Time defaults
         setIsFullDay(true);
+        setFormStatus('pending');
+        setInitialFormStatus('pending');
         setFormStartTime('08:00');
         setFormEndTime('17:00');
 
@@ -291,6 +301,13 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
         setFormStartDate(absence.start_date);
         setFormEndDate(absence.end_date);
         setFormReason(absence.reason || '');
+
+        // Use computed status as fallback if the DB status is pending or missing
+        const person = people.find(p => p.id === absence.person_id);
+        const computed = person ? getComputedAbsenceStatus(person, absence).status : 'pending';
+        const displayStatus = (absence.status && absence.status !== 'pending' ? absence.status : computed) as any;
+        setFormStatus(displayStatus);
+        setInitialFormStatus(displayStatus);
 
         // Parse Time
         const isFull = (absence.start_time === '00:00' && absence.end_time === '23:59') || (!absence.start_time && !absence.end_time);
@@ -311,15 +328,16 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
         const finalStartTime = isFullDay ? '00:00' : formStartTime;
         const finalEndTime = isFullDay ? '23:59' : formEndTime;
 
-        // Determine status: if user can approve, auto-approve? 
-        // Logic: If creating new, set as 'pending'. Admin can approve immediately if they want via the list.
-        // OR: If creator has permission, allow them to CheckIcon "Approved"? 
-        // For simplicity: Create as 'pending' unless editing existing.
-        let status = editingAbsence?.status || 'pending';
+        // Determine status transitions
+        // statusChanged must check against what the user SAW (initialFormStatus)
+        // rather than just the underlying DB status which might be 'pending' even if shown as 'approved'
+        const oldStatus = editingAbsence?.status || 'pending';
+        const newStatus = editingAbsence || canApprove ? formStatus : 'pending';
+        const statusChanged = initialFormStatus !== newStatus;
 
         try {
             if (editingAbsence) {
-                // Update
+                // Update Absence Record
                 const updated = {
                     ...editingAbsence,
                     person_id: formPersonId,
@@ -328,11 +346,61 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     start_time: finalStartTime,
                     end_time: finalEndTime,
                     reason: formReason,
-                    status
+                    status: newStatus,
+                    // If newly approved, mark who/when
+                    ...(newStatus === 'approved' && oldStatus !== 'approved' ? {
+                        approved_by: profile?.id,
+                        approved_at: new Date().toISOString()
+                    } : {})
                 };
                 await updateAbsence(updated);
+
+                // SYNC Logic: If status changed and involves 'approved'
+                if (statusChanged) {
+                    const start = new Date(formStartDate);
+                    const end = new Date(formEndDate);
+                    const upsertData = [];
+
+                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                        const dateStr = d.toLocaleDateString('en-CA');
+                        const isFirstDay = dateStr === formStartDate;
+                        const isLastDay = dateStr === formEndDate;
+
+                        upsertData.push({
+                            person_id: formPersonId,
+                            date: dateStr,
+                            status: (newStatus === 'approved' ? 'home' : 'base') as any,
+                            source: 'manual' as const,
+                            organization_id: organization.id,
+                            start_time: newStatus === 'approved' ? (isFirstDay ? finalStartTime : '00:00') : '00:00',
+                            end_time: newStatus === 'approved' ? (isLastDay ? finalEndTime : '23:59') : '23:59'
+                        });
+                    }
+
+                    if (upsertData.length > 0) {
+                        await upsertDailyPresence(upsertData);
+
+                        // Update Local Person State
+                        const person = people.find(p => p.id === formPersonId);
+                        if (person) {
+                            const newAvailability = { ...(person.dailyAvailability || {}) };
+                            upsertData.forEach(upd => {
+                                newAvailability[upd.date] = {
+                                    isAvailable: newStatus !== 'approved',
+                                    status: upd.status,
+                                    startHour: upd.start_time,
+                                    endHour: upd.end_time,
+                                    source: 'manual'
+                                };
+                            });
+                            onUpdatePerson({ ...person, dailyAvailability: newAvailability });
+                        }
+                    }
+                }
+
                 onUpdateAbsence(updated);
-                showToast('ההיעדרות עודכנה בהצלחה', 'success');
+                setPendingUpdates(prev => ({ ...prev, [updated.id]: updated }));
+                showToast(statusChanged ? 'הסטטוס והנוכחות עודכנו' : 'ההיעדרות עודכנה בהצלחה', 'success');
             } else {
                 // Add
                 const newAbsence = await addAbsence({
@@ -343,7 +411,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     start_time: finalStartTime,
                     end_time: finalEndTime,
                     reason: formReason,
-                    status: 'pending' // Always pending initially
+                    status: 'pending' // Always pending initially for new requests
                 });
                 onAddAbsence(newAbsence);
                 showToast('הבקשה נשלחה לאישור', 'success');
@@ -351,7 +419,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
             }
             setIsModalOpen(false);
         } catch (e) {
-            logger.error('CREATE', 'Failed to save absence', e);
+            logger.error('SAVE', 'Failed to save absence', e);
             console.error(e);
             showToast('שגיאה בשמירה', 'error');
         }
@@ -573,8 +641,12 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
 
 
-    const formatTimeRange = (start?: string, end?: string) => {
-        if (!start || !end || (start === '00:00' && end === '23:59')) return null;
+    const formatTimeRange = (start?: string, end?: string, isMultiDay?: boolean) => {
+        if (!start || !end) return null;
+        if (start === '00:00' && end === '23:59') return null;
+        if (isMultiDay) {
+            return `יציאה: ${start} | חזרה: ${end}`;
+        }
         return `${start} - ${end}`;
     };
 
@@ -844,7 +916,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                 {groupedPeople['ungrouped'].map(person => {
                                                     const isSelected = selectedPersonId === person.id;
                                                     const personAbsences = activeAbsences.filter(a => a.person_id === person.id);
-                                                    const pendingCount = personAbsences.filter(a => getComputedAbsenceStatus(person, a).status === 'pending').length;
+                                                    const pendingCount = personAbsences.filter(a => a.status === 'pending').length;
                                                     return (
                                                         <button
                                                             key={person.id}
@@ -942,9 +1014,13 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                     const isPending = status === 'pending';
 
                                                     return (
-                                                        <div key={absence.id} className={`relative flex flex-col md:flex-row md:items-center gap-4 p-5 bg-white border rounded-[2rem] hover:shadow-2xl hover:shadow-slate-200/40 transition-all duration-500 group overflow-hidden ${isPending ? 'border-amber-100 bg-amber-50/5' : 'border-slate-100'}`}>
+                                                        <div
+                                                            key={absence.id}
+                                                            onClick={() => openEditModal(absence)}
+                                                            className={`relative flex flex-col md:flex-row md:items-center gap-4 p-5 bg-white border rounded-[2rem] hover:shadow-2xl hover:shadow-slate-200/40 transition-all duration-500 group cursor-pointer md:cursor-default ${isPending ? 'border-amber-100 bg-amber-50/5' : 'border-slate-100'}`}
+                                                        >
                                                             {/* Status Decorator */}
-                                                            <div className={`absolute top-0 bottom-0 right-0 w-1.5 md:w-2 transition-all group-hover:w-3
+                                                            <div className={`absolute top-0 bottom-0 right-0 w-1.5 md:w-2 transition-all group-hover:w-3 rounded-r-[2rem]
                                                         ${isApproved ? 'bg-emerald-500' : isRejected ? 'bg-rose-500' : isPartial ? 'bg-orange-500' : 'bg-amber-500'}
                                                     `}></div>
 
@@ -981,14 +1057,17 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                                             )}
                                                                         </div>
 
-                                                                        {/* Mobile Header Actions */}
-                                                                        <div className="flex items-center gap-2 md:hidden mr-auto">
-                                                                            {isPending && canApprove && (
-                                                                                <>
-                                                                                    <button onClick={(e) => { e.stopPropagation(); initiateApproval(absence); }} className="w-10 h-10 flex items-center justify-center bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-200 active:scale-90 transition-transform"><Check size={20} weight="bold" /></button>
-                                                                                    <button onClick={(e) => { e.stopPropagation(); handleReject(absence); }} className="w-10 h-10 flex items-center justify-center bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-200 active:scale-90 transition-transform"><X size={20} weight="bold" /></button>
-                                                                                </>
-                                                                            )}
+                                                                        {/* Mobile Actions Button */}
+                                                                        <div className="md:hidden mr-auto">
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setActiveMobileMenu(absence.id);
+                                                                                }}
+                                                                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeMobileMenu === absence.id ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                                                                            >
+                                                                                <MoreVertical size={22} weight="bold" />
+                                                                            </button>
                                                                         </div>
                                                                     </div>
 
@@ -1000,9 +1079,9 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                                                     ? new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })
                                                                                     : `${new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })} - ${new Date(absence.end_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`}
                                                                             </span>
-                                                                            {formatTimeRange(absence.start_time, absence.end_time) && (
+                                                                            {formatTimeRange(absence.start_time, absence.end_time, absence.start_date !== absence.end_date) && (
                                                                                 <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/50 mr-1">
-                                                                                    {formatTimeRange(absence.start_time, absence.end_time)}
+                                                                                    {formatTimeRange(absence.start_time, absence.end_time, absence.start_date !== absence.end_date)}
                                                                                 </span>
                                                                             )}
                                                                         </div>
@@ -1016,7 +1095,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                                 </div>
                                                             </div>
 
-                                                            {/* Actions (Desktop Only) */}
+                                                            {/* Desktop Actions */}
                                                             <div className="hidden md:flex items-center gap-3">
                                                                 {(isPending || isPartial) && canApprove && (
                                                                     <>
@@ -1227,6 +1306,32 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             )}
 
                             <div className="space-y-6">
+                                {(editingAbsence || canApprove) && (
+                                    <div className="relative">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 px-1">סטטוס בקשה</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {[
+                                                { id: 'pending', label: 'ממתין', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock },
+                                                { id: 'approved', label: 'מאושר', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle },
+                                                { id: 'rejected', label: 'נדחה', color: 'bg-rose-50 text-rose-700 border-rose-200', icon: XCircle }
+                                            ].map((status) => {
+                                                const Icon = status.icon;
+                                                const isSelected = formStatus === status.id;
+                                                return (
+                                                    <button
+                                                        key={status.id}
+                                                        onClick={() => setFormStatus(status.id as any)}
+                                                        className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all gap-2 ${isSelected ? status.color + ' ring-2 ring-offset-2 ring-emerald-500/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:bg-slate-50 opacity-60'}`}
+                                                    >
+                                                        <Icon size={20} weight={isSelected ? 'fill' : 'bold'} />
+                                                        <span className="text-xs font-black">{status.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <DatePicker label="תאריך יציאה" value={formStartDate} onChange={setFormStartDate} />
                                     <DatePicker label="תאריך חזרה" value={formEndDate} onChange={setFormEndDate} />
@@ -1383,6 +1488,83 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                         onConfirm={handleDelete}
                         onCancel={() => setDeleteConfirmId(null)}
                     />
+
+                    {/* Mobile Actions Modal */}
+                    {activeMobileMenu && (
+                        (() => {
+                            const absence = absences.find(a => a.id === activeMobileMenu);
+                            if (!absence) return null;
+                            const person = people.find(p => p.id === absence.person_id);
+                            if (!person) return null;
+
+                            // Merge with pending updates if any (consistent with list view)
+                            const effectiveAbsence = { ...absence, ...(pendingUpdates[absence.id] || {}) };
+                            const status = getComputedAbsenceStatus(person, effectiveAbsence).status;
+                            const isPending = status === 'pending';
+
+                            return (
+                                <SheetModal
+                                    isOpen={!!activeMobileMenu}
+                                    onClose={() => setActiveMobileMenu(null)}
+                                    title={`פעולות עבור ${person.name}`}
+                                >
+                                    <div className="flex flex-col gap-2 py-4">
+                                        {isPending && canApprove && (
+                                            <div className="grid grid-cols-2 gap-3 mb-2">
+                                                <Button
+                                                    onClick={() => { setActiveMobileMenu(null); initiateApproval(absence); }}
+                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-16 rounded-[1.5rem] flex flex-col items-center justify-center gap-1 shadow-lg shadow-emerald-200 transition-all active:scale-95"
+                                                >
+                                                    <CheckCircle size={24} weight="bold" />
+                                                    <span className="text-sm">אשר בקשה</span>
+                                                </Button>
+                                                <Button
+                                                    onClick={() => { setActiveMobileMenu(null); handleReject(absence); }}
+                                                    variant="ghost"
+                                                    className="bg-rose-50 text-rose-600 border border-rose-100 font-black h-16 rounded-[1.5rem] flex flex-col items-center justify-center gap-1 transition-all active:scale-95"
+                                                >
+                                                    <XCircle size={24} weight="bold" />
+                                                    <span className="text-sm">דחה בקשה</span>
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-2">
+                                            {canManage && (
+                                                <button
+                                                    onClick={() => { setActiveMobileMenu(null); openEditModal(absence); }}
+                                                    className="w-full flex items-center gap-4 p-4 bg-slate-50 text-slate-700 hover:bg-slate-100 font-black transition-all rounded-[1.5rem]"
+                                                >
+                                                    <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-blue-600 shadow-sm shrink-0 border border-slate-100">
+                                                        <Edit2 size={24} weight="bold" />
+                                                    </div>
+                                                    <div className="flex-1 text-right">
+                                                        <div className="text-base font-black">ערוך בקשה</div>
+                                                        <div className="text-xs text-slate-500 font-bold">שנה תאריכים, שעות או סיבה</div>
+                                                    </div>
+                                                </button>
+                                            )}
+
+                                            {canManage && (
+                                                <button
+                                                    onClick={() => { setActiveMobileMenu(null); setDeleteConfirmId(absence.id); }}
+                                                    className="w-full flex items-center gap-4 p-4 bg-rose-50/30 text-rose-600 hover:bg-rose-50 font-black transition-all rounded-[1.5rem] border border-rose-100/50"
+                                                >
+                                                    <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-rose-500 shadow-sm shrink-0 border border-rose-100">
+                                                        <Trash size={24} weight="bold" />
+                                                    </div>
+                                                    <div className="flex-1 text-right">
+                                                        <div className="text-base font-black">מחק בקשה</div>
+                                                        <div className="text-xs text-rose-400 font-bold">מחיקה לצמיתות של הבקשה</div>
+                                                    </div>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </SheetModal>
+                            );
+                        })()
+                    )}
 
                     {/* Primary Action Button (FAB) */}
                     <FloatingActionButton

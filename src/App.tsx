@@ -280,8 +280,12 @@ const useMainAppState = () => {
                     const isPrevContiguous = prevD && (d.getTime() - prevD.getTime() === 86400000);
                     const isNextContiguous = nextD && (nextD.getTime() - d.getTime() === 86400000);
 
-                    const prevIsBase = isPrevContiguous && prevRec.status === 'base';
-                    const nextIsBase = isNextContiguous && nextRec.status === 'base';
+                    // Refined check: A 'home' record that ends before midnight means an arrival happened yesterday
+                    const prevWasPartialReturn = prevRec?.status === 'home' && prevRec.end_time && prevRec.end_time !== '23:59' && prevRec.end_time !== '00:00';
+                    const nextWasPartialDeparture = nextRec?.status === 'home' && nextRec.start_time && nextRec.start_time !== '00:00';
+
+                    const prevIsBase = isPrevContiguous && (prevRec.status === 'base' || prevWasPartialReturn);
+                    const nextIsBase = isNextContiguous && (nextRec.status === 'base' || nextWasPartialDeparture);
 
                     if (!prevIsBase && nextIsBase) detailedStatus = 'arrival';
                     else if (prevIsBase && !nextIsBase) detailedStatus = 'departure';
@@ -639,8 +643,15 @@ const useMainAppState = () => {
     // I will assume absences table exists and was used (it was in fetched data).
 
     const handleAddAbsence = async (a: Absence) => {
-        // AbsenceManager handles the DB insert via api.addAbsence.
-        // We just need to refresh the local data.
+        // Optimistic Update
+        queryClient.setQueryData(['organizationData', activeOrgId], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                absences: [a, ...old.absences]
+            };
+        });
+
         try {
             await refreshData();
             await logger.logCreate('absence', a.id, 'בקשת יציאה - סנכרון', a);
@@ -651,25 +662,35 @@ const useMainAppState = () => {
     };
 
     const handleUpdateAbsence = async (a: Absence) => {
-        // Optimistic update not possible with current hook structure without refactor.
-        // DB update is already handled in AbsenceManager for Reject, but for Consistency:
-        // If AbsenceManager calls this, we should assume it MIGHT NOT have updated DB? 
-        // NO, handleReject in AbsenceManager calls updateAbsence (API) THEN onUpdateAbsence.
-        // So this handler should just refresh.
+        // Optimistic Update
+        queryClient.setQueryData(['organizationData', activeOrgId], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                absences: old.absences.map((abs: Absence) => abs.id === a.id ? a : abs)
+            };
+        });
 
         await refreshData();
-
-        // Redundant checks to ensure safety if called from other places:
-        // if (a.status !== 'rejected') { ... } 
-        // But for now simply refreshing is safer to avoid double writes.
     };
 
     const handleDeleteAbsence = async (id: string) => {
-        // setState(prev => ({ ...prev, absences: prev.absences.filter(a => a.id !== id) }));
+        // Optimistic Update
+        queryClient.setQueryData(['organizationData', activeOrgId], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                absences: old.absences.filter((abs: Absence) => abs.id !== id)
+            };
+        });
+
         try {
             await supabase.from('absences').delete().eq('id', id);
             await refreshData();
-        } catch (e) { console.warn(e); }
+        } catch (e) {
+            console.warn("DB Delete Failed", e);
+            showToast("שגיאה במחיקת היעדרות", 'error');
+        }
     };
 
     const handleAddEquipment = async (e: Equipment) => {

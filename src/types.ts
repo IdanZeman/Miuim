@@ -304,7 +304,7 @@ export interface Absence {
   start_time?: string; // "HH:MM", defaults to "00:00"
   end_time?: string;   // "HH:MM", defaults to "23:59"
   reason?: string;
-  status?: 'pending' | 'approved' | 'rejected' | 'conflict';
+  status?: 'pending' | 'approved' | 'rejected' | 'conflict' | 'partially_approved';
   approved_by?: string; // Profile ID
   approved_at?: string; // ISO Date
   created_at?: string;
