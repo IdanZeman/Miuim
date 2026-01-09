@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import ExcelJS from 'exceljs';
-import { Person, Team, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
+import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
 import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical as MoreVertical, DownloadSimple as Download } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
@@ -23,6 +23,7 @@ import { ExportButton } from '../../components/ui/ExportButton';
 interface AttendanceManagerProps {
     people: Person[];
     teams: Team[];
+    roles: Role[];
     teamRotations?: TeamRotation[];
     tasks?: TaskTemplate[]; // NEW
     constraints?: SchedulingConstraint[]; // NEW
@@ -42,7 +43,7 @@ interface AttendanceManagerProps {
 }
 
 export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
-    people, teams, teamRotations = [],
+    people, teams, roles, teamRotations = [],
     tasks = [], constraints = [], absences = [], hourlyBlockages = [], settings = null,
     onUpdatePerson, onUpdatePeople,
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
@@ -889,6 +890,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         onClose={() => setShowRotaWizard(false)}
                         people={activePeople}
                         teams={teams}
+                        roles={roles}
                         tasks={tasks}
                         constraints={constraints}
                         absences={absences}

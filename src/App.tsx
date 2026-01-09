@@ -1110,6 +1110,7 @@ const useMainAppState = () => {
             case 'attendance': return <AttendanceManager
                 people={state.people}
                 teams={state.teams}
+                roles={state.roles}
                 teamRotations={state.teamRotations}
                 tasks={state.taskTemplates}
                 constraints={state.constraints}

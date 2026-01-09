@@ -4,7 +4,7 @@ import ExcelJS from 'exceljs';
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
-import { Person, Team, TaskTemplate, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence } from '@/types';
+import { Person, Team, Role, TaskTemplate, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence } from '@/types';
 import { generateRoster, RosterGenerationResult, PersonHistory } from '@/utils/rotaGenerator';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
@@ -27,6 +27,7 @@ interface RotaWizardModalProps {
     onClose: () => void;
     people: Person[];
     teams: Team[];
+    roles: Role[];
     tasks: TaskTemplate[];
     settings: OrganizationSettings | null;
     teamRotations: TeamRotation[];
@@ -38,7 +39,7 @@ interface RotaWizardModalProps {
 
 
 export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
-    isOpen, onClose, people, teams, tasks, settings, teamRotations, constraints, absences, hourlyBlockages, onSaveRoster
+    isOpen, onClose, people, teams, roles, tasks, settings, teamRotations, constraints, absences, hourlyBlockages, onSaveRoster
 }) => {
     const queryClient = useQueryClient();
     const activePeople = people.filter(p => p.isActive !== false);
@@ -73,6 +74,8 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     const [showMobileSearch, setShowMobileSearch] = useState(false);
     // Config State
     const [targetTeamIds, setTargetTeamIds] = useState<string[]>([]); // Empty = All (or handle explicit 'all')
+    const [selectionMode, setSelectionMode] = useState<'teams' | 'roles'>('teams');
+    const [targetRoleIds, setTargetRoleIds] = useState<string[]>([]);
     const [customMinStaff, setCustomMinStaff] = useState(() => Math.floor(people.length / 2) || 5);
     const [daysBase, setDaysBase] = useState(11);
     const [daysHome, setDaysHome] = useState(3);
@@ -112,7 +115,15 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         const visibleTeamIdsWithMembers = teams.filter(team => {
             const teamMembers = activePeople
                 .filter(p => p.teamId === team.id)
-                .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId))
+                .filter(p => {
+                    if (selectionMode === 'teams') {
+                        return targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId);
+                    } else {
+                        return targetRoleIds.length === 0 ||
+                            (p.roleId && targetRoleIds.includes(p.roleId)) ||
+                            (p.roleIds && p.roleIds.some(rid => targetRoleIds.includes(rid)));
+                    }
+                })
                 .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId))
                 .filter(p => !searchQuery || p.name.includes(searchQuery));
             return teamMembers.length > 0;
@@ -285,7 +296,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             result.warnings.forEach(w => issues.push(`אזהרת מערכת: ${w}`));
         }
 
-        const relevantPeople = targetTeamIds.length === 0 ? people : people.filter(p => targetTeamIds.includes(p.teamId));
+        const relevantPeople = selectionMode === 'teams'
+            ? (targetTeamIds.length === 0 ? people : people.filter(p => targetTeamIds.includes(p.teamId)))
+            : (targetRoleIds.length === 0 ? people : people.filter(p =>
+                (p.roleId && targetRoleIds.includes(p.roleId)) ||
+                (p.roleIds && p.roleIds.some(rid => targetRoleIds.includes(rid)))
+            ));
 
         // Calculate Task Demand
         // Calculate Task Demand (Peak concurrent requirement)
@@ -415,6 +431,20 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         setCustomMinStaff(suggested);
     };
 
+    const handleRoleChange = (newRoleIds: string[]) => {
+        setTargetRoleIds(newRoleIds);
+
+        let relevantPeople = people;
+        if (newRoleIds.length > 0) {
+            relevantPeople = people.filter(p =>
+                (p.roleId && newRoleIds.includes(p.roleId)) ||
+                (p.roleIds && p.roleIds.some(rid => newRoleIds.includes(rid)))
+            );
+        }
+        const suggested = Math.floor(relevantPeople.length / 2) || 2;
+        setCustomMinStaff(suggested);
+    };
+
     const handleGenerate = async () => {
         const startTime = performance.now();
         logger.info('AUTO_SCHEDULE', 'Started roster generation', {
@@ -502,9 +532,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
             console.log('Calling generateRoster with history sizes:', history.size);
 
-            const effectivePeople = targetTeamIds.length === 0
-                ? activePeople
-                : activePeople.filter(p => targetTeamIds.includes(p.teamId));
+            const effectivePeople = selectionMode === 'teams'
+                ? (targetTeamIds.length === 0 ? activePeople : activePeople.filter(p => targetTeamIds.includes(p.teamId)))
+                : (targetRoleIds.length === 0 ? activePeople : activePeople.filter(p =>
+                    (p.roleId && targetRoleIds.includes(p.roleId)) ||
+                    (p.roleIds && p.roleIds.some(rid => targetRoleIds.includes(rid)))
+                ));
 
             const res = generateRoster({
                 startDate: new Date(startDate),
@@ -796,7 +829,15 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         if (!result) return { avgBase: "0.0", avgHome: "0.0", ratioStr: "0 - 0" };
 
         const relevantPeople = people
-            .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId))
+            .filter(p => {
+                if (selectionMode === 'teams') {
+                    return targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId);
+                } else {
+                    return targetRoleIds.length === 0 ||
+                        (p.roleId && targetRoleIds.includes(p.roleId)) ||
+                        (p.roleIds && p.roleIds.some(rid => targetRoleIds.includes(rid)));
+                }
+            })
             .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId));
 
         let sumBase = 0;
@@ -848,7 +889,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             avgHome: avgH.toFixed(1),
             ratioStr
         };
-    }, [result, people, targetTeamIds, selectedTeamId, startDate, endDate, manualOverrides]);
+    }, [result, people, targetTeamIds, targetRoleIds, selectionMode, selectedTeamId, startDate, endDate, manualOverrides]);
 
     // Optimization: Pre-calculate absence map for quick lookup in render
     const absenceLookup = React.useMemo(() => {
@@ -1164,14 +1205,45 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                             </div>
                                         </div>
 
-                                        <div className="mt-4">
-                                            <MultiSelect
-                                                label="עבור צוותים"
-                                                value={targetTeamIds}
-                                                onChange={setTargetTeamIds}
-                                                options={teams.map(t => ({ value: t.id, label: t.name }))}
-                                                placeholder="כל הצוותים (כלל הארגון)"
-                                            />
+                                        <div className="mt-4 space-y-4">
+                                            <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
+                                                <button
+                                                    onClick={() => setSelectionMode('teams')}
+                                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectionMode === 'teams' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                >
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <Users size={14} weight="duotone" />
+                                                        לפי צוות
+                                                    </div>
+                                                </button>
+                                                <button
+                                                    onClick={() => setSelectionMode('roles')}
+                                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectionMode === 'roles' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                                >
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <Sparkles size={14} weight="duotone" />
+                                                        לפי תפקיד
+                                                    </div>
+                                                </button>
+                                            </div>
+
+                                            {selectionMode === 'teams' ? (
+                                                <MultiSelect
+                                                    label="עבור צוותים"
+                                                    value={targetTeamIds}
+                                                    onChange={handleTeamChange}
+                                                    options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                                    placeholder="כל הצוותים (כלל הארגון)"
+                                                />
+                                            ) : (
+                                                <MultiSelect
+                                                    label="עבור תפקידים"
+                                                    value={targetRoleIds}
+                                                    onChange={handleRoleChange}
+                                                    options={roles.map(r => ({ value: r.id, label: r.name }))}
+                                                    placeholder="כל התפקידים"
+                                                />
+                                            )}
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
@@ -1622,7 +1694,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 {(() => {
                                     const start = new Date(startDate);
                                     const end = new Date(endDate);
-                                    const relevantPeople = targetTeamIds.length > 0 ? activePeople.filter(p => targetTeamIds.includes(p.teamId)) : activePeople;
+                                    const relevantPeople = selectionMode === 'teams'
+                                        ? (targetTeamIds.length > 0 ? activePeople.filter(p => targetTeamIds.includes(p.teamId)) : activePeople)
+                                        : (targetRoleIds.length > 0 ? activePeople.filter(p =>
+                                            (p.roleId && targetRoleIds.includes(p.roleId)) ||
+                                            (p.roleIds && p.roleIds.some(rid => targetRoleIds.includes(rid)))
+                                        ) : activePeople);
                                     const cells = [];
                                     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                                         const dateKey = d.toLocaleDateString('en-CA');
@@ -1666,7 +1743,15 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             // Filter members for this team
                             const teamMembers = activePeople
                                 .filter(p => p.teamId === team.id)
-                                .filter(p => targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId)) // Config filter
+                                .filter(p => {
+                                    if (selectionMode === 'teams') {
+                                        return targetTeamIds.length === 0 || targetTeamIds.includes(p.teamId);
+                                    } else {
+                                        return targetRoleIds.length === 0 ||
+                                            (p.roleId && targetRoleIds.includes(p.roleId)) ||
+                                            (p.roleIds && p.roleIds.some(rid => targetRoleIds.includes(rid)));
+                                    }
+                                }) // Config filter
                                 .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId)) // Dropdown filter
                                 .filter(p => !searchQuery || p.name.includes(searchQuery)); // Search filter
 
