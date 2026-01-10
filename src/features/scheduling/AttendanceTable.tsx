@@ -121,12 +121,69 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         return { present: presentCount, total: totalPeople };
     }, [sortedPeople, currentDate, teamRotations, absences, hourlyBlockages]);
 
+    // Team Stats Calculation (for Daily view)
+    const teamStats = React.useMemo(() => {
+        const stats: Record<string, { present: number; total: number }> = {};
+        teams.forEach(team => {
+            const members = sortedPeople.filter(p => p.teamId === team.id);
+            let present = 0;
+            members.forEach(p => {
+                const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages);
+                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+                    present++;
+                }
+            });
+            stats[team.id] = { present, total: members.length };
+        });
+        return stats;
+    }, [teams, sortedPeople, currentDate, teamRotations, absences, hourlyBlockages]);
+
     return (
         <div className="h-full flex flex-col relative" dir="rtl">
             {/* --- DAILY AGENDA VIEW (Mobile default, Desktop optional) --- */}
             {(viewMode === 'daily' || !viewMode) && (
                 <div className={`flex-1 overflow-y-auto custom-scrollbar bg-slate-50/40 pb-32 ${viewMode === 'daily' ? '' : 'md:hidden'}`}>
                     <div className="max-w-5xl mx-auto bg-white min-h-full shadow-sm border-x border-slate-100">
+                        {/* Global Summary Card - Daily View (Light Premium Style) */}
+                        <div className="bg-white p-6 m-4 mt-6 rounded-3xl shadow-xl shadow-slate-200/40 border border-slate-100 relative overflow-hidden group">
+                            {/* Subtle Background Decoration */}
+                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-50/50 rounded-full blur-3xl" />
+
+                            <div className="flex items-center justify-between mb-4 relative z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100 shadow-sm transition-transform group-hover:scale-110">
+                                        <Users size={26} className="text-blue-600" weight="duotone" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-slate-900 font-black text-lg tracking-tight">סיכום נוכחות יומי</h3>
+                                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">נתונים מעודכנים</p>
+                                    </div>
+                                </div>
+                                <div className="text-left">
+                                    <span className="text-lg font-black text-slate-300 ml-1">{globalStats.total}</span>
+                                    <span className="text-4xl font-bold text-slate-900 ">/ {globalStats.present}</span>
+                                </div>
+                            </div>
+
+                            {/* Progress Bar - Improved Light Style */}
+                            <div className="relative z-10 w-full h-3.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100 mb-4 p-0.5 shadow-inner">
+                                <div
+                                    className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-1000 ease-out shadow-sm"
+                                    style={{ width: `${(globalStats.present / (globalStats.total || 1)) * 100}%` }}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between relative z-10">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                    <span className="text-xs font-bold text-slate-500">אחוז התייצבות:</span>
+                                </div>
+                                <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
+                                    {Math.round((globalStats.present / (globalStats.total || 1)) * 100)}%
+                                </span>
+                            </div>
+                        </div>
+
                         <div className="flex flex-col">
                             {[...teams].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(team => {
                                 const members = sortedPeople.filter(p => p.teamId === team.id);
@@ -153,7 +210,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">{members.length} לוחמים</span>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{members.length} לוחמים</span>
+                                                        <div className="w-1 h-1 rounded-full bg-slate-200" />
+                                                        <span className={`text-[11px] font-black uppercase tracking-widest ${teamStats[team.id]?.present === teamStats[team.id]?.total ? 'text-emerald-500' : 'text-blue-500'}`}>
+                                                            {teamStats[team.id]?.present} נוכחים
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div className={`w-8 h-8 rounded-full bg-slate-50 group-hover:bg-slate-100 flex items-center justify-center transition-all duration-300 ${collapsedTeams.has(team.id) ? 'rotate-0' : 'rotate-180'}`}>
@@ -476,7 +539,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     ${isFull ? 'text-emerald-700 bg-emerald-50/30' : isEmpty ? 'text-slate-400' : 'text-amber-700 bg-amber-50/30'}
                                                                 `}
                                                             >
-                                                                {total} / {present}
+                                                                {present} / {total}
                                                             </div>
                                                         );
                                                     })}

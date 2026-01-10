@@ -1492,12 +1492,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             />
 
             {/* Custom Content area (Personnel Table, Teams, Roles) */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-1 md:p-6 pt-0">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-1 md:px-6 md:pb-6 md:pt-0 pt-0">
                 <div className="relative">
                     {/* Only the Import Wizard remains here, opened by the ActionBar menu */}
 
                     {/* Content Lists */}
-                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                         {activeTab === 'people' && (
                             <div className="col-span-full space-y-6">
 
