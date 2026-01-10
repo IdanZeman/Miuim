@@ -173,15 +173,17 @@ export const GlobalUserManagement: React.FC = () => {
                                     </td>
                                     <td className="px-4 py-4">
                                         <div className="flex items-center justify-end gap-2">
-                                            <Button
-                                                onClick={() => setEditingUser(user)}
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50"
-                                                title="ערוך הרשאות"
-                                            >
-                                                <PencilSimple size={18} weight="duotone" />
-                                            </Button>
+                                            {user.id !== myProfile?.id && (
+                                                <Button
+                                                    onClick={() => setEditingUser(user)}
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+                                                    title="ערוך הרשאות"
+                                                >
+                                                    <PencilSimple size={18} weight="duotone" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -245,14 +247,16 @@ export const GlobalUserManagement: React.FC = () => {
                             </div>
 
                             <div className="flex gap-2 pt-2 border-t border-slate-200">
-                                <Button
-                                    onClick={() => setEditingUser(user)}
-                                    variant="primary"
-                                    className="w-full h-10 text-sm font-bold"
-                                    icon={PencilSimple}
-                                >
-                                    ערוך הרשאות
-                                </Button>
+                                {user.id !== myProfile?.id && (
+                                    <Button
+                                        onClick={() => setEditingUser(user)}
+                                        variant="primary"
+                                        className="w-full h-10 text-sm font-bold"
+                                        icon={PencilSimple}
+                                    >
+                                        ערוך הרשאות
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     ))}
