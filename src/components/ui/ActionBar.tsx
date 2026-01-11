@@ -133,14 +133,59 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                 )}
             </div>
 
-            {/* 2. Desktop Layout - Robust 3-Column Grid */}
-            <div className={`hidden md:grid grid-cols-3 items-center gap-4 py-4 px-6`}>
-                {/* Right side in RTL - Title & Search */}
-                <div className="flex items-center gap-3 min-w-0 w-full justify-self-start overflow-hidden">
-                    <div className="flex items-center gap-2 shrink-0 min-w-0">
-                        {leftActions}
-                    </div>
+            {/* 2. Desktop Layout - Grouped for Clarity */}
+            <div className={`hidden md:flex items-center justify-between gap-4 py-4 px-6 ${className}`}>
+                {/* Right Side (RTL) - Title/Brand */}
+                <div className="flex items-center gap-4 min-w-0">
+                    {leftActions}
+                </div>
 
+                {/* Left Side (RTL) - Consolidated Actions */}
+                <div className="flex items-center gap-3 shrink-0">
+                    {/* 1. Center Actions (often View Switchers) */}
+                    {centerActions && (
+                        <div className="flex items-center">
+                            {centerActions}
+                        </div>
+                    )}
+
+                    {/* 2. Custom Right Actions (e.g. Date Navigator) */}
+                    {rightActions}
+
+                    {/* 3. Filters */}
+                    {filters.length > 0 && (
+                        <div className="flex items-center gap-2">
+                            {/* Desktop Filters (Large only) */}
+                            <div className="hidden 4xl:flex items-center gap-2">
+                                {filters.map((filter) => (
+                                    <div key={filter.id} className="w-36">
+                                        <Select
+                                            value={filter.value}
+                                            onChange={filter.onChange}
+                                            options={filter.options}
+                                            placeholder={filter.placeholder}
+                                            icon={filter.icon}
+                                            searchable={filter.searchable}
+                                            className="bg-slate-100/50 border-transparent rounded-xl h-10"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Filter Trigger Modal (Mobile/Smaller Desktop) */}
+                            <div className="flex 4xl:hidden">
+                                <button
+                                    onClick={() => setIsMobileMenuOpen(true)}
+                                    className={`h-10 px-3 rounded-xl border flex items-center gap-2 transition-all shrink-0 ${activeFiltersCount > 0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100/50 text-slate-500 border-slate-200 hover:bg-white'}`}
+                                >
+                                    <Filter size={18} weight={activeFiltersCount > 0 ? "fill" : "bold"} />
+                                    {activeFiltersCount > 0 && <span className="bg-white text-blue-600 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black shrink-0">{activeFiltersCount}</span>}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 4. Search Bar */}
                     {!isSearchHidden && (
                         <div className={`relative transition-all duration-300 ease-in-out ${isSearchExpanded || searchTerm ? 'md:w-56 xl:w-64' : 'w-10'}`}>
                             {isSearchExpanded || searchTerm ? (
@@ -174,51 +219,8 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                             )}
                         </div>
                     )}
-                </div>
 
-                {/* Center Section - Tabs */}
-                <div className="flex justify-center min-w-0 w-full justify-self-center overflow-hidden">
-                    {centerActions && (
-                        <div className="flex items-center justify-center shrink-0">
-                            {centerActions}
-                        </div>
-                    )}
-                </div>
-
-                {/* Left side in RTL - Actions */}
-                <div className="flex items-center gap-2 justify-end min-w-0 w-full justify-self-end overflow-hidden">
-                    {/* Desktop Filters (Large only) */}
-                    <div className="hidden 4xl:flex items-center gap-2 mr-2">
-                        {filters.map((filter) => (
-                            <div key={filter.id} className="w-36">
-                                <Select
-                                    value={filter.value}
-                                    onChange={filter.onChange}
-                                    options={filter.options}
-                                    placeholder={filter.placeholder}
-                                    icon={filter.icon}
-                                    searchable={filter.searchable}
-                                    className="bg-slate-100/50 border-transparent rounded-xl h-10"
-                                />
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Filter Trigger */}
-                    {filters.length > 0 && (
-                        <div className="flex 4xl:hidden">
-                            <button
-                                onClick={() => setIsMobileMenuOpen(true)}
-                                className={`h-10 px-3 rounded-xl border flex items-center gap-2 transition-all shrink-0 ${activeFiltersCount > 0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100/50 text-slate-500 border-slate-200 hover:bg-white'}`}
-                            >
-                                <Filter size={18} weight={activeFiltersCount > 0 ? "fill" : "bold"} />
-                                {activeFiltersCount > 0 && <span className="bg-white text-blue-600 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black shrink-0">{activeFiltersCount}</span>}
-                            </button>
-                        </div>
-                    )}
-
-                    {rightActions}
-
+                    {/* 5. Export Button */}
                     {onExport && (
                         <ExportButton
                             onExport={onExport}
@@ -246,8 +248,8 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                 }
             >
                 <div className="space-y-8 py-2">
-                    {/* 1. Actions Section */}
-                    <div className="space-y-4">
+                    {/* 1. Actions Section - Only show on mobile or when not in 'filter-only' mode */}
+                    <div className="space-y-4 md:hidden">
                         <SectionHeader title="פעולות מהירות" />
 
                         <div className="space-y-2">
@@ -266,7 +268,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
 
                             {/* Generic rightActions (e.g. Sort, Delete) - Only show in modal on mobile */}
                             {rightActions && (
-                                <div className="space-y-2 md:hidden">
+                                <div className="space-y-2">
                                     {rightActions}
                                 </div>
                             )}

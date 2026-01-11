@@ -1448,6 +1448,19 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             </button>
                         )}
 
+                        {/* Import Button - Desktop */}
+                        {canEdit && activeTab === 'people' && (
+                            <button
+                                onClick={() => setIsImportWizardOpen(true)}
+                                className="hidden md:flex h-11 px-4 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-2xl items-center gap-2 font-black text-sm hover:bg-emerald-100 transition-colors shadow-sm"
+                            >
+                                <FileSpreadsheet size={18} weight="duotone" />
+                                <span>ייבוא מאקסל</span>
+                            </button>
+                        )}
+
+
+
                         {/* Bulk Delete - Mobile List Item Style */}
                         {canEdit && selectedItemIds.size > 0 && (
                             <div className="md:hidden w-full mt-2">
