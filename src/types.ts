@@ -386,3 +386,31 @@ export interface MissionReport {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface RotaGenerationHistory {
+  id: string;
+  organization_id: string;
+  created_at: string;
+  config: {
+    startDate: string;
+    endDate: string;
+    targetTeamIds: string[];
+    targetRoleIds: string[];
+    selectionMode: 'teams' | 'roles';
+    optimizationMode: 'ratio' | 'min_staff' | 'tasks';
+    daysBase: number;
+    daysHome: number;
+    customMinStaff: number;
+    userArrivalHour: string;
+    userDepartureHour: string;
+  };
+  roster_data: DailyPresence[];
+  manual_overrides?: Record<string, { status: string; startTime?: string; endTime?: string }>;
+  created_by?: string;
+  creator?: {
+    full_name?: string;
+    email?: string;
+  };
+  title?: string;
+}
+

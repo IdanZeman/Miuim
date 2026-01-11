@@ -1,22 +1,24 @@
 import { handleAppError } from '../../utils/errorUtils';
 import { logger } from '../../lib/logger';
 import ExcelJS from 'exceljs';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
-import { Person, Team, Role, TaskTemplate, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence } from '@/types';
+import { Person, Team, Role, TaskTemplate, OrganizationSettings, TeamRotation, SchedulingConstraint, DailyPresence, Absence, RotaGenerationHistory } from '@/types';
 import { generateRoster, RosterGenerationResult, PersonHistory } from '@/utils/rotaGenerator';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import { MagicWand as Wand2, CalendarBlank as Calendar, Warning as AlertTriangle, CheckCircle, FloppyDisk as Save, X, Funnel as Filter, ArrowLeft, DownloadSimple as Download, MagnifyingGlass as Search, ArrowRight, Users, CaretDown as ChevronDown, CaretUp as ChevronUp, XCircle, Clock, Calculator, Info, Sparkle as Sparkles, ArrowCounterClockwise as RotateCcw, ArrowsOut as Maximize2, ArrowsIn as Minimize2, CaretRight as ChevronRight, FileXls } from '@phosphor-icons/react';
+import { MagicWand as Wand2, CalendarBlank as Calendar, Warning as AlertTriangle, CheckCircle, FloppyDisk as Save, X, Funnel as Filter, ArrowLeft, DownloadSimple as Download, MagnifyingGlass as Search, ArrowRight, Users, CaretDown as ChevronDown, CaretUp as ChevronUp, XCircle, Clock, Calculator, Info, Sparkle as Sparkles, ArrowCounterClockwise as RotateCcw, ArrowsOut as Maximize2, ArrowsIn as Minimize2, CaretRight as ChevronRight, FileXls, ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { ExportButton } from '../../components/ui/ExportButton';
 
 import { Input } from '@/components/ui/Input';
 import { MultiSelect, MultiSelectOption } from '@/components/ui/MultiSelect';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/features/auth/AuthContext';
 import { supabase } from '@/services/supabaseClient';
 import { mapShiftToDB } from '@/services/supabaseClient';
+import { fetchRotaHistory, saveRotaHistory } from '@/services/rotaHistoryService';
 import { Select } from '@/components/ui/Select';
 import { StaffingAnalysis } from '@/features/stats/StaffingAnalysis';
 import { StatusEditModal } from './StatusEditModal';
@@ -44,6 +46,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     const queryClient = useQueryClient();
     const activePeople = people.filter(p => p.isActive !== false);
     const { showToast } = useToast();
+    const { user } = useAuth();
     // Default to Today -> One Month Ahead
     const [startDate, setStartDate] = useState(() => {
         const d = new Date();
@@ -99,6 +102,11 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
     const [showConstraintDetails, setShowConstraintDetails] = useState(false);
     const [showStatsDetails, setShowStatsDetails] = useState(false);
     const [showExplanation, setShowExplanation] = useState(false);
+
+    // History State
+    const [rotaHistory, setRotaHistory] = useState<RotaGenerationHistory[]>([]);
+    const [showHistory, setShowHistory] = useState(false);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     // Feature: Collapsible Teams
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
@@ -445,6 +453,20 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
         setCustomMinStaff(suggested);
     };
 
+    // Fetch history when modal opens
+    useEffect(() => {
+        if (isOpen && settings?.organization_id) {
+            setLoadingHistory(true);
+            fetchRotaHistory(settings.organization_id)
+                .then(history => {
+                    setRotaHistory(history);
+                })
+                .finally(() => {
+                    setLoadingHistory(false);
+                });
+        }
+    }, [isOpen, settings?.organization_id]);
+
     const handleGenerate = async () => {
         const startTime = performance.now();
         logger.info('AUTO_SCHEDULE', 'Started roster generation', {
@@ -557,6 +579,49 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             console.log('Generation Result:', res);
             setResult(res);
             setStep('preview');
+
+            // Save to history automatically
+            if (settings?.organization_id) {
+                const config = {
+                    startDate,
+                    endDate,
+                    targetTeamIds,
+                    targetRoleIds,
+                    selectionMode,
+                    optimizationMode,
+                    daysBase,
+                    daysHome,
+                    customMinStaff,
+                    userArrivalHour,
+                    userDepartureHour
+                };
+
+                // Convert roster to DailyPresence format for storage
+                const rosterData: DailyPresence[] = res.roster.map(r => ({
+                    date: r.date,
+                    person_id: r.person_id,
+                    organization_id: settings.organization_id,
+                    status: r.status as 'home' | 'base' | 'unavailable' | 'leave',
+                    source: 'algorithm' as const,
+                    start_time: r.start_time,
+                    end_time: r.end_time
+                }));
+
+                saveRotaHistory(
+                    settings.organization_id,
+                    config,
+                    rosterData,
+                    manualOverrides,
+                    user?.id
+                ).then(savedHistory => {
+                    if (savedHistory) {
+                        // Refresh history list
+                        fetchRotaHistory(settings.organization_id).then(history => {
+                            setRotaHistory(history);
+                        });
+                    }
+                });
+            }
 
             const duration = performance.now() - startTime;
             logger.info('AUTO_SCHEDULE', 'Completed roster generation', {
@@ -918,19 +983,37 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
     const configFooter = (
         <div className="flex flex-col gap-3 w-full p-2 md:p-0">
-            <Button
-                onClick={handleGenerate}
-                disabled={generating}
-                isLoading={generating}
-                className="w-full h-14 md:h-10 justify-center text-lg md:text-sm font-black shadow-lg rounded-2xl md:rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
-            >
-                {generating ? 'מייצר סבב...' : (
+            <div className="flex gap-2">
+                <Button
+                    onClick={() => setShowHistory(true)}
+                    variant="outline"
+                    className="h-14 md:h-10 px-4 text-sm font-bold rounded-2xl md:rounded-lg border-slate-300 hover:bg-slate-50"
+                    disabled={loadingHistory}
+                >
                     <div className="flex items-center gap-2">
-                        <Wand2 size={22} className="md:w-5 md:h-5" weight="duotone" />
-                        <span>צור סבב יציאות</span>
+                        <ArrowCounterClockwiseIcon size={18} />
+                        <span className="hidden md:inline">היסטוריה</span>
+                        {rotaHistory.length > 0 && (
+                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-black">
+                                {rotaHistory.length}
+                            </span>
+                        )}
                     </div>
-                )}
-            </Button>
+                </Button>
+                <Button
+                    onClick={handleGenerate}
+                    disabled={generating}
+                    isLoading={generating}
+                    className="flex-1 h-14 md:h-10 justify-center text-lg md:text-sm font-black shadow-lg rounded-2xl md:rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                    {generating ? 'מייצר סבב...' : (
+                        <div className="flex items-center gap-2">
+                            <Wand2 size={22} className="md:w-5 md:h-5" />
+                            <span>צור סבב יציאות</span>
+                        </div>
+                    )}
+                </Button>
+            </div>
         </div>
     );
 
@@ -1263,7 +1346,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                 >
                                                     <div className="flex md:flex-col items-center gap-4 md:gap-2 text-right md:text-center">
                                                         <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${optimizationMode === 'ratio' ? 'bg-white/20' : 'bg-slate-100'}`}>
-                                                            <RotateCcw size={20} className={optimizationMode === 'ratio' ? 'text-white' : 'text-slate-400'} weight="duotone" />
+                                                            <RotateCcw size={20} className={optimizationMode === 'ratio' ? 'text-white' : 'text-slate-400'} />
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-base md:text-sm font-black leading-tight">שמירה על יחס יציאות</span>
@@ -2145,6 +2228,142 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             viewStartDate={new Date(startDate)}
                             viewEndDate={new Date(endDate)}
                         />
+                    </div>
+                </GenericModal>
+
+                {/* History Modal */}
+                <GenericModal
+                    isOpen={showHistory}
+                    onClose={() => setShowHistory(false)}
+                    title={
+                        <div className="flex items-center gap-2">
+                            <RotateCcw size={20} className="text-blue-600" weight="duotone" />
+                            <span>היסטוריית גרסאות</span>
+                        </div>
+                    }
+                    size="lg"
+                >
+                    <div className="p-4 space-y-3">
+                        {loadingHistory ? (
+                            <div className="flex items-center justify-center py-12">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                            </div>
+                        ) : rotaHistory.length === 0 ? (
+                            <div className="text-center py-12 text-slate-500">
+                                <RotateCcw size={48} className="mx-auto mb-4 opacity-30" weight="duotone" />
+                                <p className="font-bold">אין גרסאות קודמות</p>
+                                <p className="text-sm mt-2">צור סבב ראשון כדי להתחיל</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-blue-900 text-sm">
+                                    <p className="font-bold">💡 טיפ:</p>
+                                    <p className="mt-1">לחץ על גרסה כדי לשחזר אותה ולהציג בתצוגה מקדימה</p>
+                                </div>
+                                <div className="space-y-2 max-h-96 overflow-y-auto">
+                                    {rotaHistory.map((history, index) => {
+                                        const createdAt = new Date(history.created_at);
+                                        const isRecent = Date.now() - createdAt.getTime() < 1000 * 60 * 60; // Last hour
+
+                                        return (
+                                            <button
+                                                key={history.id}
+                                                onClick={() => {
+                                                    // Restore this generation
+                                                    const config = history.config;
+                                                    setStartDate(config.startDate);
+                                                    setEndDate(config.endDate);
+                                                    setTargetTeamIds(config.targetTeamIds);
+                                                    setTargetRoleIds(config.targetRoleIds);
+                                                    setSelectionMode(config.selectionMode);
+                                                    setOptimizationMode(config.optimizationMode);
+                                                    setDaysBase(config.daysBase);
+                                                    setDaysHome(config.daysHome);
+                                                    setCustomMinStaff(config.customMinStaff);
+                                                    setUserArrivalHour(config.userArrivalHour);
+                                                    setUserDepartureHour(config.userDepartureHour);
+
+                                                    // Set manual overrides if any
+                                                    if (history.manual_overrides) {
+                                                        setManualOverrides(history.manual_overrides);
+                                                    }
+
+                                                    // Create a result object from the stored data
+                                                    const restoredResult: RosterGenerationResult = {
+                                                        roster: history.roster_data.map(d => ({
+                                                            date: d.date,
+                                                            person_id: d.person_id,
+                                                            organization_id: d.organization_id,
+                                                            status: d.status,
+                                                            source: d.source || 'algorithm',
+                                                            start_time: d.start_time,
+                                                            end_time: d.end_time
+                                                        })),
+                                                        stats: {
+                                                            totalDays: Math.ceil((new Date(config.endDate).getTime() - new Date(config.startDate).getTime()) / (1000 * 60 * 60 * 24)),
+                                                            avgStaffPerDay: 0 // Will be calculated if needed
+                                                        },
+                                                        personStatuses: {},
+                                                        warnings: []
+                                                    };
+
+                                                    // Build personStatuses map
+                                                    history.roster_data.forEach(d => {
+                                                        if (!restoredResult.personStatuses[d.date]) {
+                                                            restoredResult.personStatuses[d.date] = {};
+                                                        }
+                                                        restoredResult.personStatuses[d.date][d.person_id] = d.status;
+                                                    });
+
+                                                    setResult(restoredResult);
+                                                    setStep('preview');
+                                                    setShowHistory(false);
+                                                    showToast(`שוחזרה גרסה מ-${createdAt.toLocaleString('he-IL')}`, 'success');
+                                                }}
+                                                className="w-full text-right p-4 bg-white border border-slate-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all"
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            {index === 0 && (
+                                                                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-black">
+                                                                    אחרונה
+                                                                </span>
+                                                            )}
+                                                            {isRecent && (
+                                                                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-black">
+                                                                    חדש
+                                                                </span>
+                                                            )}
+                                                            <span className="text-sm font-bold text-slate-700">
+                                                                {history.title || `גרסה ${rotaHistory.length - index}`}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs text-slate-500 space-y-1">
+                                                            <div>📅 {createdAt.toLocaleString('he-IL', {
+                                                                day: '2-digit',
+                                                                month: '2-digit',
+                                                                year: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}</div>
+                                                            {history.creator?.full_name && (
+                                                                <div>👤 {history.creator.full_name}</div>
+                                                            )}
+                                                            <div>👥 {history.roster_data.length} רשומות</div>
+                                                            {history.manual_overrides && Object.keys(history.manual_overrides).length > 0 && (
+                                                                <div>✏️ {Object.keys(history.manual_overrides).length} שינויים ידניים</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight size={20} className="text-slate-400 shrink-0" />
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
                     </div>
                 </GenericModal>
 
