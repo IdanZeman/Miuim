@@ -63,6 +63,7 @@ export interface OrganizationSettings {
   min_daily_staff?: number; // Minimum people required on base
   optimization_mode?: 'ratio' | 'min_staff' | 'tasks'; // NEW: Default optimization mode
   customFieldsSchema?: CustomFieldDefinition[]; // NEW: Schema for custom fields
+  home_forecast_days?: number; // Days ahead to show leave forecast (default: 30)
 }
 
 

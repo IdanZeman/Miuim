@@ -255,6 +255,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
     const [start, setStart] = useState('22:00');
     const [end, setEnd] = useState('06:00');
     const [viewerDays, setViewerDays] = useState(2);
+    const [homeForecastDays, setHomeForecastDays] = useState(30);
     // New Params
     const [daysOn, setDaysOn] = useState(11);
     const [daysOff, setDaysOff] = useState(3);
@@ -287,6 +288,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 setStart((data.night_shift_start || '22:00').slice(0, 5));
                 setEnd((data.night_shift_end || '06:00').slice(0, 5));
                 setViewerDays(data.viewer_schedule_days || 2);
+                setHomeForecastDays(data.home_forecast_days || 30);
                 setDaysOn(data.default_days_on || 11);
                 setDaysOff(data.default_days_off || 3);
                 setMinStaff(data.min_daily_staff || 0);
@@ -308,6 +310,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 night_shift_start: start,
                 night_shift_end: end,
                 viewer_schedule_days: viewerDays,
+                home_forecast_days: homeForecastDays,
                 default_days_on: daysOn,
                 default_days_off: daysOff,
                 rotation_start_date: rotationStart || null,
@@ -346,8 +349,7 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 </div>
             </div>
 
-            <div className="border-t border-slate-100 pt-6">
-
+            <div className="border-t border-slate-100 pt-6 space-y-4">
 
                 <Input
                     type="number"
@@ -356,6 +358,17 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                     max={30}
                     value={viewerDays}
                     onChange={e => setViewerDays(parseInt(e.target.value))}
+                    className="!bg-gray-50"
+                    containerClassName="w-32"
+                />
+
+                <Input
+                    type="number"
+                    label="צפי יציאות הביתה (ימים)"
+                    min={7}
+                    max={90}
+                    value={homeForecastDays}
+                    onChange={e => setHomeForecastDays(parseInt(e.target.value))}
                     className="!bg-gray-50"
                     containerClassName="w-32"
                 />

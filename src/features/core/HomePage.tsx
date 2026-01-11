@@ -9,6 +9,7 @@ import * as AllIcons from '@phosphor-icons/react';
 import { logger } from '../../services/loggingService';
 import { ClaimProfileModal } from '../auth/ClaimProfileModal';
 import { AnnouncementsWidget } from './AnnouncementsWidget';
+import { LeaveForecastWidget } from './LeaveForecastWidget';
 
 interface HomePageProps {
     shifts: Shift[];
@@ -22,6 +23,7 @@ interface HomePageProps {
 export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams, roles, onNavigate }) => {
     const { user, profile, organization } = useAuth();
     const [viewerDays, setViewerDays] = useState<number>(7);
+    const [homeForecastDays, setHomeForecastDays] = useState<number>(30);
     const [loadingSettings, setLoadingSettings] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [showClaimModal, setShowClaimModal] = useState(false);
@@ -41,12 +43,13 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
             try {
                 const { data, error } = await supabase
                     .from('organization_settings')
-                    .select('viewer_schedule_days')
+                    .select('viewer_schedule_days, home_forecast_days')
                     .eq('organization_id', organization.id)
                     .maybeSingle();
 
                 if (data) {
                     setViewerDays(data.viewer_schedule_days || 7);
+                    setHomeForecastDays(data.home_forecast_days || 30);
                 }
             } catch (err) {
                 console.error('Failed to fetch home settings', err);
@@ -202,6 +205,13 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                             <WarClock myPerson={myPerson} teams={teams} roles={roles} />
                         </div>
                     </div>
+
+                    {/* Leave Forecast Widget */}
+                    <LeaveForecastWidget
+                        myPerson={myPerson}
+                        forecastDays={homeForecastDays}
+                        onNavigate={onNavigate}
+                    />
 
                     {/* Upcoming Schedule */}
                     <div className="space-y-6">
