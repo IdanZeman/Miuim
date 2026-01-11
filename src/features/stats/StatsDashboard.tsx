@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import { Person, Shift, TaskTemplate, Role, Team } from '../../types';
-import { Users, ClipboardText as ClipboardList, MapPin, ChartBar as BarChart3 } from '@phosphor-icons/react';
+import { Users, ClipboardText as ClipboardList, MapPin, ChartBar as BarChart3, ListChecks } from '@phosphor-icons/react';
 import { LocationReport } from './LocationReport';
 import { TaskReports } from './TaskReports';
 import { ManpowerReports } from './ManpowerReports';
+import { CustomFieldsReport } from './CustomFieldsReport';
 import { PageInfo } from '../../components/ui/PageInfo';
 
 interface StatsDashboardProps {
@@ -19,7 +20,7 @@ interface StatsDashboardProps {
    currentUserName?: string;
 }
 
-type ReportType = 'manpower' | 'tasks' | 'location';
+type ReportType = 'manpower' | 'tasks' | 'location' | 'customFields';
 
 export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    people, shifts, tasks, roles, teams, teamRotations = [],
@@ -57,13 +58,13 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
             {/* Top Navigation - Segmented Control Style */}
             {!isViewer && (
                <div
-                  className="bg-slate-100/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200 shadow-sm flex w-full md:w-auto min-w-[320px]"
+                  className="bg-slate-100/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200 shadow-sm flex w-full md:w-auto md:min-w-[320px]"
                   role="tablist"
                   aria-label="סוגי דוחות"
                >
                   <button
                      onClick={() => setReportType('manpower')}
-                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'manpower'
+                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-2 md:px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'manpower'
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
@@ -73,11 +74,11 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      id="tab-manpower"
                   >
                      <Users size={18} aria-hidden="true" weight="duotone" />
-                     <span className="whitespace-nowrap">כוח אדם</span>
+                     <span className={reportType === 'manpower' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>כוח אדם</span>
                   </button>
                   <button
                      onClick={() => setReportType('tasks')}
-                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'tasks'
+                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-2 md:px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'tasks'
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
@@ -87,11 +88,11 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      id="tab-tasks"
                   >
                      <ClipboardList size={18} aria-hidden="true" weight="duotone" />
-                     <span>שיבוץ</span>
+                     <span className={reportType === 'tasks' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>שיבוץ</span>
                   </button>
                   <button
                      onClick={() => setReportType('location')}
-                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'location'
+                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-2 md:px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'location'
                         ? 'bg-white text-blue-600 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                         }`}
@@ -101,7 +102,21 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      id="tab-location"
                   >
                      <MapPin size={18} aria-hidden="true" weight="duotone" />
-                     <span>מיקום</span>
+                     <span className={reportType === 'location' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>מיקום</span>
+                  </button>
+                  <button
+                     onClick={() => setReportType('customFields')}
+                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-2 md:px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'customFields'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                     role="tab"
+                     aria-selected={reportType === 'customFields'}
+                     aria-controls="report-content"
+                     id="tab-customFields"
+                  >
+                     <ListChecks size={18} aria-hidden="true" weight="duotone" />
+                     <span className={reportType === 'customFields' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>שדות מותאמים</span>
                   </button>
                </div>
             )}
@@ -136,6 +151,14 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   taskTemplates={tasks}
                   teamRotations={teamRotations}
                   teams={teams}
+               />
+            )}
+
+            {reportType === 'customFields' && (
+               <CustomFieldsReport
+                  people={activePeople}
+                  teams={teams}
+                  roles={roles}
                />
             )}
          </div>
