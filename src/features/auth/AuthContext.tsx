@@ -35,16 +35,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkAccess = (screen: ViewMode, requiredLevel: 'view' | 'edit' = 'view'): boolean => {
     if (!profile) return false;
 
-    // Map 'absences' view to 'attendance' permission, and 'org-logs' to 'logs'
     // Map battalion views to 'battalion' permission
-    const permissionKey = screen === 'absences' ? 'attendance' :
-      screen === 'org-logs' ? 'logs' :
-        screen === 'battalion-home' || screen === 'battalion-personnel' || screen === 'battalion-attendance' || screen === 'battalion-settings' ? 'battalion' :
-          screen;
+    const permissionKey = screen === 'battalion-home' || screen === 'battalion-personnel' || screen === 'battalion-attendance' || screen === 'battalion-settings' ? 'battalion' :
+      screen;
 
-    // Always allow home, dashboard, contact, faq, and gate for authenticated users
-    // Battalion views require explicit permissions
-    if (['home', 'dashboard', 'contact', 'faq', 'gate'].includes(screen)) return true;
 
     // Super Admin has access to everything
     if (profile.is_super_admin) return true;
@@ -58,6 +52,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
     }
+
+    // Always allow home, dashboard, contact, faq, and gate for authenticated users (VIEW level only)
+    // if not explicitly overridden by permissions above
+    if (requiredLevel === 'view' && ['home', 'dashboard', 'contact', 'faq', 'gate', 'lottery'].includes(screen)) return true;
 
     // Default to false if no permission granted
     return false;

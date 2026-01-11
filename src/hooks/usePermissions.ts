@@ -23,7 +23,7 @@ export const usePermissions = () => {
             case 'admin': return true;
             case 'editor': return screen !== 'settings' && screen !== 'system' && screen !== 'logs';
             case 'viewer': return ['dashboard', 'stats', 'lottery', 'equipment'].includes(screen);
-            case 'attendance_only': return ['attendance', 'dashboard'].includes(screen);
+            case 'attendance_only': return ['attendance', 'dashboard', 'absences'].includes(screen);
             default: return false;
         }
     };
@@ -45,7 +45,7 @@ export const usePermissions = () => {
         switch (role) {
             case 'admin': return true;
             case 'editor': return !['settings', 'system', 'logs'].includes(screen);
-            case 'attendance_only': return screen === 'attendance';
+            case 'attendance_only': return screen === 'attendance' || screen === 'absences';
             case 'viewer': return false;
             default: return false;
         }
@@ -70,10 +70,10 @@ export const usePermissions = () => {
             return items.filter(item => {
                 const teamId = item.teamId;
                 if (teamId && allowedTeams.includes(teamId)) return true;
-                
+
                 // If it's a person/soldier
                 if (item.hasOwnProperty('teamId')) {
-                   return allowedTeams.includes((item as any).teamId);
+                    return allowedTeams.includes((item as any).teamId);
                 }
 
                 // If it's a shift
@@ -93,7 +93,7 @@ export const usePermissions = () => {
             if (!currentPerson) return [];
 
             // For 'my_team', we use the person's teamId as the allowed team
-            const targetTeamIds = scope === 'my_team' 
+            const targetTeamIds = scope === 'my_team'
                 ? (currentPerson.teamId ? [currentPerson.teamId] : [])
                 : [];
 
@@ -120,7 +120,7 @@ export const usePermissions = () => {
                 if (scope === 'personal') {
                     // If it's the person record itself
                     if (item.id === currentPerson.id) return true;
-                    
+
                     // If it's an assignment (Shift, Equipment)
                     if (item.assignedPersonIds?.includes(currentPerson.id)) return true;
                     if (item.personId === currentPerson.id) return true;

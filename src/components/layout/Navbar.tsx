@@ -21,7 +21,8 @@ import {
     ChartBarIcon as BarChart3,
     FileTextIcon,
     AnchorIcon,
-    ActivityIcon
+    ActivityIcon,
+    DiceFiveIcon as Dices
 } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ViewMode, Profile } from '../../types';
@@ -80,11 +81,12 @@ const TABS: NavItem[] = [
         label: 'אנשים ונוכחות',
         icon: Users,
         primaryView: 'personnel',
-        views: ['personnel', 'attendance', 'absences'],
+        views: ['personnel', 'attendance', 'absences', 'lottery'],
         subItems: [
             { label: 'ניהול כוח אדם', view: 'personnel', icon: Users, description: 'ניהול חיילים, צוותים ותפקידים' },
             { label: 'יומן נוכחות', view: 'attendance', icon: ClockIcon, description: 'מעקב נוכחות ודוחות יומיים' },
-            { label: 'בקשות יציאה', view: 'absences', icon: UserX, description: 'ניהול היעדרויות ואישורי חופשה' }
+            { label: 'בקשות יציאה', view: 'absences', icon: UserX, description: 'ניהול היעדרויות ואישורי חופשה' },
+            { label: 'הגרלות', view: 'lottery', icon: Dices, description: 'הגרלת זוכים' }
         ]
     },
     {
@@ -275,14 +277,35 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
         if (setView) setView(view);
     };
 
-    const filteredTabs = TABS.filter(tab => {
+    const filteredTabs = TABS.reduce<NavItem[]>((acc, tab) => {
         // Special logic for Battalion Tab: Hide if NOT in HQ context
         if (tab.id === 'battalion' && (!organization || !organization.is_hq)) {
-            return false;
+            return acc;
         }
-        // All tabs now rely on RBAC checkAccess - no special cases
-        return tab.views.some(v => checkAccess(v as ViewMode));
-    });
+
+        // Filter sub-items based on access
+        const visibleSubItems = tab.subItems?.filter(item => checkAccess(item.view)) || [];
+
+        // Determine the actual default view for this tab
+        // It should be the first accessible sub-item, or the primaryView if it's accessible
+        let actualPrimaryView = tab.primaryView;
+        const isPrimaryAccessible = checkAccess(tab.primaryView);
+
+        if (!isPrimaryAccessible && visibleSubItems.length > 0) {
+            actualPrimaryView = visibleSubItems[0].view;
+        }
+
+        // If the main view is accessible OR there are visible sub-items, show the tab
+        if (isPrimaryAccessible || visibleSubItems.length > 0) {
+            acc.push({
+                ...tab,
+                primaryView: actualPrimaryView,
+                subItems: visibleSubItems.length > 0 ? visibleSubItems : undefined
+            });
+        }
+
+        return acc;
+    }, []);
 
     const displayName = profile?.full_name || user?.email?.split('@')[0] || 'משתמש';
     const userInitials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);

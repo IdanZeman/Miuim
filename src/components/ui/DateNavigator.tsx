@@ -13,6 +13,8 @@ interface DateNavigatorProps {
     canGoNext?: boolean;
     className?: string;
     showTodayButton?: boolean;
+    minDate?: Date;
+    maxDate?: Date;
 }
 
 export const DateNavigator: React.FC<DateNavigatorProps> = ({
@@ -23,7 +25,9 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
     canGoPrev = true,
     canGoNext = true,
     className,
-    showTodayButton = true
+    showTodayButton = true,
+    minDate,
+    maxDate
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -132,7 +136,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
         <div ref={containerRef} className={`flex items-center gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-200 select-none relative ${className || ''}`}>
             <button
                 onClick={handlePrev}
-                disabled={!canGoPrev}
+                disabled={!canGoPrev || (minDate && date <= startOfDay(minDate))}
                 className="flex items-center justify-center h-9 w-9 rounded-md text-slate-700 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label={mode === 'day' ? "יום קודם" : "חודש קודם"}
             >
@@ -182,7 +186,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
 
             <button
                 onClick={handleNext}
-                disabled={!canGoNext}
+                disabled={!canGoNext || (maxDate && date >= startOfDay(maxDate))}
                 className="flex items-center justify-center h-9 w-9 rounded-md text-slate-700 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label={mode === 'day' ? "יום הבא" : "חודש הבא"}
             >
@@ -204,6 +208,8 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                         onChange={(d) => { onDateChange(d); setIsOpen(false); }}
                         onClose={() => setIsOpen(false)}
                         selectionMode={mode === 'month' ? 'month' : 'day'}
+                        minDate={minDate}
+                        maxDate={maxDate}
                     />
                 </div>,
                 document.body
@@ -211,3 +217,9 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
         </div>
     );
 };
+
+function startOfDay(date: Date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}

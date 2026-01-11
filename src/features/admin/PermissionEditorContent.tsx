@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, Check, Shield, Users, Lock, SquaresFour as Layout, UserCircle, Info, Anchor, Gavel, Pulse as Activity, Gear as Settings, CheckCircle, Lightning as Zap } from '@phosphor-icons/react';
+import { Globe, Check, Shield, Users, Lock, SquaresFour as Layout, UserCircle, Info, Anchor, Gavel, Pulse as Activity, Gear as Settings, CheckCircle, Lightning as Zap, UserMinus } from '@phosphor-icons/react';
 import { UserPermissions, Team, ViewMode } from '../../types';
 
 const SCREENS: { id: ViewMode; label: string; icon: any; isBattalion?: boolean }[] = [
@@ -7,6 +7,7 @@ const SCREENS: { id: ViewMode; label: string; icon: any; isBattalion?: boolean }
     { id: 'personnel', label: 'ניהול כוח אדם', icon: Users },
     { id: 'tasks', label: 'משימות', icon: CheckCircle },
     { id: 'attendance', label: 'נוכחות', icon: UserCircle },
+    { id: 'absences', label: 'בקשות יציאה', icon: UserMinus },
     { id: 'stats', label: 'דוחות ונתונים', icon: Info },
     { id: 'constraints', label: 'ניהול אילוצים', icon: Anchor },
     { id: 'lottery', label: 'הגרלות', icon: Gavel },

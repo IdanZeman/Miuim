@@ -9,7 +9,7 @@ interface SidebarProps {
     onClose: () => void;
     currentView?: ViewMode;
     setView?: (view: ViewMode) => void;
-    checkAccess: (screen: ViewMode) => boolean;
+    checkAccess: (screen: ViewMode, requiredLevel?: 'view' | 'edit') => boolean;
     isPublic?: boolean;
 }
 
@@ -182,7 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                         </button>
                     )}
 
-                    {checkAccess('attendance') && (
+                    {checkAccess('absences') && (
                         <button
                             className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'absences'
                                 ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
@@ -219,25 +219,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                             onClick={() => { setView('stats'); onClose() }}
                         >
                             <FileText size={22} weight="duotone" className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                            <span>{(profile?.role === 'viewer' || profile?.role === 'attendance_only') ? 'דוח אישי' : 'דוחות'}</span>
+                            <span>{!checkAccess('stats', 'edit') ? 'דוח אישי' : 'דוחות'}</span>
                         </button>
                     )}
 
-                    {(profile?.is_super_admin ||
-                        profile?.role === 'admin' ||
-                        profile?.permissions?.screens?.['logs'] === 'view' ||
-                        profile?.permissions?.screens?.['logs'] === 'edit') && (
-                            <button
-                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'org-logs'
-                                    ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
-                                    : 'hover:bg-slate-50 text-slate-700'
-                                    }`}
-                                onClick={() => { setView('org-logs'); onClose() }}
-                            >
-                                <Activity size={22} weight="duotone" className={currentView === 'org-logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
-                                <span>יומן פעילות</span>
-                            </button>
-                        )}
+                    {checkAccess('org-logs') && (
+                        <button
+                            className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'org-logs'
+                                ? 'bg-yellow-50 text-slate-900 font-bold border-r-4 border-idf-yellow'
+                                : 'hover:bg-slate-50 text-slate-700'
+                                }`}
+                            onClick={() => { setView('org-logs'); onClose() }}
+                        >
+                            <Activity size={22} weight="duotone" className={currentView === 'org-logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <span>יומן פעילות</span>
+                        </button>
+                    )}
 
                     {checkAccess('equipment') && (
                         <button

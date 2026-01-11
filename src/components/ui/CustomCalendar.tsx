@@ -8,6 +8,8 @@ interface CustomCalendarProps {
     onChange: (date: Date) => void;
     onClose?: () => void;
     selectionMode?: 'day' | 'month';
+    minDate?: Date;
+    maxDate?: Date;
 }
 
 type CalendarView = 'days' | 'months' | 'years';
@@ -16,7 +18,9 @@ export const CustomCalendar: React.FC<CustomCalendarProps> = ({
     value,
     onChange,
     onClose,
-    selectionMode = 'day'
+    selectionMode = 'day',
+    minDate,
+    maxDate
 }) => {
     const [currentMonth, setCurrentMonth] = useState(value || new Date());
     const [view, setView] = useState<CalendarView>(selectionMode === 'month' ? 'months' : 'days');
@@ -102,19 +106,27 @@ export const CustomCalendar: React.FC<CustomCalendarProps> = ({
                             textClass = "text-[rgba(0,23,84,0.15)]";
                         }
 
+                        const isDisabled = (minDate && dayItem < startOfDay(minDate)) || (maxDate && dayItem > endOfDay(maxDate));
+
+                        if (isDisabled) {
+                            textClass = "text-slate-200";
+                            bgClass = "bg-transparent cursor-not-allowed";
+                        }
+
                         return (
                             <div
                                 key={i}
                                 onClick={() => {
+                                    if (isDisabled) return;
                                     onChange(dayItem);
                                     if (onClose) onClose();
                                 }}
                                 className={`
                                     flex justify-center items-center 
-                                    h-14 md:h-12 w-full max-w-[48px] md:max-w-[44px] mx-auto rounded-xl cursor-pointer
+                                    h-14 md:h-12 w-full max-w-[48px] md:max-w-[44px] mx-auto rounded-xl
                                     font-['Lexend'] text-xl md:text-lg font-black transition-all
                                     ${bgClass} ${textClass}
-                                    ${!isSelected && !isTodayItem && "hover:bg-slate-200"}
+                                    ${!isSelected && !isTodayItem && !isDisabled && "hover:bg-slate-200"}
                                 `}
                             >
                                 {format(dayItem, 'd')}
@@ -221,3 +233,16 @@ export const CustomCalendar: React.FC<CustomCalendarProps> = ({
         </div>
     );
 };
+
+// Helper utils for date comparison inside calendar
+function startOfDay(date: Date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function endOfDay(date: Date) {
+    const d = new Date(date);
+    d.setHours(23, 59, 59, 999);
+    return d;
+}

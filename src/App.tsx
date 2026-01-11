@@ -188,7 +188,7 @@ const useMainAppState = () => {
         isLoading: isOrgLoading,
         error: orgError,
         refetch: refetchOrgData
-    } = useOrganizationData(activeOrgId);
+    } = useOrganizationData(activeOrgId || organization?.id, profile?.permissions, user?.id);
 
     const orgIdForActions = activeOrgId || organization?.id;
 
@@ -1117,7 +1117,7 @@ const useMainAppState = () => {
                             teamRotations={state.teamRotations}
                             absences={state.absences}
                             hourlyBlockages={state.hourlyBlockages}
-                            settings={state.organizationSettings}
+                            settings={state.settings}
                             onRefreshData={refetchOrgData}
                         />
 
@@ -1194,7 +1194,7 @@ const useMainAppState = () => {
                     currentPerson={myPerson}
                 />;
             case 'absences':
-                return checkAccess('attendance') ? (
+                return checkAccess('absences') ? (
                     <AbsenceManager
                         people={state.people}
                         absences={state.absences}
@@ -1202,7 +1202,7 @@ const useMainAppState = () => {
                         onUpdateAbsence={handleUpdateAbsence}
                         onDeleteAbsence={handleDeleteAbsence}
                         onUpdatePerson={handleUpdatePerson}
-                        isViewer={!checkAccess('attendance', 'edit')}
+                        isViewer={!checkAccess('absences', 'edit')}
                         shifts={state.shifts}
                         tasks={state.taskTemplates}
                         teams={state.teams}

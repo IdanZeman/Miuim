@@ -90,7 +90,7 @@ const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors, o
 );
 
 export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts = [], absences = [], tasks = [] }) => {
-    const { organization } = useAuth();
+    const { organization, user } = useAuth();
 
     // History State
     const [history, setHistory] = useState<any[]>([]);
@@ -211,7 +211,10 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                 .eq('organization_id', organization.id)
                 .order('created_at', { ascending: false })
                 .limit(20);
-            if (data) setHistory(data);
+            if (data) {
+                console.log('🎲 Lottery History Schema Check:', data[0] || 'No entries yet');
+                setHistory(data);
+            }
         };
         fetchHistory();
     }, [organization?.id]);

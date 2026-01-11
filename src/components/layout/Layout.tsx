@@ -26,21 +26,25 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
 
   // ... (Access check logic remains the same, skipping lines for brevity if possible, keeping context stable)
   // Re-stating critical parts to ensure file integrity during replace
-  const checkAccess = (screen: ViewMode): boolean => {
+  const checkAccess = (screen: ViewMode, requiredLevel: 'view' | 'edit' = 'view'): boolean => {
     // 1. Super Admin always has access
     if (profile?.is_super_admin) return true;
 
-    // 2. Admin Role (Backward Compatibility)
+    // 2. Admin Role (Backward Compatibility - To be removed)
     if (profile?.role === 'admin') return true;
 
     // 3. Check explicit permissions object (New RBAC)
     if (profile?.permissions?.screens) {
       const access = profile?.permissions.screens[screen];
-      if (access) return access !== 'none';
+      if (access) {
+        if (access === 'none') return false;
+        if (requiredLevel === 'edit' && access !== 'edit') return false;
+        return true;
+      }
     }
 
     // 4. Fallback to context check (which we updated to be strict)
-    if (contextCheckAccess) return contextCheckAccess(screen);
+    if (contextCheckAccess) return contextCheckAccess(screen, requiredLevel);
 
     // 5. Default restrictive fallback
     return false;

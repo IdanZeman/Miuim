@@ -307,6 +307,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     };
 
     const handleAttemptAssign = (personId: string) => {
+        if (isViewer) return;
         const p = people.find(x => x.id === personId);
         if (!p) return;
 

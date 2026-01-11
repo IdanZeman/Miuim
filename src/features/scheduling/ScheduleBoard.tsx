@@ -380,12 +380,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const { organization } = useAuth();
     const { showToast } = useToast();
 
-
-
+    // Use settings from prop as primary source, fallback to state or default
+    const currentViewerDaysLimit = settings?.viewer_schedule_days || viewerDaysLimit;
 
     useEffect(() => {
         const fetchSettings = async () => {
-            if (!organization) return;
+            if (!organization || settings?.viewer_schedule_days) return;
             try {
                 const { data, error } = await supabase
                     .from('organization_settings')
@@ -401,7 +401,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             }
         };
         fetchSettings();
-    }, [organization]);
+    }, [organization, settings?.viewer_schedule_days]);
 
     const toggleTeamCollapse = (teamId: string) => {
         const newSet = new Set(collapsedTeams);
@@ -449,16 +449,36 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const maxViewerDate = new Date(today);
-    maxViewerDate.setDate(today.getDate() + (viewerDaysLimit - 1));
+    const maxViewerDate = useMemo(() => {
+        const d = new Date(today);
+        d.setDate(today.getDate() + (currentViewerDaysLimit - 1));
+        return d;
+    }, [today, currentViewerDaysLimit]);
 
-    const isAtViewerLimit = selectedDate >= maxViewerDate;
+    const isAtViewerLimit = useMemo(() => {
+        const startOfSelected = new Date(selectedDate);
+        startOfSelected.setHours(0, 0, 0, 0);
+        return startOfSelected >= maxViewerDate;
+    }, [selectedDate, maxViewerDate]);
 
     const canGoNext = !isViewer || !isAtViewerLimit;
     const canGoPrev = true;
 
 
     const handleDateChange = (newDate: Date) => {
+        // Enforce limit in code as well
+        if (isViewer && maxViewerDate) {
+            const startOfNewDate = new Date(newDate);
+            startOfNewDate.setHours(0, 0, 0, 0);
+            const startOfMaxDate = new Date(maxViewerDate);
+            startOfMaxDate.setHours(0, 0, 0, 0);
+
+            if (startOfNewDate > startOfMaxDate) {
+                showToast(`לפי הגדרות המערכת, ניתן לצפות עד ${maxViewerDate.toLocaleDateString('he-IL')}`, 'info');
+                return;
+            }
+        }
+
         onDateChange(newDate);
         analytics.trackDateChanged(newDate.toISOString());
         logger.log({
@@ -630,6 +650,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             onDateChange={handleDateChange}
                             canGoPrev={canGoPrev}
                             canGoNext={canGoNext}
+                            maxDate={isViewer ? maxViewerDate : undefined}
                             className="flex-1 md:w-auto"
                         />
 

@@ -574,6 +574,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             mode={viewMode === 'calendar' ? 'month' : 'day'}
                             className="w-full justify-between border-none bg-transparent h-9"
                             showTodayButton={true}
+                            maxDate={isViewer ? (() => {
+                                const days = settings?.viewer_schedule_days || 7;
+                                const d = new Date();
+                                d.setHours(0, 0, 0, 0);
+                                d.setDate(d.getDate() + (days - 1));
+                                return d;
+                            })() : undefined}
                         />
                     </div>
                 </div>
@@ -729,6 +736,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 else setSelectedDate(d);
                             }}
                             mode={(viewMode === 'calendar' || viewMode === 'table') ? 'month' : 'day'}
+                            maxDate={isViewer ? (() => {
+                                const days = settings?.viewer_schedule_days || 7;
+                                const d = new Date();
+                                d.setHours(0, 0, 0, 0);
+                                d.setDate(d.getDate() + (days - 1));
+                                return d;
+                            })() : undefined}
                         />
 
                         {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
