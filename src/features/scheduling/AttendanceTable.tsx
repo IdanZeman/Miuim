@@ -667,65 +667,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     const isFirstDayHome = (prevAvail.status === 'base' || prevAvail.status === 'full' || prevAvail.status === 'arrival') && avail.status === 'home';
                                                                     const isLastDayHome = (nextAvail.status === 'base' || nextAvail.status === 'full' || nextAvail.status === 'departure') && avail.status === 'home';
 
-                                                                    if (isFirstDayHome && isLastDayHome) {
-                                                                        // Single day partial absence
-                                                                        cellBg = "bg-amber-50/60 text-amber-900";
-                                                                        themeColor = "bg-amber-500";
-                                                                        content = (
-                                                                            <div className="flex flex-col items-center justify-center relative w-full h-full">
-                                                                                {isUnapprovedExit && (
-                                                                                    <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
-                                                                                        <AlertCircle size={10} weight="fill" />
-                                                                                    </div>
-                                                                                )}
-                                                                                <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="duotone" />
-                                                                                <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יציאה/חזרה</span>
-                                                                                <span className="text-[9px] font-bold opacity-70">
-                                                                                    {avail.startHour} - {avail.endHour}
-                                                                                </span>
-                                                                                {constraintText}
-                                                                            </div>
-                                                                        );
-                                                                    } else if (isFirstDayHome) {
-                                                                        // OVERRIDE: Render as Departure (Exit Day)
-                                                                        cellBg = "bg-amber-50/60 text-amber-900";
-                                                                        themeColor = "bg-amber-500";
-                                                                        content = (
-                                                                            <div className="flex flex-col items-center justify-center relative w-full h-full">
-                                                                                {isUnapprovedExit && (
-                                                                                    <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
-                                                                                        <AlertCircle size={10} weight="fill" />
-                                                                                    </div>
-                                                                                )}
-                                                                                <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="duotone" />
-                                                                                <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יציאה</span>
-                                                                                <span className="text-[9px] font-bold opacity-70">
-                                                                                    {avail.startHour !== '00:00' ? avail.startHour : ''}
-                                                                                </span>
-                                                                                {constraintText}
-                                                                            </div>
-                                                                        );
-                                                                    } else if (isLastDayHome) {
-                                                                        // OVERRIDE: Render as Return (Last Day Home)
-                                                                        cellBg = "bg-indigo-50/60 text-indigo-900";
-                                                                        themeColor = "bg-indigo-500";
-                                                                        content = (
-                                                                            <div className="flex flex-col items-center justify-center relative w-full h-full">
-                                                                                {isUnapprovedExit && (
-                                                                                    <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
-                                                                                        <AlertCircle size={10} weight="fill" />
-                                                                                    </div>
-                                                                                )}
-                                                                                <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-indigo-500"} weight="duotone" />
-                                                                                <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>חזרה</span>
-                                                                                <span className="text-[9px] font-bold opacity-70">
-                                                                                    {avail.endHour !== '23:59' ? avail.endHour : ''}
-                                                                                </span>
-                                                                                {constraintText}
-                                                                            </div>
-                                                                        );
-                                                                    }
-                                                                    else if (avail.status === 'home' || avail.status === 'unavailable' || !avail.isAvailable) {
+                                                                    if (avail.status === 'home' || avail.status === 'unavailable' || !avail.isAvailable) {
                                                                         cellBg = "bg-red-50/70 text-red-800";
                                                                         themeColor = "bg-red-400";
                                                                         const isConstraint = avail.status === 'unavailable';
