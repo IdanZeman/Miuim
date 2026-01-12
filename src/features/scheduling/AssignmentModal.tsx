@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, SchedulingConstraint } from '../../types';
+import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, SchedulingConstraint, InterPersonConstraint } from '../../types';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -29,6 +29,7 @@ interface AssignmentModalProps {
     onUpdateShift: (shift: Shift) => void;
     onToggleCancelShift: (shiftId: string) => void;
     constraints: SchedulingConstraint[];
+    interPersonConstraints?: InterPersonConstraint[];
 }
 
 export const AssignmentModal: React.FC<AssignmentModalProps> = ({
@@ -46,7 +47,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     onUnassign,
     onUpdateShift,
     onToggleCancelShift,
-    constraints
+    constraints,
+    interPersonConstraints = []
 }) => {
     // -------------------------------------------------------------------------
     // 1. STATE & HOOKS (Preserved Logic)
@@ -340,11 +342,55 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 type: "warning",
                 onConfirm: () => {
                     setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                    checkInterPersonAndAssign(p);
+                }
+            });
+            return;
+        }
+        checkInterPersonAndAssign(p);
+    };
+
+    const checkInterPersonAndAssign = (p: Person) => {
+        // Find if this assignment violates any inter-person constraints in organization settings
+        const violations = (interPersonConstraints || []).filter(ipc => {
+            if (ipc.type !== 'forbidden_together') return false;
+
+            // Check if current person matches condition A or B
+            const matchesA = p.customFields?.[ipc.fieldA] === ipc.valueA;
+            const matchesB = p.customFields?.[ipc.fieldB] === ipc.valueB;
+
+            if (matchesA || matchesB) {
+                // Check if any ALREADY ASSIGNED person in THIS SHIFT matches the other condition
+                const assignedPeople = selectedShift.assignedPersonIds.map(id => people.find(ap => ap.id === id)).filter(Boolean);
+
+                return assignedPeople.some(ap => {
+                    const assignedMatchesA = ap?.customFields?.[ipc.fieldA] === ipc.valueA;
+                    const assignedMatchesB = ap?.customFields?.[ipc.fieldB] === ipc.valueB;
+
+                    if (matchesA && assignedMatchesB) return true;
+                    if (matchesB && assignedMatchesA) return true;
+                    return false;
+                });
+            }
+            return false;
+        });
+
+        if (violations.length > 0) {
+            const violationDesc = violations[0].description || "אילוץ בין-אישי";
+            setConfirmationState({
+                isOpen: true,
+                title: 'סתירה באילוץ בין-אישי',
+                message: `שיבוץ זה סותר את האילוץ: "${violationDesc}". האם ברצונך לשבץ בכל זאת?`,
+                confirmText: "שבץ בכל זאת",
+                type: "danger",
+                onConfirm: () => {
+                    setConfirmationState(prev => ({ ...prev, isOpen: false }));
                     checkTeamAndAssign(p);
                 }
             });
             return;
         }
+
         checkTeamAndAssign(p);
     };
 

@@ -605,6 +605,22 @@ const useMainAppState = () => {
         }
     };
 
+    const handleUpdateInterPersonConstraints = async (newConstraints: import('./types').InterPersonConstraint[]) => {
+        if (!organization?.id) return;
+        try {
+            const { error } = await supabase
+                .from('organization_settings')
+                .update({ inter_person_constraints: newConstraints })
+                .eq('organization_id', organization.id);
+            if (error) throw error;
+            await refetchOrgData();
+            showToast('אילוצים עודכנו בהצלחה', 'success');
+        } catch (e) {
+            console.error('Update InterPerson Constraints Error:', e);
+            showToast('שגיאה בעדכון אילוצים', 'error');
+        }
+    };
+
     const handleUpdateConstraint = async (c: SchedulingConstraint) => {
         try {
             await supabase.from('scheduling_constraints').update(mapConstraintToDB(c)).eq('id', c.id);
@@ -1219,7 +1235,20 @@ const useMainAppState = () => {
                 absences={state.absences}
                 tasks={state.taskTemplates}
             />;
-            case 'constraints': return <ConstraintsManager people={state.people} teams={state.teams} roles={state.roles} tasks={state.taskTemplates} constraints={state.constraints} onAddConstraint={handleAddConstraint} onDeleteConstraint={handleDeleteConstraint} isViewer={!checkAccess('constraints', 'edit')} organizationId={orgIdForActions || ''} />;
+            case 'constraints': return <ConstraintsManager
+                people={state.people}
+                teams={state.teams}
+                roles={state.roles}
+                tasks={state.taskTemplates}
+                constraints={state.constraints}
+                interPersonConstraints={state.settings?.interPersonConstraints || []}
+                customFieldsSchema={state.settings?.customFieldsSchema || []}
+                onAddConstraint={handleAddConstraint}
+                onDeleteConstraint={handleDeleteConstraint}
+                onUpdateInterPersonConstraints={handleUpdateInterPersonConstraints}
+                isViewer={!checkAccess('constraints', 'edit')}
+                organizationId={orgIdForActions || ''}
+            />;
             case 'faq': return <FAQPage onNavigate={setView} />;
             case 'contact': return <ContactPage />;
             case 'system': return profile?.is_super_admin ? <SystemManagementPage /> : <Navigate to="/" />;

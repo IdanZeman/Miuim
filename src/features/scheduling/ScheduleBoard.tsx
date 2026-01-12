@@ -257,8 +257,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const activePeople = useMemo(() => people.filter(p => p.isActive !== false), [people]);
     const { profile } = useAuth();
     // Scroll Synchronization Refs
-    const headerScrollRef = useRef<HTMLDivElement>(null);
-    const bodyScrollRef = useRef<HTMLDivElement>(null);
     const verticalScrollRef = useRef<HTMLDivElement>(null);
 
     // FIXED HEIGHT CONTAINER to ensure internal scrolling works
@@ -310,33 +308,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         }
     }, [selectedDate]);
 
-    // Synchronize horizontal scrolling between header and body
-    useEffect(() => {
-        const headerElement = headerScrollRef.current;
-        const bodyElement = bodyScrollRef.current;
-
-        if (!headerElement || !bodyElement) return;
-
-        const handleHeaderScroll = () => {
-            if (bodyElement.scrollLeft !== headerElement.scrollLeft) {
-                bodyElement.scrollLeft = headerElement.scrollLeft;
-            }
-        };
-
-        const handleBodyScroll = () => {
-            if (headerElement.scrollLeft !== bodyElement.scrollLeft) {
-                headerElement.scrollLeft = bodyElement.scrollLeft;
-            }
-        };
-
-        headerElement.addEventListener('scroll', handleHeaderScroll);
-        bodyElement.addEventListener('scroll', handleBodyScroll);
-
-        return () => {
-            headerElement.removeEventListener('scroll', handleHeaderScroll);
-            bodyElement.removeEventListener('scroll', handleBodyScroll);
-        };
-    }, []);
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
     const [selectedReportShiftId, setSelectedReportShiftId] = useState<string | null>(null);
     const selectedShift = useMemo(() => shifts.find(s => s.id === selectedShiftId), [shifts, selectedShiftId]);
@@ -757,7 +728,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 {/* Scrollable Grid Area */}
                 <div
                     ref={verticalScrollRef}
-                    className="flex-1 overflow-y-auto relative border-t border-slate-200"
+                    className="flex-1 overflow-auto relative border-t border-slate-200"
                 >
 
                     {/* MOBILE VIEW - Removed internal scroll to let parent handle it */}
@@ -778,12 +749,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     </div>
 
 
-                    {/* DESKTOP VIEW */}
-                    {/* ************************************************* */}
-                    {/* GRID CONTAINER - הפריסה הדו-ממדית. אין גלילה כאן! */}
-                    {/* ************************************************* */}
                     <div
-                        className="hidden md:grid relative"
+                        className="hidden md:grid relative min-w-max"
                         // Grid: עמודה 1 (ציר שעות) רוחב קבוע. עמודה 2 תופסת את השאר.
                         style={{ gridTemplateColumns: 'min-content 1fr' }}
                     >
@@ -805,13 +772,12 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         {/* זה חייב להכיל את הגלילה האופקית כדי להיות מסונכרן עם CELL 2,2 */}
                         {/* ======================================================== */}
                         <div
-                            // הכותרת נדבקת למעלה, ומאלצת את התוכן הפנימי לגלול אופקית.
-                            ref={headerScrollRef}
-                            className="sticky top-0 z-30 bg-white shadow-sm border-b border-slate-200 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']"
+                            // הכותרת נדבקת למעלה. גלילה אופקית מנוהלת ע"י ההורה verticalScrollRef.
+                            className="sticky top-0 z-30 bg-white shadow-sm border-b border-slate-200"
                             style={{ height: HEADER_HEIGHT }}
                         >
                             {/* Task Headers: הרוחב המינימלי יוצר את הגלילה ב-overflow-x-auto של ההורה */}
-                            <div className="flex relative min-w-full">
+                            <div className="flex relative">
                                 {visibleTasks.map(task => (
                                     <div
                                         key={task.id}
@@ -846,11 +812,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         {/* CELL 2,2: MAIN CONTENT (גוף המשימות) - גלילה אופקית פנימית */}
                         {/* ======================================================== */}
                         <div
-                            ref={bodyScrollRef}
-                            className="relative overflow-x-auto"
+                            className="relative"
                         >
                             {/* ה-min-w-max כאן חשוב כדי שכל המשמרות יכנסו */}
-                            <div className="flex relative min-w-full">
+                            <div className="flex relative">
 
                                 {visibleTasks.map(task => {
                                     const dateKey = selectedDate.toLocaleDateString('en-CA');
@@ -982,6 +947,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     selectedDate={selectedDate}
                     teamRotations={teamRotations}
                     constraints={constraints}
+                    interPersonConstraints={settings?.interPersonConstraints || []}
                     isViewer={isViewer}
                     onClose={() => setSelectedShiftId(null)}
                     onAssign={onAssign}
