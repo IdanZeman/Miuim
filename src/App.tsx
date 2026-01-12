@@ -226,7 +226,7 @@ const useMainAppState = () => {
     // For V1 Performance: We simply invalidate the query to refetch fresh data
     const queryClient = useQueryClient();
     const refreshData = () => {
-        return queryClient.invalidateQueries({ queryKey: ['organizationData', activeOrgId] });
+        return queryClient.invalidateQueries({ queryKey: ['organizationData', activeOrgId, user?.id] });
     };
 
     const myPerson = React.useMemo(() => {
@@ -347,13 +347,24 @@ const useMainAppState = () => {
     };
 
     const handleUpdatePerson = async (p: Person) => {
+        // Optimistic Update
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
+            if (!old) return old;
+            return {
+                ...old,
+                people: old.people.map((person: Person) => person.id === p.id ? p : person),
+                allPeople: (old.allPeople || []).map((person: Person) => person.id === p.id ? p : person)
+            };
+        });
+
         try {
             const { error } = await supabase.from('people').update(mapPersonToDB(p)).eq('id', p.id);
             if (error) throw error;
             await logger.logUpdate('person', p.id, p.name, state.people.find(person => person.id === p.id), p);
-            refreshData(); // Re-fetch in background
+            refreshData();
         } catch (e: any) {
             console.warn("DB Update Failed:", e);
+            refreshData(); // Revert
             throw e;
         }
     };
@@ -643,8 +654,10 @@ const useMainAppState = () => {
     // I will assume absences table exists and was used (it was in fetched data).
 
     const handleAddAbsence = async (a: Absence) => {
+        if (!orgIdForActions) return;
+
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -653,17 +666,20 @@ const useMainAppState = () => {
         });
 
         try {
+            const { error } = await supabase.from('absences').insert(mapAbsenceToDB({ ...a, organization_id: orgIdForActions }));
+            if (error) throw error;
             await refreshData();
             await logger.logCreate('absence', a.id, 'בקשת יציאה - סנכרון', a);
         } catch (e: any) {
-            logger.error('ERROR', 'Failed to refresh after adding absence', e);
+            logger.error('ERROR', 'Failed to add absence', e);
             console.warn(e);
+            showToast('שגיאה בשמירת בקשת יציאה', 'error');
         }
     };
 
-    const handleUpdateAbsence = async (a: Absence) => {
+    const handleUpdateAbsence = async (a: Absence, presenceUpdates?: any[]) => {
         // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId], (old: any) => {
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -671,12 +687,28 @@ const useMainAppState = () => {
             };
         });
 
-        await refreshData();
+        try {
+            const { error: absenceError } = await supabase.from('absences').update(mapAbsenceToDB(a)).eq('id', a.id);
+            if (absenceError) throw absenceError;
+
+            if (presenceUpdates && presenceUpdates.length > 0) {
+                const { error: presenceError } = await supabase
+                    .from('daily_presence')
+                    .upsert(presenceUpdates, { onConflict: 'date,person_id,organization_id' });
+                if (presenceError) throw presenceError;
+            }
+
+            await refreshData();
+        } catch (e: any) {
+            console.warn("DB Update Failed:", e);
+            showToast("שגיאה בעדכון בקשת יציאה", 'error');
+        }
     };
 
-    const handleDeleteAbsence = async (id: string) => {
-        // Optimistic Update
-        queryClient.setQueryData(['organizationData', activeOrgId], (old: any) => {
+    const handleDeleteAbsence = async (id: string, presenceUpdates?: any[]) => {
+        // Optimistic Update (Absence removal is already handled by common flow, 
+        // but person sync might have happened via handleUpdatePerson call before this)
+        queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
             if (!old) return old;
             return {
                 ...old,
@@ -685,11 +717,21 @@ const useMainAppState = () => {
         });
 
         try {
-            await supabase.from('absences').delete().eq('id', id);
-            await refreshData();
+            const { error: absenceError } = await supabase.from('absences').delete().eq('id', id);
+            if (absenceError) throw absenceError;
+
+            if (presenceUpdates && presenceUpdates.length > 0) {
+                const { error: presenceError } = await supabase
+                    .from('daily_presence')
+                    .upsert(presenceUpdates, { onConflict: 'date,person_id,organization_id' });
+                if (presenceError) throw presenceError;
+            }
+
+            refreshData();
         } catch (e) {
             console.warn("DB Delete Failed", e);
             showToast("שגיאה במחיקת היעדרות", 'error');
+            refreshData(); // Revert
         }
     };
 

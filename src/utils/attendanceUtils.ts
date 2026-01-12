@@ -1,4 +1,4 @@
-import { Person, TeamRotation } from '../types';
+import { Person, TeamRotation, Absence } from '../types';
 
 export const getRotationStatusForDate = (date: Date, rotation: TeamRotation) => {
     const start = new Date(rotation.start_date);
@@ -26,9 +26,9 @@ const isSameDate = (dateStr: string, target: Date) => {
 };
 
 export const getEffectiveAvailability = (
-    person: Person, 
-    date: Date, 
-    teamRotations: TeamRotation[], 
+    person: Person,
+    date: Date,
+    teamRotations: TeamRotation[],
     absences: import('../types').Absence[] = [],
     hourlyBlockages: import('../types').HourlyBlockage[] = []
 ) => {
@@ -36,12 +36,12 @@ export const getEffectiveAvailability = (
 
     // 1. Manual Override & Absences
     let unavailableBlocks: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[] = [];
-    
+
     // A. Collect blocks from Absences (Approved/Pending)
-    const relevantAbsences = absences.filter(a => 
-        a.person_id === person.id && 
+    const relevantAbsences = absences.filter(a =>
+        a.person_id === person.id &&
         a.status !== 'rejected' && // Show pending/approved
-        dateKey >= a.start_date && 
+        dateKey >= a.start_date &&
         dateKey <= a.end_date
     );
 
@@ -63,8 +63,8 @@ export const getEffectiveAvailability = (
     });
 
     // B. Collect blocks from HourlyBlockages (NEW)
-    const relevantHourlyBlockages = hourlyBlockages.filter(b => 
-        b.person_id === person.id && 
+    const relevantHourlyBlockages = hourlyBlockages.filter(b =>
+        b.person_id === person.id &&
         (b.date === dateKey || b.date.startsWith(dateKey))
     );
 
@@ -84,7 +84,7 @@ export const getEffectiveAvailability = (
 
         const manual = person.dailyAvailability[dateKey];
         let status = manual.status || 'full';
-        
+
         // Normalize 'base' to 'full' for UI consistency
         if (status === 'base') status = 'full';
 
@@ -99,7 +99,7 @@ export const getEffectiveAvailability = (
         if (manual.unavailableBlocks) {
             unavailableBlocks = [...unavailableBlocks, ...manual.unavailableBlocks];
         }
-        
+
         return { ...manual, status, source: manual.source || 'manual', unavailableBlocks };
     }
 
@@ -107,10 +107,10 @@ export const getEffectiveAvailability = (
     // If we have full-day absence blocks, status should be 'home' or 'unavailable'
     let derivedStatus = 'full' as any;
     let isAvailable = true;
-    
+
     // Check for APPROVED full day coverage
-    const fullDayAbsence = unavailableBlocks.find(b => 
-        b.start === '00:00' && 
+    const fullDayAbsence = unavailableBlocks.find(b =>
+        b.start === '00:00' &&
         b.end === '23:59' &&
         (b.status === 'approved') // Only approved blocks count as hard unavailability
     );
@@ -119,21 +119,21 @@ export const getEffectiveAvailability = (
         isAvailable = false;
     }
 
-    let result = { 
-        isAvailable, 
-        startHour: '00:00', 
-        endHour: '23:59', 
-        status: derivedStatus, 
-        source: fullDayAbsence ? 'absence' : 'default', 
-        unavailableBlocks 
+    let result = {
+        isAvailable,
+        startHour: '00:00',
+        endHour: '23:59',
+        status: derivedStatus,
+        source: fullDayAbsence ? 'absence' : 'default',
+        unavailableBlocks
     };
 
     // 2. Personal Rotation
     if (person.personalRotation?.isActive && person.personalRotation.startDate) {
         const [y, m, dStr] = person.personalRotation.startDate.split('-').map(Number);
         const start = new Date(y, m - 1, dStr);
-        const d = new Date(date); 
-        d.setHours(0,0,0,0);
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
         const diffTime = d.getTime() - start.getTime();
         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
@@ -161,26 +161,66 @@ export const getEffectiveAvailability = (
         if (rotation) {
             const rotStatus = getRotationStatusForDate(date, rotation);
             if (rotStatus && result.isAvailable) { // Only apply if not already marked unavailable by absence
-                 if (rotStatus === 'home') result = { ...result, isAvailable: false, startHour: '00:00', endHour: '00:00', status: rotStatus, source: 'rotation' };
-                 else result = { ...result, isAvailable: true, startHour: '00:00', endHour: '23:59', status: rotStatus, source: 'rotation' };
+                if (rotStatus === 'home') result = { ...result, isAvailable: false, startHour: '00:00', endHour: '00:00', status: rotStatus, source: 'rotation' };
+                else result = { ...result, isAvailable: true, startHour: '00:00', endHour: '23:59', status: rotStatus, source: 'rotation' };
             }
         }
     }
-    
+
     // DEBUG: Decision Trace for Dvir
     // Check various name forms just in case
     if (person.name.includes('דביר') || person.id.includes('dvir')) {
         const dbEntry = person.dailyAvailability?.[dateKey];
-        
+
         // Widen filter to catch what's on screen (Dec 27, 28) and the problematic Dec 30
-        if (dateKey >= '2025-12-27' && dateKey <= '2026-01-05') { 
+        if (dateKey >= '2025-12-27' && dateKey <= '2026-01-05') {
             if (dbEntry) {
-                 console.log(`[Trace-Dvir] ${dateKey} | Raw DB:`, JSON.stringify(dbEntry), `-> Final Status: ${result.status}`);
+                console.log(`[Trace-Dvir] ${dateKey} | Raw DB:`, JSON.stringify(dbEntry), `-> Final Status: ${result.status}`);
             } else {
-                 console.log(`[Trace-Dvir] ${dateKey} | No DB Entry (Used ${result.source}) -> Final: ${result.status}`);
+                console.log(`[Trace-Dvir] ${dateKey} | No DB Entry (Used ${result.source}) -> Final: ${result.status}`);
             }
         }
     }
-    
+
     return result;
+};
+
+/**
+ * Dynamic Status Calculation based on DAILY AVAILABILITY (Source of Truth)
+ * This handles cases where state might be desynced but daily_presence is updated.
+ */
+export const getComputedAbsenceStatus = (person: Person, absence: Absence | null | undefined): { status: 'approved' | 'rejected' | 'pending' | 'partially_approved' } => {
+    if (!absence) return { status: 'pending' };
+
+    // If we have an explicit optimistic status (that is NOT pending), use it. 
+    if (absence.status && absence.status !== 'pending') return { status: absence.status as any };
+
+    const start = new Date(absence.start_date);
+    const end = new Date(absence.end_date);
+
+    let totalDays = 0;
+    let homeDays = 0;
+    let baseDays = 0;
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        totalDays++;
+        const dateKey = d.toLocaleDateString('en-CA');
+        const availability = person.dailyAvailability?.[dateKey];
+
+        if (!availability) {
+            continue;
+        }
+
+        if (availability.status === 'home' || availability.status === 'leave' || availability.isAvailable === false) {
+            homeDays++;
+        } else if (availability.status === 'base' || availability.status === 'arrival' || availability.status === 'departure' || availability.isAvailable === true) {
+            baseDays++;
+        }
+    }
+
+    if (homeDays === totalDays && totalDays > 0) return { status: 'approved' };
+    if (homeDays > 0 && homeDays < totalDays) return { status: 'partially_approved' };
+    if (baseDays === totalDays && totalDays > 0 && absence.status === 'rejected') return { status: 'rejected' };
+
+    return { status: 'pending' };
 };

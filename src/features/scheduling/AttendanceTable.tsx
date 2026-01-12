@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, Absence, TaskTemplate } from '@/types';
 import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle } from '@phosphor-icons/react';
-import { getEffectiveAvailability, getRotationStatusForDate } from '@/utils/attendanceUtils';
+import { getEffectiveAvailability, getRotationStatusForDate, getComputedAbsenceStatus } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
 import { logger } from '@/services/loggingService';
@@ -620,14 +620,18 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     const isExitRequest = !!relevantAbsence;
 
                                                                     // Show Text if there is a matching Absence Record
-                                                                    const isUnapprovedExit = isExitRequest && relevantAbsence?.status !== 'approved';
+                                                                    // A request is "Unapproved" only if it is explicitly NOT approved/partially_approved
+                                                                    const absenceStatus = relevantAbsence ? getComputedAbsenceStatus(person, relevantAbsence).status : 'pending';
+                                                                    const isApproved = absenceStatus === 'approved' || absenceStatus === 'partially_approved';
+                                                                    const isUnapprovedExit = isExitRequest && !isApproved;
+
                                                                     const constraintText = isExitRequest ? (
                                                                         <span
                                                                             data-testid="exit-request-label"
-                                                                            className={`text-[9px] font-bold -mt-0.5 whitespace-nowrap scale-90 flex items-center gap-1 ${isUnapprovedExit ? 'text-red-600' : 'text-red-600/80'}`}
+                                                                            className={`text-[9px] font-bold -mt-0.5 whitespace-nowrap scale-90 flex items-center gap-1 ${isUnapprovedExit ? 'text-red-600' : 'text-slate-500'}`}
                                                                         >
-                                                                            {relevantAbsence?.status === 'rejected' && <span className="opacity-60 text-[8px]">(נדחה)</span>}
-                                                                            {relevantAbsence?.status === 'pending' && <span className="opacity-60 text-[8px]">(ממתין)</span>}
+                                                                            {absenceStatus === 'rejected' && <span className="opacity-60 text-[8px]">(נדחה)</span>}
+                                                                            {absenceStatus === 'pending' && <span className="opacity-60 text-[8px]">(ממתין)</span>}
                                                                             {isViewer ? 'היעדרות' : (relevantAbsence?.reason || 'בקשת יציאה')}
                                                                         </span>
                                                                     ) : null;

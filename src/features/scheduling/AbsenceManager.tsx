@@ -3,8 +3,8 @@ import ExcelJS from 'exceljs';
 import { ActionBar } from '@/components/ui/ActionBar';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { Person, Absence } from '@/types';
-import { addAbsence, deleteAbsence, updateAbsence, upsertDailyPresence } from '@/services/supabaseClient';
 import { useToast } from '@/contexts/ToastContext';
+import { getComputedAbsenceStatus } from '@/utils/attendanceUtils';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
     CalendarBlank as CalendarIcon,
@@ -55,8 +55,8 @@ interface AbsenceManagerProps {
     people: Person[];
     absences: Absence[];
     onAddAbsence: (absence: Absence) => void;
-    onUpdateAbsence: (absence: Absence) => void;
-    onDeleteAbsence: (id: string) => void;
+    onUpdateAbsence: (absence: Absence, presenceUpdates?: any[]) => void;
+    onDeleteAbsence: (id: string, presenceUpdates?: any[]) => void;
     onUpdatePerson: (p: Person) => void;
     isViewer?: boolean;
     onNavigateToAttendance?: () => void;
@@ -150,13 +150,10 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     // Approval Modal State
     const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
     const [approvingAbsence, setApprovingAbsence] = useState<Absence | null>(null);
-    // Optimistic UI State
-    const [pendingUpdates, setPendingUpdates] = useState<Record<string, Partial<Absence>>>({});
     const [approvalStartDate, setApprovalStartDate] = useState<string>('');
     const [approvalEndDate, setApprovalEndDate] = useState<string>('');
     const [approvalDepartureTime, setApprovalDepartureTime] = useState('10:00');
     const [approvalReturnTime, setApprovalReturnTime] = useState('14:00'); // Return to base time if relevant, or just end of leave
-
 
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [conflictModalState, setConflictModalState] = useState<{
@@ -167,47 +164,11 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('date');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-    // Sync pendingUpdates when props change
-    React.useEffect(() => {
-        setPendingUpdates({});
-    }, [absences.length, selectedPersonId]);
+    const selectedPerson = useMemo(() => people.find(p => p.id === selectedPersonId) || null, [people, selectedPersonId]);
+
 
     // --- Helpers ---
-    // Dynamic Status Calculation based on DAILY AVAILABILITY (Source of Truth)
-    const getComputedAbsenceStatus = (person: Person, absence: Absence): { status: 'approved' | 'rejected' | 'pending' | 'partially_approved' } => {
-        // If we have an explicit optimistic status (that is NOT pending), usage it. 
-        // If it is pending, CheckIcon DB (dailyAvailability).
-        if (absence.status && absence.status !== 'pending') return { status: absence.status as any };
-
-        const start = new Date(absence.start_date);
-        const end = new Date(absence.end_date);
-
-        let totalDays = 0;
-        let homeDays = 0;
-        let baseDays = 0;
-
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-            totalDays++;
-            const dateKey = d.toLocaleDateString('en-CA');
-            const availability = person.dailyAvailability?.[dateKey];
-
-            if (!availability) {
-                continue;
-            }
-
-            if (availability.status === 'home' || availability.status === 'leave') {
-                homeDays++;
-            } else if (availability.status === 'base' || availability.status === 'arrival' || availability.status === 'departure') {
-                baseDays++;
-            }
-        }
-
-        if (homeDays === totalDays && totalDays > 0) return { status: 'approved' };
-        if (homeDays > 0 && homeDays < totalDays) return { status: 'partially_approved' };
-        if (baseDays === totalDays && totalDays > 0 && absence.status === 'rejected') return { status: 'rejected' };
-
-        return { status: 'pending' };
-    };
+    // Moved getComputedAbsenceStatus to attendanceUtils.ts
     const filteredPeople = useMemo(() => {
         return activePeople.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name, 'he'));
     }, [activePeople, searchTerm]);
@@ -353,13 +314,14 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                         approved_at: new Date().toISOString()
                     } : {})
                 };
-                await updateAbsence(updated);
+
+                let upsertData: any[] | undefined = undefined;
 
                 // SYNC Logic: If status changed and involves 'approved'
                 if (statusChanged) {
                     const start = new Date(formStartDate);
                     const end = new Date(formEndDate);
-                    const upsertData = [];
+                    upsertData = [];
 
                     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                         const dateStr = d.toLocaleDateString('en-CA');
@@ -378,8 +340,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     }
 
                     if (upsertData.length > 0) {
-                        await upsertDailyPresence(upsertData);
-
                         // Update Local Person State
                         const person = people.find(p => p.id === formPersonId);
                         if (person) {
@@ -398,12 +358,12 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     }
                 }
 
-                onUpdateAbsence(updated);
-                setPendingUpdates(prev => ({ ...prev, [updated.id]: updated }));
-                showToast(statusChanged ? 'הסטטוס והנוכחות עודכנו' : 'ההיעדרות עודכנה בהצלחה', 'success');
+                onUpdateAbsence(updated, upsertData);
+                showToast(statusChanged ? 'הסטטוס והנוכחות עודכנה' : 'ההיעדרות עודכנה בהצלחה', 'success');
             } else {
                 // Add
-                const newAbsence = await addAbsence({
+                const newAbsence: Absence = {
+                    id: crypto.randomUUID(), // Temp ID, will be replaced by DB if handled in App.tsx
                     person_id: formPersonId,
                     organization_id: organization.id,
                     start_date: formStartDate,
@@ -412,7 +372,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                     end_time: finalEndTime,
                     reason: formReason,
                     status: 'pending' // Always pending initially for new requests
-                });
+                };
                 onAddAbsence(newAbsence);
                 showToast('הבקשה נשלחה לאישור', 'success');
                 await logger.logCreate('absence', newAbsence.id, 'בקשת יציאה', newAbsence);
@@ -470,12 +430,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 approved_at: new Date().toISOString()
             };
 
-            await updateAbsence(updated);
-
-            if (updates.length > 0) {
-                await upsertDailyPresence(updates);
-            }
-
             const person = people.find(p => p.id === approvingAbsence.person_id);
             if (person) {
                 const newAvailability = { ...(person.dailyAvailability || {}) };
@@ -491,8 +445,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 onUpdatePerson({ ...person, dailyAvailability: newAvailability });
             }
 
-            setPendingUpdates(prev => ({ ...prev, [updated.id]: updated }));
-            onUpdateAbsence(updated);
+            onUpdateAbsence(updated, updates);
             showToast('הבקשה אושרה והנוכחות עודכנה', 'success');
             setIsApprovalModalOpen(false);
             setApprovingAbsence(null);
@@ -579,12 +532,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 approved_by: profile.id,
                 approved_at: new Date().toISOString()
             };
-            await updateAbsence(updated);
-
-            // 2. Upsert Daily Presence
-            if (updates.length > 0) {
-                await upsertDailyPresence(updates);
-            }
 
             // 3. Update Person Daily Availability JSON
             const person = people.find(p => p.id === absence.person_id);
@@ -602,8 +549,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 onUpdatePerson({ ...person, dailyAvailability: newAvailability });
             }
 
-            setPendingUpdates(prev => ({ ...prev, [updated.id]: updated }));
-            onUpdateAbsence(updated);
+            onUpdateAbsence(updated, updates);
             showToast('הבקשה נדחתה והנוכחות עודכנה לבסיס', 'info');
             await logger.logUpdate('absence', updated.id, 'נדחתה בקשת יציאה', absence, updated);
         } catch (e) {
@@ -615,11 +561,45 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
     const handleDelete = async () => {
         if (!deleteConfirmId) return;
+        const absence = absences.find(a => a.id === deleteConfirmId);
+        if (!absence) return;
+
         try {
-            await deleteAbsence(deleteConfirmId);
-            onDeleteAbsence(deleteConfirmId);
-            showToast('ההיעדרות נמחקה', 'success');
-            await logger.logDelete('absence', deleteConfirmId, 'מחיקת בקשת יציאה');
+            // Revert presence to 'base' for the deleted absence range
+            const start = new Date(absence.start_date);
+            const end = new Date(absence.end_date);
+            const updates = [];
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                updates.push({
+                    person_id: absence.person_id,
+                    date: d.toLocaleDateString('en-CA'),
+                    status: 'base' as const,
+                    source: 'manual' as const,
+                    organization_id: organization?.id,
+                    start_time: '00:00',
+                    end_time: '23:59'
+                });
+            }
+
+            // Sync local person state
+            const person = people.find(p => p.id === absence.person_id);
+            if (person) {
+                const newAvailability = { ...(person.dailyAvailability || {}) };
+                updates.forEach(upd => {
+                    newAvailability[upd.date] = {
+                        isAvailable: true,
+                        status: 'base',
+                        startHour: '00:00',
+                        endHour: '23:59',
+                        source: 'manual'
+                    };
+                });
+                onUpdatePerson({ ...person, dailyAvailability: newAvailability });
+            }
+
+            onDeleteAbsence(deleteConfirmId, updates);
+            showToast('ההיעדרות נמחקה והנוכחות שוחזרה', 'success');
+            await logger.logDelete('absence', deleteConfirmId, 'מחיקת בקשת יציאה - שחזור נוכחות');
             setDeleteConfirmId(null);
         } catch (e) {
             logger.error('DELETE', 'Failed to delete absence', e);
@@ -1003,9 +983,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                     const person = people.find(p => p.id === absence.person_id);
                                                     if (!person) return null;
 
-                                                    // Merge with pending updates if any
-                                                    const effectiveAbsence = { ...absence, ...(pendingUpdates[absence.id] || {}) };
-                                                    const status = getComputedAbsenceStatus(person, effectiveAbsence).status;
+                                                    const status = getComputedAbsenceStatus(person, absence).status;
 
                                                     // Status Helpers
                                                     const isApproved = status === 'approved';
@@ -1175,7 +1153,10 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                 const dateStr = date.toLocaleDateString('en-CA');
                                                 const absence = getAbsenceForDate(date);
                                                 const isToday = new Date().toDateString() === date.toDateString();
-                                                const status = absence?.status || 'pending';
+
+                                                // Source of Truth Status
+                                                const computed = (selectedPerson && absence) ? getComputedAbsenceStatus(selectedPerson, absence) : { status: absence?.status || 'pending' };
+                                                const status = computed.status;
 
                                                 return (
                                                     <div
@@ -1188,7 +1169,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                         className={`
                                                     aspect-square rounded-[1.5rem] flex flex-col items-center justify-between p-2 md:p-4 transition-all border-2 relative group overflow-hidden ${canManage ? 'cursor-pointer' : ''}
                                                     ${absence
-                                                                ? (status === 'approved' ? 'bg-emerald-50/40 border-emerald-100/50 text-emerald-900'
+                                                                ? (status === 'approved' || status === 'partially_approved' ? 'bg-emerald-50/40 border-emerald-100/50 text-emerald-900'
                                                                     : status === 'rejected' ? 'bg-rose-50/40 border-rose-100/50 text-rose-900'
                                                                         : 'bg-amber-50/40 border-amber-100/50 text-amber-900')
                                                                 : 'bg-white border-slate-50 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5'}
@@ -1198,7 +1179,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                         {/* Background status accent for absence */}
                                                         {absence && (
                                                             <div className={`absolute top-0 right-0 left-0 h-1.5 transition-all group-hover:h-2
-                                                        ${status === 'approved' ? 'bg-emerald-500' : status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500'}
+                                                        ${status === 'approved' || status === 'partially_approved' ? 'bg-emerald-500' : status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500'}
                                                     `}></div>
                                                         )}
 
@@ -1208,7 +1189,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                             </span>
                                                             {absence && (
                                                                 <div className="shrink-0 p-1.5 rounded-xl bg-white/80 backdrop-blur-sm shadow-sm border border-white/50">
-                                                                    {status === 'approved' && <CheckCircle size={16} className="text-emerald-600" weight="bold" />}
+                                                                    {(status === 'approved' || status === 'partially_approved') && <CheckCircle size={16} className="text-emerald-600" weight="bold" />}
                                                                     {status === 'rejected' && <XCircle size={16} className="text-rose-600" weight="bold" />}
                                                                     {status === 'pending' && <Clock size={16} className="text-amber-600" weight="bold" />}
                                                                 </div>
@@ -1497,9 +1478,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             const person = people.find(p => p.id === absence.person_id);
                             if (!person) return null;
 
-                            // Merge with pending updates if any (consistent with list view)
-                            const effectiveAbsence = { ...absence, ...(pendingUpdates[absence.id] || {}) };
-                            const status = getComputedAbsenceStatus(person, effectiveAbsence).status;
+                            const status = getComputedAbsenceStatus(person, absence).status;
                             const isPending = status === 'pending';
 
                             return (
