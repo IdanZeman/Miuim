@@ -20,6 +20,8 @@ import { ExportButton } from '../../components/ui/ExportButton';
 import { ActionBar, ActionListItem } from '../../components/ui/ActionBar';
 import { Eye, EyeSlash } from '@phosphor-icons/react';
 import { getPersonInitials, formatPhoneNumber } from '../../utils/nameUtils';
+import { PersonnelTableView } from './PersonnelTableView';
+import { Table as TableIcon, SquaresFour as GridIcon } from '@phosphor-icons/react';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -93,6 +95,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     // NEW: Advanced View/Sort State
     const [viewGroupBy, setViewGroupBy] = useState<'teams' | 'roles' | 'none'>('teams');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
     // Form/Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1426,6 +1429,26 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             {sortOrder === 'asc' ? <SortAscending size={20} /> : <SortDescending size={20} />}
                         </button>
 
+                        {/* View Mode Toggle - Desktop */}
+                        {activeTab === 'people' && (
+                            <div className="hidden md:flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                                <button
+                                    onClick={() => setViewMode('grid')}
+                                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    title="תצוגת כרטיסים"
+                                >
+                                    <GridIcon size={18} weight={viewMode === 'grid' ? 'bold' : 'regular'} />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    title="תצוגת טבלה"
+                                >
+                                    <TableIcon size={18} weight={viewMode === 'table' ? 'bold' : 'regular'} />
+                                </button>
+                            </div>
+                        )}
+
                         {/* Sort Button - Mobile List Item Style (inside ActionBar modal) */}
                         <div className="md:hidden w-full">
                             <ActionListItem
@@ -1513,269 +1536,316 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     <div className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                         {activeTab === 'people' && (
                             <div className="col-span-full space-y-6">
+                                {viewMode === 'table' && (
+                                    <div className="h-full">
+                                        <PersonnelTableView
+                                            people={(() => {
+                                                const filtered = people
+                                                    .filter(p => p.isActive === false ? showInactive : true)
+                                                    .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                                    .filter(p => filterTeamId === 'all' || (filterTeamId === 'no-team' ? !p.teamId : p.teamId === filterTeamId))
+                                                    .filter(p => filterRoleId === 'all' || (p.roleIds || []).includes(filterRoleId))
+                                                    .filter(p => {
+                                                        if (filterCustomField === 'all') return true;
+                                                        const val = p.customFields?.[filterCustomField];
+                                                        if (val === undefined || val === null) return false;
+                                                        if (Array.isArray(filterCustomValue)) {
+                                                            if (filterCustomValue.length === 0) return true;
+                                                            if (typeof val === 'boolean') return filterCustomValue.includes(val.toString());
+                                                            if (Array.isArray(val)) return val.some(v => filterCustomValue.includes(v));
+                                                            return filterCustomValue.includes(val.toString());
+                                                        }
+                                                        if (!filterCustomValue) return true;
+                                                        if (typeof val === 'boolean') return val.toString() === filterCustomValue;
+                                                        return val.toString().toLowerCase().includes(filterCustomValue.toLowerCase());
+                                                    });
+
+                                                const sorted = [...filtered];
+                                                if (sortOrder === 'asc') sorted.sort((a, b) => a.name.localeCompare(b.name));
+                                                else sorted.sort((a, b) => b.name.localeCompare(a.name));
+                                                return sorted;
+                                            })()}
+                                            teams={teams}
+                                            roles={roles}
+                                            customFieldsSchema={customFieldsSchema}
+                                            onUpdatePerson={onUpdatePerson}
+                                            searchTerm={searchTerm}
+                                            selectedItemIds={selectedItemIds}
+                                            toggleSelection={toggleSelection}
+                                            canEdit={canEdit}
+                                            onEditPerson={handleEditPersonClick}
+                                        />
+                                    </div>
+                                )}
+
+                                {viewMode === 'grid' && (
+                                    <div className="space-y-6">
+                                        {/* (Existing grid content follows below...) */}
 
 
-                                {(() => {
-                                    // 1. Filter
-                                    const filtered = people
-                                        .filter(p => p.isActive === false ? showInactive : true)
-                                        .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-                                        .filter(p => filterTeamId === 'all' || (filterTeamId === 'no-team' ? !p.teamId : p.teamId === filterTeamId))
-                                        .filter(p => filterRoleId === 'all' || (p.roleIds || []).includes(filterRoleId))
-                                        .filter(p => {
-                                            if (filterCustomField === 'all') return true;
-                                            const val = p.customFields?.[filterCustomField];
-                                            if (val === undefined || val === null) return false;
+                                        {(() => {
+                                            // 1. Filter
+                                            const filtered = people
+                                                .filter(p => p.isActive === false ? showInactive : true)
+                                                .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                                .filter(p => filterTeamId === 'all' || (filterTeamId === 'no-team' ? !p.teamId : p.teamId === filterTeamId))
+                                                .filter(p => filterRoleId === 'all' || (p.roleIds || []).includes(filterRoleId))
+                                                .filter(p => {
+                                                    if (filterCustomField === 'all') return true;
+                                                    const val = p.customFields?.[filterCustomField];
+                                                    if (val === undefined || val === null) return false;
 
-                                            if (Array.isArray(filterCustomValue)) {
-                                                if (filterCustomValue.length === 0) return true;
-                                                if (typeof val === 'boolean') {
-                                                    return filterCustomValue.includes(val.toString());
-                                                }
-                                                if (Array.isArray(val)) {
-                                                    return val.some(v => filterCustomValue.includes(v));
-                                                }
-                                                return filterCustomValue.includes(val.toString());
-                                            }
-
-                                            if (!filterCustomValue) return true;
-                                            if (typeof val === 'boolean') {
-                                                return val.toString() === filterCustomValue;
-                                            }
-                                            return val.toString().toLowerCase().includes(filterCustomValue.toLowerCase());
-                                        });
-
-                                    // 2. Sort Helper
-                                    const sortList = (list: Person[]) => {
-                                        const sorted = [...list];
-                                        if (sortOrder === 'asc') return sorted.sort((a, b) => a.name.localeCompare(b.name));
-                                        return sorted.sort((a, b) => b.name.localeCompare(a.name));
-                                    };
-
-                                    // 3. Render Card Helper (Refactored for Mobile List)
-                                    const renderPerson = (person: Person) => {
-                                        const team = teams.find(t => t.id === person.teamId);
-                                        const colorClass = team ? (team.color?.replace('border-', 'bg-') || 'bg-slate-300') : person.color;
-                                        const isSelected = selectedItemIds.has(person.id);
-
-                                        // Prevent default context menu
-                                        const handleContextMenu = (e: React.MouseEvent) => {
-                                            e.preventDefault();
-                                            if (canEdit) {
-                                                setContextMenu({ x: e.clientX, y: e.clientY, person });
-                                            }
-                                        };
-
-                                        return (
-                                            <div
-                                                key={person.id}
-                                                className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
-                                                onTouchStart={(e) => canEdit && handleTouchStart(e, person)}
-                                                onTouchEnd={handleTouchEnd}
-                                                onContextMenu={handleContextMenu}
-                                                onClick={(e) => {
-                                                    if (e.detail > 1) return;
-                                                    if (selectedItemIds.size > 0 || isSelected) {
-                                                        toggleSelection(person.id);
-                                                    } else if (canEdit) {
-                                                        handleEditPersonClick(person);
+                                                    if (Array.isArray(filterCustomValue)) {
+                                                        if (filterCustomValue.length === 0) return true;
+                                                        if (typeof val === 'boolean') {
+                                                            return filterCustomValue.includes(val.toString());
+                                                        }
+                                                        if (Array.isArray(val)) {
+                                                            return val.some(v => filterCustomValue.includes(v));
+                                                        }
+                                                        return filterCustomValue.includes(val.toString());
                                                     }
-                                                }}
-                                            >
-                                                {/* Status Accent (Mobile Only) */}
-                                                <div className={`absolute top-2 bottom-2 right-0 w-1 rounded-l-full transition-all ${person.isActive !== false ? 'bg-indigo-500' : 'bg-slate-300'} md:hidden`} />
 
-                                                {/* Checkbox */}
-                                                {canEdit && (
-                                                    <div onClick={(e) => { e.stopPropagation(); toggleSelection(person.id); }} className="shrink-0 cursor-pointer -mr-1">
-                                                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-sm' : 'border-slate-200 bg-white'}`}>
-                                                            {isSelected && <Check size={14} className="text-white" strokeWidth={3} />}
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                    if (!filterCustomValue) return true;
+                                                    if (typeof val === 'boolean') {
+                                                        return val.toString() === filterCustomValue;
+                                                    }
+                                                    return val.toString().toLowerCase().includes(filterCustomValue.toLowerCase());
+                                                });
 
-                                                {/* Avatar Group */}
-                                                <div className="relative shrink-0">
-                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm md:text-xs shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${colorClass}`}>
-                                                        {getPersonInitials(person.name)}
-                                                    </div>
-                                                </div>
+                                            // 2. Sort Helper
+                                            const sortList = (list: Person[]) => {
+                                                const sorted = [...list];
+                                                if (sortOrder === 'asc') return sorted.sort((a, b) => a.name.localeCompare(b.name));
+                                                return sorted.sort((a, b) => b.name.localeCompare(a.name));
+                                            };
 
-                                                {/* Content Area */}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-0.5">
-                                                        <h4 className={`font-black text-slate-900 text-lg md:text-base tracking-tight truncate ${!person.isActive ? 'text-slate-400 opacity-60' : ''}`}>
-                                                            {person.name}
-                                                        </h4>
-                                                        {!person.isActive && (
-                                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-black rounded-lg uppercase tracking-widest">
-                                                                לא פעיל
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                            // 3. Render Card Helper (Refactored for Mobile List)
+                                            const renderPerson = (person: Person) => {
+                                                const team = teams.find(t => t.id === person.teamId);
+                                                const colorClass = team ? (team.color?.replace('border-', 'bg-') || 'bg-slate-300') : person.color;
+                                                const isSelected = selectedItemIds.has(person.id);
 
-                                                    {/* Labels / Metadata */}
-                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                                        <div className="flex flex-wrap gap-1.5">
-                                                            {(person.roleIds || []).length > 0 ? (
-                                                                (person.roleIds || []).map(rid => {
-                                                                    const r = roles.find(rl => rl.id === rid);
-                                                                    return r ? (
-                                                                        <span key={r.id} className="text-[10px] md:text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">
-                                                                            {r.name}
-                                                                        </span>
-                                                                    ) : null
-                                                                })
-                                                            ) : (
-                                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-lg">ללא תפקיד</span>
-                                                            )}
-                                                        </div>
-                                                        {person.phone && (
-                                                            <div className="flex items-center gap-1 text-[11px] text-slate-400 font-bold tracking-tight">
-                                                                <div className="w-1 h-1 rounded-full bg-slate-200" />
-                                                                {formatPhoneNumber(person.phone)}
+                                                // Prevent default context menu
+                                                const handleContextMenu = (e: React.MouseEvent) => {
+                                                    e.preventDefault();
+                                                    if (canEdit) {
+                                                        setContextMenu({ x: e.clientX, y: e.clientY, person });
+                                                    }
+                                                };
+
+                                                return (
+                                                    <div
+                                                        key={person.id}
+                                                        className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
+                                                        onTouchStart={(e) => canEdit && handleTouchStart(e, person)}
+                                                        onTouchEnd={handleTouchEnd}
+                                                        onContextMenu={handleContextMenu}
+                                                        onClick={(e) => {
+                                                            if (e.detail > 1) return;
+                                                            if (selectedItemIds.size > 0 || isSelected) {
+                                                                toggleSelection(person.id);
+                                                            } else if (canEdit) {
+                                                                handleEditPersonClick(person);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {/* Status Accent (Mobile Only) */}
+                                                        <div className={`absolute top-2 bottom-2 right-0 w-1 rounded-l-full transition-all ${person.isActive !== false ? 'bg-indigo-500' : 'bg-slate-300'} md:hidden`} />
+
+                                                        {/* Checkbox */}
+                                                        {canEdit && (
+                                                            <div onClick={(e) => { e.stopPropagation(); toggleSelection(person.id); }} className="shrink-0 cursor-pointer -mr-1">
+                                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-sm' : 'border-slate-200 bg-white'}`}>
+                                                                    {isSelected && <Check size={14} className="text-white" strokeWidth={3} />}
+                                                                </div>
                                                             </div>
                                                         )}
 
-                                                        {/* Schema Custom Fields */}
-                                                        {(customFieldsSchema || []).map(field => {
-                                                            let val = person.customFields?.[field.key];
-                                                            if (val === undefined || val === null || val === '') return null;
+                                                        {/* Avatar Group */}
+                                                        <div className="relative shrink-0">
+                                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm md:text-xs shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${colorClass}`}>
+                                                                {getPersonInitials(person.name)}
+                                                            </div>
+                                                        </div>
 
-                                                            if (field.type === 'boolean') val = val ? 'כן' : 'לא';
-                                                            if (Array.isArray(val)) val = val.join(', ');
+                                                        {/* Content Area */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-0.5">
+                                                                <h4 className={`font-black text-slate-900 text-lg md:text-base tracking-tight truncate ${!person.isActive ? 'text-slate-400 opacity-60' : ''}`}>
+                                                                    {person.name}
+                                                                </h4>
+                                                                {!person.isActive && (
+                                                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-black rounded-lg uppercase tracking-widest">
+                                                                        לא פעיל
+                                                                    </span>
+                                                                )}
+                                                            </div>
 
-                                                            return (
-                                                                <div key={field.key} className="flex items-center gap-1 text-[10px] bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 max-w-[150px]">
-                                                                    <span className="text-slate-400 font-medium">{field.label}:</span>
-                                                                    <span className="font-bold text-slate-600 truncate">{val.toString()}</span>
+                                                            {/* Labels / Metadata */}
+                                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {(person.roleIds || []).length > 0 ? (
+                                                                        (person.roleIds || []).map(rid => {
+                                                                            const r = roles.find(rl => rl.id === rid);
+                                                                            return r ? (
+                                                                                <span key={r.id} className="text-[10px] md:text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">
+                                                                                    {r.name}
+                                                                                </span>
+                                                                            ) : null
+                                                                        })
+                                                                    ) : (
+                                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-lg">ללא תפקיד</span>
+                                                                    )}
                                                                 </div>
-                                                            );
-                                                        })}
-
-                                                        {/* Orphaned Custom Fields */}
-                                                        {Object.entries(person.customFields || {}).map(([key, val]) => {
-                                                            if (customFieldsSchema.some(f => f.key === key)) return null;
-                                                            if (!val) return null;
-                                                            return (
-                                                                <div key={key} className="flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 max-w-[150px]">
-                                                                    <span className="text-amber-400 font-medium">{key}:</span>
-                                                                    <span className="font-bold text-amber-700 truncate">{val.toString()}</span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-
-                                                {/* Interaction Indicator (Chevron if not selected) */}
-                                                <div className="shrink-0 flex items-center justify-center text-slate-300 md:hidden">
-                                                    <CaretLeftIcon size={18} weight="bold" />
-                                                </div>
-                                            </div>
-                                        );
-                                    };
-
-                                    // 4. Empty State
-                                    if (filtered.length === 0) {
-                                        return (
-                                            <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500">
-                                                <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
-                                                    <MagnifyingGlassIcon size={40} className="text-slate-300" strokeWidth={1.5} />
-                                                </div>
-                                                <p className="text-xl font-black text-slate-900 tracking-tight">לא נמצאו חיילים</p>
-                                                <p className="text-sm font-bold text-slate-400 mt-1">נסה לשנות את מונחי החיפוש או הסינון</p>
-                                            </div>
-                                        );
-                                    }
-
-                                    // MODE: TEAMS
-                                    if (viewGroupBy === 'teams') {
-                                        let items = [...teams, { id: 'no-team', name: 'ללא צוות', color: 'bg-slate-300' } as any];
-                                        if (sortOrder === 'desc') items.sort((a, b) => b.name.localeCompare(a.name));
-                                        else items.sort((a, b) => a.name.localeCompare(b.name));
-
-                                        return items.map(group => {
-                                            let members = filtered.filter(p => group.id === 'no-team' ? !p.teamId : p.teamId === group.id);
-                                            members = sortList(members);
-                                            if (members.length === 0) return null;
-
-                                            const isCollapsed = collapsedTeams.has(group.id);
-
-                                            return (
-                                                <div key={group.id} className="bg-white">
-                                                    <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xl border-y border-slate-100/60 px-5 py-2.5 flex items-center justify-between cursor-pointer shadow-sm" onClick={() => toggleTeamCollapse(group.id)}>
-                                                        <div className="flex items-center gap-2">
-                                                            {canEdit && (
-                                                                <div
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        const allSelected = members.length > 0 && members.every(m => selectedItemIds.has(m.id));
-                                                                        const newSet = new Set(selectedItemIds);
-                                                                        if (allSelected) {
-                                                                            members.forEach(m => newSet.delete(m.id));
-                                                                        } else {
-                                                                            members.forEach(m => newSet.add(m.id));
-                                                                        }
-                                                                        setSelectedItemIds(newSet);
-                                                                    }}
-                                                                    className="p-1 cursor-pointer hover:bg-slate-200 rounded-full transition-colors mx-1"
-                                                                >
-                                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${(members.length > 0 && members.every(m => selectedItemIds.has(m.id))) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
-                                                                        {(members.length > 0 && members.every(m => selectedItemIds.has(m.id))) && <Check size={12} className="text-white" />}
+                                                                {person.phone && (
+                                                                    <div className="flex items-center gap-1 text-[11px] text-slate-400 font-bold tracking-tight">
+                                                                        <div className="w-1 h-1 rounded-full bg-slate-200" />
+                                                                        {formatPhoneNumber(person.phone)}
                                                                     </div>
+                                                                )}
+
+                                                                {/* Schema Custom Fields */}
+                                                                {(customFieldsSchema || []).map(field => {
+                                                                    let val = person.customFields?.[field.key];
+                                                                    if (val === undefined || val === null || val === '') return null;
+
+                                                                    if (field.type === 'boolean') val = val ? 'כן' : 'לא';
+                                                                    if (Array.isArray(val)) val = val.join(', ');
+
+                                                                    return (
+                                                                        <div key={field.key} className="flex items-center gap-1 text-[10px] bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 max-w-[150px]">
+                                                                            <span className="text-slate-400 font-medium">{field.label}:</span>
+                                                                            <span className="font-bold text-slate-600 truncate">{val.toString()}</span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+
+                                                                {/* Orphaned Custom Fields */}
+                                                                {Object.entries(person.customFields || {}).map(([key, val]) => {
+                                                                    if (customFieldsSchema.some(f => f.key === key)) return null;
+                                                                    if (!val) return null;
+                                                                    return (
+                                                                        <div key={key} className="flex items-center gap-1 text-[10px] bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 max-w-[150px]">
+                                                                            <span className="text-amber-400 font-medium">{key}:</span>
+                                                                            <span className="font-bold text-amber-700 truncate">{val.toString()}</span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Interaction Indicator (Chevron if not selected) */}
+                                                        <div className="shrink-0 flex items-center justify-center text-slate-300 md:hidden">
+                                                            <CaretLeftIcon size={18} weight="bold" />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            };
+
+                                            // 4. Empty State
+                                            if (filtered.length === 0) {
+                                                return (
+                                                    <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500">
+                                                        <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
+                                                            <MagnifyingGlassIcon size={40} className="text-slate-300" strokeWidth={1.5} />
+                                                        </div>
+                                                        <p className="text-xl font-black text-slate-900 tracking-tight">לא נמצאו חיילים</p>
+                                                        <p className="text-sm font-bold text-slate-400 mt-1">נסה לשנות את מונחי החיפוש או הסינון</p>
+                                                    </div>
+                                                );
+                                            }
+
+                                            // MODE: TEAMS
+                                            if (viewGroupBy === 'teams') {
+                                                let items = [...teams, { id: 'no-team', name: 'ללא צוות', color: 'bg-slate-300' } as any];
+                                                if (sortOrder === 'desc') items.sort((a, b) => b.name.localeCompare(a.name));
+                                                else items.sort((a, b) => a.name.localeCompare(b.name));
+
+                                                return items.map(group => {
+                                                    let members = filtered.filter(p => group.id === 'no-team' ? !p.teamId : p.teamId === group.id);
+                                                    members = sortList(members);
+                                                    if (members.length === 0) return null;
+
+                                                    const isCollapsed = collapsedTeams.has(group.id);
+
+                                                    return (
+                                                        <div key={group.id} className="bg-white">
+                                                            <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-xl border-y border-slate-100/60 px-5 py-2.5 flex items-center justify-between cursor-pointer shadow-sm" onClick={() => toggleTeamCollapse(group.id)}>
+                                                                <div className="flex items-center gap-2">
+                                                                    {canEdit && (
+                                                                        <div
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                const allSelected = members.length > 0 && members.every(m => selectedItemIds.has(m.id));
+                                                                                const newSet = new Set(selectedItemIds);
+                                                                                if (allSelected) {
+                                                                                    members.forEach(m => newSet.delete(m.id));
+                                                                                } else {
+                                                                                    members.forEach(m => newSet.add(m.id));
+                                                                                }
+                                                                                setSelectedItemIds(newSet);
+                                                                            }}
+                                                                            className="p-1 cursor-pointer hover:bg-slate-200 rounded-full transition-colors mx-1"
+                                                                        >
+                                                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${(members.length > 0 && members.every(m => selectedItemIds.has(m.id))) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                                                                {(members.length > 0 && members.every(m => selectedItemIds.has(m.id))) && <Check size={12} className="text-white" />}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    <h3 className="font-black text-slate-800 text-sm tracking-tight">{group.name}</h3>
+                                                                    <span className="bg-white text-slate-500 text-[10px] px-2 py-0.5 rounded-lg border border-slate-200 font-bold shadow-sm">{members.length}</span>
                                                                 </div>
-                                                            )}
-                                                            <h3 className="font-black text-slate-800 text-sm tracking-tight">{group.name}</h3>
-                                                            <span className="bg-white text-slate-500 text-[10px] px-2 py-0.5 rounded-lg border border-slate-200 font-bold shadow-sm">{members.length}</span>
+                                                                <button className="text-slate-400 p-1 hover:bg-slate-200/50 rounded-lg transition-colors">
+                                                                    {isCollapsed ? <ChevronLeft size={16} strokeWidth={2.5} /> : <ChevronDown size={16} strokeWidth={2.5} />}
+                                                                </button>
+                                                            </div>
+                                                            {!isCollapsed && <div className="divide-y divide-slate-50">{members.map(renderPerson)}</div>}
                                                         </div>
-                                                        <button className="text-slate-400 p-1 hover:bg-slate-200/50 rounded-lg transition-colors">
-                                                            {isCollapsed ? <ChevronLeft size={16} strokeWidth={2.5} /> : <ChevronDown size={16} strokeWidth={2.5} />}
-                                                        </button>
-                                                    </div>
-                                                    {!isCollapsed && <div className="divide-y divide-slate-50">{members.map(renderPerson)}</div>}
-                                                </div>
-                                            );
-                                        });
-                                    }
+                                                    );
+                                                });
+                                            }
 
-                                    // MODE: ROLES
-                                    if (viewGroupBy === 'roles') {
-                                        let items = [...roles];
-                                        if (sortOrder === 'desc') items.sort((a, b) => b.name.localeCompare(a.name));
-                                        else items.sort((a, b) => a.name.localeCompare(b.name));
+                                            // MODE: ROLES
+                                            if (viewGroupBy === 'roles') {
+                                                let items = [...roles];
+                                                if (sortOrder === 'desc') items.sort((a, b) => b.name.localeCompare(a.name));
+                                                else items.sort((a, b) => a.name.localeCompare(b.name));
 
-                                        return items.map(role => {
-                                            let members = filtered.filter(p => (p.roleIds || []).includes(role.id));
-                                            members = sortList(members);
-                                            if (members.length === 0) return null;
+                                                return items.map(role => {
+                                                    let members = filtered.filter(p => (p.roleIds || []).includes(role.id));
+                                                    members = sortList(members);
+                                                    if (members.length === 0) return null;
 
-                                            const isCollapsed = collapsedTeams.has(role.id);
+                                                    const isCollapsed = collapsedTeams.has(role.id);
 
+                                                    return (
+                                                        <div key={role.id} className="bg-white">
+                                                            <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md border-y border-slate-100/60 px-5 py-2.5 flex items-center justify-between cursor-pointer shadow-sm" onClick={() => toggleTeamCollapse(role.id)}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <h3 className="font-black text-slate-800 text-sm tracking-tight">{role.name}</h3>
+                                                                    <span className="bg-white text-slate-500 text-[10px] px-2 py-0.5 rounded-lg border border-slate-200 font-bold shadow-sm">{members.length}</span>
+                                                                </div>
+                                                                <button className="text-slate-400 p-1 hover:bg-slate-200/50 rounded-lg transition-colors">
+                                                                    {isCollapsed ? <ChevronLeft size={16} strokeWidth={2.5} /> : <ChevronDown size={16} strokeWidth={2.5} />}
+                                                                </button>
+                                                            </div>
+                                                            {!isCollapsed && <div className="divide-y divide-slate-50">{members.map(renderPerson)}</div>}
+                                                        </div>
+                                                    );
+                                                });
+                                            }
+
+                                            // MODE: LIST
+                                            const sorted = sortList([...filtered]);
                                             return (
-                                                <div key={role.id} className="bg-white">
-                                                    <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md border-y border-slate-100/60 px-5 py-2.5 flex items-center justify-between cursor-pointer shadow-sm" onClick={() => toggleTeamCollapse(role.id)}>
-                                                        <div className="flex items-center gap-2">
-                                                            <h3 className="font-black text-slate-800 text-sm tracking-tight">{role.name}</h3>
-                                                            <span className="bg-white text-slate-500 text-[10px] px-2 py-0.5 rounded-lg border border-slate-200 font-bold shadow-sm">{members.length}</span>
-                                                        </div>
-                                                        <button className="text-slate-400 p-1 hover:bg-slate-200/50 rounded-lg transition-colors">
-                                                            {isCollapsed ? <ChevronLeft size={16} strokeWidth={2.5} /> : <ChevronDown size={16} strokeWidth={2.5} />}
-                                                        </button>
-                                                    </div>
-                                                    {!isCollapsed && <div className="divide-y divide-slate-50">{members.map(renderPerson)}</div>}
+                                                <div className="flex flex-col">
+                                                    {sorted.map(renderPerson)}
                                                 </div>
                                             );
-                                        });
-                                    }
-
-                                    // MODE: LIST
-                                    const sorted = sortList([...filtered]);
-                                    return (
-                                        <div className="flex flex-col">
-                                            {sorted.map(renderPerson)}
-                                        </div>
-                                    );
-                                })()}
+                                        })()}
+                                    </div>
+                                )}
                             </div>
                         )}
 

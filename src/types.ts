@@ -64,6 +64,17 @@ export interface OrganizationSettings {
   optimization_mode?: 'ratio' | 'min_staff' | 'tasks'; // NEW: Default optimization mode
   customFieldsSchema?: CustomFieldDefinition[]; // NEW: Schema for custom fields
   home_forecast_days?: number; // Days ahead to show leave forecast (default: 30)
+  interPersonConstraints?: InterPersonConstraint[];
+}
+
+export interface InterPersonConstraint {
+  id: string;
+  fieldA: string; // The key of the custom field for Group A
+  valueA: any;    // The value of the custom field for Group A
+  fieldB: string; // The key of the custom field for Group B
+  valueB: any;    // The value of the custom field for Group B
+  type: 'forbidden_together' | 'preferred_together';
+  description?: string;
 }
 
 

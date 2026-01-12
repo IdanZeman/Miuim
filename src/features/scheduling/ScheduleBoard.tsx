@@ -982,6 +982,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     selectedDate={selectedDate}
                     teamRotations={teamRotations}
                     constraints={constraints}
+                    interPersonConstraints={settings?.interPersonConstraints || []}
                     isViewer={isViewer}
                     onClose={() => setSelectedShiftId(null)}
                     onAssign={onAssign}

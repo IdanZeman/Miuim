@@ -138,21 +138,22 @@ export const ActionBar: React.FC<ActionBarProps> = ({
             {/* 2. Desktop Layout - Grouped for Clarity */}
             <div className={`hidden md:flex items-center justify-between gap-4 py-4 px-6 ${className}`}>
                 {/* Right Side (RTL) - Title/Brand */}
-                <div className="flex items-center gap-4 min-w-0 flex-1">
+                <div className="flex items-center gap-4 min-w-0 shrink-0">
                     {leftActions}
                 </div>
 
                 {/* Center Section - View Switchers/Tabs */}
-                <div className="flex justify-center min-w-0 flex-1">
+                {/* We use absolute centering if possible, otherwise flex-1 to fill space */}
+                <div className="flex justify-center min-w-0 flex-1 px-4">
                     {centerActions && (
-                        <div className="flex items-center justify-center shrink-0">
+                        <div className="flex items-center justify-center">
                             {centerActions}
                         </div>
                     )}
                 </div>
 
                 {/* Left side in RTL - Consolidated Actions (Search, Filters, Navigator, Export) */}
-                <div className="flex items-center gap-3 justify-end min-w-0 flex-1">
+                <div className="flex items-center gap-3 justify-end min-w-0 shrink-0">
                     {/* 1. Filters (Consolidated) */}
                     {filters.length > 0 && (
                         <div className="flex items-center gap-2">

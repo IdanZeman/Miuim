@@ -341,7 +341,8 @@ export const mapOrganizationSettingsFromDB = (s: any): import('@/types').Organiz
     rotation_start_date: s.rotation_start_date,
     min_daily_staff: s.min_daily_staff,
     optimization_mode: s.optimization_mode,
-    customFieldsSchema: typeof s.custom_fields_schema === 'string' ? JSON.parse(s.custom_fields_schema) : (s.custom_fields_schema || [])
+    customFieldsSchema: typeof s.custom_fields_schema === 'string' ? JSON.parse(s.custom_fields_schema) : (s.custom_fields_schema || []),
+    interPersonConstraints: typeof s.inter_person_constraints === 'string' ? JSON.parse(s.inter_person_constraints) : (s.inter_person_constraints || [])
 });
 
 export const mapOrganizationSettingsToDB = (s: import('@/types').OrganizationSettings) => ({
@@ -354,5 +355,6 @@ export const mapOrganizationSettingsToDB = (s: import('@/types').OrganizationSet
     rotation_start_date: s.rotation_start_date,
     min_daily_staff: s.min_daily_staff,
     optimization_mode: s.optimization_mode,
-    custom_fields_schema: s.customFieldsSchema || []
+    custom_fields_schema: s.customFieldsSchema || [],
+    inter_person_constraints: s.interPersonConstraints || []
 });

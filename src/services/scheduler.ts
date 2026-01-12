@@ -1,4 +1,4 @@
-import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint, TeamRotation, Absence } from "../types";
+import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint, TeamRotation, Absence, InterPersonConstraint } from "../types";
 import { getEffectiveAvailability } from "../utils/attendanceUtils";
 
 // --- Internal Types for the Algorithm ---
@@ -6,7 +6,7 @@ interface TimelineSegment {
   start: number;
   end: number;
   type: 'TASK' | 'REST' | 'EXTERNAL_CONSTRAINT';
-  subtype?: 'availability' | 'absence' | 'task' | 'rest'; 
+  subtype?: 'availability' | 'absence' | 'task' | 'rest';
   taskId?: string;
   isCritical?: boolean;
   isMismatch?: boolean;
@@ -21,21 +21,21 @@ interface AlgoUser {
 }
 
 export interface SchedulingSuggestion {
-    taskId: string;
-    taskName: string;
-    startTime: number;
+  taskId: string;
+  taskName: string;
+  startTime: number;
+  teamId: string;
+  missingCount: number;
+  alternatives: {
+    name: string;
     teamId: string;
-    missingCount: number;
-    alternatives: {
-        name: string;
-        teamId: string;
-        loadScore: number;
-    }[];
+    loadScore: number;
+  }[];
 }
 
 export interface SchedulingResult {
-    shifts: Shift[];
-    suggestions: SchedulingSuggestion[];
+  shifts: Shift[];
+  suggestions: SchedulingSuggestion[];
 }
 
 interface AlgoTask {
@@ -108,15 +108,15 @@ const initializeUsers = (
 
     // 1. Absences
     absences.forEach(a => {
-        if (a.person_id === p.id) {
-            const aStart = new Date(a.start_date).getTime();
-            const aEnd = new Date(a.end_date).getTime();
-            const dayStart = new Date(targetDate); dayStart.setHours(0,0,0,0);
-            const dayEnd = new Date(targetDate); dayEnd.setHours(23,59,59,999);
-            if (aStart < dayEnd.getTime() && aEnd > dayStart.getTime()) {
-                addToTimeline(algoUser, Math.max(aStart, dayStart.getTime()), Math.min(aEnd, dayEnd.getTime()), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'absence');
-            }
+      if (a.person_id === p.id) {
+        const aStart = new Date(a.start_date).getTime();
+        const aEnd = new Date(a.end_date).getTime();
+        const dayStart = new Date(targetDate); dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(targetDate); dayEnd.setHours(23, 59, 59, 999);
+        if (aStart < dayEnd.getTime() && aEnd > dayStart.getTime()) {
+          addToTimeline(algoUser, Math.max(aStart, dayStart.getTime()), Math.min(aEnd, dayEnd.getTime()), 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'absence');
         }
+      }
     });
 
     // 2. Availability
@@ -145,17 +145,17 @@ const initializeUsers = (
     const dayStart = new Date(targetDate);
     dayStart.setHours(0, 0, 0, 0);
     allShifts.filter(s => s.assignedPersonIds.includes(p.id)).forEach(s => {
-        const shiftStart = new Date(s.startTime).getTime();
-        const shiftEnd = new Date(s.endTime).getTime();
-        if (shiftStart < dayStart.getTime() && shiftEnd > dayStart.getTime()) {
-            const task = taskTemplates.find(t => t.id === s.taskId);
-            const isCritical = task && (task.difficulty >= 4);
-            addToTimeline(algoUser, dayStart.getTime(), shiftEnd, 'TASK', s.taskId, isCritical, undefined, 'task');
-            const minRest = s.requirements?.minRest || 0;
-            if (minRest > 0) {
-                addToTimeline(algoUser, shiftEnd, shiftEnd + (minRest * 60 * 60 * 1000), 'REST', undefined, undefined, undefined, 'rest');
-            }
+      const shiftStart = new Date(s.startTime).getTime();
+      const shiftEnd = new Date(s.endTime).getTime();
+      if (shiftStart < dayStart.getTime() && shiftEnd > dayStart.getTime()) {
+        const task = taskTemplates.find(t => t.id === s.taskId);
+        const isCritical = task && (task.difficulty >= 4);
+        addToTimeline(algoUser, dayStart.getTime(), shiftEnd, 'TASK', s.taskId, isCritical, undefined, 'task');
+        const minRest = s.requirements?.minRest || 0;
+        if (minRest > 0) {
+          addToTimeline(algoUser, shiftEnd, shiftEnd + (minRest * 60 * 60 * 1000), 'REST', undefined, undefined, undefined, 'rest');
         }
+      }
     });
 
     // 4. Future Assignments
@@ -181,8 +181,13 @@ const findBestCandidates = (
   roleId: string,
   count: number,
   relaxationLevel: 1 | 2 | 3 | 4,
-  constraints: SchedulingConstraint[] = []
+  constraints: SchedulingConstraint[] = [],
+  interPersonConstraints: InterPersonConstraint[] = [],
+  allPeople: Person[] = []
 ): AlgoUser[] => {
+  // DEBUG: Check IPCs
+  // if (interPersonConstraints?.length > 0) console.log(`[findBestCandidates] Checking ${interPersonConstraints.length} IPCs for task ${task.taskId}`);
+
   const taskStart = task.startTime;
   const taskEnd = task.endTime;
   const minRestMs = task.minRest * 60 * 60 * 1000;
@@ -192,11 +197,71 @@ const findBestCandidates = (
     if (relaxationLevel < 4 && !(u.person.roleIds || []).includes(roleId)) return false;
 
     // Hard constraints
-    const hasHardBlock = constraints.some(c => 
-      c.personId === u.person.id && c.type === 'never_assign' && 
+    const hasHardBlock = constraints.some(c =>
+      c.personId === u.person.id && c.type === 'never_assign' &&
       (c.startTime && c.endTime && taskStart < new Date(c.endTime).getTime() && taskEnd > new Date(c.startTime).getTime())
     );
     if (hasHardBlock) return false;
+
+    // INTER-PERSON CONSTRAINTS
+    const isForbidden = interPersonConstraints.some(ipc => {
+      if (ipc.type !== 'forbidden_together') return false;
+
+      // Check if current user matches condition A or B
+      const rawValA = u.person.customFields?.[ipc.fieldA];
+      const rawValB = u.person.customFields?.[ipc.fieldB];
+
+      const areValuesEquivalent = (val1: any, val2: any): boolean => {
+        if (val1 === val2) return true;
+        const s1 = String(val1).trim().toLowerCase();
+        const s2 = String(val2).trim().toLowerCase();
+        if (s1 === s2) return true;
+
+        // Handle Boolean <-> Hebrew/English Mapping
+        const isTrue = (s: string) => s === 'true' || s === 'yes' || s === 'כן' || s === '1';
+        const isFalse = (s: string) => s === 'false' || s === 'no' || s === 'לא' || s === '0';
+
+        if (isTrue(s1) && isTrue(s2)) return true;
+        if (isFalse(s1) && isFalse(s2)) return true;
+
+        // Handle Arrays (Multi-Select)
+        if (Array.isArray(val1) && !Array.isArray(val2)) return val1.some(v => areValuesEquivalent(v, val2));
+        if (!Array.isArray(val1) && Array.isArray(val2)) return val2.some(v => areValuesEquivalent(v, val1));
+        if (Array.isArray(val1) && Array.isArray(val2)) return val1.some(v1 => val2.some(v2 => areValuesEquivalent(v1, v2))); // Overlap check
+
+        return false;
+      };
+
+      const matchesA = areValuesEquivalent(rawValA, ipc.valueA);
+      const matchesB = areValuesEquivalent(rawValB, ipc.valueB);
+
+      if (matchesA || matchesB) {
+        // If matches, check if anyone already assigned to this task matches the OTHER condition
+        return task.currentAssignees.some(pid => {
+          const assigned = allPeople.find(p => p.id === pid);
+          if (!assigned) return false;
+
+          const assignedValA = assigned.customFields?.[ipc.fieldA];
+          const assignedValB = assigned.customFields?.[ipc.fieldB];
+
+          const assignedMatchesA = areValuesEquivalent(assignedValA, ipc.valueA);
+          const assignedMatchesB = areValuesEquivalent(assignedValB, ipc.valueB);
+
+          if (matchesA && assignedMatchesB) {
+            console.log(`[IPC Block] ${u.person.name} (${ipc.fieldA}=${rawValA}) blocked by ${assigned.name} (${ipc.fieldB}=${assignedValB})`);
+            return true;
+          }
+          if (matchesB && assignedMatchesA) {
+            console.log(`[IPC Block] ${u.person.name} (${ipc.fieldB}=${rawValB}) blocked by ${assigned.name} (${ipc.fieldA}=${assignedValA})`);
+            return true;
+          }
+          return false;
+        });
+      }
+      return false;
+    });
+
+    if (isForbidden) return false;
 
     // Availability/Rest logic
     let restMs = minRestMs;
@@ -231,6 +296,7 @@ export const solveSchedule = (
   strictOrganicness: boolean = false
 ): SchedulingResult => {
   const { people, taskTemplates, shifts, constraints, settings } = currentState;
+  console.log('[Scheduler] Solve - IPCs in settings:', settings?.interPersonConstraints);
   const suggestions: SchedulingSuggestion[] = [];
 
   const nightStart = settings?.night_shift_start || '21:00';
@@ -242,13 +308,13 @@ export const solveSchedule = (
   let fixedShiftsOnDay: Shift[] = [];
 
   if (specificShiftsToSolve) {
-      shiftsToSolve = specificShiftsToSolve;
-      const solveIds = shiftsToSolve.map(s => s.id);
-      fixedShiftsOnDay = shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === targetDateKey && !solveIds.includes(s.id));
+    shiftsToSolve = specificShiftsToSolve;
+    const solveIds = shiftsToSolve.map(s => s.id);
+    fixedShiftsOnDay = shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === targetDateKey && !solveIds.includes(s.id));
   } else {
-      const allOnDay = shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === targetDateKey && !s.isLocked);
-      shiftsToSolve = selectedTaskIds ? allOnDay.filter(s => selectedTaskIds.includes(s.taskId)) : allOnDay;
-      fixedShiftsOnDay = allOnDay.filter(s => !shiftsToSolve.includes(s));
+    const allOnDay = shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === targetDateKey && !s.isLocked);
+    shiftsToSolve = selectedTaskIds ? allOnDay.filter(s => selectedTaskIds.includes(s.taskId)) : allOnDay;
+    fixedShiftsOnDay = allOnDay.filter(s => !shiftsToSolve.includes(s));
   }
 
   if (shiftsToSolve.length === 0) return { shifts: [], suggestions: [] };
@@ -279,52 +345,56 @@ export const solveSchedule = (
   const processTasks = (tasks: AlgoTask[]) => {
     tasks.forEach(task => {
       if (!task.assignedTeamId && task.requiredPeople > 1) {
-          const teamScores = new Map<string, { load: number; count: number }>();
-          task.roleComposition.forEach(comp => {
-             findBestCandidates(algoUsers, task, comp.roleId, 10, 3, constraints || []).forEach(u => {
-                 if (!u.person.teamId) return;
-                 const s = teamScores.get(u.person.teamId) || { load: 0, count: 0 };
-                 s.count++; s.load += u.loadScore;
-                 teamScores.set(u.person.teamId, s);
-             });
+        const teamScores = new Map<string, { load: number; count: number }>();
+        task.roleComposition.forEach(comp => {
+          findBestCandidates(algoUsers, task, comp.roleId, 10, 3, constraints || [], settings?.interPersonConstraints || [], people).forEach(u => {
+            if (!u.person.teamId) return;
+            const s = teamScores.get(u.person.teamId) || { load: 0, count: 0 };
+            s.count++; s.load += u.loadScore;
+            teamScores.set(u.person.teamId, s);
           });
-          let bestTId: string | undefined; let bestScore = -Infinity;
-          teamScores.forEach((s, tId) => {
-               const score = (Math.min(s.count, task.requiredPeople) / task.requiredPeople * 1000) - (s.load / s.count);
-               if (score > bestScore) { bestScore = score; bestTId = tId; }
-          });
-          (task as any).preferredTeamId = bestTId;
+        });
+        let bestTId: string | undefined; let bestScore = -Infinity;
+        teamScores.forEach((s, tId) => {
+          const score = (Math.min(s.count, task.requiredPeople) / task.requiredPeople * 1000) - (s.load / s.count);
+          if (score > bestScore) { bestScore = score; bestTId = tId; }
+        });
+        (task as any).preferredTeamId = bestTId;
       }
 
       task.roleComposition.forEach(comp => {
         let selected: AlgoUser[] = [];
         const targetTeam = task.assignedTeamId || (task as any).preferredTeamId;
         if (targetTeam) {
-            for (let l = 1; l <= 3; l++) {
-                if (selected.length >= comp.count) break;
-                const members = findBestCandidates(algoUsers, task, comp.roleId, comp.count, l as any, constraints || []).filter(u => u.person.teamId === targetTeam && !selected.includes(u));
-                selected.push(...members.slice(0, comp.count - selected.length));
-            }
+          for (let l = 1; l <= 3; l++) {
+            if (selected.length >= comp.count) break;
+            // FIX: We must fetch ALL valid candidates (limit: algoUsers.length) because the "global top 3" might not be in our team.
+            // If we limit to comp.count immediately, we might slice off the specific team members we need.
+            const candidates = findBestCandidates(algoUsers, task, comp.roleId, algoUsers.length, l as any, constraints || [], settings?.interPersonConstraints || [], people);
+            const members = candidates.filter(u => u.person.teamId === targetTeam && !selected.includes(u));
+            selected.push(...members.slice(0, comp.count - selected.length));
+          }
         }
         if (selected.length < comp.count) {
-            if (strictOrganicness && targetTeam) {
-                const alts = findBestCandidates(algoUsers, task, comp.roleId, 5, 2, constraints || []).filter(u => u.person.teamId !== targetTeam && !selected.includes(u));
-                if (alts.length > 0) {
-                    let sug = suggestions.find(s => s.taskId === task.taskId && s.startTime === task.startTime);
-                    if (!sug) {
-                        sug = { taskId: task.taskId, taskName: taskTemplates.find(t => t.id === task.taskId)?.name || task.taskId, startTime: task.startTime, teamId: targetTeam, missingCount: 0, alternatives: [] };
-                        suggestions.push(sug);
-                    }
-                    sug.missingCount += (comp.count - selected.length);
-                    alts.forEach(a => { if (!sug!.alternatives.some(al => al.name === a.person.name)) sug!.alternatives.push({ name: a.person.name, teamId: a.person.teamId || '', loadScore: a.loadScore }); });
-                }
-            } else {
-                for (let l = 1; l <= 4; l++) {
-                    if (selected.length >= comp.count) break;
-                    const cands = findBestCandidates(algoUsers, task, comp.roleId, comp.count, l as any, constraints || []).filter(u => !selected.includes(u));
-                    selected.push(...cands.slice(0, comp.count - selected.length));
-                }
+          if (strictOrganicness && targetTeam) {
+            // FIX: Similar to above, request more candidates to ensure we find valid alternatives outside the team
+            const alts = findBestCandidates(algoUsers, task, comp.roleId, 50, 2, constraints || [], settings?.interPersonConstraints || [], people).filter(u => u.person.teamId !== targetTeam && !selected.includes(u));
+            if (alts.length > 0) {
+              let sug = suggestions.find(s => s.taskId === task.taskId && s.startTime === task.startTime);
+              if (!sug) {
+                sug = { taskId: task.taskId, taskName: taskTemplates.find(t => t.id === task.taskId)?.name || task.taskId, startTime: task.startTime, teamId: targetTeam, missingCount: 0, alternatives: [] };
+                suggestions.push(sug);
+              }
+              sug.missingCount += (comp.count - selected.length);
+              alts.forEach(a => { if (!sug!.alternatives.some(al => al.name === a.person.name)) sug!.alternatives.push({ name: a.person.name, teamId: a.person.teamId || '', loadScore: a.loadScore }); });
             }
+          } else {
+            for (let l = 1; l <= 4; l++) {
+              if (selected.length >= comp.count) break;
+              const cands = findBestCandidates(algoUsers, task, comp.roleId, comp.count, l as any, constraints || [], settings?.interPersonConstraints || [], people).filter(u => !selected.includes(u));
+              selected.push(...cands.slice(0, comp.count - selected.length));
+            }
+          }
         }
         selected.forEach(u => {
           task.currentAssignees.push(u.person.id);
@@ -338,8 +408,8 @@ export const solveSchedule = (
     });
   };
 
-  processTasks(algoTasks.filter(t => t.isCritical).sort((a,b) => a.startTime - b.startTime));
-  processTasks(algoTasks.filter(t => !t.isCritical).sort((a,b) => a.startTime - b.startTime));
+  processTasks(algoTasks.filter(t => t.isCritical).sort((a, b) => a.startTime - b.startTime));
+  processTasks(algoTasks.filter(t => !t.isCritical).sort((a, b) => a.startTime - b.startTime));
 
   const assignmentMap = new Map<string, string[]>();
   algoTasks.forEach(t => assignmentMap.set(t.shiftId, t.currentAssignees));

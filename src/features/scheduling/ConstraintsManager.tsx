@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Person, Team, SchedulingConstraint, TaskTemplate, Role } from '../../types';
+import { Person, Team, SchedulingConstraint, TaskTemplate, Role, InterPersonConstraint } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MagnifyingGlass as Search, Funnel as Filter, ShieldWarning as ShieldAlert, Briefcase, User, Users, Shield, Prohibit as Ban, PushPin as Pin, Trash as Trash2, Plus, PencilSimple as Edit2, WarningCircle as AlertCircle } from '@phosphor-icons/react';
@@ -18,8 +18,11 @@ interface ConstraintsManagerProps {
     roles: Role[];
     tasks: TaskTemplate[];
     constraints: SchedulingConstraint[];
+    interPersonConstraints?: InterPersonConstraint[];
+    customFieldsSchema?: any[]; // For inter-person field selection
     onAddConstraint: (c: Omit<SchedulingConstraint, 'id'>, silent?: boolean) => void;
     onDeleteConstraint: (id: string, silent?: boolean) => void;
+    onUpdateInterPersonConstraints?: (constraints: InterPersonConstraint[]) => void;
     isViewer?: boolean;
     organizationId: string;
 }
@@ -30,21 +33,36 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
     roles,
     tasks,
     constraints,
+    interPersonConstraints = [],
+    customFieldsSchema = [],
     onAddConstraint,
     onDeleteConstraint,
+    onUpdateInterPersonConstraints,
     isViewer = false,
     organizationId
 }) => {
     const activePeople = people.filter(p => p.isActive !== false);
     const { showToast } = useToast();
 
+    const [managerMode, setManagerMode] = useState<'tasks' | 'interperson'>('tasks');
+    const [rulesSearch, setRulesSearch] = useState('');
+
     // --- State for Task Rules ---
     const [ruleTargetType, setRuleTargetType] = useState<'person' | 'team' | 'role'>('person');
-    const [ruleTargetIds, setRuleTargetIds] = useState<string[]>([]); // MultiSelect
-    const [ruleTargetIdSingle, setRuleTargetIdSingle] = useState<string>(''); // Single Select (Team/Role)
-    const [ruleTaskIds, setRuleTaskIds] = useState<string[]>([]); // MultiSelect for Tasks
+    const [ruleTargetIds, setRuleTargetIds] = useState<string[]>([]);
+    const [ruleTargetIdSingle, setRuleTargetIdSingle] = useState<string>('');
+    const [ruleTaskIds, setRuleTaskIds] = useState<string[]>([]);
     const [ruleType, setRuleType] = useState<'never_assign' | 'always_assign'>('never_assign');
-    const [rulesSearch, setRulesSearch] = useState('');
+
+    // --- State for Inter-Person Constraints ---
+    const [isInterPersonModalOpen, setIsInterPersonModalOpen] = useState(false);
+    const [editingIpcId, setEditingIpcId] = useState<string | null>(null);
+    const [ipcFieldA, setIpcFieldA] = useState('');
+    const [ipcValueA, setIpcValueA] = useState<any>('');
+    const [ipcFieldB, setIpcFieldB] = useState('');
+    const [ipcValueB, setIpcValueB] = useState<any>('');
+    const [ipcType, setIpcType] = useState<'forbidden_together' | 'preferred_together'>('forbidden_together');
+    const [ipcDescription, setIpcDescription] = useState('');
 
     // Modal State
     const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
@@ -298,16 +316,69 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
             });
         });
 
-        if (addedCount > 0) {
-            showToast(editingRuleId ? 'החוקים עודכנו בהצלחה' : `${addedCount} חוקים נוספו בהצלחה`, 'success');
-            setIsRuleModalOpen(false);
-            setRuleTargetIds([]);
-            setRuleTargetIdSingle('');
-            setRuleTaskIds([]);
+        showToast(addedCount === 1 ? 'החוק נוסף בהצלחה' : `נוספו ${addedCount} חוקים בהצלחה`, 'success');
+        setIsRuleModalOpen(false);
+    };
+
+    // --- Inter-Person Handlers ---
+
+    const openInterPersonModal = (ipc?: InterPersonConstraint) => {
+        if (isViewer) return;
+        if (ipc) {
+            setEditingIpcId(ipc.id);
+            setIpcFieldA(ipc.fieldA);
+            setIpcValueA(ipc.valueA);
+            setIpcFieldB(ipc.fieldB);
+            setIpcValueB(ipc.valueB);
+            setIpcType(ipc.type);
+            setIpcDescription(ipc.description || '');
         } else {
-            showToast('לא בוצעו שינויים (אולי החוקים כבר קיימים?)', 'info');
-            setIsRuleModalOpen(false); // Close anyway
+            setEditingIpcId(null);
+            setIpcFieldA('');
+            setIpcValueA('');
+            setIpcFieldB('');
+            setIpcValueB('');
+            setIpcType('forbidden_together');
+            setIpcDescription('');
         }
+        setIsInterPersonModalOpen(true);
+    };
+
+    const handleSaveInterPersonConstraint = () => {
+        if (isViewer || !onUpdateInterPersonConstraints) return;
+        if (!ipcFieldA || !ipcFieldB) {
+            showToast('נא לבחור שדות לשני הצדדים', 'error');
+            return;
+        }
+
+        const newIpc: InterPersonConstraint = {
+            id: editingIpcId || Math.random().toString(36).substr(2, 9),
+            fieldA: ipcFieldA,
+            valueA: ipcValueA,
+            fieldB: ipcFieldB,
+            valueB: ipcValueB,
+            type: ipcType,
+            description: ipcDescription
+        };
+
+        const currentIpcs = interPersonConstraints || [];
+        let nextIpc;
+        if (editingIpcId) {
+            nextIpc = currentIpcs.map(i => i.id === editingIpcId ? newIpc : i);
+        } else {
+            nextIpc = [...currentIpcs, newIpc];
+        }
+
+        onUpdateInterPersonConstraints(nextIpc);
+        showToast(editingIpcId ? 'האילוץ עודכן' : 'האילוץ נוסף בהצלחה', 'success');
+        setIsInterPersonModalOpen(false);
+    };
+
+    const handleDeleteInterPersonConstraint = (id: string) => {
+        if (isViewer || !onUpdateInterPersonConstraints) return;
+        const nextIpc = (interPersonConstraints || []).filter(i => i.id !== id);
+        onUpdateInterPersonConstraints(nextIpc);
+        showToast('האילוץ נמחק', 'info');
     };
 
     return (
@@ -320,118 +391,171 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                         <div>
                             <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-none">ניהול אילוצים</h2>
                             <p className="text-xs md:text-sm font-bold text-slate-400 mt-1">
-                                {taskConstraintsGrouped.length} חוקים פעילים
+                                {managerMode === 'tasks' ? `${taskConstraintsGrouped.length} חוקים פעילים` : `${(interPersonConstraints || []).length} אילוצים בין-אישיים`}
                             </p>
                         </div>
                     </div>
-                    {/* Add Button - Desktop Only (Legacy/Alternative position, but we prefer FAB usually. Keeping hidden to rely on FAB or show for specific desktop preference if needed. For now, FAB is the standard) */}
-                    {/* Actually, Golden Standard uses FAB for primary action. We'll stick to FAB. */}
                 </div>
+            </div>
 
-                {/* Search Bar */}
-                <div className="w-full">
-                    <div className="relative group">
-                        <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} weight="duotone" />
-                        <input
-                            type="text"
-                            placeholder="חיפוש חוק לפי שם משימה, חייל או תפקיד..."
-                            value={rulesSearch}
-                            onChange={(e) => setRulesSearch(e.target.value)}
-                            className="w-full h-12 pr-12 pl-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 placeholder:font-medium"
-                        />
-                    </div>
+            {/* Tab Selector */}
+            <div className="px-4 md:px-6 pt-2 pb-0 flex border-b border-slate-100 bg-slate-50/30">
+                <button
+                    onClick={() => setManagerMode('tasks')}
+                    className={cn(
+                        "px-4 py-2 text-sm font-black transition-all border-b-2",
+                        managerMode === 'tasks' ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-600"
+                    )}
+                >
+                    חוקי משימות
+                </button>
+                <button
+                    onClick={() => setManagerMode('interperson')}
+                    className={cn(
+                        "px-4 py-2 text-sm font-black transition-all border-b-2",
+                        managerMode === 'interperson' ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-600"
+                    )}
+                >
+                    חוקים בין-אישיים
+                </button>
+            </div>
+
+            {/* Search Bar */}
+            <div className="px-4 md:px-6 py-4 bg-white/50 backdrop-blur-sm z-10 shrink-0">
+                <div className="relative group">
+                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} weight="duotone" />
+                    <input
+                        type="text"
+                        placeholder={managerMode === 'tasks' ? "חיפוש חוק לפי שם משימה, חייל או תפקיד..." : "חיפוש לפי תיאור האילוץ..."}
+                        value={rulesSearch}
+                        onChange={(e) => setRulesSearch(e.target.value)}
+                        className="w-full h-12 pr-12 pl-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 placeholder:font-medium"
+                    />
                 </div>
             </div>
 
             {/* Content List */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 relative scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                {taskConstraintsGrouped.length > 0 ? (
-                    taskConstraintsGrouped.map(group => {
-                        const { name, icon: Icon, type } = getTargetNameFromGroup(group);
-                        const taskNames = group.taskIds
-                            .map(tid => tasks.find(t => t.id === tid)?.name)
-                            .filter(Boolean)
-                            .join(', ');
+                {managerMode === 'tasks' ? (
+                    taskConstraintsGrouped.length > 0 ? (
+                        taskConstraintsGrouped.map(group => {
+                            const { name, icon: Icon, type } = getTargetNameFromGroup(group);
+                            const taskNames = group.taskIds
+                                .map(tid => tasks.find(t => t.id === tid)?.name)
+                                .filter(Boolean)
+                                .join(', ');
 
-                        return (
-                            <div key={group.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group relative overflow-hidden">
-                                <div className="flex flex-col md:flex-row items-start md:items-center gap-4 relative z-10">
-                                    {/* Icon Box */}
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${type === 'person' ? 'bg-blue-50 text-blue-600' : type === 'team' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'}`}>
-                                        <Icon size={24} weight="duotone" />
-                                    </div>
+                            return (
+                                <div key={group.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group relative overflow-hidden">
+                                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4 relative z-10">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${type === 'person' ? 'bg-blue-50 text-blue-600' : type === 'team' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'}`}>
+                                            <Icon size={24} weight="duotone" />
+                                        </div>
 
-                                    {/* Main Content */}
-                                    <div className="flex-1 min-w-0 w-full">
-                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-0.5">
-                                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md">
-                                                        {type === 'person' ? 'חייל' : type === 'team' ? 'צוות' : 'תפקיד'}
-                                                    </span>
-                                                    {isViewer && <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">צפייה בלבד</span>}
+                                        <div className="flex-1 min-w-0 w-full">
+                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md">
+                                                            {type === 'person' ? 'חייל' : type === 'team' ? 'צוות' : 'תפקיד'}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="text-lg font-black text-slate-800 leading-tight truncate">{name}</h3>
                                                 </div>
-                                                <h3 className="text-lg font-black text-slate-800 leading-tight truncate">{name}</h3>
+
+                                                <span className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 w-fit ${group.type === 'never_assign' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                    {group.type === 'never_assign' ? <Ban size={14} weight="duotone" /> : <Pin size={14} weight="duotone" />}
+                                                    {group.type === 'never_assign' ? 'לעולם לא לשבץ' : 'שבץ רק לזה'}
+                                                </span>
                                             </div>
 
-                                            {/* Badge */}
-                                            <span className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 w-fit ${group.type === 'never_assign' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                                {group.type === 'never_assign' ? <Ban size={14} weight="duotone" /> : <Pin size={14} weight="duotone" />}
-                                                {group.type === 'never_assign' ? 'לעולם לא לשבץ' : 'שבץ רק לזה'}
+                                            <div className="flex items-start gap-3 bg-slate-50/50 p-3 rounded-xl border border-slate-100/50">
+                                                <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${group.type === 'never_assign' ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                                                <div>
+                                                    <span className="text-xs font-bold text-slate-400 block mb-0.5">משימות ({group.taskIds.length})</span>
+                                                    <p className="text-sm font-medium text-slate-600 leading-relaxed line-clamp-2 md:line-clamp-1" title={taskNames}>
+                                                        {taskNames || '---'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {!isViewer && (
+                                            <div className="flex md:flex-col gap-2 shrink-0 w-full md:w-auto mt-2 md:mt-0 border-t md:border-t-0 p-2 md:p-0 border-slate-50">
+                                                <button onClick={() => openRuleModal(group)} className="flex-1 md:flex-none p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="ערוך חוק"><Edit2 size={18} className="mx-auto" weight="bold" /></button>
+                                                <button onClick={() => handleDeleteGroup(group)} className="flex-1 md:flex-none p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="מחק חוק"><Trash2 size={18} className="mx-auto" weight="bold" /></button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
+                            <Shield className="text-slate-200" size={40} weight="duotone" />
+                            <h3 className="text-lg font-bold text-slate-400 mt-4">לא נמצאו חוקים פעילים</h3>
+                        </div>
+                    )
+                ) : (
+                    (interPersonConstraints || []).length > 0 ? (
+                        (interPersonConstraints || []).filter(ipc => !rulesSearch || ipc.description?.toLowerCase().includes(rulesSearch.toLowerCase())).map(ipc => (
+                            <div key={ipc.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group relative overflow-hidden">
+                                <div className="flex flex-col md:flex-row items-start md:items-center gap-4 relative z-10">
+                                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                                        <Users size={24} weight="duotone" />
+                                    </div>
+
+                                    <div className="flex-1 min-w-0 w-full">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
+                                            <h3 className="text-lg font-black text-slate-800 leading-tight truncate">
+                                                {ipc.description || 'אילוץ בין-אישי'}
+                                            </h3>
+                                            <span className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 w-fit ${ipc.type === 'forbidden_together' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                {ipc.type === 'forbidden_together' ? <Ban size={14} weight="duotone" /> : <Pin size={14} weight="duotone" />}
+                                                {ipc.type === 'forbidden_together' ? 'לא לשבץ יחד' : 'מיועד לשיבוץ יחד'}
                                             </span>
                                         </div>
 
-                                        <div className="flex items-start gap-3 bg-slate-50/50 p-3 rounded-xl border border-slate-100/50">
-                                            <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${group.type === 'never_assign' ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                                        <div className="grid grid-cols-2 gap-3 bg-slate-50/50 p-3 rounded-xl border border-slate-100/50">
                                             <div>
-                                                <span className="text-xs font-bold text-slate-400 block mb-0.5">משימות ({group.taskIds.length})</span>
-                                                <p className="text-sm font-medium text-slate-600 leading-relaxed line-clamp-2 md:line-clamp-1" title={taskNames}>
-                                                    {taskNames || '---'}
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">תנאי א'</span>
+                                                <p className="text-sm font-bold text-slate-700">
+                                                    {customFieldsSchema?.find(f => f.key === ipc.fieldA)?.label || ipc.fieldA}: {String(ipc.valueA)}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">תנאי ב'</span>
+                                                <p className="text-sm font-bold text-slate-700">
+                                                    {customFieldsSchema?.find(f => f.key === ipc.fieldB)?.label || ipc.fieldB}: {String(ipc.valueB)}
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Actions */}
                                     {!isViewer && (
                                         <div className="flex md:flex-col gap-2 shrink-0 w-full md:w-auto mt-2 md:mt-0 border-t md:border-t-0 p-2 md:p-0 border-slate-50">
-                                            <button
-                                                onClick={() => openRuleModal(group)}
-                                                className="flex-1 md:flex-none p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                                                title="ערוך חוק"
-                                            >
-                                                <Edit2 size={18} className="mx-auto" weight="bold" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteGroup(group)}
-                                                className="flex-1 md:flex-none p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                                title="מחק חוק"
-                                            >
-                                                <Trash2 size={18} className="mx-auto" weight="bold" />
-                                            </button>
+                                            <button onClick={() => openInterPersonModal(ipc)} className="flex-1 md:flex-none p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="ערוך אילוץ"><Edit2 size={18} className="mx-auto" weight="bold" /></button>
+                                            <button onClick={() => handleDeleteInterPersonConstraint(ipc.id)} className="flex-1 md:flex-none p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="מחק אילוץ"><Trash2 size={18} className="mx-auto" weight="bold" /></button>
                                         </div>
                                     )}
                                 </div>
                             </div>
-                        );
-                    })
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
-                        <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-4">
-                            <Shield className="text-slate-200" size={40} weight="duotone" />
+                        ))
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
+                            <Users size={40} weight="duotone" className="text-slate-200" />
+                            <h3 className="text-lg font-bold text-slate-400 mt-4">אין אילוצים בין-אישיים</h3>
                         </div>
-                        <h3 className="text-lg font-bold text-slate-400">לא נמצאו חוקים פעילים</h3>
-                        <p className="text-sm text-slate-400 max-w-xs mt-2">השתמש בכפתור הפלוס כדי להוסיף אילוצי שיבוץ למערכת</p>
-                    </div>
+                    )
                 )}
             </div>
 
             {/* Standard FAB */}
             <FloatingActionButton
-                show={!isViewer && !isRuleModalOpen}
-                onClick={() => openRuleModal()}
+                show={!isViewer && !isRuleModalOpen && !isInterPersonModalOpen}
+                onClick={managerMode === 'tasks' ? () => openRuleModal() : () => openInterPersonModal()}
                 icon={Plus}
-                ariaLabel="הוסף חוק חדש"
+                ariaLabel={managerMode === 'tasks' ? "הוסף חוק חדש" : "הוסף אילוץ בין-אישי"}
             />
 
             {/* Task Rule Modal */}
@@ -564,6 +688,88 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                     : 'החיילים שנבחרו ישובצו *אך ורק* למשימה זו אם הם זמינים, ותימנע מהם גישה למשימות אחרות באותו זמן.'
                                 }
                             </p>
+                        </div>
+                    </div>
+                </div>
+            </GenericModal>
+
+            {/* Inter-Person Modal */}
+            <GenericModal
+                isOpen={isInterPersonModalOpen}
+                onClose={() => setIsInterPersonModalOpen(false)}
+                title={
+                    <div className="flex flex-col gap-0.5">
+                        <h3 className="text-xl font-black text-slate-800 leading-tight">
+                            {editingIpcId ? 'עריכת אילוץ בין-אישי' : 'הוספת אילוץ בין-אישי חדש'}
+                        </h3>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">הגדרת קבוצות שלא יכולות להשתבץ יחד</p>
+                    </div>
+                }
+                size="lg"
+                footer={
+                    <div className="flex gap-3 w-full">
+                        <Button variant="ghost" onClick={() => setIsInterPersonModalOpen(false)} className="flex-1 h-12 font-bold">ביטול</Button>
+                        <Button onClick={handleSaveInterPersonConstraint} className="flex-1 h-12 font-black bg-blue-600 text-white">
+                            {editingIpcId ? 'עדכן אילוץ' : 'הוסף אילוץ'}
+                        </Button>
+                    </div>
+                }
+            >
+                <div className="flex flex-col gap-6 py-2">
+                    <Input label="תיאור האילוץ" placeholder="למשל: טבעוני וקרניבור" value={ipcDescription} onChange={e => setIpcDescription(e.target.value)} />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <h4 className="text-xs font-black text-slate-500 uppercase">קבוצה א'</h4>
+                            <Select
+                                label="שדה מותאם"
+                                value={ipcFieldA}
+                                onChange={setIpcFieldA}
+                                options={(customFieldsSchema || []).map(f => ({ value: f.key, label: f.label }))}
+                                placeholder="בחר שדה..."
+                            />
+                            <Input
+                                label="ערך"
+                                value={ipcValueA}
+                                onChange={e => setIpcValueA(e.target.value)}
+                                placeholder="למשל: כן"
+                            />
+                        </div>
+
+                        <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                            <h4 className="text-xs font-black text-slate-500 uppercase">קבוצה ב'</h4>
+                            <Select
+                                label="שדה מותאם"
+                                value={ipcFieldB}
+                                onChange={setIpcFieldB}
+                                options={(customFieldsSchema || []).map(f => ({ value: f.key, label: f.label }))}
+                                placeholder="בחר שדה..."
+                            />
+                            <Input
+                                label="ערך"
+                                value={ipcValueB}
+                                onChange={e => setIpcValueB(e.target.value)}
+                                placeholder="למשל: מידה 42"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider px-1">סוג הקשר</label>
+                        <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
+                            {([['forbidden_together', 'אסור לשבץ יחד', Ban], ['preferred_together', 'מועדף לשבץ יחד', Pin]] as const).map(([type, label, Icon]) => (
+                                <button
+                                    key={type}
+                                    onClick={() => setIpcType(type)}
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black transition-all",
+                                        ipcType === type ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                    )}
+                                >
+                                    <Icon size={14} weight="duotone" />
+                                    <span>{label}</span>
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
