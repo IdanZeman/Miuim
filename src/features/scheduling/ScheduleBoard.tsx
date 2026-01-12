@@ -54,6 +54,7 @@ export interface ScheduleBoardProps {
     hourlyBlockages?: import('../../types').HourlyBlockage[];
     settings?: import('../../types').OrganizationSettings | null;
     onRefreshData?: () => void;
+    onAutoSchedule?: () => void;
 }
 
 // Helper to calculate position based on time
@@ -97,7 +98,8 @@ const ShiftCard: React.FC<{
     missionReports: MissionReport[];
     style?: React.CSSProperties;
     onReportClick: (shift: Shift) => void;
-}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style }) => {
+    onAutoSchedule?: () => void;
+}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const assigned = shift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
@@ -250,7 +252,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     selectedDate, onDateChange, onSelect, onDelete, isViewer,
     acknowledgedWarnings: propAcknowledgedWarnings, onClearDay, onNavigate, onAssign,
     onUnassign, onAddShift, onUpdateShift, onToggleCancelShift, teamRotations, onRefreshData,
-    absences = [], hourlyBlockages = [], settings = null
+    absences = [], hourlyBlockages = [], settings = null, onAutoSchedule
 }) => {
     const activePeople = useMemo(() => people.filter(p => p.isActive !== false), [people]);
     const { profile } = useAuth();
@@ -658,6 +660,15 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         <div className="flex gap-2 w-auto relative">
                             {/* Desktop Actions */}
                             <div className="hidden md:flex gap-2">
+
+                                <Button
+                                    variant="outline"
+                                    onClick={handleExportClick}
+                                    title="ייצוא לוח"
+                                    className="px-3"
+                                >
+                                    <Copy size={18} weight="duotone" />
+                                </Button>
                                 <ExportButton
                                     onExport={async () => { setIsExportModalOpen(true); }}
                                     label="ייצוא"
@@ -1026,11 +1037,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             )}
 
             <FloatingActionButton
-                icon={Sparkles}
-                onClick={() => setShowRotaWizard(true)}
-                ariaLabel="מחולל סבבים"
-                show={(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin)}
-                className="md:hidden"
+                icon={Wand2}
+                onClick={onAutoSchedule || (() => { })}
+                ariaLabel="שיבוץ אוטומטי"
+                show={!isViewer && !!onAutoSchedule}
                 variant="action"
             />
         </div>
