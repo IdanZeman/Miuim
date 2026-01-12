@@ -23,6 +23,11 @@ type Timeframe = 'today' | 'week' | 'month';
 
 export const GlobalStats: React.FC<GlobalStatsProps> = () => {
     const [timeframe, setTimeframe] = useState<Timeframe>('week');
+    const [selectedMetric, setSelectedMetric] = useState<{
+        title: string;
+        type: 'orgs' | 'users' | 'actions';
+        data: any[];
+    } | null>(null);
 
     const getDateFilter = () => {
         const now = new Date();
@@ -30,8 +35,10 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
             now.setHours(0, 0, 0, 0);
         } else if (timeframe === 'week') {
             now.setDate(now.getDate() - 7);
+            now.setHours(0, 0, 0, 0);
         } else if (timeframe === 'month') {
             now.setDate(now.getDate() - 30);
+            now.setHours(0, 0, 0, 0);
         }
         return now.toISOString();
     };
@@ -40,58 +47,89 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
         queryKey: ['globalStats', timeframe],
         queryFn: async () => {
             const startDate = getDateFilter();
+            console.log('Fetching Global Stats for:', timeframe, 'StartDate:', startDate);
 
-            // 1. Fetch KPIs and more efficient system stats via RPC
-            const [kpiRes, activityRes, topOrgsRes, newOrgsRes] = await Promise.all([
-                supabase.rpc('get_dashboard_kpis'),
+            const [
+                activityRes,
+                globalStatsRes,
+                topOrgsRes,
+                topUsersRes,
+                newOrgsListQuery,
+                newUsersListQuery,
+                logsRes
+            ] = await Promise.all([
+                // A. System Activity Chart
                 supabase.rpc('get_system_activity_chart', { time_range: timeframe }),
-                supabase.rpc('get_top_organizations', { time_range: 'month', limit_count: 10 }),
-                supabase.rpc('get_new_orgs_stats', { limit_count: 5 })
+
+                // B. Global Counters (Aggregated Server-Side)
+                supabase.rpc('get_global_stats_aggregated', { time_range: timeframe }),
+
+                // C. Top Organizations (Fixed RPC)
+                supabase.rpc('get_top_organizations', { time_range: timeframe, limit_count: 100 }),
+
+                // D. Top Users (Server-Side)
+                supabase.rpc('get_top_users', { time_range: timeframe, limit_count: 50 }),
+
+                // E. New Organizations List (for modal)
+                supabase.from('organizations')
+                    .select('*')
+                    .gte('created_at', startDate)
+                    .order('created_at', { ascending: false })
+                    .limit(50),
+
+                // F. New Users List (for modal)
+                supabase.from('profiles')
+                    .select('*, organizations(name)')
+                    .gte('created_at', startDate)
+                    .order('created_at', { ascending: false })
+                    .limit(50),
+
+                // G. Audit Logs (Only for Map & Device Stats - sample is fine)
+                supabase.from('audit_logs')
+                    .select('metadata, city, country, device_type')
+                    .gte('created_at', startDate)
+                    .order('created_at', { ascending: false })
+                    .limit(2000)
             ]);
 
-            // 2. Fetch recent logs for deep interaction/geo metrics (clientside aggregation)
-            const { data: logs, error: logsError } = await supabase
-                .from('audit_logs')
-                .select('*')
-                .gte('created_at', startDate)
-                .order('created_at', { ascending: false })
-                .limit(2000);
+            const activityData = activityRes.data || [];
+            const globalStats = globalStatsRes.data || {};
+            const activeOrgsList = topOrgsRes.data || [];
+            const topUsersList = topUsersRes.data || [];
+            const newOrgsList = newOrgsListQuery.data || [];
+            // Map new users to include flattened org name
+            const newUsersList = (newUsersListQuery.data || []).map((u: any) => ({
+                ...u,
+                org_name: u.organizations?.name
+            }));
+            const logsSample = logsRes.data || [];
 
-            if (logsError) throw logsError;
+            console.log('Global Stats Logs Sampled:', logsSample.length);
 
-            // -- Aggregation Logic for Geo/Devices --
+            // -- Visual Aggregation (Map, Devices, Cities) --
             const deviceCounts: Record<string, number> = { 'Desktop': 0, 'Mobile': 0, 'Tablet': 0 };
-            const countryCounts: Record<string, number> = {};
-            const cityCounts: Record<string, number> = {};
-            let totalClicks = 0;
-            const userCounts: Record<string, { count: number, email: string }> = {};
-
             const locationCounts: Record<string, { count: number, lat?: number, lon?: number, label: string }> = {};
+            const cityCounts: Record<string, number> = {};
 
-            logs.forEach(log => {
+            logsSample.forEach(log => {
                 // Devices
                 const device = log.metadata?.device_type || log.device_type || 'Desktop';
                 if (deviceCounts[device] !== undefined) deviceCounts[device]++;
 
-                // Geo
-                const country = log.metadata?.country || log.country;
+                // Cities
                 const city = log.metadata?.city || log.city;
+                if (city) cityCounts[city] = (cityCounts[city] || 0) + 1;
+
+                // Map
+                const country = log.metadata?.country || log.country;
                 const lat = log.metadata?.latitude;
                 const lon = log.metadata?.longitude;
 
-                if (country) countryCounts[country] = (countryCounts[country] || 0) + 1;
-                if (city) cityCounts[city] = (cityCounts[city] || 0) + 1;
-
-                // Detailed Location Mapping
-                // Prefer Lat/Lon if available, otherwise city/country name
-                // We key by coordinates if possible to cluster effectively, or name if not
                 let locKey = '';
                 if (lat && lon) {
-                    locKey = `${lat.toFixed(2)},${lon.toFixed(2)}`; // Cluster nearby
+                    locKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
                 } else if (city) {
                     locKey = city;
-                } else if (country) {
-                    locKey = country;
                 }
 
                 if (locKey) {
@@ -104,24 +142,14 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                         };
                     }
                     locationCounts[locKey].count++;
-
-                    // Backfill lat/lon if we found a log that has it for this key (e.g. if key is city name)
                     if (!locationCounts[locKey].lat && lat) {
                         locationCounts[locKey].lat = lat;
                         locationCounts[locKey].lon = lon;
                     }
                 }
-
-                // Clicks
-                if (log.event_type === 'CLICK') totalClicks++;
-
-                // Users
-                const name = log.user_name || 'System';
-                if (!userCounts[name]) userCounts[name] = { count: 0, email: log.user_email };
-                userCounts[name].count++;
             });
 
-            // Convert locationCounts to Map Data
+            // Process stats for charts
             const mapData = Object.values(locationCounts).map(l => ({
                 name: l.label,
                 value: l.count,
@@ -129,7 +157,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 lon: l.lon
             }));
 
-            const activityTrend = (activityRes.data || []).map((d: any) => ({
+            const activityTrend = (activityData).map((d: any) => ({
                 date: d.date_label,
                 count: d.action_count
             }));
@@ -138,36 +166,38 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 .map(([name, value]) => ({ name, value }))
                 .filter(d => d.value > 0);
 
-            const geoStats = Object.entries(countryCounts)
-                .map(([name, value]) => ({ name, value }))
-                .sort((a, b) => b.value - a.value)
-                .slice(0, 5);
-
             const cityStats = Object.entries(cityCounts)
                 .map(([name, value]) => ({ name, value }))
                 .sort((a, b) => b.value - a.value)
                 .slice(0, 5);
 
-            const topUsers = Object.entries(userCounts)
-                .map(([name, data]) => ({ name, email: data.email, count: data.count }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 5);
+            // Map Top Users for UI consistency
+            const formattedTopUsers = topUsersList.map((u: any) => ({
+                name: u.full_name,
+                email: u.email,
+                count: u.activity_count,
+                org_name: u.org_name
+            }));
 
             return {
-                kpis: kpiRes.data,
+                newOrgsCount: globalStats.new_orgs_count || 0,
+                newOrgsList,
+                newUsersCount: globalStats.new_users_count || 0,
+                newUsersList,
+                activeOrgsCount: globalStats.active_orgs_count || 0,
+                activeOrgsList,
+                activeUsersCount: globalStats.active_users_count || 0,
+                topUsers: formattedTopUsers,
+                totalActions: globalStats.total_actions || 0,
                 activityTrend,
                 deviceStats,
-                geoStats, // Keeping for tables logic if needed, but Map will use mapData
-                mapData, // New prop
+                mapData,
                 cityStats,
-                topUsers,
-                topOrgs: topOrgsRes.data || [],
-                newOrgs: newOrgsRes.data || [],
-                totalClicks,
-                totalActions: logs?.length || 0
+                topOrgs: activeOrgsList.slice(0, 10),
+                totalClicks: 0
             };
         },
-        staleTime: 1000 * 30, // 30 seconds for near real-time updates
+        staleTime: 1000 * 30,
     });
 
     if (isLoading) {
@@ -175,12 +205,13 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
     }
 
     const {
-        kpis, activityTrend, deviceStats, geoStats,
-        cityStats, topUsers, topOrgs, newOrgs, totalClicks, totalActions
+        newOrgsCount, newOrgsList, newUsersCount, newUsersList,
+        activeOrgsCount, activeOrgsList, activeUsersCount,
+        activityTrend, deviceStats, cityStats, topUsers, topOrgs, mapData, totalActions
     } = stats || {
-        kpis: {}, activityTrend: [], deviceStats: [],
-        geoStats: [], cityStats: [], topUsers: [],
-        topOrgs: [], newOrgs: [], totalClicks: 0, totalActions: 0
+        newOrgsCount: 0, newOrgsList: [], newUsersCount: 0, newUsersList: [],
+        activeOrgsCount: 0, activeOrgsList: [], activeUsersCount: 0,
+        activityTrend: [], deviceStats: [], cityStats: [], topUsers: [], topOrgs: [], mapData: [], totalActions: 0
     };
 
     return (
@@ -204,7 +235,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                             onClick={() => setTimeframe(t)}
                             className={`px-4 py-2 rounded-lg transition-all ${timeframe === t ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5' : 'text-slate-400 hover:text-slate-600'}`}
                         >
-                            {t === 'today' ? 'היום' : t === 'week' ? '7 ימים' : '30 יום'}
+                            {t === 'today' ? 'היום' : t === 'week' ? 'השבוע' : 'החודש'}
                         </button>
                     ))}
                 </div>
@@ -214,37 +245,48 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 space-y-6">
 
                 {/* Principal KPIs */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <KPICard
-                        title="ארגונים פעילים"
-                        value={kpis.total_orgs || 0}
-                        sub={`+${kpis.new_orgs_month || 0} החודש`}
+                        title="ארגונים חדשים"
+                        value={newOrgsCount}
+                        sub="נוספו בטווח שנבחר"
                         icon={<Building2Icon size={24} weight="duotone" />}
                         color="blue"
+                        onClick={() => setSelectedMetric({ title: 'ארגונים חדשים', type: 'orgs', data: newOrgsList })}
                     />
                     <KPICard
-                        title="משתמשים רשומים"
-                        value={kpis.total_users || 0}
-                        sub={`+${kpis.new_users_month || 0} החודש`}
+                        title="משתמשים חדשים"
+                        value={newUsersCount}
+                        sub="נרשמו בטווח שנבחר"
                         icon={<UsersIcon size={24} weight="duotone" />}
                         color="indigo"
+                        onClick={() => setSelectedMetric({ title: 'משתמשים חדשים', type: 'users', data: newUsersList })}
                     />
                     <KPICard
-                        title="פעילים כעת"
-                        value={kpis.active_users_now || 0}
-                        sub="ב-15 דקות האחרונות"
+                        title="משתמשים פעילים"
+                        value={activeUsersCount}
+                        sub={timeframe === 'today' ? 'פעילים היום' : timeframe === 'week' ? 'פעילים השבוע' : 'פעילים החודש'}
                         icon={<ActivityIcon size={24} weight="duotone" />}
                         color="emerald"
                         pulse
+                        onClick={() => setSelectedMetric({ title: 'משתמשים פעילים', type: 'users', data: topUsers })}
                     />
                     <KPICard
-                        title="פעילות היום"
-                        value={kpis.actions_24h || 0}
-                        sub="עומס מערכת כולל"
+                        title="ארגונים פעילים"
+                        value={activeOrgsCount}
+                        sub="ביצעו פעולות בטווח"
+                        icon={<GlobeIcon size={24} weight="duotone" />}
+                        color="cyan"
+                        onClick={() => setSelectedMetric({ title: 'ארגונים פעילים', type: 'orgs', data: activeOrgsList })}
+                    />
+                    <KPICard
+                        title="סה״כ פעולות"
+                        value={totalActions}
+                        sub="אינטראקציות מערכת"
                         icon={<TrendingUpIcon size={24} weight="duotone" />}
                         color="amber"
+                    // onClick={() => setSelectedMetric({ title: 'לוג פעולות', type: 'actions', data: [] })} // Not implemented yet
                     />
-                    {/* Optional 5th KPI or remove/stack */}
                 </div>
 
                 {/* Interaction Row */}
@@ -315,10 +357,10 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                     <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6">
                         <h4 className="font-black text-slate-800 mb-6 flex items-center gap-2 text-sm border-b border-slate-200/60 pb-4 uppercase tracking-wider">
                             <TrophyIcon size={18} className="text-emerald-500" weight="duotone" />
-                            ארגונים מובילים (פעילות חודשית)
+                            ארגונים מובילים (פעילות {timeframe === 'today' ? 'יומית' : timeframe === 'week' ? 'שבועית' : 'חודשית'})
                         </h4>
                         <div className="space-y-3">
-                            {topOrgs.map((org: any, i: number) => (
+                            {topOrgs.length > 0 ? topOrgs.map((org: any, i: number) => (
                                 <div key={org.org_id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 hover:border-blue-200 transition-all group">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs text-white shadow-sm transition-transform group-hover:scale-110
@@ -328,7 +370,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                                         </div>
                                         <div>
                                             <div className="text-xs font-black text-slate-800">{org.org_name}</div>
-                                            <div className="text-[10px] text-slate-400 font-bold">{org.users_count} משתמשים רשומים</div>
+                                            <div className="text-[10px] text-slate-400 font-bold">{org.users_count} משתמשים פעילים</div>
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -336,7 +378,11 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                                         <div className="text-[9px] text-slate-400 uppercase font-bold">פעולות</div>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center py-8 text-slate-400 text-xs italic">
+                                    אין נתונים לטווח זה
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -344,14 +390,14 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                     <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6">
                         <h4 className="font-black text-slate-800 mb-6 flex items-center gap-2 text-sm border-b border-slate-200/60 pb-4 uppercase tracking-wider">
                             <MousePointerClickIcon size={18} className="text-indigo-500" weight="bold" />
-                            משתמשים פעילים (Deep Engagement)
+                            משתמשים מובילים (פעילים)
                         </h4>
                         <div className="space-y-3">
-                            {topUsers.map((user: any, j: number) => (
-                                <div key={user.email} className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 hover:border-indigo-200 transition-all group">
+                            {topUsers.length > 0 ? topUsers.slice(0, 5).map((user: any, j: number) => (
+                                <div key={user.email || j} className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 hover:border-indigo-200 transition-all group">
                                     <div className="flex items-center gap-4">
                                         <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-xs group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                                            {user.name.substring(0, 2).toUpperCase()}
+                                            {(user.name || '?').substring(0, 2).toUpperCase()}
                                         </div>
                                         <div>
                                             <div className="text-xs font-black text-slate-800">{user.name}</div>
@@ -363,7 +409,11 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                                         <div className="text-[9px] text-slate-400 uppercase font-bold">int.</div>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center py-8 text-slate-400 text-xs italic">
+                                    אין נתונים לטווח זה
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -376,7 +426,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                             <GlobeIcon size={18} className="text-emerald-600" weight="duotone" />
                             מפת תפוצה (Live Map)
                         </h4>
-                        <LocationMap data={stats?.mapData || []} total={totalActions} />
+                        <LocationMap data={mapData || []} total={totalActions} />
                     </div>
 
                     {/* Cities */}
@@ -396,12 +446,74 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Detailed List Modal */}
+            {selectedMetric && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col animate-in zoom-in-95 duration-200 border border-white/20">
+                        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl">
+                            <div>
+                                <h3 className="text-lg font-black text-slate-800">{selectedMetric.title}</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{selectedMetric.data.length} רשומות (מציג אחרונים)</p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedMetric(null)}
+                                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"></path></svg>
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto custom-scrollbar p-4 flex-1 space-y-2">
+                            {selectedMetric.data.length > 0 ? selectedMetric.data.map((item: any, idx: number) => {
+                                // Dynamic rendering based on type
+                                const title = selectedMetric.type === 'orgs' ? (item.org_name || item.name) : (item.name || item.full_name);
+                                const orgName = selectedMetric.type === 'users' ? item.org_name : null;
+                                const sub = selectedMetric.type === 'orgs' ? (item.shifts_count ? `${item.shifts_count} פעולות` : new Date(item.created_at).toLocaleDateString()) : (item.email);
+                                const count = item.count;
+
+                                return (
+                                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-black text-slate-500">
+                                                {idx + 1}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="text-sm font-bold text-slate-800 truncate max-w-[200px]">{title}</div>
+                                                    {orgName && (
+                                                        <div className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full truncate max-w-[120px]">
+                                                            {orgName}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="text-[11px] text-slate-400 font-medium truncate">{sub}</div>
+                                            </div>
+                                        </div>
+                                        {count && (
+                                            <div className="text-right">
+                                                <div className="text-xs font-black text-emerald-600">{count}</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }) : (
+                                <div className="text-center py-12 text-slate-400 text-sm flex flex-col items-center gap-2">
+                                    <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center">
+                                        <ActivityIcon size={24} className="opacity-20" />
+                                    </div>
+                                    אין נתונים להצגה
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 // Helper Components
-const KPICard: React.FC<{ title: string, value: number, sub: string, icon: any, color: string, pulse?: boolean }> = ({ title, value, sub, icon, color, pulse }) => {
+const KPICard: React.FC<{ title: string, value: number, sub: string, icon: any, color: string, pulse?: boolean, onClick?: () => void }> = ({ title, value, sub, icon, color, pulse, onClick }) => {
     const colors: any = {
         blue: "bg-blue-100 text-blue-600",
         indigo: "bg-indigo-100 text-indigo-600",
@@ -411,7 +523,10 @@ const KPICard: React.FC<{ title: string, value: number, sub: string, icon: any, 
     };
 
     return (
-        <div className={`bg-slate-50 p-6 rounded-2xl border border-slate-200/60 transition-all hover:bg-white hover:shadow-md hover:border-slate-200 group`}>
+        <div
+            onClick={onClick}
+            className={`bg-slate-50 p-6 rounded-2xl border border-slate-200/60 transition-all hover:bg-white hover:shadow-md hover:border-slate-200 group ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
+        >
             <div className="flex justify-between items-start mb-4">
                 <div className={`p-3 rounded-2xl ${colors[color]} transition-colors bg-opacity-50 group-hover:bg-opacity-100`}>
                     {icon}
@@ -459,4 +574,3 @@ const CustomPieTooltip = ({ active, payload }: any) => {
     }
     return null;
 };
-
