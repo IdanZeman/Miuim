@@ -70,6 +70,26 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
     // --- Helpers / Derived State ---
 
+    // Helper to format IPC values for display
+    const formatIpcValue = (field: string, value: any) => {
+        if (field === 'role') {
+            const getRoleName = (id: string) => roles.find(r => r.id === id)?.name || id;
+            if (Array.isArray(value)) return value.map(getRoleName).join(', ');
+            return getRoleName(value);
+        }
+
+        // Handle Boolean strings
+        if (value === 'true' || value === true) return 'כן';
+        if (value === 'false' || value === false) return 'לא';
+
+        return String(value);
+    };
+
+    const getFieldLabel = (field: string) => {
+        if (field === 'role') return 'תפקיד';
+        return customFieldsSchema?.find(f => f.key === field)?.label || field;
+    };
+
     const taskConstraintsGrouped = useMemo(() => {
         const groups: Record<string, {
             id: string; // use first ID as key or create composite
@@ -88,7 +108,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                     let taskMatch = false;
                     if (c.taskId) {
                         const task = tasks.find(t => t.id === c.taskId);
-                        taskMatch = task?.name.toLowerCase().includes(rulesSearch.toLowerCase()) || false;
+                        taskMatch = "כללי".includes(rulesSearch) || "general".includes(rulesSearch.toLowerCase()) || (task?.name.toLowerCase().includes(rulesSearch.toLowerCase()) || false);
                     } else {
                         taskMatch = "כללי".includes(rulesSearch) || "general".includes(rulesSearch.toLowerCase());
                     }
@@ -520,13 +540,13 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                             <div>
                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">תנאי א'</span>
                                                 <p className="text-sm font-bold text-slate-700">
-                                                    {customFieldsSchema?.find(f => f.key === ipc.fieldA)?.label || ipc.fieldA}: {String(ipc.valueA)}
+                                                    {getFieldLabel(ipc.fieldA)}: {formatIpcValue(ipc.fieldA, ipc.valueA)}
                                                 </p>
                                             </div>
                                             <div>
                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">תנאי ב'</span>
                                                 <p className="text-sm font-bold text-slate-700">
-                                                    {customFieldsSchema?.find(f => f.key === ipc.fieldB)?.label || ipc.fieldB}: {String(ipc.valueB)}
+                                                    {getFieldLabel(ipc.fieldB)}: {formatIpcValue(ipc.fieldB, ipc.valueB)}
                                                 </p>
                                             </div>
                                         </div>
@@ -721,36 +741,160 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                             <h4 className="text-xs font-black text-slate-500 uppercase">קבוצה א'</h4>
-                            <Select
-                                label="שדה מותאם"
-                                value={ipcFieldA}
-                                onChange={setIpcFieldA}
-                                options={(customFieldsSchema || []).map(f => ({ value: f.key, label: f.label }))}
-                                placeholder="בחר שדה..."
-                            />
-                            <Input
-                                label="ערך"
-                                value={ipcValueA}
-                                onChange={e => setIpcValueA(e.target.value)}
-                                placeholder="למשל: כן"
-                            />
+                            <div className="flex bg-white rounded-lg p-1 border border-slate-200 mb-2">
+                                <button
+                                    onClick={() => {
+                                        if (ipcFieldA === 'role') {
+                                            setIpcFieldA((customFieldsSchema?.[0]?.key) || '');
+                                            setIpcValueA('');
+                                        }
+                                    }}
+                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${ipcFieldA !== 'role' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    שדה מותאם
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIpcFieldA('role');
+                                        setIpcValueA('');
+                                    }}
+                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${ipcFieldA === 'role' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    תפקיד
+                                </button>
+                            </div>
+
+                            {ipcFieldA === 'role' ? (
+                                <Select
+                                    label="בחר תפקיד"
+                                    value={ipcValueA}
+                                    onChange={setIpcValueA}
+                                    options={roles.map(r => ({ value: r.id, label: r.name }))}
+                                    placeholder="בחר תפקיד..."
+                                />
+                            ) : (
+                                <>
+                                    <Select
+                                        label="שדה מותאם"
+                                        value={ipcFieldA}
+                                        onChange={(val: any) => {
+                                            setIpcFieldA(val);
+                                            setIpcValueA('');
+                                        }}
+                                        options={(customFieldsSchema || []).map(f => ({ value: f.key, label: f.label }))}
+                                        placeholder="בחר שדה..."
+                                    />
+                                    {(() => {
+                                        const fieldDef = customFieldsSchema?.find(f => f.key === ipcFieldA);
+                                        if (fieldDef?.type === 'boolean') {
+                                            return (
+                                                <div className="flex bg-slate-100 p-1 rounded-lg gap-1">
+                                                    <button onClick={() => setIpcValueA('true')} className={`flex-1 py-1.5 text-xs font-bold rounded-md ${ipcValueA === 'true' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>כן</button>
+                                                    <button onClick={() => setIpcValueA('false')} className={`flex-1 py-1.5 text-xs font-bold rounded-md ${ipcValueA === 'false' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>לא</button>
+                                                </div>
+                                            );
+                                        }
+                                        if (fieldDef?.type === 'select' || fieldDef?.type === 'multiselect') {
+                                            return (
+                                                <Select
+                                                    label="בחר ערך"
+                                                    value={ipcValueA}
+                                                    onChange={setIpcValueA}
+                                                    options={(fieldDef.options || []).map(o => ({ value: o, label: o }))}
+                                                    placeholder="בחר מהרשימה..."
+                                                />
+                                            );
+                                        }
+                                        return (
+                                            <Input
+                                                label="ערך"
+                                                value={ipcValueA}
+                                                onChange={e => setIpcValueA(e.target.value)}
+                                                placeholder={fieldDef ? `ערך ל${fieldDef.label}` : "למשל: כן"}
+                                            />
+                                        );
+                                    })()}
+                                </>
+                            )}
                         </div>
 
                         <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                             <h4 className="text-xs font-black text-slate-500 uppercase">קבוצה ב'</h4>
-                            <Select
-                                label="שדה מותאם"
-                                value={ipcFieldB}
-                                onChange={setIpcFieldB}
-                                options={(customFieldsSchema || []).map(f => ({ value: f.key, label: f.label }))}
-                                placeholder="בחר שדה..."
-                            />
-                            <Input
-                                label="ערך"
-                                value={ipcValueB}
-                                onChange={e => setIpcValueB(e.target.value)}
-                                placeholder="למשל: מידה 42"
-                            />
+                            <div className="flex bg-white rounded-lg p-1 border border-slate-200 mb-2">
+                                <button
+                                    onClick={() => {
+                                        if (ipcFieldB === 'role') {
+                                            setIpcFieldB((customFieldsSchema?.[0]?.key) || '');
+                                            setIpcValueB('');
+                                        }
+                                    }}
+                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${ipcFieldB !== 'role' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    שדה מותאם
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIpcFieldB('role');
+                                        setIpcValueB('');
+                                    }}
+                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${ipcFieldB === 'role' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    תפקיד
+                                </button>
+                            </div>
+
+                            {ipcFieldB === 'role' ? (
+                                <Select
+                                    label="בחר תפקיד"
+                                    value={ipcValueB}
+                                    onChange={setIpcValueB}
+                                    options={roles.map(r => ({ value: r.id, label: r.name }))}
+                                    placeholder="בחר תפקיד..."
+                                />
+                            ) : (
+                                <>
+                                    <Select
+                                        label="שדה מותאם"
+                                        value={ipcFieldB}
+                                        onChange={(val: any) => {
+                                            setIpcFieldB(val);
+                                            setIpcValueB('');
+                                        }}
+                                        options={(customFieldsSchema || []).map(f => ({ value: f.key, label: f.label }))}
+                                        placeholder="בחר שדה..."
+                                    />
+                                    {(() => {
+                                        const fieldDef = customFieldsSchema?.find(f => f.key === ipcFieldB);
+                                        if (fieldDef?.type === 'boolean') {
+                                            return (
+                                                <div className="flex bg-slate-100 p-1 rounded-lg gap-1">
+                                                    <button onClick={() => setIpcValueB('true')} className={`flex-1 py-1.5 text-xs font-bold rounded-md ${ipcValueB === 'true' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>כן</button>
+                                                    <button onClick={() => setIpcValueB('false')} className={`flex-1 py-1.5 text-xs font-bold rounded-md ${ipcValueB === 'false' ? 'bg-white shadow text-blue-600' : 'text-slate-500'}`}>לא</button>
+                                                </div>
+                                            );
+                                        }
+                                        if (fieldDef?.type === 'select' || fieldDef?.type === 'multiselect') {
+                                            return (
+                                                <Select
+                                                    label="בחר ערך"
+                                                    value={ipcValueB}
+                                                    onChange={setIpcValueB}
+                                                    options={(fieldDef.options || []).map(o => ({ value: o, label: o }))}
+                                                    placeholder="בחר מהרשימה..."
+                                                />
+                                            );
+                                        }
+                                        return (
+                                            <Input
+                                                label="ערך"
+                                                value={ipcValueB}
+                                                onChange={e => setIpcValueB(e.target.value)}
+                                                placeholder={fieldDef ? `ערך ל${fieldDef.label}` : "למשל: מידה 42"}
+                                            />
+                                        );
+                                    })()}
+                                </>
+                            )}
                         </div>
                     </div>
 

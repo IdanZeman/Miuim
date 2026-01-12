@@ -207,9 +207,15 @@ const findBestCandidates = (
     const isForbidden = interPersonConstraints.some(ipc => {
       if (ipc.type !== 'forbidden_together') return false;
 
+      // Helper to extract value (Custom Field OR Role)
+      const getValue = (p: Person, field: string) => {
+        if (field === 'role') return p.roleId ? [p.roleId, ...(p.roleIds || [])] : [];
+        return p.customFields?.[field];
+      };
+
       // Check if current user matches condition A or B
-      const rawValA = u.person.customFields?.[ipc.fieldA];
-      const rawValB = u.person.customFields?.[ipc.fieldB];
+      const rawValA = getValue(u.person, ipc.fieldA);
+      const rawValB = getValue(u.person, ipc.fieldB);
 
       const areValuesEquivalent = (val1: any, val2: any): boolean => {
         if (val1 === val2) return true;
@@ -241,8 +247,8 @@ const findBestCandidates = (
           const assigned = allPeople.find(p => p.id === pid);
           if (!assigned) return false;
 
-          const assignedValA = assigned.customFields?.[ipc.fieldA];
-          const assignedValB = assigned.customFields?.[ipc.fieldB];
+          const assignedValA = getValue(assigned, ipc.fieldA);
+          const assignedValB = getValue(assigned, ipc.fieldB);
 
           const assignedMatchesA = areValuesEquivalent(assignedValA, ipc.valueA);
           const assignedMatchesB = areValuesEquivalent(assignedValB, ipc.valueB);
