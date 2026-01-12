@@ -140,7 +140,8 @@ export const BattalionAttendanceManager: React.FC = () => {
                             cellText = 'לא הוזן';
                         }
 
-                        // Add absence/exit request info if exists
+                        // Omit absence/exit request details for battalion view privacy if needed, 
+                        // but here we just omit reason text as requested.
                         const relevantAbsence = absences.find(a =>
                             a.person_id === person.id &&
                             dateKey >= a.start_date &&
@@ -148,9 +149,8 @@ export const BattalionAttendanceManager: React.FC = () => {
                             (a.status === 'approved' || a.status === 'pending')
                         );
                         if (relevantAbsence) {
-                            const reasonText = relevantAbsence.reason || 'בקשת יציאה';
-                            const statusText = relevantAbsence.status === 'pending' ? '(ממתין) ' : '';
-                            cellText += ` [${statusText}${reasonText}]`;
+                            // cellText += ` [${relevantAbsence.status === 'pending' ? '(ממתין) ' : ''}בקשת יציאה]`;
+                            // User wants NO absence info at all, so we skip adding it to cellText.
                         }
 
                         rowValues.push(cellText);
@@ -257,7 +257,8 @@ export const BattalionAttendanceManager: React.FC = () => {
                     let reason = blockReason || (avail.source === 'rotation' ? 'סבב' : 'ידני');
                     const relevantAbsence = absences.find(a => a.person_id === person.id && dateKey >= a.start_date && dateKey <= a.end_date);
                     if (relevantAbsence) {
-                        reason += ` | [${relevantAbsence.status === 'pending' ? '(ממתין) ' : ''}${relevantAbsence.reason || 'בקשת יציאה'}]`;
+                        // reason += ` | [${relevantAbsence.status === 'pending' ? '(ממתין) ' : ''}${relevantAbsence.reason || 'בקשת יציאה'}]`;
+                        // User wants NO absence info, so we keep the base reason (Rotation/Manual).
                     }
 
                     const row = worksheet.addRow([companyName, person.name, teamName, statusLabel, hours, reason]);
@@ -417,10 +418,10 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 hourlyBlockages={hourlyBlockages}
                                 currentDate={selectedDate}
                                 onDateChange={setSelectedDate}
-                                onSelectPerson={(p) => setSelectedPersonForCalendar(p)}
-                                className="h-full"
-                                isViewer={true}
+                                onSelectPerson={setSelectedPersonForCalendar}
+                                viewMode="daily"
                                 companies={companies}
+                                hideAbsenceDetails={true}
                             />
                         </div>
                     )}
@@ -528,6 +529,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 className="h-full"
                                 isViewer={true}
                                 companies={companies}
+                                hideAbsenceDetails={true}
                             />
                         </div>
                     )}
