@@ -77,7 +77,52 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
             // 2. Check Attendance (Home/Base)
             const avail = getEffectiveAvailability(person, checkTime, teamRotations);
 
-            if (!avail.isAvailable) {
+            // User Rule: Arrival Day = Base, Departure Day = Home (But respect specific time check)
+            if (avail.status === 'arrival') {
+                const [sH, sM] = (avail.startHour || '00:00').split(':').map(Number);
+                const arrivalTime = new Date(checkTime);
+                arrivalTime.setHours(sH, sM, 0, 0);
+
+                if (checkTime < arrivalTime) {
+                    return {
+                        person,
+                        status: 'home',
+                        details: `בבית (מגיע ב-${avail.startHour})`,
+                        time: avail.startHour ? `${avail.startHour} - ${avail.endHour || '23:59'}` : '08:00 - 17:00'
+                    };
+                }
+
+                return {
+                    person,
+                    status: 'base',
+                    details: avail.startHour ? `הגעה ב-${avail.startHour}` : 'הגעה לבסיס',
+                    time: avail.startHour ? `${avail.startHour} - ${avail.endHour || '23:59'}` : '08:00 - 17:00'
+                };
+            }
+
+            if (avail.status === 'departure') {
+                const [eH, eM] = (avail.endHour || '23:59').split(':').map(Number);
+                const departureTime = new Date(checkTime);
+                departureTime.setHours(eH, eM, 0, 0);
+
+                if (checkTime < departureTime) {
+                    return {
+                        person,
+                        status: 'base',
+                        details: avail.endHour ? `יציאה ב-${avail.endHour}` : 'יציאה הביתה',
+                        time: avail.endHour ? `${avail.startHour || '00:00'} - ${avail.endHour}` : '08:00 - 17:00'
+                    };
+                }
+
+                return {
+                    person,
+                    status: 'home',
+                    details: `בבית (יצא ב-${avail.endHour})`,
+                    time: avail.endHour ? `${avail.startHour || '00:00'} - ${avail.endHour}` : '08:00 - 17:00'
+                };
+            }
+
+            if (!avail.isAvailable || avail.status === 'home' || avail.status === 'unavailable') {
                 return {
                     person,
                     status: 'home',
@@ -86,7 +131,9 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                 };
             }
 
-            if (avail.startHour && avail.endHour) {
+            // Fallback for Partial Checks (Classic Logic) if status is generic 'base' but has hours
+            if (avail.startHour && avail.endHour && (avail.startHour !== '00:00' || avail.endHour !== '23:59')) {
+                // Single Day Logic or similar
                 const [sH, sM] = avail.startHour.split(':').map(Number);
                 const [eH, eM] = avail.endHour.split(':').map(Number);
 
@@ -103,11 +150,13 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                 }
             }
 
+            const isFullDay = (!avail.startHour || avail.startHour === '00:00') && (!avail.endHour || avail.endHour === '23:59');
+
             return {
                 person,
                 status: 'base',
                 details: 'בבסיס (זמין)',
-                time: avail.startHour ? `${avail.startHour} - ${avail.endHour}` : '08:00 - 17:00'
+                time: isFullDay ? '' : (avail.startHour ? `${avail.startHour} - ${avail.endHour}` : '08:00 - 17:00')
             };
         });
 
@@ -271,11 +320,22 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
             <div className="bg-white p-4 md:p-6 border-b border-slate-100 sticky top-0 z-30 flex flex-col gap-4 shadow-sm">
 
                 {/* Top Row: Title & Controls */}
+                {/* Top Row: Title & Controls */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <h2 className="text-xl md:text-2xl font-black text-slate-800 flex items-center gap-2 shrink-0">
-                        <MapPin className="text-emerald-500" size={24} weight="duotone" />
-                        דוח מיקום כוחות
-                    </h2>
+                    <div className="flex items-center justify-between w-full md:w-auto">
+                        <h2 className="text-xl md:text-2xl font-black text-slate-800 flex items-center gap-2 shrink-0">
+                            <MapPin className="text-emerald-500" size={24} weight="duotone" />
+                            דוח מיקום כוחות
+                        </h2>
+
+                        <button
+                            onClick={() => setIsActionsMenuOpen(true)}
+                            className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-500 active:bg-slate-100 transition-colors shrink-0"
+                            aria-label="פעולות נוספות"
+                        >
+                            <MoreVertical size={20} weight="bold" />
+                        </button>
+                    </div>
 
                     {/* Desktop: All Controls */}
                     <div className="hidden md:flex items-center gap-2">
@@ -383,13 +443,14 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                         />
                     </div>
 
-                    {/* Mobile: Date, Time & Menu */}
+                    {/* Mobile: Date, Time (Menu moved to top) */}
                     <div className="md:hidden flex items-center gap-2 w-full">
                         <DateNavigator
                             date={selectedDate}
                             onDateChange={setSelectedDate}
                             mode="day"
                             className="h-10 flex-1"
+                            showTodayButton={false}
                         />
 
                         <TimePicker
@@ -398,14 +459,6 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                             onChange={setSelectedTime}
                             className="w-24 h-10"
                         />
-
-                        <button
-                            onClick={() => setIsActionsMenuOpen(true)}
-                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-500 active:bg-slate-100 transition-colors shrink-0"
-                            aria-label="פעולות נוספות"
-                        >
-                            <MoreVertical size={20} weight="bold" />
-                        </button>
                     </div>
                 </div>
             </div>
@@ -530,7 +583,7 @@ const PersonCard: React.FC<PersonCardProps> = ({ r, showStatusBadge = false, tea
             </div>
 
             <div className="flex flex-col items-end gap-1 pl-2">
-                <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[120px]">
+                <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[200px]">
                     {r.details}
                 </span>
                 {r.time && r.time !== 'כל היום' && (
