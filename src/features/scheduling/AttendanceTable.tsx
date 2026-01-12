@@ -23,10 +23,11 @@ interface AttendanceTableProps {
     searchTerm?: string; // NEW: Controlled search term
     showRequiredDetails?: boolean; // NEW: Toggle required row
     companies?: import('@/types').Organization[]; // NEW: For battalion view
+    hideAbsenceDetails?: boolean; // NEW: Security/Privacy prop
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
-    teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = []
+    teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = [], hideAbsenceDetails = false
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
@@ -44,6 +45,21 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     const sortedPeople = React.useMemo(() => {
         return [...filteredPeople].sort((a, b) => a.name.localeCompare(b.name, 'he'));
     }, [filteredPeople]);
+
+    // Group and sort teams by company if provided, then by name
+    const sortedTeams = React.useMemo(() => {
+        const teamList = [...teams];
+        if (companies && companies.length > 0) {
+            return teamList.sort((a, b) => {
+                const companyA = companies.find(c => c.id === a.organization_id)?.name || '';
+                const companyB = companies.find(c => c.id === b.organization_id)?.name || '';
+                const companyComp = companyA.localeCompare(companyB, 'he');
+                if (companyComp !== 0) return companyComp;
+                return a.name.localeCompare(b.name, 'he');
+            });
+        }
+        return teamList.sort((a, b) => a.name.localeCompare(b.name, 'he'));
+    }, [teams, companies]);
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -185,7 +201,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                         </div>
 
                         <div className="flex flex-col">
-                            {[...teams].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(team => {
+                            {sortedTeams.map(team => {
                                 const members = sortedPeople.filter(p => p.teamId === team.id);
                                 if (members.length === 0) return null;
 
@@ -296,14 +312,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         <div
                                                             key={person.id}
                                                             onClick={(e) => handleCellClick(e, person, currentDate)}
-                                                            className="flex items-center justify-between p-6 bg-white hover:bg-slate-50/80 active:bg-slate-100 transition-all min-h-[80px] cursor-pointer group border-b border-slate-50"
+                                                            className="flex items-center justify-between px-3 md:px-6 py-4 md:py-6 bg-white hover:bg-slate-50/80 active:bg-slate-100 transition-all min-h-[72px] md:min-h-[80px] cursor-pointer group border-b border-slate-50 gap-2 md:gap-4"
                                                             role="button"
                                                             tabIndex={0}
                                                         >
                                                             {/* Right: Person Info (Visually Right in RTL) */}
-                                                            <div className="flex items-center gap-4 shrink-0 bg-inherit relative z-10">
+                                                            <div className="flex items-center gap-3 md:gap-4 shrink-0 min-w-0 bg-inherit relative z-10">
                                                                 <div
-                                                                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-lg group-hover:shadow-blue-500/10 group-active:scale-95 transition-all"
+                                                                    className="w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-xs md:text-sm font-black text-white shadow-lg group-hover:shadow-blue-500/10 group-active:scale-95 transition-all shrink-0"
                                                                     style={{
                                                                         backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6',
                                                                         backgroundImage: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}cc)`
@@ -311,22 +327,25 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                 >
                                                                     {getPersonInitials(person.name)}
                                                                 </div>
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-base font-black text-slate-900 leading-tight group-hover:text-blue-600 transition-colors uppercase tracking-tight">{person.name}</span>
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className="text-sm md:text-base font-black text-slate-900 leading-tight group-hover:text-blue-600 transition-colors uppercase tracking-tight truncate">{person.name}</span>
                                                                     <div className="flex items-center gap-1.5 mt-0.5">
-                                                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-blue-300 transition-colors" />
-                                                                        <span className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">לוחם</span>
+                                                                        <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-slate-300 group-hover:bg-blue-300 transition-colors shrink-0" />
+                                                                        <span className="text-[10px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest truncate">לוחם</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
 
                                                             {/* Visual Connector - GUIDES THE EYE */}
-                                                            <div className="flex-1 mx-6 h-px border-t border-dashed border-slate-100 transition-all duration-300 group-hover:border-slate-200" />
+                                                            <div className="flex-1 mx-2 md:mx-6 h-px border-t border-dashed border-slate-100 transition-all duration-300 group-hover:border-slate-200" />
 
-                                                            {/* Left Side: Status and Dots/Labels (Visually Left in RTL) */}
-                                                            <div className="flex items-center gap-3 shrink-0 bg-inherit relative z-10">
-                                                                {isExitRequest ? (
-                                                                    <span className="text-[11px] font-black text-red-600 bg-red-50 px-2 py-1 rounded-lg border border-red-100 animate-pulse">
+                                                            {/* Status Pill UI Logic moved above for easier reading, but let's add testid to the results */}
+                                                            <div className="flex items-center gap-2 md:gap-3 shrink-0 min-w-0 bg-inherit relative z-10" data-testid={`attendance-table__person-status-container-${person.id}`}>
+                                                                {isExitRequest && !hideAbsenceDetails ? (
+                                                                    <span
+                                                                        title={relevantAbsence?.reason}
+                                                                        className="text-[10px] md:text-[11px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 md:px-2 md:py-1 rounded-lg border border-red-100 animate-pulse truncate max-w-[70px] xs:max-w-[100px] sm:max-w-[180px] shrink-0"
+                                                                    >
                                                                         {isViewer ? 'היעדרות' : (
                                                                             <>
                                                                                 {relevantAbsence?.status === 'rejected' && <span className="text-[10px] opacity-70 ml-1">(נדחה)</span>}
@@ -335,7 +354,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         )}
                                                                     </span>
                                                                 ) : (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
-                                                                    <div className="flex -space-x-1 rtl:space-x-reverse h-3 items-center">
+                                                                    <div className="flex -space-x-1 rtl:space-x-reverse h-3 items-center shrink-0">
                                                                         {avail.unavailableBlocks.slice(0, 3).map((_, i) => (
                                                                             <div key={i} className="w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white shadow-sm" />
                                                                         ))}
@@ -344,11 +363,11 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                                                 <div
                                                                     className={`
-                                                                    flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-xs
+                                                                    flex items-center gap-1.5 md:gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs shrink-0
                                                                     ${statusConfig.bg} transition-all shadow-sm ring-1 ring-black/5
                                                                 `}
                                                                 >
-                                                                    <statusConfig.icon size={14} weight="duotone" />
+                                                                    <statusConfig.icon size={14} weight="duotone" className="shrink-0" />
                                                                     <span className="whitespace-nowrap tracking-tight">{statusConfig.label}</span>
                                                                 </div>
                                                             </div>
@@ -493,7 +512,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                     <div className="flex-1 bg-slate-100/50 border-b border-slate-300 h-full" />
                                 </div>
 
-                                {[...teams].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(team => {
+                                {sortedTeams.map(team => {
                                     const teamPeople = sortedPeople.filter(p => p.teamId === team.id);
                                     if (teamPeople.length === 0) return null;
                                     const isCollapsed = collapsedTeams.has(team.id);
@@ -625,10 +644,11 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     const isApproved = absenceStatus === 'approved' || absenceStatus === 'partially_approved';
                                                                     const isUnapprovedExit = isExitRequest && !isApproved;
 
-                                                                    const constraintText = isExitRequest ? (
+                                                                    const constraintText = (isExitRequest && !hideAbsenceDetails) ? (
                                                                         <span
                                                                             data-testid="exit-request-label"
-                                                                            className={`text-[9px] font-bold -mt-0.5 whitespace-nowrap scale-90 flex items-center gap-1 ${isUnapprovedExit ? 'text-red-600' : 'text-slate-500'}`}
+                                                                            title={relevantAbsence?.reason}
+                                                                            className={`text-[9px] font-bold -mt-0.5 whitespace-nowrap scale-90 flex items-center gap-1 truncate max-w-[80px] ${isUnapprovedExit ? 'text-red-600' : 'text-slate-500'}`}
                                                                         >
                                                                             {absenceStatus === 'rejected' && <span className="opacity-60 text-[8px]">(נדחה)</span>}
                                                                             {absenceStatus === 'pending' && <span className="opacity-60 text-[8px]">(ממתין)</span>}
@@ -778,15 +798,15 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                             themeColor = "bg-emerald-500";
                                                                             content = (
                                                                                 <div className="flex flex-col items-center justify-center gap-0.5 relative w-full h-full">
-                                                                                    {isUnapprovedExit && (
+                                                                                    {isUnapprovedExit && !hideAbsenceDetails && (
                                                                                         <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
                                                                                             <AlertCircle size={10} weight="fill" />
                                                                                         </div>
                                                                                     )}
-                                                                                    <MapPin size={14} className={isUnapprovedExit ? "text-red-500" : "text-emerald-500/50"} weight="duotone" />
-                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>בסיס</span>
+                                                                                    <MapPin size={14} className={isUnapprovedExit && !hideAbsenceDetails ? "text-red-500" : "text-emerald-500/50"} weight="duotone" />
+                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit && !hideAbsenceDetails ? "text-red-700" : ""}`}>בסיס</span>
                                                                                     {constraintText}
-                                                                                    {isUnapprovedExit && (
+                                                                                    {isUnapprovedExit && !hideAbsenceDetails && (
                                                                                         <span className="text-[8px] font-bold text-red-500/60 leading-tight">לא אושר</span>
                                                                                     )}
                                                                                 </div>

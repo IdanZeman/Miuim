@@ -39,6 +39,7 @@ interface ActionBarProps {
     isSearchExpandedDefault?: boolean;
     isSearchHidden?: boolean;
     mobileMoreActions?: React.ReactNode;
+    testId?: string;
 }
 
 export const ActionBar: React.FC<ActionBarProps> = ({
@@ -54,7 +55,8 @@ export const ActionBar: React.FC<ActionBarProps> = ({
     className = "",
     isSearchExpandedDefault = false,
     isSearchHidden = false,
-    mobileMoreActions
+    mobileMoreActions,
+    testId
 }) => {
     const [isSearchExpanded, setIsSearchExpanded] = useState(isSearchExpandedDefault || !!searchTerm);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -136,23 +138,22 @@ export const ActionBar: React.FC<ActionBarProps> = ({
             {/* 2. Desktop Layout - Grouped for Clarity */}
             <div className={`hidden md:flex items-center justify-between gap-4 py-4 px-6 ${className}`}>
                 {/* Right Side (RTL) - Title/Brand */}
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
                     {leftActions}
                 </div>
 
-                {/* Left Side (RTL) - Consolidated Actions */}
-                <div className="flex items-center gap-3 shrink-0">
-                    {/* 1. Center Actions (often View Switchers) */}
+                {/* Center Section - View Switchers/Tabs */}
+                <div className="flex justify-center min-w-0 flex-1">
                     {centerActions && (
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center shrink-0">
                             {centerActions}
                         </div>
                     )}
+                </div>
 
-                    {/* 2. Custom Right Actions (e.g. Date Navigator) */}
-                    {rightActions}
-
-                    {/* 3. Filters */}
+                {/* Left side in RTL - Consolidated Actions (Search, Filters, Navigator, Export) */}
+                <div className="flex items-center gap-3 justify-end min-w-0 flex-1">
+                    {/* 1. Filters (Consolidated) */}
                     {filters.length > 0 && (
                         <div className="flex items-center gap-2">
                             {/* Desktop Filters (Large only) */}
@@ -176,6 +177,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                             <div className="flex 4xl:hidden">
                                 <button
                                     onClick={() => setIsMobileMenuOpen(true)}
+                                    data-testid={testId ? `${testId}__filter-trigger` : undefined}
                                     className={`h-10 px-3 rounded-xl border flex items-center gap-2 transition-all shrink-0 ${activeFiltersCount > 0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100/50 text-slate-500 border-slate-200 hover:bg-white'}`}
                                 >
                                     <Filter size={18} weight={activeFiltersCount > 0 ? "fill" : "bold"} />
@@ -185,7 +187,10 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                         </div>
                     )}
 
-                    {/* 4. Search Bar */}
+                    {/* 2. Custom Right Actions (e.g. Date Navigator) */}
+                    {rightActions}
+
+                    {/* 3. Search Bar */}
                     {!isSearchHidden && (
                         <div className={`relative transition-all duration-300 ease-in-out ${isSearchExpanded || searchTerm ? 'md:w-56 xl:w-64' : 'w-10'}`}>
                             {isSearchExpanded || searchTerm ? (
