@@ -1161,6 +1161,7 @@ const useMainAppState = () => {
                             hourlyBlockages={state.hourlyBlockages}
                             settings={state.settings}
                             onRefreshData={refetchOrgData}
+                            onAutoSchedule={() => setShowScheduleModal(true)}
                         />
 
                         <AutoScheduleModal
