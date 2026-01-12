@@ -210,6 +210,8 @@ const findBestCandidates = (
       // Helper to extract value (Custom Field OR Role)
       const getValue = (p: Person, field: string) => {
         if (field === 'role') return p.roleId ? [p.roleId, ...(p.roleIds || [])] : [];
+        if (field === 'person') return p.id;
+        if (field === 'team') return p.teamId;
         return p.customFields?.[field];
       };
 

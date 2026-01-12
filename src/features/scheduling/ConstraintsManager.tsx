@@ -72,6 +72,18 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
     // Helper to format IPC values for display
     const formatIpcValue = (field: string, value: any) => {
+        if (field === 'person') {
+            const getPersonName = (id: string) => people.find(p => p.id === id)?.name || id;
+            if (Array.isArray(value)) return value.map(getPersonName).join(', ');
+            return getPersonName(value);
+        }
+
+        if (field === 'team') {
+            const getTeamName = (id: string) => teams.find(t => t.id === id)?.name || id;
+            if (Array.isArray(value)) return value.map(getTeamName).join(', ');
+            return getTeamName(value);
+        }
+
         if (field === 'role') {
             const getRoleName = (id: string) => roles.find(r => r.id === id)?.name || id;
             if (Array.isArray(value)) return value.map(getRoleName).join(', ');
@@ -87,6 +99,8 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
     const getFieldLabel = (field: string) => {
         if (field === 'role') return 'תפקיד';
+        if (field === 'person') return 'חייל';
+        if (field === 'team') return 'צוות';
         return customFieldsSchema?.find(f => f.key === field)?.label || field;
     };
 
@@ -741,36 +755,70 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                             <h4 className="text-xs font-black text-slate-500 uppercase">קבוצה א'</h4>
-                            <div className="flex bg-white rounded-lg p-1 border border-slate-200 mb-2">
+                            <div className="flex bg-white rounded-lg p-1 border border-slate-200 mb-2 overflow-x-auto">
                                 <button
                                     onClick={() => {
-                                        if (ipcFieldA === 'role') {
+                                        if (ipcFieldA === 'role' || ipcFieldA === 'person' || ipcFieldA === 'team') {
                                             setIpcFieldA((customFieldsSchema?.[0]?.key) || '');
                                             setIpcValueA('');
                                         }
                                     }}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${ipcFieldA !== 'role' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-md transition-all whitespace-nowrap ${ipcFieldA !== 'role' && ipcFieldA !== 'person' && ipcFieldA !== 'team' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     שדה מותאם
                                 </button>
                                 <button
                                     onClick={() => {
-                                        setIpcFieldA('role');
-                                        setIpcValueA('');
+                                        setIpcFieldA('person');
+                                        setIpcValueA([]);
                                     }}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${ipcFieldA === 'role' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-md transition-all whitespace-nowrap ${ipcFieldA === 'person' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    חייל
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIpcFieldA('team');
+                                        setIpcValueA([]);
+                                    }}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-md transition-all whitespace-nowrap ${ipcFieldA === 'team' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    צוות
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIpcFieldA('role');
+                                        setIpcValueA([]);
+                                    }}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-md transition-all whitespace-nowrap ${ipcFieldA === 'role' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     תפקיד
                                 </button>
                             </div>
 
-                            {ipcFieldA === 'role' ? (
-                                <Select
-                                    label="בחר תפקיד"
-                                    value={ipcValueA}
+                            {ipcFieldA === 'person' ? (
+                                <MultiSelect
+                                    label="בחר חיילים"
+                                    value={Array.isArray(ipcValueA) ? ipcValueA : []}
+                                    onChange={setIpcValueA}
+                                    options={activePeople.map(p => ({ value: p.id, label: p.name }))}
+                                    placeholder="חפש ובחר חיילים..."
+                                />
+                            ) : ipcFieldA === 'team' ? (
+                                <MultiSelect
+                                    label="בחר צוותים"
+                                    value={Array.isArray(ipcValueA) ? ipcValueA : []}
+                                    onChange={setIpcValueA}
+                                    options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                    placeholder="בחר צוותים..."
+                                />
+                            ) : ipcFieldA === 'role' ? (
+                                <MultiSelect
+                                    label="בחר תפקידים"
+                                    value={Array.isArray(ipcValueA) ? ipcValueA : []}
                                     onChange={setIpcValueA}
                                     options={roles.map(r => ({ value: r.id, label: r.name }))}
-                                    placeholder="בחר תפקיד..."
+                                    placeholder="בחר תפקידים..."
                                 />
                             ) : (
                                 <>
@@ -820,36 +868,70 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
                         <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                             <h4 className="text-xs font-black text-slate-500 uppercase">קבוצה ב'</h4>
-                            <div className="flex bg-white rounded-lg p-1 border border-slate-200 mb-2">
+                            <div className="flex bg-white rounded-lg p-1 border border-slate-200 mb-2 overflow-x-auto">
                                 <button
                                     onClick={() => {
-                                        if (ipcFieldB === 'role') {
+                                        if (ipcFieldB === 'role' || ipcFieldB === 'person' || ipcFieldB === 'team') {
                                             setIpcFieldB((customFieldsSchema?.[0]?.key) || '');
                                             setIpcValueB('');
                                         }
                                     }}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${ipcFieldB !== 'role' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-md transition-all whitespace-nowrap ${ipcFieldB !== 'role' && ipcFieldB !== 'person' && ipcFieldB !== 'team' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     שדה מותאם
                                 </button>
                                 <button
                                     onClick={() => {
-                                        setIpcFieldB('role');
-                                        setIpcValueB('');
+                                        setIpcFieldB('person');
+                                        setIpcValueB([]);
                                     }}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${ipcFieldB === 'role' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-md transition-all whitespace-nowrap ${ipcFieldB === 'person' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    חייל
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIpcFieldB('team');
+                                        setIpcValueB([]);
+                                    }}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-md transition-all whitespace-nowrap ${ipcFieldB === 'team' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    צוות
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIpcFieldB('role');
+                                        setIpcValueB([]);
+                                    }}
+                                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-tight rounded-md transition-all whitespace-nowrap ${ipcFieldB === 'role' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
                                     תפקיד
                                 </button>
                             </div>
 
-                            {ipcFieldB === 'role' ? (
-                                <Select
-                                    label="בחר תפקיד"
-                                    value={ipcValueB}
+                            {ipcFieldB === 'person' ? (
+                                <MultiSelect
+                                    label="בחר חיילים"
+                                    value={Array.isArray(ipcValueB) ? ipcValueB : []}
+                                    onChange={setIpcValueB}
+                                    options={activePeople.map(p => ({ value: p.id, label: p.name }))}
+                                    placeholder="חפש ובחר חיילים..."
+                                />
+                            ) : ipcFieldB === 'team' ? (
+                                <MultiSelect
+                                    label="בחר צוותים"
+                                    value={Array.isArray(ipcValueB) ? ipcValueB : []}
+                                    onChange={setIpcValueB}
+                                    options={teams.map(t => ({ value: t.id, label: t.name }))}
+                                    placeholder="בחר צוותים..."
+                                />
+                            ) : ipcFieldB === 'role' ? (
+                                <MultiSelect
+                                    label="בחר תפקידים"
+                                    value={Array.isArray(ipcValueB) ? ipcValueB : []}
                                     onChange={setIpcValueB}
                                     options={roles.map(r => ({ value: r.id, label: r.name }))}
-                                    placeholder="בחר תפקיד..."
+                                    placeholder="בחר תפקידים..."
                                 />
                             ) : (
                                 <>
