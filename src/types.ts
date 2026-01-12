@@ -19,6 +19,7 @@ export interface Battalion {
   name: string;
   code: string;
   created_at: string;
+  morning_report_time?: string; // e.g. "09:00"
 }
 
 export type CustomFieldType =
@@ -65,6 +66,7 @@ export interface OrganizationSettings {
   customFieldsSchema?: CustomFieldDefinition[]; // NEW: Schema for custom fields
   home_forecast_days?: number; // Days ahead to show leave forecast (default: 30)
   interPersonConstraints?: InterPersonConstraint[];
+  morning_report_time?: string; // e.g. "09:00"
 }
 
 export interface InterPersonConstraint {
@@ -424,5 +426,17 @@ export interface RotaGenerationHistory {
     email?: string;
   };
   title?: string;
+}
+
+export interface DailyAttendanceSnapshot {
+  id: string;
+  organization_id: string;
+  person_id: string;
+  date: string; // ISO Date YYYY-MM-DD
+  status: string; // 'home' | 'base' | etc.
+  start_time?: string;
+  end_time?: string;
+  captured_at: string; // ISO Timestamp
+  snapshot_definition_time: string; // e.g., "09:00"
 }
 

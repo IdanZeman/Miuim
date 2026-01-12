@@ -190,12 +190,12 @@ export const fetchBattalionPeople = async (battalionId: string): Promise<Person[
 /**
  * Fetches today's presence summary for the entire battalion.
  */
-export const fetchBattalionPresenceSummary = async (battalionId: string) => {
+export const fetchBattalionPresenceSummary = async (battalionId: string, date?: string) => {
     const { data: companies } = await supabase.from('organizations').select('id').eq('battalion_id', battalionId);
     if (!companies || companies.length === 0) return [];
 
     const ids = companies.map(c => c.id);
-    const today = new Date().toISOString().split('T')[0];
+    const targetDate = date || new Date().toISOString().split('T')[0];
 
     const { data, error } = await supabase
         .from('daily_presence')
@@ -214,7 +214,7 @@ export const fetchBattalionPresenceSummary = async (battalionId: string) => {
             )
         `)
         .in('organization_id', ids)
-        .eq('date', today);
+        .eq('date', targetDate);
 
     if (error) throw error;
     return data;
@@ -228,6 +228,18 @@ export const unlinkBattalion = async (organizationId: string) => {
         .from('organizations')
         .update({ battalion_id: null, is_hq: false })
         .eq('id', organizationId);
+
+    if (error) throw error;
+};
+
+/**
+ * Updates the morning report snapshot time for a battalion.
+ */
+export const updateBattalionMorningReportTime = async (battalionId: string, time: string) => {
+    const { error } = await supabase
+        .from('battalions')
+        .update({ morning_report_time: time })
+        .eq('id', battalionId);
 
     if (error) throw error;
 };

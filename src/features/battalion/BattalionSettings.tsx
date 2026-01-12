@@ -4,8 +4,8 @@ import { Shield, Copy, Check, Info, Buildings, Users } from '@phosphor-icons/rea
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../features/auth/AuthContext';
-import { fetchBattalion, fetchBattalionCompanies } from '../../services/battalionService';
 import { Battalion, Organization } from '@/types';
+import { fetchBattalion, fetchBattalionCompanies, updateBattalionMorningReportTime } from '../../services/battalionService';
 
 export const BattalionSettings: React.FC = () => {
     const { profile, organization } = useAuth();
@@ -14,6 +14,8 @@ export const BattalionSettings: React.FC = () => {
     const [companies, setCompanies] = useState<Organization[]>([]);
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [selectedTime, setSelectedTime] = useState('09:00');
 
     useEffect(() => {
         if (organization?.battalion_id) {
@@ -32,6 +34,9 @@ export const BattalionSettings: React.FC = () => {
             ]);
             setBattalion(battalionData);
             setCompanies(companiesData);
+            if (battalionData.morning_report_time) {
+                setSelectedTime(battalionData.morning_report_time);
+            }
         } catch (error) {
             console.error('Failed to load battalion data:', error);
             showToast('שגיאה בטעינת נתוני הגדוד', 'error');
@@ -46,6 +51,22 @@ export const BattalionSettings: React.FC = () => {
         setCopied(true);
         showToast('הקוד הועתק ללוח', 'success');
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleTimeChange = async (newTime: string) => {
+        if (!battalion?.id) return;
+
+        try {
+            setSaving(true);
+            setSelectedTime(newTime);
+            await updateBattalionMorningReportTime(battalion.id, newTime);
+            showToast('שעת הדוח עודכנה בהצלחה', 'success');
+        } catch (error) {
+            console.error('Failed to update morning report time:', error);
+            showToast('שגיאה בעדכון שעת הדוח', 'error');
+        } finally {
+            setSaving(false);
+        }
     };
 
     if (loading) {
@@ -115,6 +136,39 @@ export const BattalionSettings: React.FC = () => {
                         <p className="text-xs text-blue-600/80 mt-3 font-medium leading-relaxed">
                             שתף קוד זה עם מנהלי הפלוגות. עליהם להזין אותו תחת "הגדרות ארגון" בלשונית "גדוד" כדי להתחבר אליך.
                         </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Reports & Status Settings */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                        <Info size={20} weight="bold" />
+                    </div>
+                    <span className="font-black text-slate-900">דוחות וסטטוס</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">שעת דוח בוקר</label>
+                        <p className="text-xs text-slate-500 mb-3">
+                            המערכת תצלם את תמונת המצב של כל הפלוגות בשעה זו באופן אוטומטי.
+                        </p>
+                        <div className="relative">
+                            <input
+                                type="time"
+                                className={`w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-slate-900 font-bold focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none appearance-none ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                value={selectedTime}
+                                disabled={saving}
+                                onChange={(e) => handleTimeChange(e.target.value)}
+                            />
+                            {saving && (
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                                    <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

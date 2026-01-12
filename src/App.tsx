@@ -61,6 +61,7 @@ import { usePageTracking } from './hooks/usePageTracking';
 import { useQueryClient } from '@tanstack/react-query';
 import { useOrganizationData } from './hooks/useOrganizationData';
 import { DashboardSkeleton } from './components/ui/DashboardSkeleton'; // Import Skeleton
+import { BattalionMorningReport } from './features/battalion/reports/BattalionMorningReport';
 import { ClaimProfile } from './features/auth/ClaimProfile';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { NewLandingPage } from './features/landing/NewLandingPage';
@@ -1281,6 +1282,8 @@ const useMainAppState = () => {
                         onNavigateToAttendance={() => { setAutoOpenRotaWizard(true); setView('attendance'); }}
                     />
                 ) : <Navigate to="/" />;
+            case 'reports':
+                return <BattalionMorningReport battalionId={organization?.battalion_id} />;
             case 'gate':
                 return <GateDashboard />;
             default:

@@ -73,7 +73,8 @@ const TABS: NavItem[] = [
         subItems: [
             { label: 'מבט גדודי', view: 'battalion-home', icon: LayoutDashboard, description: 'סיכום נתונים וסטטיסטיקות גדוד' },
             { label: 'סד"כ גדודי', view: 'battalion-personnel', icon: Users, description: 'ניהול כוח אדם רוחבי בגדוד' },
-            { label: 'נוכחות גדודית', view: 'battalion-attendance', icon: Calendar, description: 'ריכוז נוכחות מכל הפלוגות' }
+            { label: 'נוכחות גדודית', view: 'battalion-attendance', icon: Calendar, description: 'ריכוז נוכחות מכל הפלוגות' },
+            { label: 'שינויים בדוח 1', view: 'reports', icon: BarChart3, description: 'דוח בוקר והשוואת שינויים יומי' }
         ]
     },
     {

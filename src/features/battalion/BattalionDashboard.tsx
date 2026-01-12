@@ -8,10 +8,12 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
     const { organization } = useAuth();
 
     // Optimized Data Hook
+    // Optimized Data Hook
     const {
         companies = [],
         people = [],
         presenceSummary = [],
+        computedStats,
         isLoading
     } = useBattalionData(organization?.battalion_id);
 
@@ -25,24 +27,21 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
     }
 
     const totalStrength = people.length;
-    const activeStrength = people.filter(p => p.isActive !== false).length;
+    const activeStrength = computedStats?.totalActive || 0;
 
-    // Define active statuses for sector presence
-    const SECTOR_STATUSES = ['base', 'full', 'arrival', 'departure'];
-
-    // Calculate global stats
-    const presentOnBase = presenceSummary.filter(p => SECTOR_STATUSES.includes(p.status)).length;
-    const atHomeOrLeave = presenceSummary.filter(p => p.status === 'home' || p.status === 'leave').length;
-    const notReportedCount = activeStrength - presenceSummary.length;
+    // Calculate global stats using computed logic (synchronized with Attendance Log)
+    const presentOnBase = computedStats?.totalPresent || 0;
+    const atHomeOrLeave = computedStats?.totalHome || 0;
+    const notReportedCount = computedStats?.unreportedCount || 0;
 
     const chartData = companies.map(org => {
         const orgPeople = people.filter(p => p.organization_id === org.id);
         const orgTotalCount = orgPeople.length;
-        const orgActivePeople = orgPeople.filter(p => p.isActive !== false);
-        const orgActiveCount = orgActivePeople.length;
 
-        const orgPresence = presenceSummary.filter(p => p.organization_id === org.id);
-        const orgPresentInSector = orgPresence.filter(p => SECTOR_STATUSES.includes(p.status)).length;
+        const orgStats = computedStats?.companyStats[org.id] || { present: 0, total: 0, home: 0 };
+        const orgActiveCount = orgStats.total;
+        const orgPresentInSector = orgStats.present;
+        const orgPresentHome = orgStats.home;
 
         // Tag logic: Sector Presence / Total Active
         const presencePercent = orgActiveCount > 0 ? Math.round((orgPresentInSector / orgActiveCount) * 100) : 0;
@@ -57,7 +56,7 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
             active: orgActiveCount,
             total: orgTotalCount,
             presentInSector: orgPresentInSector,
-            presentHome: orgPresence.filter(p => p.status === 'home' || p.status === 'leave').length
+            presentHome: orgPresentHome
         };
     }).sort((a, b) => b.percent - a.percent);
 
