@@ -167,10 +167,12 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
 
     const handleExportExcel = async () => {
         // Hydrate orgName with team name since the utility uses orgName/team field logic
-        const dataForExport = reportData.map(r => ({
-            ...r,
-            orgName: r.person.teamId ? getTeamName(r.person.teamId) : ''
-        }));
+        const dataForExport = reportData
+            .filter(r => r.status !== 'inactive') // Exclude inactive from Excel
+            .map(r => ({
+                ...r,
+                orgName: r.person.teamId ? getTeamName(r.person.teamId) : ''
+            }));
 
         await generateLocationReportExcel(
             dataForExport,

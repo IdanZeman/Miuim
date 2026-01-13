@@ -250,8 +250,9 @@ export const BattalionLocationReport: React.FC = () => {
     }, []);
 
     const handleExportExcel = async () => {
+        const dataForExport = reportData.filter(r => r.status !== 'inactive'); // Exclude inactive from Excel
         await generateLocationReportExcel(
-            reportData,
+            dataForExport,
             `battalion_location_${selectedDate.toISOString().split('T')[0]}`,
             true // isBattalionReport
         );
