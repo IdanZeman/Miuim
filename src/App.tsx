@@ -53,7 +53,7 @@ import {
     mapAbsenceFromDB, mapAbsenceToDB, // Added imports
     mapEquipmentFromDB, mapEquipmentToDB
 } from './services/supabaseClient';
-import { solveSchedule, SchedulingSuggestion, SchedulingResult } from './services/scheduler';
+import { solveSchedule, SchedulingSuggestion, SchedulingResult, SchedulingViolation } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
 import { FloatingActionButton } from './components/ui/FloatingActionButton';
 import { MagicWandIcon as Wand2, SparkleIcon as Sparkles, ShieldIcon, XIcon as X, CalendarBlankIcon as Calendar, WarningCircleIcon as AlertCircle, CircleNotchIcon as Loader2, UsersIcon as Users } from '@phosphor-icons/react';
@@ -173,6 +173,8 @@ const useMainAppState = () => {
         }
     }, [activeOrgId, profile?.organization_id, battalionCompanies]);
     const [schedulingSuggestions, setSchedulingSuggestions] = useState<SchedulingSuggestion[]>([]);
+    const [schedulingViolations, setSchedulingViolations] = useState<SchedulingViolation[]>([]);
+    const [wasPrioritized, setWasPrioritized] = useState(false);
     const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
 
     const {
@@ -975,6 +977,8 @@ const useMainAppState = () => {
         if (!organization) return;
         setIsScheduling(true);
         setSchedulingSuggestions([]); // Clear previous
+        setSchedulingViolations([]); // Clear previous
+        setWasPrioritized(!!prioritizeTeamOrganic);
         const start = new Date(startDate);
         const end = new Date(endDate);
 
@@ -1052,10 +1056,13 @@ const useMainAppState = () => {
                     }
 
                     // 5. Solve schedule for this day
-                    const { shifts: solvedShifts, suggestions: daySuggestions } = solveSchedule(state, dateStart, dateEnd, historyScores, futureAssignments, selectedTaskIds, shiftsToSchedule, prioritizeTeamOrganic);
+                    const { shifts: solvedShifts, suggestions: daySuggestions, violations: dayViolations } = solveSchedule(state, dateStart, dateEnd, historyScores, futureAssignments, selectedTaskIds, shiftsToSchedule, prioritizeTeamOrganic);
 
                     if (daySuggestions?.length > 0) {
                         setSchedulingSuggestions(prev => [...prev, ...daySuggestions]);
+                    }
+                    if (dayViolations?.length > 0) {
+                        setSchedulingViolations(prev => [...prev, ...dayViolations]);
                     }
 
                     if (solvedShifts.length > 0) {
@@ -1084,7 +1091,7 @@ const useMainAppState = () => {
             if (successCount > 0) {
                 showToast(`✅ שיבוץ הושלם עבור ${successCount} ימים`, 'success');
                 await refreshData();
-                if (schedulingSuggestions.length > 0) {
+                if (schedulingSuggestions.length > 0 || schedulingViolations.length > 0) {
                     setShowSuggestionsModal(true);
                 }
             } else if (failCount > 0) {
@@ -1330,7 +1337,7 @@ const useMainAppState = () => {
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal, handleAutoSchedule,
         scheduleStartDate, isScheduling, handleClearDay, handleNavigate, handleAssign, handleUnassign,
         handleAddShift, handleUpdateShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
-        autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
+        autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, schedulingViolations, wasPrioritized, showSuggestionsModal,
         setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent
     };
 };
@@ -1340,7 +1347,7 @@ const MainApp: React.FC = () => {
         view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isLinkedToPerson,
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal,
         scheduleStartDate, isScheduling, refetchOrgData, myPerson,
-        schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal, renderContent
+        schedulingSuggestions, schedulingViolations, wasPrioritized, showSuggestionsModal, setShowSuggestionsModal, renderContent
     } = useMainAppState();
 
     const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';
@@ -1363,28 +1370,30 @@ const MainApp: React.FC = () => {
                     </main>
                 </ErrorBoundary>
 
-                {/* Suggestions Modal */}
-                {showSuggestionsModal && schedulingSuggestions.length > 0 && (
+                {/* Suggestions & Violations Modal */}
+                {showSuggestionsModal && (schedulingSuggestions.length > 0 || schedulingViolations.length > 0) && (
                     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
                         <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
                             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white rounded-t-2xl">
                                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                                     <Sparkles className="text-idf-yellow" size={24} weight="duotone" />
-                                    הצעות להשלמת שיבוץ
+                                    סיכום שיבוץ אוטומטי
                                 </h2>
                                 <button onClick={() => setShowSuggestionsModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
                                     <X size={20} weight="bold" />
                                 </button>
                             </div>
                             <div className="overflow-y-auto p-6 space-y-6">
-                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-right" dir="rtl">
-                                    <div className="bg-blue-100 p-2 rounded-lg h-fit text-blue-600">
-                                        <ShieldIcon size={20} weight="duotone" />
+                                {wasPrioritized && schedulingSuggestions.length > 0 && (
+                                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-right" dir="rtl">
+                                        <div className="bg-blue-100 p-2 rounded-lg h-fit text-blue-600">
+                                            <ShieldIcon size={20} weight="duotone" />
+                                        </div>
+                                        <p className="text-blue-900 text-sm leading-relaxed">
+                                            השיבוץ בוצע במצב <strong>"אורגניות צוות"</strong> קשיח. המשימות הבאות לא הושלמו במלואן כדי שלא לערבב צוותים, אך נמצאו אנשים מצוותים אחרים שיכולים להתאים:
+                                        </p>
                                     </div>
-                                    <p className="text-blue-900 text-sm leading-relaxed">
-                                        השיבוץ בוצע במצב <strong>"אורגניות צוות"</strong> קשיח. המשימות הבאות לא הושלמו במלואן כדי שלא לערבב צוותים, אך נמצאו אנשים מצוותים אחרים שיכולים להתאים:
-                                    </p>
-                                </div>
+                                )}
                                 <div className="space-y-4" dir="rtl">
                                     {schedulingSuggestions.map((sug, idx) => (
                                         <div key={idx} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-idf-yellow/30 transition-colors text-right">
@@ -1419,6 +1428,43 @@ const MainApp: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
+
+                                {schedulingViolations.length > 0 && (
+                                    <div className="space-y-4" dir="rtl">
+                                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex gap-3 text-right">
+                                            <div className="bg-amber-100 p-2 rounded-lg h-fit text-amber-600">
+                                                <AlertCircle size={20} weight="duotone" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-amber-900 font-bold text-sm">חריגות שבוצעו באילוצים</h4>
+                                                <p className="text-amber-800 text-xs mt-1 leading-relaxed">
+                                                    האלגוריתם נאלץ לבצע פשרות כדי להשלים את השיבוץ:
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {schedulingViolations.map((viol, vidx) => (
+                                                <div key={vidx} className="p-4 rounded-xl bg-amber-50/30 border border-amber-100/50 flex items-center justify-between text-right">
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-slate-900 text-sm">{viol.personName}</span>
+                                                            <span className="text-slate-400 text-[10px]">•</span>
+                                                            <span className="text-slate-600 text-xs font-medium">{viol.taskName}</span>
+                                                        </div>
+                                                        <div className="text-amber-700 text-[11px] font-bold mt-1 flex items-center gap-1">
+                                                            <span>{viol.details}</span>
+                                                            <span className="text-slate-300 mx-1">|</span>
+                                                            <span>{new Date(viol.startTime).toLocaleDateString('he-IL')}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-amber-100/50 text-amber-700 text-[10px] px-2 py-1 rounded-md font-black uppercase tracking-wider">
+                                                        {viol.type === 'REST_REDUCED' ? 'מנוחה' : 'אילוץ'}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div className="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl">
                                 <button
