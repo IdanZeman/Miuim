@@ -22,7 +22,8 @@ import {
     FileTextIcon,
     AnchorIcon,
     ActivityIcon,
-    DiceFiveIcon as Dices
+    DiceFiveIcon as Dices,
+    MapPinIcon
 } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ViewMode, Profile } from '../../types';
@@ -68,12 +69,13 @@ const TABS: NavItem[] = [
         label: 'ניהול גדודי',
         icon: Building2,
         primaryView: 'battalion-home',
-        views: ['battalion-home', 'battalion-personnel', 'battalion-attendance'],
+        views: ['battalion-home', 'battalion-personnel', 'battalion-attendance', 'battalion-location'],
         isSpecial: true,
         subItems: [
             { label: 'מבט גדודי', view: 'battalion-home', icon: LayoutDashboard, description: 'סיכום נתונים וסטטיסטיקות גדוד' },
             { label: 'סד"כ גדודי', view: 'battalion-personnel', icon: Users, description: 'ניהול כוח אדם רוחבי בגדוד' },
             { label: 'נוכחות גדודית', view: 'battalion-attendance', icon: Calendar, description: 'ריכוז נוכחות מכל הפלוגות' },
+            { label: 'דוח מיקום גדודי', view: 'battalion-location', icon: MapPinIcon, description: 'תמונת מצב מיקומי כוח אדם' },
             { label: 'שינויים בדוח 1', view: 'reports', icon: BarChart3, description: 'דוח בוקר והשוואת שינויים יומי' }
         ]
     },

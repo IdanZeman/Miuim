@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Battalion, Profile, Organization, Person } from '../types';
+import { Battalion, Profile, Organization, Person, DailyPresenceSummary } from '../types';
 import { mapPersonFromDB } from './mappers';
 
 /**
@@ -190,7 +190,7 @@ export const fetchBattalionPeople = async (battalionId: string): Promise<Person[
 /**
  * Fetches today's presence summary for the entire battalion.
  */
-export const fetchBattalionPresenceSummary = async (battalionId: string, date?: string) => {
+export const fetchBattalionPresenceSummary = async (battalionId: string, date?: string): Promise<DailyPresenceSummary[]> => {
     const { data: companies } = await supabase.from('organizations').select('id').eq('battalion_id', battalionId);
     if (!companies || companies.length === 0) return [];
 
@@ -217,7 +217,12 @@ export const fetchBattalionPresenceSummary = async (battalionId: string, date?: 
         .eq('date', targetDate);
 
     if (error) throw error;
-    return data;
+    
+    // Map raw response to typed object, handling potential array/object mismatch for joined relation
+    return (data || []).map((item: any) => ({
+        ...item,
+        people: Array.isArray(item.people) ? item.people[0] : item.people
+    })) as DailyPresenceSummary[];
 };
 
 /**

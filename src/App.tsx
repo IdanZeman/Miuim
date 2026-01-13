@@ -14,6 +14,7 @@ const BattalionDashboard = lazyWithRetry(() => import('./features/battalion/Batt
 const BattalionPersonnelTable = lazyWithRetry(() => import('./features/battalion/BattalionPersonnelTable').then(module => ({ default: module.BattalionPersonnelTable })));
 const BattalionSettings = lazyWithRetry(() => import('./features/battalion/BattalionSettings').then(module => ({ default: module.BattalionSettings })));
 const BattalionAttendanceManager = lazyWithRetry(() => import('./features/battalion/BattalionAttendanceManager').then(module => ({ default: module.BattalionAttendanceManager })));
+const BattalionLocationReport = lazyWithRetry(() => import('./features/battalion/BattalionLocationReport').then(module => ({ default: module.BattalionLocationReport })));
 
 const AdminLogsViewer = lazyWithRetry(() => import('./features/admin/AdminLogsViewer').then(module => ({ default: module.AdminLogsViewer })));
 const OrganizationLogsViewer = lazyWithRetry(() => import('./features/admin/OrganizationLogsViewer').then(module => ({ default: module.OrganizationLogsViewer })));
@@ -1305,6 +1306,8 @@ const useMainAppState = () => {
                 return <TermsOfUse />;
             case 'security':
                 return <SecurityPage />;
+            case 'battalion-location':
+                return <BattalionLocationReport />;
             default:
                 return (
                     <div className="p-8">

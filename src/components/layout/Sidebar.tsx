@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarBlank as Calendar, Users, ClipboardText as ClipboardList, List as Menu, SignOut as LogOut, Clock, Gear as Settings, FileText, Shield, DiceSix as Dices, Envelope as Mail, Anchor, House as Home, UserMinus as UserX, Package, Pulse as Activity, Question as HelpCircle, Car } from '@phosphor-icons/react';
+import { CalendarBlank as Calendar, Users, ClipboardText as ClipboardList, List as Menu, SignOut as LogOut, Clock, Gear as Settings, FileText, Shield, DiceSix as Dices, Envelope as Mail, Anchor, House as Home, UserMinus as UserX, Package, Pulse as Activity, Question as HelpCircle, Car, MapPin } from '@phosphor-icons/react';
 import { ViewMode } from '@/types';
 import { useAuth } from '../../features/auth/AuthContext';
 import { analytics } from '../../services/analytics';
@@ -112,6 +112,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                             >
                                 <Calendar size={22} weight="duotone" className={currentView === 'battalion-attendance' ? 'text-blue-500' : 'text-slate-400'} />
                                 <span>יומן נוכחות גדודי</span>
+                            </button>
+                            <button
+                                className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-location'
+                                    ? 'bg-blue-50 text-slate-900 font-bold border-r-4 border-blue-500'
+                                    : 'hover:bg-slate-50 text-slate-700'
+                                    }`}
+                                onClick={() => { setView('battalion-location'); onClose() }}
+                            >
+                                <MapPin size={22} weight="duotone" className={currentView === 'battalion-location' ? 'text-blue-500' : 'text-slate-400'} />
+                                <span>דוח מיקום גדודי</span>
                             </button>
                             <button
                                 className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'battalion-settings'

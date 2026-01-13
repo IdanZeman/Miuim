@@ -292,7 +292,7 @@ export interface ContactMessage {
   updated_at?: string; // New column
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq' | 'gate' | 'battalion-home' | 'battalion-personnel' | 'battalion-attendance' | 'battalion-settings' | 'privacy' | 'terms' | 'security' | 'accessibility';
+export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq' | 'gate' | 'battalion-home' | 'battalion-personnel' | 'battalion-attendance' | 'battalion-settings' | 'battalion-location' | 'privacy' | 'terms' | 'security' | 'accessibility';
 
 export interface DailyPresence {
   id?: string; // Optional for new entries
@@ -440,3 +440,27 @@ export interface DailyAttendanceSnapshot {
   snapshot_definition_time: string; // e.g., "09:00"
 }
 
+
+export interface DailyPresenceSummary {
+  id: string; // From daily_presence table
+  status: 'home' | 'base' | 'unavailable' | 'leave';
+  person_id: string;
+  organization_id: string;
+  date: string;
+  start_time?: string;
+  end_time?: string;
+  arrival_date?: string;
+  departure_date?: string;
+  people: { name: string }; // Joined property
+}
+
+export type LocationStatus = 'mission' | 'base' | 'home';
+
+export interface PersonLocation {
+    person: Person;
+    status: LocationStatus;
+    details: string;
+    time: string;
+    orgName?: string;
+    orgId?: string;
+}
