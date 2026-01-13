@@ -38,6 +38,9 @@ const queryClient = new QueryClient({
   },
 });
 
+// Expose queryClient globally for cache invalidation
+(window as any).queryClient = queryClient;
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
