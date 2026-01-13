@@ -169,7 +169,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                 const roleStatuses = roles.map(r => (p.roleIds || [p.roleId]).includes(r.id) ? 'V' : '');
                 const availability = p.dailyAvailability?.[dateKey];
                 const isAvailable = availability ? availability.isAvailable : true;
-                const statusLabel = isAvailable ? 'נוכח' : 'נפקד';
+                const statusLabel = isAvailable ? 'נוכח' : 'בבית';
 
                 return [selectedDate.toLocaleDateString('he-IL'), p.name, teamName, ...roleStatuses, statusLabel];
             });
@@ -188,7 +188,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                 if (rowNumber === 1) return;
                 const statusCell = row.getCell(columns.length);
                 const statusVal = statusCell.value;
-                if (statusVal === 'נפקד') {
+                if (statusVal === 'בבית') {
                     statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
                     statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
                 } else if (statusVal === 'נוכח') {
