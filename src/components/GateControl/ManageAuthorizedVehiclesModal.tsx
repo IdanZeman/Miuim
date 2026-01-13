@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X as XIcon, Plus as PlusIcon, MagnifyingGlass as SearchIcon, Trash as TrashIcon, Car as CarIcon, Calendar as CalendarIcon, ShieldCheck as ShieldCheckIcon, User as UserIcon, Buildings as Building2Icon, Pencil as PencilIcon, DotsThreeVertical as MoreVerticalIcon, ArrowsClockwise as RefreshIcon, CaretDown as ChevronDownIcon } from '@phosphor-icons/react';
+import { X as XIcon, Plus as PlusIcon, MagnifyingGlass as SearchIcon, Trash as TrashIcon, Car as CarIcon, Calendar as CalendarIcon, ShieldCheck as ShieldCheckIcon, User as UserIcon, Buildings as Building2Icon, Pencil as PencilIcon, DotsThreeVertical as MoreVerticalIcon, ArrowsClockwise as RefreshIcon, CaretDown as ChevronDownIcon, BuildingsIcon } from '@phosphor-icons/react';
 import { useGateSystem, AuthorizedVehicle } from '../../hooks/useGateSystem';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -167,7 +167,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                 <label className="block text-[11px] font-black text-blue-600 uppercase tracking-widest mb-3 px-1">מספר רכב (חובה)</label>
                 <div className="relative group">
                     <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
-                        <CarIcon size={20} weight="duotone" />
+                        <CarIcon size={20} weight="bold" />
                     </div>
                     <Input
                         value={plateNumber}
@@ -183,7 +183,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-2 px-1 flex items-center gap-1.5">
-                        <UserIcon size={14} className="text-slate-400" weight="duotone" />
+                        <UserIcon size={14} className="text-slate-400" weight="bold" />
                         שם בעל הרכב
                     </label>
                     <Input
@@ -196,7 +196,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-600 mb-2 px-1 flex items-center gap-1.5">
-                        <Building2Icon size={14} className="text-slate-400" weight="duotone" />
+                        <BuildingsIcon size={14} className="text-slate-400" weight="bold" />
                         שיוך יחידתי
                     </label>
                     <div className="relative">
@@ -306,7 +306,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                 ) : (
                     <div className="flex items-center gap-3 text-blue-600 bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 animate-in zoom-in-95 duration-300">
                         <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
-                            <ShieldCheckIcon size={20} weight="duotone" />
+                            <ShieldCheckIcon size={20} weight="bold" />
                         </div>
                         <div className="flex flex-col">
                             <span className="text-sm font-black tracking-tight">אישור כניסה קבוע</span>
@@ -337,7 +337,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">ניהול מאגר מורשי כניסה</span>
                 </div>
                 <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shadow-blue-100">
-                    <ShieldCheckIcon size={24} weight="duotone" />
+                    <ShieldCheckIcon size={24} weight="bold" />
                 </div>
             </div>
 
@@ -372,7 +372,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                             <DashboardSkeleton />
                         ) : filteredVehicles.length === 0 ? (
                             <div className="text-center py-16 text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200 shadow-sm">
-                                <CarIcon size={48} className="mx-auto mb-4 opacity-30" weight="duotone" />
+                                <CarIcon size={48} className="mx-auto mb-4 opacity-30" weight="bold" />
                                 <p className="text-lg font-bold">לא נמצאו רכבים תואמים</p>
                                 <p className="text-sm">נסה לשנות את מונחי החיפוש</p>
                             </div>
@@ -385,7 +385,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
 
                                         <div className="flex items-center gap-4 min-w-0 mr-2">
                                             <div className="w-14 h-14 bg-slate-50 group-hover:bg-blue-50 rounded-[1.25rem] flex flex-col items-center justify-center text-slate-400 group-hover:text-blue-600 border border-slate-100 transition-all shrink-0">
-                                                <CarIcon size={20} weight="duotone" />
+                                                <CarIcon size={20} weight="bold" />
                                                 <span className="text-[9px] font-black uppercase mt-0.5 tracking-tighter">VEHICLE</span>
                                             </div>
                                             <div className="min-w-0">
@@ -398,14 +398,14 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                                 </div>
                                                 <div className="flex items-center gap-3 text-xs text-slate-500 font-bold">
                                                     <span className="flex items-center gap-1.5 truncate">
-                                                        <UserIcon size={12} className="text-slate-400" weight="duotone" />
+                                                        <UserIcon size={12} className="text-slate-400" weight="bold" />
                                                         {vehicle.owner_name}
                                                     </span>
                                                     {vehicle.organizations?.name && (
                                                         <>
                                                             <div className="w-1 h-1 rounded-full bg-slate-200" />
                                                             <span className="flex items-center gap-1.5 text-blue-600/70 truncate uppercase tracking-tight">
-                                                                <Building2Icon size={12} weight="duotone" />
+                                                                <Building2Icon size={12} weight="bold" />
                                                                 {vehicle.organizations.name}
                                                             </span>
                                                         </>
@@ -414,12 +414,12 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                                 <div className="mt-2.5">
                                                     {vehicle.is_permanent || (!vehicle.valid_from && !vehicle.valid_until) ? (
                                                         <div className="inline-flex items-center gap-2 text-[10px] text-blue-700 font-black bg-blue-50 px-3 py-1 rounded-xl">
-                                                            <ShieldCheckIcon size={12} weight="duotone" />
+                                                            <ShieldCheckIcon size={12} weight="bold" />
                                                             תוקף קבוע
                                                         </div>
                                                     ) : (
                                                         <div className="inline-flex items-center gap-2 text-[10px] text-amber-700 font-black bg-amber-50 px-3 py-1 rounded-xl border border-amber-100/50">
-                                                            <CalendarIcon size={12} weight="duotone" />
+                                                            <CalendarIcon size={12} weight="bold" />
                                                             <span>עד {vehicle.valid_until ? new Date(vehicle.valid_until).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'ללא הגבלה'}</span>
                                                         </div>
                                                     )}
@@ -517,7 +517,7 @@ export const AuthorizedVehiclesContent: React.FC<AuthorizedVehiclesContentProps>
                                 </h2>
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="p-1 rounded-lg bg-blue-50 text-blue-600">
-                                        <CarIcon size={14} weight="duotone" />
+                                        <CarIcon size={14} weight="bold" />
                                     </div>
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                         {viewMode === 'edit' ? 'עדכון פרטי רכב' : 'רישום רכב למאגר'}
@@ -576,7 +576,7 @@ export const ManageAuthorizedVehiclesModal: React.FC<ManageAuthorizedVehiclesMod
         <div className="flex flex-col">
             <h2 className="text-xl font-black text-slate-900 tracking-tight">רכבים מורשים</h2>
             <div className="flex items-center gap-2 mt-1">
-                <ShieldCheckIcon size={14} className="text-blue-600" weight="duotone" />
+                <ShieldCheckIcon size={14} className="text-blue-600" weight="bold" />
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ניהול מאגר מורשי כניסה</span>
             </div>
         </div>

@@ -293,7 +293,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
             <div className="pb-32">
 
                 {/* Content Sheet (Responsive) */}
-                <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 px-4 py-6 min-h-[70vh] md:mt-2">
+                <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 min-h-[70vh] md:mt-2 overflow-hidden">
 
 
                     {/* Unified Action Bar */}
@@ -302,7 +302,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                         onSearchChange={setSearchTerm}
                         onExport={handleExport}
                         isSearchHidden={viewMode !== 'list'}
-                        className="px-4 md:px-6 sticky top-0 md:top-auto z-40 bg-white border border-slate-100 rounded-t-[2rem] md:rounded-[1.5rem] shadow-sm mb-4"
+                        className="sticky top-0 md:top-auto z-40"
                         leftActions={
                             <div className="flex items-center gap-2">
                                 <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-100/50">
@@ -401,7 +401,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                     />
 
                     {/* Content Area */}
-                    <div className="space-y-2">
+                    <div className="p-4 md:p-6 space-y-2">
 
                         {/* MOBILE LIST VIEW */}
                         <div className="md:hidden space-y-4">

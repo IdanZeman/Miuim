@@ -1318,7 +1318,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
     return (
         <div className="bg-slate-50 md:bg-white rounded-[2rem] shadow-xl md:shadow-portal border md:border-slate-100 p-0 h-[85vh] md:h-[calc(100vh-140px)] relative overflow-hidden flex flex-col">
-            {/* Unified Action Bar */}
             <ActionBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
@@ -1351,13 +1350,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </div>
                 }
                 centerActions={
-                    <div className="bg-slate-100/80 p-1 rounded-xl flex items-center gap-1">
+                    <div className="bg-slate-100/80 p-1 rounded-[15px] flex items-center gap-1 shadow-inner border border-slate-200/50">
                         {(['people', 'teams', 'roles'] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`flex-1 md:flex-none px-4 md:px-6 py-2 rounded-[0.875rem] text-xs font-black transition-all duration-300 ${activeTab === tab
-                                    ? 'bg-white text-slate-900 shadow-sm'
+                                className={`px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 ${activeTab === tab
+                                    ? 'bg-white text-indigo-600 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700'
                                     }`}
                             >
@@ -1396,26 +1395,22 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 ] : []}
                 rightActions={
                     <div className="flex items-center gap-2">
-                        {/* Show Inactive Toggle - Desktop */}
-                        <label className="hidden md:flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 transition-colors hover:bg-slate-100 shadow-sm mr-2">
-                            <input
-                                type="checkbox"
-                                checked={showInactive}
-                                onChange={(e) => setShowInactive(e.target.checked)}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">הצג לא פעילים</span>
-                        </label>
-
-                        {/* Custom Filter Value Input (Desktop only) */}
-                        {filterCustomField !== 'all' && (
-                            <div className="hidden md:flex items-center gap-2">
-                                {renderCustomFilterInput()}
+                        {/* View Mode Toggle - Desktop */}
+                        {activeTab === 'people' && (
+                            <div className="hidden md:flex bg-slate-100/50 p-1 rounded-xl border border-slate-200">
                                 <button
-                                    onClick={() => { setFilterCustomField('all'); setFilterCustomValue(''); }}
-                                    className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
+                                    onClick={() => setViewMode('grid')}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    title="תצוגת כרטיסים"
                                 >
-                                    <X size={16} weight="bold" />
+                                    <GridIcon size={16} weight={viewMode === 'grid' ? 'bold' : 'regular'} />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    title="תצוגת טבלה"
+                                >
+                                    <TableIcon size={16} weight={viewMode === 'table' ? 'bold' : 'regular'} />
                                 </button>
                             </div>
                         )}
@@ -1423,50 +1418,44 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         {/* Sort Button - Desktop style */}
                         <button
                             onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                            className="hidden md:flex h-11 w-11 rounded-2xl border border-slate-200 bg-white text-slate-500 items-center justify-center transition-colors hover:bg-slate-50"
+                            className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600"
                             title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
                         >
                             {sortOrder === 'asc' ? <SortAscending size={20} /> : <SortDescending size={20} />}
                         </button>
 
-                        {/* View Mode Toggle - Desktop */}
-                        {activeTab === 'people' && (
-                            <div className="hidden md:flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                        {/* Show Inactive Toggle - Desktop */}
+                        <div className="hidden md:flex items-center gap-2 bg-slate-100/50 px-3 h-10 rounded-xl border border-slate-200 transition-all hover:bg-white group cursor-pointer"
+                            onClick={() => setShowInactive(!showInactive)}>
+                            <input
+                                type="checkbox"
+                                checked={showInactive}
+                                onChange={(e) => { }} // Controlled by div click for better UX
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            />
+                            <span className="text-xs font-bold text-slate-600 whitespace-nowrap group-hover:text-indigo-600">הצג לא פעילים</span>
+                        </div>
+
+                        {/* Custom Filter Value Input (Desktop only) */}
+                        {filterCustomField !== 'all' && (
+                            <div className="hidden md:flex items-center gap-2 bg-indigo-50/50 p-1 rounded-xl border border-indigo-100">
+                                {renderCustomFilterInput()}
                                 <button
-                                    onClick={() => setViewMode('grid')}
-                                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                    title="תצוגת כרטיסים"
+                                    onClick={() => { setFilterCustomField('all'); setFilterCustomValue(''); }}
+                                    className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
                                 >
-                                    <GridIcon size={18} weight={viewMode === 'grid' ? 'bold' : 'regular'} />
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('table')}
-                                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                    title="תצוגת טבלה"
-                                >
-                                    <TableIcon size={18} weight={viewMode === 'table' ? 'bold' : 'regular'} />
+                                    <X size={14} weight="bold" />
                                 </button>
                             </div>
                         )}
-
-                        {/* Sort Button - Mobile List Item Style (inside ActionBar modal) */}
-                        <div className="md:hidden w-full">
-                            <ActionListItem
-                                icon={sortOrder === 'asc' ? SortAscending : SortDescending}
-                                label="מיון רשימה"
-                                description={sortOrder === 'asc' ? 'לפי שם (א-ת)' : 'לפי שם (ת-א)'}
-                                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                                color="bg-blue-50 text-blue-600"
-                            />
-                        </div>
 
                         {/* Bulk Delete - Desktop Style */}
                         {canEdit && selectedItemIds.size > 0 && (
                             <button
                                 onClick={handleBulkDelete}
-                                className="hidden md:flex h-11 px-4 rounded-2xl bg-red-50 text-red-600 border border-red-100 items-center gap-2 font-black text-sm hover:bg-red-100 animate-in fade-in zoom-in duration-200"
+                                className="hidden md:flex h-10 px-4 rounded-xl bg-red-50 text-red-600 border border-red-100 items-center gap-2 font-black text-xs hover:bg-red-100 transition-all animate-in fade-in zoom-in duration-200"
                             >
-                                <Trash size={18} />
+                                <Trash size={16} />
                                 <span>מחק ({selectedItemIds.size})</span>
                             </button>
                         )}
@@ -1481,27 +1470,24 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 <span>ייבוא מאקסל</span>
                             </button>
                         )}
-
-
-
-                        {/* Bulk Delete - Mobile List Item Style */}
-                        {canEdit && selectedItemIds.size > 0 && (
-                            <div className="md:hidden w-full mt-2">
-                                <ActionListItem
-                                    icon={Trash}
-                                    label={`מחק פריטים (${selectedItemIds.size})`}
-                                    onClick={handleBulkDelete}
-                                    color="bg-red-50 text-red-600"
-                                />
-                            </div>
-                        )}
                     </div>
                 }
                 mobileMoreActions={
                     <div className="space-y-2">
+                        {/* Sort Button - Mobile List Item Style (inside ActionBar modal) */}
+                        <div className="md:hidden w-full">
+                            <ActionListItem
+                                icon={sortOrder === 'asc' ? SortAscending : SortDescending}
+                                label="מיון רשימה"
+                                description={sortOrder === 'asc' ? 'לפי שם (א-ת)' : 'לפי שם (ת-א)'}
+                                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                                color="bg-blue-50 text-blue-600"
+                            />
+                        </div>
+
                         {activeTab === 'people' && canEdit && (
                             <ActionListItem
-                                icon={FileXls}
+                                icon={FileSpreadsheet}
                                 label="ייבוא מאקסל"
                                 description="הוספת כמות גדולה של אנשים בבת אחת"
                                 onClick={() => setIsImportWizardOpen(true)}

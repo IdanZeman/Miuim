@@ -143,7 +143,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
             title={
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                        <LayoutTemplate size={24} weight="duotone" />
+                        <LayoutTemplate size={24} weight="bold" />
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-800">{initialSegment ? 'עריכת מקטע משמרת' : 'הוספת מקטע משמרת'}</h2>
@@ -186,9 +186,9 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                                                 : "text-slate-500 hover:bg-white/50 hover:text-slate-700"
                                         )}
                                     >
-                                        {f === 'daily' && <Clock size={14} weight="duotone" />}
-                                        {f === 'weekly' && <CalendarDays size={14} weight="duotone" />}
-                                        {f === 'specific_date' && <LayoutTemplate size={14} weight="duotone" />}
+                                        {f === 'daily' && <Clock size={14} weight="bold" />}
+                                        {f === 'weekly' && <CalendarDays size={14} weight="bold" />}
+                                        {f === 'specific_date' && <LayoutTemplate size={14} weight="bold" />}
                                         <span>{f === 'daily' ? 'כל יום' : f === 'weekly' ? 'ימי השבוע' : 'תאריך'}</span>
                                     </button>
                                 ))}
@@ -234,7 +234,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                             onClick={() => setIsRepeat(!isRepeat)}>
                             <div>
                                 <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                    <RotateCcw size={18} className={isRepeat ? "text-amber-500" : "text-slate-400"} weight="duotone" />
+                                    <RotateCcw size={18} className={isRepeat ? "text-amber-500" : "text-slate-400"} weight="bold" />
                                     מחזור רציף (סבב 24/7)
                                 </div>
                                 <p className="text-[11px] font-bold text-slate-400 mt-1">יצירת רצף משמרות אוטומטי לכל אורך היממה</p>
@@ -268,7 +268,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                                     onClick={() => setDuration(Math.max(1, duration - 1))}
                                     className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
                                 >
-                                    <Minus size={18} weight="duotone" />
+                                    <Minus size={18} weight="bold" />
                                 </button>
                                 <span className="w-8 text-center font-black text-xl text-slate-800">{duration}</span>
                                 <button
@@ -288,7 +288,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                                     onClick={() => setMinRest(Math.max(0, minRest - 1))}
                                     className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
                                 >
-                                    <Minus size={18} weight="duotone" />
+                                    <Minus size={18} weight="bold" />
                                 </button>
                                 <span className="w-8 text-center font-black text-xl text-slate-800">{minRest}</span>
                                 <button
@@ -324,7 +324,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                                 )}>
                                     <div className="flex items-center gap-2.5">
                                         <div className={cn("p-2 rounded-xl", role.color || 'bg-slate-100')}>
-                                            <Icon size={16} className="text-slate-600" weight="duotone" />
+                                            <Icon size={16} className="text-slate-600" weight="bold" />
                                         </div>
                                         <span className="text-sm font-black text-slate-800 truncate flex-1 leading-tight">{role.name}</span>
                                     </div>
@@ -338,7 +338,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                                             )}
                                             disabled={count === 0}
                                         >
-                                            <Minus size={16} weight="duotone" />
+                                            <Minus size={16} weight="bold" />
                                         </button>
                                         <span className={cn("font-black text-lg", count > 0 ? "text-indigo-600" : "text-slate-300")}>{count}</span>
                                         <button
@@ -354,7 +354,7 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
 
                         {roles.length === 0 && (
                             <div className="col-span-2 text-center py-6 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-slate-400">
-                                <Users size={32} className="mx-auto mb-2 opacity-20" weight="duotone" />
+                                <Users size={32} className="mx-auto mb-2 opacity-20" weight="bold" />
                                 <span className="text-sm font-bold">לא הוגדרו תפקידים במערכת</span>
                             </div>
                         )}

@@ -99,7 +99,9 @@ const ShiftCard: React.FC<{
     style?: React.CSSProperties;
     onReportClick: (shift: Shift) => void;
     onAutoSchedule?: () => void;
-}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule }) => {
+    isContinuedFromPrev?: boolean;
+    isContinuedToNext?: boolean;
+}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const assigned = shift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
@@ -206,22 +208,49 @@ const ShiftCard: React.FC<{
 
             {/* Middle Row - Names (Adaptive - Desktop Only) */}
             {
-                (style?.height && parseInt(String(style.height)) >= 50 && assigned.length > 0) && (
-                    <div className={`hidden md:flex flex-1 ${assigned.length > 5 ? 'flex-row flex-wrap content-center justify-center' : 'flex-col justify-center items-center'} gap-1 overflow-hidden py-0.5 w-full px-1`}>
-                        {assigned.map(p => (
-                            <div
-                                key={p.id}
-                                className={`shadow-sm border border-slate-200/60 bg-white/95 
-                            ${assigned.length > 5 ? 'px-1.5 py-0.5 text-[10px] min-w-[24px]' : 'w-full max-w-[95%] px-2 py-0.5 text-xs'} 
-                            rounded-full font-bold text-slate-800 truncate text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
-                                title={p.name}
-                                onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
-                            >
-                                {assigned.length > 5 ? getPersonInitials(p.name) : p.name}
-                            </div>
-                        ))}
-                    </div>
-                )
+                (style?.height && parseInt(String(style.height)) >= 45 && assigned.length > 0) && (() => {
+                    const cardHeight = parseInt(String(style.height));
+
+                    // A full name chip + gap is roughly 28px. 
+                    // Header/Footer take about 32px of space.
+                    const maxVerticalNames = Math.max(1, Math.floor((cardHeight - 32) / 28));
+
+                    // Dynamic threshold based on height: taller cards can afford more full names
+                    // But we physically cannot fit more than maxVerticalNames vertically.
+                    let initialsThreshold = Math.min(
+                        cardHeight >= 150 ? 8 : (cardHeight >= 100 ? 5 : 3),
+                        maxVerticalNames
+                    );
+
+                    // Midnight Crosser Fix: If cut off by day boundaries and visible height is limited, 
+                    // be even more aggressive since vertical space is precious.
+                    if ((isContinuedFromPrev || isContinuedToNext) && cardHeight < 120) {
+                        initialsThreshold = 1; // Show initials even for 2 people if height is tight
+                    }
+
+                    const isCrowded = assigned.length > initialsThreshold;
+
+                    return (
+                        <div className={`hidden md:flex flex-1 ${isCrowded ? 'flex-row flex-wrap content-center justify-center' : 'flex-col justify-center items-center'} gap-1 overflow-hidden py-0.5 w-full px-1`}>
+                            {assigned.map(p => {
+                                // Only use initials if it's crowded OR if the name is very long and the card isn't tall enough to wrap it well
+                                const useInitials = isCrowded || (assigned.length > 1 && p.name.length > 14 && cardHeight < 120);
+                                return (
+                                    <div
+                                        key={p.id}
+                                        className={`shadow-sm border border-slate-200/60 bg-white/95 
+                                        ${isCrowded ? 'px-1.5 py-0.5 text-[10px]' : 'w-full max-w-[95%] px-2 py-0.5 text-xs'} 
+                                        rounded-full font-bold text-slate-800 truncate text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
+                                        title={p.name}
+                                        onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
+                                    >
+                                        {useInitials ? getPersonInitials(p.name) : p.name}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    );
+                })()
             }
 
             {/* Bottom Row: Info & Avatars (Fallback) */}
@@ -876,6 +905,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                         isViewer={isViewer}
                                                         acknowledgedWarnings={acknowledgedWarnings}
                                                         onReportClick={(shift) => setSelectedReportShiftId(shift.id)}
+                                                        isContinuedFromPrev={isContinuedFromPrev}
+                                                        isContinuedToNext={isContinuedToNext}
                                                         style={{
                                                             top: `${top}px`,
                                                             height: `${Math.max(height, 30)}px`,

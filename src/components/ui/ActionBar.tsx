@@ -109,14 +109,14 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                                     onClick={() => setIsSearchExpanded(true)}
                                     className="w-10 h-10 flex items-center justify-center bg-slate-100/50 rounded-xl text-slate-500 active:bg-white transition-all"
                                 >
-                                    <Search size={20} weight="duotone" />
+                                    <Search size={20} weight="bold" />
                                 </button>
                             )}
 
                             {/* Main Menu Button (3 Dots) */}
                             <button
                                 onClick={() => setIsMobileMenuOpen(true)}
-                                className={`w-10 h-10 flex items-center justify-center rounded-xl border relative transition-all ${activeFiltersCount > 0 ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-100' : 'bg-white text-slate-500 border-slate-200 active:bg-slate-50'}`}
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl border relative transition-all ${activeFiltersCount > 0 ? 'bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm' : 'bg-white text-slate-500 border-slate-200 active:bg-slate-50'}`}
                             >
                                 <MoreVertical size={22} weight="bold" />
                                 {activeFiltersCount > 0 && <span className="absolute -top-1 -left-1 w-4 h-4 bg-rose-500 text-white rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white">{activeFiltersCount}</span>}
@@ -143,8 +143,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                 </div>
 
                 {/* Center Section - View Switchers/Tabs */}
-                {/* We use absolute centering if possible, otherwise flex-1 to fill space */}
-                <div className="flex justify-center min-w-0 flex-1 px-4">
+                <div className="flex-1 flex justify-center min-w-0">
                     {centerActions && (
                         <div className="flex items-center justify-center">
                             {centerActions}
@@ -153,8 +152,11 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                 </div>
 
                 {/* Left side in RTL - Consolidated Actions (Search, Filters, Navigator, Export) */}
-                <div className="flex items-center gap-3 justify-end min-w-0 shrink-0">
-                    {/* 1. Filters (Consolidated) */}
+                <div className="flex items-center gap-2 justify-end min-w-0 shrink-0">
+                    {/* 1. Custom Right Actions (e.g. Date Navigator, Sort, View Mode) */}
+                    {rightActions}
+
+                    {/* 2. Filters (Consolidated) */}
                     {filters.length > 0 && (
                         <div className="flex items-center gap-2">
                             {/* Desktop Filters (Large only) */}
@@ -179,17 +181,18 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                                 <button
                                     onClick={() => setIsMobileMenuOpen(true)}
                                     data-testid={testId ? `${testId}__filter-trigger` : undefined}
-                                    className={`h-10 px-3 rounded-xl border flex items-center gap-2 transition-all shrink-0 ${activeFiltersCount > 0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100/50 text-slate-500 border-slate-200 hover:bg-white'}`}
+                                    className={`h-10 w-10 rounded-xl border flex items-center justify-center transition-all shrink-0 relative ${activeFiltersCount > 0 ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-slate-100/50 text-slate-500 border-slate-200 hover:bg-white'}`}
                                 >
                                     <Filter size={18} weight={activeFiltersCount > 0 ? "fill" : "bold"} />
-                                    {activeFiltersCount > 0 && <span className="bg-white text-blue-600 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black shrink-0">{activeFiltersCount}</span>}
+                                    {activeFiltersCount > 0 && (
+                                        <span className="absolute -top-1 -left-1 bg-rose-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white">
+                                            {activeFiltersCount}
+                                        </span>
+                                    )}
                                 </button>
                             </div>
                         </div>
                     )}
-
-                    {/* 2. Custom Right Actions (e.g. Date Navigator) */}
-                    {rightActions}
 
                     {/* 3. Search Bar */}
                     {!isSearchHidden && (
@@ -204,7 +207,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                                         value={searchTerm}
                                         onChange={(e) => onSearchChange(e.target.value)}
                                         onBlur={() => { if (!searchTerm && !isSearchExpandedDefault) setIsSearchExpanded(false); }}
-                                        className="w-full h-10 pr-9 pl-8 bg-slate-100/50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-right"
+                                        className="w-full h-10 pr-9 pl-8 bg-slate-100/50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-right shadow-inner"
                                     />
                                     {searchTerm && (
                                         <button
@@ -220,18 +223,18 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                                     onClick={() => setIsSearchExpanded(true)}
                                     className="w-10 h-10 flex items-center justify-center bg-slate-100/50 hover:bg-white border border-slate-200 rounded-xl text-slate-500 transition-all"
                                 >
-                                    <Search size={20} weight="duotone" />
+                                    <Search size={20} weight="bold" />
                                 </button>
                             )}
                         </div>
                     )}
 
-                    {/* 5. Export Button */}
+                    {/* 4. Export Button */}
                     {onExport && (
                         <ExportButton
                             onExport={onExport}
                             iconOnly
-                            className="h-10 w-10 rounded-xl border border-slate-200 shadow-sm"
+                            className="h-10 w-10 rounded-xl border border-slate-200 shadow-sm bg-slate-100/50 hover:bg-white transition-all flex items-center justify-center"
                             title={exportTitle}
                         />
                     )}
@@ -266,6 +269,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                                     label={exportTitle}
                                     color="bg-emerald-50 text-emerald-600"
                                     onClick={onExport}
+                                    extra={null}
                                 />
                             )}
 
@@ -372,7 +376,7 @@ export const ActionListItem: React.FC<{
                     {isLoading ? (
                         <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     ) : (
-                        <Icon size={20} weight="duotone" />
+                        <Icon size={20} weight="bold" />
                     )}
                 </div>
                 <div className="flex flex-col">
@@ -383,7 +387,7 @@ export const ActionListItem: React.FC<{
                 </div>
             </div>
             <div className="flex items-center gap-2">
-                {extra || <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-300 group-hover:text-slate-400 transition-colors">
+                {extra !== undefined ? extra : <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-300 group-hover:text-slate-400 transition-colors">
                     <MoreVertical size={16} />
                 </div>}
             </div>

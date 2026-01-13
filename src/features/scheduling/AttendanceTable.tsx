@@ -117,12 +117,18 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         if (scrollContainerRef.current) {
             const today = new Date();
             if (today.getMonth() === month && today.getFullYear() === year) {
-                const dayWidth = 64; // Increased from 48
+                const dayWidth = 96; // Matches w-24 (24 * 4px = 96px)
                 const scrollPos = (today.getDate() - 1) * dayWidth;
-                scrollContainerRef.current.scrollLeft = -scrollPos; // RTL scroll adjustment
+
+                // Use requestAnimationFrame to ensure layout is ready
+                requestAnimationFrame(() => {
+                    if (scrollContainerRef.current) {
+                        scrollContainerRef.current.scrollLeft = -scrollPos; // RTL scroll adjustment
+                    }
+                });
             }
         }
-    }, [month, year]);
+    }, [month, year, viewMode]);
 
     // Global Stats Calculation
     const globalStats = React.useMemo(() => {

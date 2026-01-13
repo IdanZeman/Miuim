@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import ExcelJS from 'exceljs';
-import { ActionBar } from '@/components/ui/ActionBar';
+import { ActionBar, ActionListItem } from '@/components/ui/ActionBar';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { Person, Absence } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
@@ -667,6 +667,29 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                         onSearchChange={setSearchTerm}
                         onExport={handleExport}
                         className="px-4 md:px-6 sticky top-0 z-40 bg-white border-b border-slate-100"
+                        mobileMoreActions={
+                            <div className="space-y-2">
+                                <Select
+                                    value={sortBy}
+                                    onChange={(val) => setSortBy(val as any)}
+                                    options={[
+                                        { value: 'date', label: 'מיין לפי תאריך' },
+                                        { value: 'name', label: 'מיין לפי שם' },
+                                        { value: 'status', label: 'מיין לפי סטטוס' }
+                                    ]}
+                                    className="bg-slate-50 border-transparent rounded-2xl h-12 text-sm font-bold"
+                                    icon={ArrowsDownUp}
+                                    placeholder="מיון לפי"
+                                />
+                                <ActionListItem
+                                    icon={sortOrder === 'asc' ? SortAscending : SortDescending}
+                                    label={sortOrder === 'asc' ? 'סדר עולה' : 'סדר יורד'}
+                                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                                    color="bg-indigo-50 text-indigo-600"
+                                    extra={null}
+                                />
+                            </div>
+                        }
                         leftActions={
                             <div className="flex items-center gap-3">
                                 <div className="hidden md:flex w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl items-center justify-center">
@@ -707,7 +730,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             </div>
                         }
                         centerActions={
-                            <div className="md:hidden bg-slate-100/80 p-1 rounded-xl flex items-center gap-1 w-full md:w-auto">
+                            <div className="md:hidden bg-slate-100/50 p-1 rounded-xl flex items-center gap-1 w-full md:w-auto">
                                 <button
                                     onClick={() => setIsSidebarOpen(true)}
                                     className={`flex-1 md:flex-none px-4 md:px-6 py-2 rounded-[0.875rem] text-xs font-black transition-all ${isSidebarOpen
@@ -715,7 +738,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                         : 'text-slate-500 hover:text-slate-700'
                                         }`}
                                 >
-                                    רשימת שמות
+                                    שמות
                                 </button>
                                 <button
                                     onClick={() => { setIsSidebarOpen(false); setSelectedPersonId(null); }}
@@ -725,6 +748,28 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                         }`}
                                 >
                                     בקשות ({activeAbsences.length})
+                                </button>
+                            </div>
+                        }
+                        rightActions={
+                            <div className="flex items-center gap-2">
+                                <Select
+                                    value={sortBy}
+                                    onChange={(val) => setSortBy(val as any)}
+                                    options={[
+                                        { value: 'date', label: 'מיין לפי תאריך' },
+                                        { value: 'name', label: 'מיין לפי שם' },
+                                        { value: 'status', label: 'מיין לפי סטטוס' }
+                                    ]}
+                                    className="hidden md:flex bg-slate-100/50 border-transparent rounded-xl h-10 w-44 font-bold text-xs"
+                                    icon={ArrowsDownUp}
+                                />
+                                <button
+                                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                                    className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600"
+                                    title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
+                                >
+                                    {sortOrder === 'asc' ? <SortAscending size={20} /> : <SortDescending size={20} />}
                                 </button>
                             </div>
                         }
@@ -741,29 +786,6 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                 ],
                                 placeholder: 'סינון לפי סטטוס',
                                 icon: Filter
-                            },
-                            {
-                                id: 'sort',
-                                value: sortBy,
-                                onChange: (val) => setSortBy(val as any),
-                                options: [
-                                    { value: 'date', label: 'מיין לפי תאריך' },
-                                    { value: 'name', label: 'מיין לפי שם' },
-                                    { value: 'status', label: 'מיין לפי סטטוס' }
-                                ],
-                                placeholder: 'מיון',
-                                icon: ArrowsDownUp
-                            },
-                            {
-                                id: 'sortOrder',
-                                value: sortOrder,
-                                onChange: (val) => setSortOrder(val as any),
-                                options: [
-                                    { value: 'asc', label: 'סדר עולה' },
-                                    { value: 'desc', label: 'סדר יורד' }
-                                ],
-                                placeholder: 'סדר מיון',
-                                icon: sortOrder === 'asc' ? SortAscending : SortDescending
                             }
                         ]}
                     />

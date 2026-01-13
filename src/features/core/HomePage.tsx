@@ -68,7 +68,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
 
                 <div className="relative z-10 max-w-2xl mx-auto">
                     <div className="w-24 h-24 bg-emerald-100 rounded-3xl flex items-center justify-center mb-8 mx-auto rotate-3 shadow-emerald-100/50 shadow-xl border border-white">
-                        <AllIcons.UserCircle size={56} className="text-emerald-600" weight="duotone" />
+                        <AllIcons.UserCircle size={56} className="text-emerald-600" weight="bold" />
                     </div>
                     <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">מי אתה ברשימה?</h2>
                     <div className="space-y-6 text-lg text-slate-600 leading-relaxed mb-10">
@@ -80,7 +80,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                     </div>
                     <button
                         onClick={() => setShowClaimModal(true)}
-                        className="w-full sm:w-auto px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black text-lg hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20 hover:-translate-y-1 flex items-center justify-center gap-3"
+                        className="w-full sm:w-auto mx-auto px-10 py-4 bg-emerald-600 text-white rounded-2xl font-black text-lg hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20 hover:-translate-y-1 flex items-center justify-center gap-3"
                     >
                         מצא את הפרופיל שלי
                         <Search size={24} weight="bold" />
@@ -119,7 +119,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                 </h1>
                 <div className="flex items-center gap-3 text-slate-500 text-sm font-bold opacity-80">
                     <div className="w-8 h-8 rounded-full bg-slate-50 shadow-sm flex items-center justify-center border border-slate-100">
-                        <Calendar size={14} className="text-blue-500" weight="duotone" />
+                        <Calendar size={14} className="text-blue-500" weight="bold" />
                     </div>
                     <span>{now.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
                     <span className="text-slate-300">|</span>
@@ -152,7 +152,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                                 <div className="flex items-center gap-6 w-full">
                                     <div className="w-20 h-20 bg-blue-600 rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-blue-600/20 text-white shrink-0 rotate-3 group-hover:rotate-0 transition-transform">
                                         {activeShift.task?.icon && (AllIcons as any)[activeShift.task.icon] ?
-                                            React.createElement((AllIcons as any)[activeShift.task.icon], { size: 36, weight: "duotone" }) : <Clock size={36} weight="duotone" />
+                                            React.createElement((AllIcons as any)[activeShift.task.icon], { size: 36, weight: "duotone" }) : <Clock size={36} weight="bold" />
                                         }
                                     </div>
                                     <div className="min-w-0">
@@ -189,7 +189,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                         <div className="bg-slate-50 rounded-[2rem] border border-slate-100 p-8 flex items-center gap-6 relative overflow-hidden">
                             <div className="absolute right-0 top-0 w-32 h-32 bg-slate-100 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-400 shadow-sm relative z-10">
-                                <Moon size={32} weight="duotone" />
+                                <Moon size={32} weight="bold" />
                             </div>
                             <div className="space-y-1 relative z-10">
                                 <h3 className="text-xl font-black text-slate-800">אין משמרת פעילה</h3>
@@ -227,7 +227,7 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                         {upcomingShifts.length === 0 ? (
                             <div className="text-center py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
                                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-green-500">
-                                    <CheckCircle2 size={32} weight="duotone" />
+                                    <CheckCircle2 size={32} weight="bold" />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-900">היומן ריק</h3>
                                 <p className="text-slate-500">אין משמרות עתידיות לטווח הזמן שנבחר.</p>
