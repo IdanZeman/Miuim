@@ -138,6 +138,7 @@ const CompanySection = React.memo(({
     isMissionExpanded,
     isBaseExpanded,
     isHomeExpanded,
+    isInactiveExpanded,
     onToggle
 }: {
     company: Organization;
@@ -146,6 +147,7 @@ const CompanySection = React.memo(({
     isMissionExpanded: boolean;
     isBaseExpanded: boolean;
     isHomeExpanded: boolean;
+    isInactiveExpanded: boolean;
     onToggle: (key: string) => void;
 }) => {
     const companyKey = `org-${company.id}`;
@@ -154,7 +156,8 @@ const CompanySection = React.memo(({
     const groupedByStatus = useMemo(() => ({
         mission: companyData.filter(r => r.status === 'mission'),
         base: companyData.filter(r => r.status === 'base'),
-        home: companyData.filter(r => r.status === 'home')
+        home: companyData.filter(r => r.status === 'home'),
+        inactive: companyData.filter(r => r.status === 'inactive')
     }), [companyData]);
 
     return (
@@ -203,6 +206,18 @@ const CompanySection = React.memo(({
                         expanded={isHomeExpanded}
                         onToggle={onToggle}
                     />
+                    {groupedByStatus.inactive.length > 0 && (
+                        <StatusGroup
+                            statusKey={`${companyKey}-inactive`}
+                            title="לא פעילים"
+                            data={groupedByStatus.inactive}
+                            icon={<User size={16} className="text-slate-400" weight="bold" />}
+                            bgClass="bg-slate-100 hover:bg-slate-200 border-slate-200"
+                            borderClass="border-slate-200"
+                            expanded={isInactiveExpanded}
+                            onToggle={onToggle}
+                        />
+                    )}
                 </div>
             )}
         </section>
@@ -248,11 +263,21 @@ export const BattalionLocationReport: React.FC = () => {
         const [hours, minutes] = selectedTime.split(':').map(Number);
         checkTime.setHours(hours, minutes, 0, 0);
 
-        const activePeople = people.filter(p => p.isActive !== false);
-
-        return activePeople.map(person => {
+        return people.map(person => {
             const org = companies.find(c => c.id === person.organization_id);
             const orgName = org?.name || 'ללא פלוגה';
+
+            // Check if inactive
+            if (person.isActive === false) {
+                return {
+                    person,
+                    status: 'inactive' as LocationStatus,
+                    details: 'לא פעיל (בבסיס)',
+                    time: 'קבוע',
+                    orgName,
+                    orgId: person.organization_id || ''
+                };
+            }
 
             // 1. Check if in active shift
             const activeShift = shifts.find(s => {
@@ -390,6 +415,7 @@ export const BattalionLocationReport: React.FC = () => {
                                 isMissionExpanded={expanded[`${companyKey}-mission`] ?? true}
                                 isBaseExpanded={expanded[`${companyKey}-base`] ?? true}
                                 isHomeExpanded={expanded[`${companyKey}-home`] ?? true}
+                                isInactiveExpanded={expanded[`${companyKey}-inactive`] ?? true}
                                 onToggle={toggleSection}
                             />
                         );
@@ -402,7 +428,8 @@ export const BattalionLocationReport: React.FC = () => {
             const grouped = {
                 mission: reportData.filter(r => r.status === 'mission'),
                 base: reportData.filter(r => r.status === 'base'),
-                home: reportData.filter(r => r.status === 'home')
+                home: reportData.filter(r => r.status === 'home'),
+                inactive: reportData.filter(r => r.status === 'inactive')
             };
 
             const isExpanded = (key: string) => expanded[key] ?? true;
@@ -433,6 +460,7 @@ export const BattalionLocationReport: React.FC = () => {
                     {renderStatusSection('global-mission', 'במשימה', grouped.mission, <Briefcase size={22} className="text-rose-500" weight="bold" />, 'bg-rose-50 hover:bg-rose-100', 'border-rose-100')}
                     {renderStatusSection('global-base', 'בבסיס', grouped.base, <MapPin size={22} className="text-emerald-600" weight="bold" />, 'bg-emerald-50 hover:bg-emerald-100', 'border-emerald-100')}
                     {renderStatusSection('global-home', 'בבית', grouped.home, <Home size={22} className="text-slate-500" weight="bold" />, 'bg-slate-50 hover:bg-slate-100', 'border-slate-200')}
+                    {grouped.inactive.length > 0 && renderStatusSection('global-inactive', 'לא פעילים', grouped.inactive, <User size={22} className="text-slate-400" weight="bold" />, 'bg-slate-100 hover:bg-slate-200', 'border-slate-200')}
                 </div>
             );
         }

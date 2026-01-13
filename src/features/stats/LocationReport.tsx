@@ -46,9 +46,17 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
         const [hours, minutes] = selectedTime.split(':').map(Number);
         checkTime.setHours(hours, minutes, 0, 0);
 
-        const activePeople = people.filter(p => p.isActive !== false);
+        const report: PersonLocation[] = people.map(person => {
+            // Check if inactive
+            if (person.isActive === false) {
+                return {
+                    person,
+                    status: 'inactive' as any,
+                    details: 'לא פעיל (בבסיס)',
+                    time: 'קבוע'
+                };
+            }
 
-        const report: PersonLocation[] = activePeople.map(person => {
             // 1. Check if in active shift at this time
             const activeShift = shifts.find(s => {
                 const start = new Date(s.startTime);
@@ -186,11 +194,12 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
             const grouped = {
                 mission: reportData.filter(r => r.status === 'mission').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name)),
                 base: reportData.filter(r => r.status === 'base').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name)),
-                home: reportData.filter(r => r.status === 'home').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name))
+                home: reportData.filter(r => r.status === 'home').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name)),
+                inactive: reportData.filter(r => r.status === 'inactive').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name))
             };
 
             const renderSectionHeader = (
-                key: 'mission' | 'base' | 'home',
+                key: LocationStatus,
                 title: string,
                 count: number,
                 icon: React.ReactNode,
@@ -244,6 +253,17 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                             </div>
                         )}
                     </section>
+
+                    {grouped.inactive.length > 0 && (
+                        <section>
+                            {renderSectionHeader('inactive', 'לא פעילים (בבסיס)', grouped.inactive.length, <User size={20} className="text-slate-400" weight="bold" />, 'bg-slate-100/50 hover:bg-slate-100', 'border-slate-200')}
+                            {isSectionExpanded('inactive') && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {grouped.inactive.map(r => <PersonCard key={r.person.id} r={r} teamName={getTeamName(r.person.teamId)} showStatusBadge />)}
+                                </div>
+                            )}
+                        </section>
+                    )}
                 </div>
             );
         } else if (groupBy === 'team') {

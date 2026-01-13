@@ -17,7 +17,7 @@ export const generateLocationReportExcel = async (
 ) => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet(isBattalionReport ? 'דוח מיקום גדודי' : 'דוח מיקום');
-    const statusMap: Record<string, string> = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
+    const statusMap: Record<string, string> = { mission: 'במשימה', base: 'בבסיס', home: 'בבית', inactive: 'לא פעיל' };
 
     // Define columns based on report type
     if (isBattalionReport) {

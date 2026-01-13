@@ -454,7 +454,7 @@ export interface DailyPresenceSummary {
   people: { name: string }; // Joined property
 }
 
-export type LocationStatus = 'mission' | 'base' | 'home';
+export type LocationStatus = 'mission' | 'base' | 'home' | 'inactive';
 
 export interface PersonLocation {
     person: Person;

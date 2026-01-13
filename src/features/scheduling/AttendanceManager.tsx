@@ -441,8 +441,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             dateKey <= a.end_date
                         );
 
-                        const isAtBase = avail.status === 'base' || avail.status === 'arrival' || avail.status === 'departure' || avail.status === 'full';
-                        const statusLabel = isAtBase ? 'בבסיס' : (avail.status === 'home' ? 'בית' : 'אילוץ');
+                        const isInactive = person.isActive === false;
+                        const isAtBase = !isInactive && (avail.status === 'base' || avail.status === 'arrival' || avail.status === 'departure' || avail.status === 'full');
+                        const statusLabel = isInactive ? 'לא פעיל' : (isAtBase ? 'בבסיס' : (avail.status === 'home' ? 'בית' : 'אילוץ'));
                         const hours = isAtBase ? `${avail.startHour} - ${avail.endHour}` : '-';
 
                         let reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'רגיל'));
@@ -465,6 +466,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         } else if (statusLabel === 'אילוץ') {
                             statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
                             statusCell.font = { color: { argb: 'FF92400E' } };
+                        } else if (statusLabel === 'לא פעיל') {
+                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                            statusCell.font = { color: { argb: 'FF64748B' } };
                         }
                     });
                 }
@@ -482,8 +486,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     const avail = getPersonAvailability(person);
                     const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
                     const relevantAbsence = absences.find(a => a.person_id === person.id && dateKey >= a.start_date && dateKey <= a.end_date);
-                    const isAtBase = avail.status === 'base' || avail.status === 'arrival' || avail.status === 'departure' || avail.status === 'full';
-                    const statusLabel = isAtBase ? 'בבסיס' : (avail.status === 'home' ? 'בית' : 'אילוץ');
+                    const isInactive = person.isActive === false;
+                    const isAtBase = !isInactive && (avail.status === 'base' || avail.status === 'arrival' || avail.status === 'departure' || avail.status === 'full');
+                    const statusLabel = isInactive ? 'לא פעיל' : (isAtBase ? 'בבסיס' : (avail.status === 'home' ? 'בית' : 'אילוץ'));
                     const hours = isAtBase ? `${avail.startHour} - ${avail.endHour}` : '-';
                     let reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'רגיל'));
                     if (relevantAbsence) {
@@ -494,6 +499,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     const statusCell = row.getCell(3);
                     if (statusLabel === 'בית') statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
                     else if (statusLabel === 'בבסיס') statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                    else if (statusLabel === 'לא פעיל') statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
                 });
                 worksheet.columns = [{ width: 20 }, { width: 15 }, { width: 12 }, { width: 15 }, { width: 40 }];
                 fileName = `attendance_${selectedDate.toLocaleDateString('en-CA')}.xlsx`;
