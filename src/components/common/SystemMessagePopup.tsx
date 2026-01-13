@@ -90,6 +90,10 @@ export const SystemMessagePopup: React.FC = () => {
                             <Bell size={32} className="text-white" weight="duotone" />
                         </div>
                         <div>
+                            <div className="flex items-center gap-2 mb-2 p-1.5 bg-blue-50 rounded-lg self-end">
+                                <span className="text-[10px] font-black text-blue-600 uppercase tracking-wider">צוות מערכת לניהול פלוגה</span>
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                            </div>
                             <h3 className="text-xl font-bold">הודעת מערכת</h3>
                             {messages.length > 1 && (
                                 <p className="text-blue-100 text-sm mt-1">

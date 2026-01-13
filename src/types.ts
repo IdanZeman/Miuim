@@ -292,7 +292,7 @@ export interface ContactMessage {
   updated_at?: string; // New column
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq' | 'gate' | 'battalion-home' | 'battalion-personnel' | 'battalion-attendance' | 'battalion-settings';
+export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq' | 'gate' | 'battalion-home' | 'battalion-personnel' | 'battalion-attendance' | 'battalion-settings' | 'privacy' | 'terms' | 'security' | 'accessibility';
 
 export interface DailyPresence {
   id?: string; // Optional for new entries

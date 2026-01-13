@@ -25,6 +25,9 @@ const EquipmentManager = lazyWithRetry(() => import('./features/equipment/Equipm
 const ContactPage = lazyWithRetry(() => import('./features/core/ContactPage').then(module => ({ default: module.ContactPage })));
 const SystemManagementPage = lazyWithRetry(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
 const AccessibilityStatement = lazyWithRetry(() => import('./features/core/AccessibilityStatement').then(module => ({ default: module.AccessibilityStatement })));
+const PrivacyPolicy = lazyWithRetry(() => import('./features/core/PrivacyPolicy').then(module => ({ default: module.PrivacyPolicy })));
+const TermsOfUse = lazyWithRetry(() => import('./features/core/TermsOfUse').then(module => ({ default: module.TermsOfUse })));
+const SecurityPage = lazyWithRetry(() => import('./features/core/SecurityPage').then(module => ({ default: module.SecurityPage })));
 const GateDashboard = lazyWithRetry(() => import('./components/GateControl/GateDashboard').then(module => ({ default: module.GateDashboard })));
 
 
@@ -236,6 +239,14 @@ const useMainAppState = () => {
     }, [user, state.people]);
 
     const isLinkedToPerson = !!myPerson || !user || state.people.length === 0;
+
+    useEffect(() => {
+        if (organization) {
+            document.title = `${organization.name} | מערכת לניהול פלוגה`;
+        } else {
+            document.title = 'מערכת לניהול פלוגה';
+        }
+    }, [organization]);
 
     useEffect(() => {
         logger.setContext(
@@ -1286,6 +1297,14 @@ const useMainAppState = () => {
                 return <BattalionMorningReport battalionId={organization?.battalion_id} />;
             case 'gate':
                 return <GateDashboard />;
+            case 'accessibility':
+                return <AccessibilityStatement />;
+            case 'privacy':
+                return <PrivacyPolicy />;
+            case 'terms':
+                return <TermsOfUse />;
+            case 'security':
+                return <SecurityPage />;
             default:
                 return (
                     <div className="p-8">

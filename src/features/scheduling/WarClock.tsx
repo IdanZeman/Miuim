@@ -108,7 +108,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
         }
 
         if (!loadedFromDb) {
-            const saved = localStorage.getItem('miuim_war_clock');
+            const saved = localStorage.getItem('מערכת_לניהול_פלוגה_war_clock');
             if (saved) setItems(JSON.parse(saved));
         }
     };
@@ -211,7 +211,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
 
         newItems.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-        localStorage.setItem('miuim_war_clock', JSON.stringify(newItems));
+        localStorage.setItem('מערכת_לניהול_פלוגה_war_clock', JSON.stringify(newItems));
         setItems(newItems);
         setIsEditing(false);
         setEditItem({});
@@ -235,7 +235,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
 
         // Local Delete (Fallback or No Org)
         const newItems = items.filter(i => i.id !== id);
-        localStorage.setItem('miuim_war_clock', JSON.stringify(newItems));
+        localStorage.setItem('מערכת_לניהול_פלוגה_war_clock', JSON.stringify(newItems));
         setItems(newItems);
         showToast('האירוע נמחק מקומית', 'success');
         setItemToDeleteId(null);

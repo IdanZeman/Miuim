@@ -326,7 +326,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
 
                         <div className="flex flex-col items-start leading-tight text-right">
                             <span className="text-base font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
-                                {battalionName ? battalionName : (organization?.name || 'מערכת ניהול')}
+                                {battalionName ? battalionName : (organization?.name || 'מערכת לניהול פלוגה')}
                             </span>
                         </div>
                     </button>
