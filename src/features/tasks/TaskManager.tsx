@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TaskTemplate, Role, SchedulingSegment, Team } from '@/types';
-import { CheckSquare, Plus, PencilSimple as Pencil, Trash, Copy, Stack as Layers, Clock, Users, CalendarBlank as Calendar, DotsThreeVertical as MoreVertical, Globe } from '@phosphor-icons/react';
+import { CheckSquare, Plus, PencilSimple as Pencil, Trash, Copy, Stack as Layers, Clock, Users, CalendarBlank as Calendar, DotsThreeVertical as MoreVertical, Globe, ArrowsClockwise, Info } from '@phosphor-icons/react';
 import { useToast } from '@/contexts/ToastContext';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { PageInfo } from '@/components/ui/PageInfo';
@@ -55,6 +55,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     const [endDate, setEndDate] = useState('');
     const [assignedTeamId, setAssignedTeamId] = useState('');
     const [segments, setSegments] = useState<SchedulingSegment[]>([]);
+    const [is247, setIs247] = useState(false);
 
     // Segment Editor State
     const [showSegmentEditor, setShowSegmentEditor] = useState(false);
@@ -72,6 +73,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         setEndDate('');
         setAssignedTeamId('');
         setSegments([]);
+        setIs247(false);
     };
 
     const handleEditClick = (task: TaskTemplate) => {
@@ -84,6 +86,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         setEndDate(task.endDate ? task.endDate.split('T')[0] : '');
         setAssignedTeamId(task.assignedTeamId || '');
         setSegments(task.segments || []);
+        setIs247(task.is247 || false);
         setIsAdding(false);
     };
 
@@ -135,7 +138,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             endDate: endDate || undefined,
             assignedTeamId: assignedTeamId || undefined,
             segments: processedSegments,
-            is247: false
+            is247: is247
         };
 
         if (editId) {
@@ -474,7 +477,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             }}>
                             <div>
                                 <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                    <RotateCcw size={18} className={is247 ? "text-amber-500" : "text-slate-400"} weight="bold" />
+                                    <ArrowsClockwise size={18} className={is247 ? "text-amber-500" : "text-slate-400"} weight="bold" />
                                     מחזור רציף (סבב 24/7)
                                 </div>
                                 <p className="text-[11px] font-bold text-slate-400 mt-1">יצירת רצף משמרות אוטומטי לכל אורך היממה (למשל: ש"ג)</p>
