@@ -291,95 +291,129 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             footer={modalFooter}
         >
             <div className="flex flex-col gap-6">
-                {!customType ? (
-                    <>
-                        {/* 1. Segmented Control - Premium Design */}
-                        <div className="bg-slate-50 border border-slate-200 p-1.5 rounded-2xl flex relative shadow-inner">
-                            <button
-                                onClick={() => setMainStatus('base')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-300 ${mainStatus === 'base'
-                                    ? 'bg-white text-green-600 shadow-sm ring-1 ring-black/5 transform scale-[1.02]'
-                                    : 'text-slate-400 hover:text-slate-600'
-                                    }`}
-                            >
-                                <Buildings size={18} weight={mainStatus === 'base' ? 'duotone' : 'bold'} />
-                                בבסיס
-                            </button>
-                            <button
-                                onClick={() => setMainStatus('home')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-300 ${mainStatus === 'home'
-                                    ? 'bg-white text-slate-600 shadow-sm ring-1 ring-black/5 transform scale-[1.02]'
-                                    : 'text-slate-400 hover:text-slate-600'
-                                    }`}
-                            >
-                                <House size={18} weight={mainStatus === 'home' ? 'duotone' : 'bold'} />
-                                בבית
-                            </button>
-                        </div>
+                <>
+                    {/* 1. Segmented Control - Premium Design */}
+                    <div className="bg-slate-50 border border-slate-200 p-1.5 rounded-2xl flex relative shadow-inner">
+                        <button
+                            onClick={() => setMainStatus('base')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-300 ${mainStatus === 'base'
+                                ? 'bg-white text-green-600 shadow-sm ring-1 ring-black/5 transform scale-[1.02]'
+                                : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                        >
+                            <Buildings size={18} weight={mainStatus === 'base' ? 'duotone' : 'bold'} />
+                            בבסיס
+                        </button>
+                        <button
+                            onClick={() => setMainStatus('home')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-300 ${mainStatus === 'home'
+                                ? 'bg-white text-slate-600 shadow-sm ring-1 ring-black/5 transform scale-[1.02]'
+                                : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                        >
+                            <House size={18} weight={mainStatus === 'home' ? 'duotone' : 'bold'} />
+                            בבית
+                        </button>
+                    </div>
 
-                        {/* 2. Time Cards (if Base) - Premium Design */}
-                        {mainStatus === 'base' && (
-                            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
+                    {/* 2. Day Type Selection (if Base) */}
+                    {mainStatus === 'base' && (
+                        <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
+                            {/* Day Type Buttons - Subtle chips */}
+                            <div className="flex flex-wrap gap-2 justify-center">
+                                <button
+                                    onClick={() => setCustomType(null)}
+                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === null
+                                        ? 'bg-green-100 text-green-700 ring-1 ring-green-200'
+                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                        }`}
+                                >
+                                    יום שלם
+                                </button>
                                 <button
                                     onClick={() => setCustomType('arrival')}
-                                    className="relative flex flex-col items-center justify-center p-5 border border-slate-100 bg-white hover:border-slate-200 hover:shadow-lg hover:shadow-slate-200/50 rounded-[1.5rem] transition-all group active:scale-[0.98] overflow-hidden"
+                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'arrival'
+                                        ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
+                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                        }`}
                                 >
-                                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent opacity-50" />
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2 group-hover:text-slate-600 transition-colors">שעת הגעה</span>
-                                    <span className="text-2xl font-black text-slate-900 font-mono tracking-tight">
-                                        {customType === 'arrival' ? customStart : (currentAvailability?.startHour && currentAvailability.startHour !== '00:00' ? currentAvailability?.startHour : '00:00')}
-                                    </span>
+                                    הגעה
                                 </button>
                                 <button
                                     onClick={() => setCustomType('departure')}
-                                    className="relative flex flex-col items-center justify-center p-5 border border-slate-100 bg-white hover:border-slate-200 hover:shadow-lg hover:shadow-slate-200/50 rounded-[1.5rem] transition-all group active:scale-[0.98] overflow-hidden"
+                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'departure'
+                                        ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200'
+                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                        }`}
                                 >
-                                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent opacity-50" />
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2 group-hover:text-slate-600 transition-colors">שעת יציאה</span>
-                                    <span className="text-2xl font-black text-slate-900 font-mono tracking-tight">
-                                        {customType === 'departure' ? customEnd : (currentAvailability?.endHour && currentAvailability.endHour !== '23:59' ? currentAvailability?.endHour : '23:59')}
-                                    </span>
+                                    יציאה
+                                </button>
+                                <button
+                                    onClick={() => setCustomType('custom')}
+                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'custom'
+                                        ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
+                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                        }`}
+                                >
+                                    יום בודד
                                 </button>
                             </div>
-                        )}
 
-                        <div className="h-px bg-slate-100 mx-4" />
-
-                        {/* 3. Daily Agenda / Blocks */}
-                        {mainStatus === 'base' && !disableJournal && renderTimeline()}
-                    </>
-                ) : (
-                    // Sub-views for time picking
-                    <div className="flex flex-col gap-6 animate-in slide-in-from-right-8 duration-300">
-                        <button onClick={() => setCustomType(null)} className="flex items-center gap-2 text-slate-400 hover:text-slate-600 font-bold self-start px-1 transition-colors">
-                            <ArrowRight size={18} weight="bold" />
-                            <span className="text-xs">חזרה לתפריט</span>
-                        </button>
-
-                        <div className="bg-slate-50/50 rounded-[2rem] p-8 border border-slate-100 text-center shadow-lg shadow-slate-100">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">
-                                {customType === 'arrival' ? 'הגדרת שעת הגעה' : 'הגדרת שעת יציאה'}
-                            </span>
+                            {/* Time Picker(s) - Show only for relevant types */}
+                            {customType === 'arrival' && (
+                                <div className="flex items-center gap-3 bg-emerald-50 p-4 rounded-xl border border-emerald-100 animate-in fade-in duration-200">
+                                    <span className="text-sm font-bold text-emerald-700">מגיע בשעה:</span>
+                                    <TimePicker
+                                        label=""
+                                        value={customStart}
+                                        onChange={setCustomStart}
+                                        className="text-center text-lg font-black max-w-[100px] bg-white"
+                                    />
+                                </div>
+                            )}
 
                             {customType === 'departure' && (
-                                <TimePicker
-                                    label=""
-                                    value={customEnd}
-                                    onChange={setCustomEnd}
-                                    className="text-center text-2xl h-16 max-w-[240px] mx-auto font-black"
-                                />
+                                <div className="flex items-center gap-3 bg-amber-50 p-4 rounded-xl border border-amber-100 animate-in fade-in duration-200">
+                                    <span className="text-sm font-bold text-amber-700">יוצא בשעה:</span>
+                                    <TimePicker
+                                        label=""
+                                        value={customEnd}
+                                        onChange={setCustomEnd}
+                                        className="text-center text-lg font-black max-w-[100px] bg-white"
+                                    />
+                                </div>
                             )}
-                            {customType === 'arrival' && (
-                                <TimePicker
-                                    label=""
-                                    value={customStart}
-                                    onChange={setCustomStart}
-                                    className="text-center text-2xl h-16 max-w-[240px] mx-auto font-black"
-                                />
+
+                            {customType === 'custom' && (
+                                <div className="grid grid-cols-2 gap-3 bg-blue-50 p-4 rounded-xl border border-blue-100 animate-in fade-in duration-200">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-xs font-bold text-blue-700">מגיע בשעה:</span>
+                                        <TimePicker
+                                            label=""
+                                            value={customStart}
+                                            onChange={setCustomStart}
+                                            className="text-center font-black bg-white"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-xs font-bold text-blue-700">יוצא בשעה:</span>
+                                        <TimePicker
+                                            label=""
+                                            value={customEnd}
+                                            onChange={setCustomEnd}
+                                            className="text-center font-black bg-white"
+                                        />
+                                    </div>
+                                </div>
                             )}
                         </div>
-                    </div>
-                )}
+                    )}
+
+                    <div className="h-px bg-slate-100 mx-4" />
+
+                    {/* 3. Daily Agenda / Blocks */}
+                    {mainStatus === 'base' && !disableJournal && renderTimeline()}
+                </>
             </div>
         </GenericModal>
     );

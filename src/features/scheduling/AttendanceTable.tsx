@@ -24,10 +24,13 @@ interface AttendanceTableProps {
     showRequiredDetails?: boolean; // NEW: Toggle required row
     companies?: import('@/types').Organization[]; // NEW: For battalion view
     hideAbsenceDetails?: boolean; // NEW: Security/Privacy prop
+    defaultArrivalHour?: string; // Default arrival time for display
+    defaultDepartureHour?: string; // Default departure time for display
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
-    teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = [], hideAbsenceDetails = false
+    teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = [], hideAbsenceDetails = false,
+    defaultArrivalHour = '10:00', defaultDepartureHour = '14:00'
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
@@ -704,7 +707,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                         </div>
                                                                                     )}
                                                                                     <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יום בודד</span>
-                                                                                    <span className="text-[9px] font-bold opacity-70">{avail.startHour}-{avail.endHour}</span>
+                                                                                    <span className="text-[9px] font-bold opacity-70">{avail.startHour === '00:00' ? defaultArrivalHour : avail.startHour}-{avail.endHour === '23:59' ? defaultDepartureHour : avail.endHour}</span>
                                                                                     {constraintText}
                                                                                 </div>
                                                                             );
@@ -720,7 +723,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                     )}
                                                                                     <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-emerald-500"} weight="duotone" />
                                                                                     <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>הגעה</span>
-                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.startHour}</span>
+                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.startHour === '00:00' ? defaultArrivalHour : avail.startHour}</span>
                                                                                     {constraintText}
                                                                                 </div>
                                                                             );
@@ -737,7 +740,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                     )}
                                                                                     <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="duotone" />
                                                                                     <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יציאה</span>
-                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour}</span>
+                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour === '23:59' ? defaultDepartureHour : avail.endHour}</span>
                                                                                     {constraintText}
                                                                                 </div>
                                                                             );
@@ -845,6 +848,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                             currentAvailability={availability}
                             onClose={() => setEditingCell(null)}
                             onApply={handleApplyStatus}
+                            defaultArrivalHour={defaultArrivalHour}
+                            defaultDepartureHour={defaultDepartureHour}
                         />
                     );
                 })()
