@@ -625,7 +625,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 className="w-9 h-9 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 active:scale-95 transition-all shrink-0"
                                 title="ייבוא מאקסל"
                             >
-                                <Download size={18} weight="duotone" className="rotate-180" />
+                                <Download size={18} weight="bold" className="rotate-180" />
                             </button>
                         )}
                     </div>
@@ -767,7 +767,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     title={tab.label}
                                 >
                                     <tab.icon size={16} weight="duotone" />
-                                    <span className={isSearchExpanded ? 'hidden' : 'inline'}>{tab.label}</span>
+                                    <span className={isSearchExpanded ? 'hidden' : 'hidden 2xl:inline'}>{tab.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -781,7 +781,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     className="h-10 px-4 bg-slate-100/50 text-slate-600 hover:bg-white hover:text-blue-600 rounded-xl text-xs font-black transition-all border border-slate-200 shadow-sm flex items-center gap-2 group"
                                 >
                                     <Sparkles size={18} weight="duotone" className="group-hover:text-blue-600 transition-colors" />
-                                    <span className="hidden xl:inline">מחולל סבבים</span>
+                                    <span className="hidden 2xl:inline">מחולל סבבים</span>
                                 </button>
                             )}
 
@@ -791,7 +791,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     className="h-10 px-4 bg-emerald-50/50 text-emerald-600 hover:bg-white hover:text-emerald-700 rounded-xl text-xs font-black transition-all border border-emerald-100 shadow-sm flex items-center gap-2 group"
                                 >
                                     <Download size={18} weight="duotone" className="group-hover:text-emerald-700 transition-colors rotate-180" />
-                                    <span className="hidden xl:inline">ייבוא מאקסל</span>
+                                    <span className="hidden 2xl:inline">ייבוא מאקסל</span>
                                 </button>
                             )}
 

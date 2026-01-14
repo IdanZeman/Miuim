@@ -199,9 +199,6 @@ export const ImportAttendanceModal: React.FC<ImportAttendanceModalProps> = ({ is
             setDatesFound(dates);
             setImportData(rows);
 
-            setDatesFound(dates);
-            setImportData(rows);
-
             if (unknownSet.size > 0) {
                 setUnknownValues(Array.from(unknownSet));
                 setStep('map_values');
