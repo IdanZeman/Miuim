@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Person, DailyPresence } from '../../types';
-import { supabase } from '../../services/supabaseClient';
-import { addDays, differenceInDays, format, isSameDay } from 'date-fns';
+import { Person, Absence, TeamRotation, HourlyBlockage } from '../../types';
+import { addDays, differenceInDays, isSameDay, format } from 'date-fns';
 import { House, CalendarBlank as Calendar, Clock, Buildings, HouseIcon } from '@phosphor-icons/react';
+import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { logger } from '../../services/loggingService';
 
 interface TimelinePeriod {
@@ -11,120 +11,148 @@ interface TimelinePeriod {
     endDate: Date;
     durationDays: number;
     daysUntil: number;
-    departureTime?: string; // For home periods
-    returnTime?: string;    // For home periods
+    departureTime?: string;
+    departureDate?: Date;
+    returnTime?: string;
+    returnDate?: Date;
+    homeStatusType?: string;
 }
 
 interface LeaveForecastWidgetProps {
     myPerson: Person;
     forecastDays: number;
     onNavigate: (view: any, date?: Date) => void;
+    absences: Absence[];
+    teamRotations: TeamRotation[];
+    hourlyBlockages: HourlyBlockage[];
 }
 
 export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
     myPerson,
     forecastDays,
-    onNavigate
+    onNavigate,
+    absences,
+    teamRotations,
+    hourlyBlockages
 }) => {
     const [timelinePeriods, setTimelinePeriods] = useState<TimelinePeriod[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchTimeline = async () => {
-            if (!myPerson) return;
+        if (!myPerson) return;
+        setLoading(true);
 
-            try {
-                const today = new Date();
-                const endDate = addDays(today, forecastDays);
+        const periods: TimelinePeriod[] = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-                const { data, error } = await supabase
-                    .from('daily_presence')
-                    .select('*')
-                    .eq('person_id', myPerson.id)
-                    .gte('date', format(today, 'yyyy-MM-dd'))
-                    .lte('date', format(endDate, 'yyyy-MM-dd'))
-                    .order('date', { ascending: true });
+        // Fetch availability for a wider range to catch boundary transitions [-1, forecastDays + 1]
+        const availMap = new Map<string, any>();
+        for (let i = -1; i <= forecastDays + 1; i++) {
+            const date = addDays(today, i);
+            const dateKey = format(date, 'yyyy-MM-dd');
+            const avail = getEffectiveAvailability(myPerson, date, teamRotations, absences, hourlyBlockages);
+            availMap.set(dateKey, { ...avail, date });
+        }
 
-                if (error) throw error;
+        let currentPeriod: { type: 'home' | 'base'; start: Date; end: Date; homeStatusType?: string } | null = null;
 
-                // Build complete timeline with both home and base periods
-                const periods: TimelinePeriod[] = [];
-                if (data && data.length > 0) {
-                    let currentPeriod: { type: 'home' | 'base'; start: Date; end: Date; startTime?: string; endTime?: string } | null = null;
+        for (let i = 0; i <= forecastDays; i++) {
+            const date = addDays(today, i);
+            const dateKey = format(date, 'yyyy-MM-dd');
+            const avail = availMap.get(dateKey);
 
-                    data.forEach((record: DailyPresence) => {
-                        const recordDate = new Date(record.date);
-                        const recordType = record.status === 'home' ? 'home' : 'base';
+            const isHome = avail.status === 'home' || !avail.isAvailable;
+            const recordType = isHome ? 'home' : 'base';
 
-                        if (!currentPeriod) {
-                            currentPeriod = {
-                                type: recordType,
-                                start: recordDate,
-                                end: recordDate,
-                                startTime: record.start_time,
-                                endTime: record.end_time
-                            };
-                        } else {
-                            const daysDiff = differenceInDays(recordDate, currentPeriod.end);
-                            const isSameType = recordType === currentPeriod.type;
-
-                            if (daysDiff === 1 && isSameType) {
-                                // Consecutive day of same type
-                                currentPeriod.end = recordDate;
-                                // Update end time for home periods
-                                if (recordType === 'home' && record.end_time) {
-                                    currentPeriod.endTime = record.end_time;
-                                }
-                            } else {
-                                // Type changed or gap found, save current period
-                                const daysUntil = differenceInDays(currentPeriod.start, today);
-                                periods.push({
-                                    type: currentPeriod.type,
-                                    startDate: currentPeriod.start,
-                                    endDate: currentPeriod.end,
-                                    durationDays: differenceInDays(currentPeriod.end, currentPeriod.start) + 1,
-                                    daysUntil,
-                                    departureTime: currentPeriod.type === 'home' ? currentPeriod.startTime : undefined,
-                                    returnTime: currentPeriod.type === 'home' ? currentPeriod.endTime : undefined
-                                });
-
-                                // Start new period
-                                currentPeriod = {
-                                    type: recordType,
-                                    start: recordDate,
-                                    end: recordDate,
-                                    startTime: record.start_time,
-                                    endTime: record.end_time
-                                };
-                            }
-                        }
+            if (!currentPeriod) {
+                currentPeriod = {
+                    type: recordType,
+                    start: date,
+                    end: date,
+                    homeStatusType: avail.homeStatusType
+                };
+            } else {
+                // Merge consecutive days of same type
+                // WE DON'T check homeStatusType here anymore to allow merging multiple home days with different subtypes
+                if (recordType === currentPeriod.type) {
+                    currentPeriod.end = date;
+                    // If the new day has a homeStatusType and the current period doesn't, adopt it (for better labels)
+                    if (!currentPeriod.homeStatusType && avail.homeStatusType) {
+                        currentPeriod.homeStatusType = avail.homeStatusType;
+                    }
+                } else {
+                    // Close current period
+                    periods.push({
+                        type: currentPeriod.type,
+                        startDate: currentPeriod.start,
+                        endDate: currentPeriod.end,
+                        durationDays: differenceInDays(currentPeriod.end, currentPeriod.start) + 1,
+                        daysUntil: differenceInDays(currentPeriod.start, today),
+                        homeStatusType: currentPeriod.homeStatusType
                     });
 
-                    // Add the last period
-                    if (currentPeriod) {
-                        const daysUntil = differenceInDays(currentPeriod.start, today);
-                        periods.push({
-                            type: currentPeriod.type,
-                            startDate: currentPeriod.start,
-                            endDate: currentPeriod.end,
-                            durationDays: differenceInDays(currentPeriod.end, currentPeriod.start) + 1,
-                            daysUntil,
-                            departureTime: currentPeriod.type === 'home' ? currentPeriod.startTime : undefined,
-                            returnTime: currentPeriod.type === 'home' ? currentPeriod.endTime : undefined
-                        });
-                    }
+                    // Start new period
+                    currentPeriod = {
+                        type: recordType,
+                        start: date,
+                        end: date,
+                        homeStatusType: avail.homeStatusType
+                    };
                 }
-
-                setTimelinePeriods(periods);
-            } catch (error) {
-                console.error('Failed to fetch timeline:', error);
-            } finally {
-                setLoading(false);
             }
-        };
+        }
 
-        fetchTimeline();
-    }, [myPerson, forecastDays]);
+        if (currentPeriod) {
+            periods.push({
+                type: currentPeriod.type,
+                startDate: currentPeriod.start,
+                endDate: currentPeriod.end,
+                durationDays: differenceInDays(currentPeriod.end, currentPeriod.start) + 1,
+                daysUntil: differenceInDays(currentPeriod.start, today),
+                homeStatusType: currentPeriod.homeStatusType
+            });
+        }
+
+        // Post-process home periods to find accurate exit/return times
+        const finalPeriods = periods.map(p => {
+            if (p.type !== 'home') return p;
+
+            let departureDate = p.startDate;
+            let departureTime = '00:00';
+            let returnDate = addDays(p.endDate, 1);
+            let returnTime = '00:00';
+
+            // Check day before for departure
+            const dayBefore = addDays(p.startDate, -1);
+            const availBefore = availMap.get(format(dayBefore, 'yyyy-MM-dd'));
+            if (availBefore && (availBefore.status === 'departure' || availBefore.isAvailable)) {
+                departureDate = dayBefore;
+                // If it's a departure or just a base day before home, and end hour is default, use 14:00 as default
+                departureTime = (availBefore.endHour === '23:59' || availBefore.endHour === '00:00' || !availBefore.endHour) ? '14:00' : availBefore.endHour;
+            }
+
+            // Check day after for return
+            const dayAfter = addDays(p.endDate, 1);
+            const availAfter = availMap.get(format(dayAfter, 'yyyy-MM-dd'));
+            if (availAfter && (availAfter.status === 'arrival' || availAfter.isAvailable)) {
+                returnDate = dayAfter;
+                // If it's an arrival or just a base day after home, and start hour is default, use 10:00 as default
+                returnTime = (availAfter.startHour === '00:00' || !availAfter.startHour) ? '10:00' : availAfter.startHour;
+            }
+
+            return {
+                ...p,
+                departureDate, // New field to handle date transition
+                departureTime,
+                returnDate,    // New field to handle date transition
+                returnTime
+            };
+        });
+
+        setTimelinePeriods(finalPeriods);
+        setLoading(false);
+    }, [myPerson, forecastDays, absences, teamRotations, hourlyBlockages]);
 
     const formatDateRange = (start: Date, end: Date) => {
         const months = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
@@ -210,11 +238,11 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                             {timelinePeriods.map((period, index) => {
                                 const isHome = period.type === 'home';
                                 const isToday = period.daysUntil === 0;
-                                const bgColor = isHome ? 'from-emerald-50 to-white' : 'from-blue-50 to-white';
-                                const borderColor = isHome ? 'border-emerald-200' : 'border-blue-200';
-                                const iconBg = isHome ? 'bg-emerald-100' : 'bg-blue-100';
-                                const iconColor = isHome ? 'text-emerald-600' : 'text-blue-600';
-                                const dotColor = isHome ? 'bg-emerald-500' : 'bg-blue-500';
+                                const bgColor = isHome ? 'from-rose-50 to-white' : 'from-emerald-50 to-white';
+                                const borderColor = isHome ? 'border-rose-200' : 'border-emerald-200';
+                                const iconBg = isHome ? 'bg-rose-100' : 'bg-emerald-100';
+                                const iconColor = isHome ? 'text-rose-600' : 'text-emerald-600';
+                                const dotColor = isHome ? 'bg-rose-500' : 'bg-emerald-500';
 
                                 return (
                                     <div
@@ -249,7 +277,7 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                                                     </div>
                                                 </div>
                                                 {isToday && (
-                                                    <span className="bg-emerald-600 text-white text-[10px] px-2 py-1 rounded-full font-black uppercase tracking-wider">
+                                                    <span className={`${isHome ? 'bg-rose-600' : 'bg-emerald-600'} text-white text-[10px] px-2 py-1 rounded-full font-black uppercase tracking-wider`}>
                                                         היום
                                                     </span>
                                                 )}
@@ -260,23 +288,23 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                                                 <div className="grid grid-cols-2 gap-3 mt-3">
                                                     {period.departureTime && (
                                                         <div className="bg-white/60 rounded-lg p-3 border border-emerald-100">
-                                                            <div className="flex items-center gap-2 text-emerald-700 mb-1">
+                                                            <div className={`flex items-center gap-2 ${isHome ? 'text-rose-700' : 'text-emerald-700'} mb-1`}>
                                                                 <Clock size={14} weight="duotone" />
                                                                 <span className="text-xs font-black uppercase">יציאה</span>
                                                             </div>
                                                             <p className="text-sm font-bold text-slate-900">
-                                                                {format(period.startDate, 'd/M')} {formatTime(period.departureTime)}
+                                                                {format(period.departureDate || period.startDate, 'd/M')} {formatTime(period.departureTime)}
                                                             </p>
                                                         </div>
                                                     )}
                                                     {period.returnTime && (
                                                         <div className="bg-white/60 rounded-lg p-3 border border-emerald-100">
-                                                            <div className="flex items-center gap-2 text-emerald-700 mb-1">
+                                                            <div className={`flex items-center gap-2 ${isHome ? 'text-rose-700' : 'text-emerald-700'} mb-1`}>
                                                                 <Clock size={14} weight="duotone" />
                                                                 <span className="text-xs font-black uppercase">חזרה</span>
                                                             </div>
                                                             <p className="text-sm font-bold text-slate-900">
-                                                                {format(getReturnDate(period.endDate), 'd/M')} {formatTime(period.returnTime)}
+                                                                {format(period.returnDate || getReturnDate(period.endDate), 'd/M')} {formatTime(period.returnTime)}
                                                             </p>
                                                         </div>
                                                     )}

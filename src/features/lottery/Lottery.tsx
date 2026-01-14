@@ -447,7 +447,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
     )
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] relative overflow-hidden" dir="rtl">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden" dir="rtl">
 
             {/* Global Sound Toggle (Visible on both) */}
             {/* Global Sound Toggle Removed */}

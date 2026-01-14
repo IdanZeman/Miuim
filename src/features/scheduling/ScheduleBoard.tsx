@@ -639,7 +639,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
 
             {/* Time Grid Board Container */}
-            <div className={`bg-white rounded-[2rem] border border-slate-100 ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col flex-1 min-h-0`}>
+            <div className={`bg-white rounded-[2rem] border border-slate-100 ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col flex-1 relative overflow-hidden`}>
 
                 <ExportScheduleModal
                     isOpen={isExportModalOpen}

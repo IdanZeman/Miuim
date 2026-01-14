@@ -182,7 +182,7 @@ export const BattalionPersonnelTable: React.FC = () => {
     }
 
     return (
-        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
             <ActionBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}

@@ -701,12 +701,12 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     ];
 
     return (
-        <div className="h-full bg-slate-50 md:bg-white rounded-[2rem] md:rounded-2xl shadow-xl md:shadow-none border md:border-slate-100 p-0 md:p-0 overflow-hidden" dir="rtl">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden" dir="rtl">
             {/* === Mobile Layout (< md) === */}
             {/* Header Removed - Content moved to main card */}
 
             {/* Content Container (Mobile: Pull-up Sheet, Desktop: Split View) */}
-            <div className="md:flex h-full md:max-w-6xl md:mx-auto md:gap-8 md:p-6 md:h-[calc(100vh-100px)]">
+            <div className="md:flex flex-1 md:gap-8 md:p-6">
 
                 {/* === Desktop Sidebar (Left Menu) === */}
                 <div className="hidden md:flex flex-col w-64 shrink-0 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm h-full">
@@ -754,7 +754,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                 {/* === Active Content Area === */}
                 {/* === Active Content Area === */}
                 <div className="flex-1 relative z-20 md:z-auto md:mt-0 md:mx-0 px-0 md:px-0 pb-20 md:pb-0 overflow-y-auto h-full hide-scrollbar">
-                    <div className="bg-white rounded-[2rem] md:rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-6 md:p-8 min-h-[400px]">
+                    <div className="bg-white rounded-[2rem] border border-slate-100 p-6 md:p-8">
 
                         {/* Mobile Only: Organization Info & Tabs */}
                         <div className="md:hidden space-y-6 mb-8">

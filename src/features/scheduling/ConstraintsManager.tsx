@@ -416,7 +416,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-11rem)] md:h-[calc(100vh-8rem)] overflow-hidden relative">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden">
             {/* Header Section */}
             <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col gap-4 bg-white/50 backdrop-blur-sm z-10 shrink-0">
                 <div className="flex items-center justify-between">

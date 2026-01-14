@@ -138,7 +138,7 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
     const totalHome = Object.values(reportData?.statsByCompany || {}).reduce((acc, curr) => acc + (curr.total - curr.presentDetails), 0);
 
     return (
-        <div className="bg-slate-50 md:bg-white rounded-[2rem] border md:border-slate-100 p-0 relative flex flex-col pb-10">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden">
             {/* Unified Action Bar */}
             <ActionBar
                 searchTerm=""

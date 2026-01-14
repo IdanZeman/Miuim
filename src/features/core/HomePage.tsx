@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { Shift, TaskTemplate, Person, Team, Role } from '../../types';
+import { Shift, TaskTemplate, Person, Team, Role, Absence, TeamRotation, HourlyBlockage } from '../../types';
 import { WarClock } from '../scheduling/WarClock';
 import { supabase } from '../../services/supabaseClient';
 import { differenceInHours, addDays, isSameDay } from 'date-fns';
@@ -17,10 +17,17 @@ interface HomePageProps {
     people: Person[];
     teams: Team[];
     roles: Role[];
+    absences: Absence[];
+    teamRotations: TeamRotation[];
+    hourlyBlockages: HourlyBlockage[];
     onNavigate: (view: any, date?: Date) => void;
 }
 
-export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams, roles, onNavigate }) => {
+export const HomePage: React.FC<HomePageProps> = ({
+    shifts, tasks, people, teams, roles,
+    absences, teamRotations, hourlyBlockages,
+    onNavigate
+}) => {
     const { user, profile, organization } = useAuth();
     const [viewerDays, setViewerDays] = useState<number>(7);
     const [homeForecastDays, setHomeForecastDays] = useState<number>(30);
@@ -33,9 +40,9 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
         return () => clearInterval(timer);
     }, []);
 
-    const myPerson = people.find(p =>
-        p.userId === user?.id || (p as any).email === user?.email || (profile?.email && (p as any).email === profile.email)
-    );
+    const myPerson = people.find(p => p.userId === user?.id) ||
+        people.find(p => (p as any).email === user?.email) ||
+        people.find(p => profile?.email && (p as any).email === profile.email);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -211,6 +218,9 @@ export const HomePage: React.FC<HomePageProps> = ({ shifts, tasks, people, teams
                         myPerson={myPerson}
                         forecastDays={homeForecastDays}
                         onNavigate={onNavigate}
+                        absences={absences}
+                        teamRotations={teamRotations}
+                        hourlyBlockages={hourlyBlockages}
                     />
 
                     {/* Upcoming Schedule */}

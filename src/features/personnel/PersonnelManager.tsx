@@ -1317,12 +1317,12 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     };
 
     return (
-        <div className="bg-slate-50 md:bg-white rounded-[2rem] border md:border-slate-100 p-0 relative flex flex-col">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden">
             <ActionBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 onExport={handleExport}
-                className="px-4 md:px-6 sticky top-0"
+                className="px-4 md:px-6 sticky top-0 bg-white"
                 leftActions={
                     <div className="flex items-center gap-3 shrink-0">
                         <div className="hidden 2xl:flex w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl items-center justify-center shrink-0">

@@ -300,7 +300,7 @@ export const BattalionAttendanceManager: React.FC = () => {
     }
 
     return (
-        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden">
             {/* Mobile View */}
             <div className="flex-1 flex flex-col md:hidden relative isolate z-10 overflow-hidden">
                 {/* Mobile Header */}
