@@ -1,6 +1,12 @@
 export type UserRole = 'admin' | 'editor' | 'viewer' | 'attendance_only';
 
-
+// Home status classification for soldiers marked as "home"
+export type HomeStatusType = 
+  | 'leave_shamp'       // חופשה בשמפ
+  | 'gimel'             // ג'
+  | 'absent'            // נפקד
+  | 'organization_days' // ימי התארגנות
+  | 'not_in_shamp';     // לא בשמ"פ
 
 export interface Organization {
   id: string;
@@ -126,6 +132,7 @@ export interface AvailabilitySlot {
   endHour?: string;   // "17:00"
   source?: string;
   status?: string; // 'arrival' | 'departure' | 'base' | 'home'
+  homeStatusType?: HomeStatusType; // Required when status='home'
   unavailableBlocks?: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[];
 }
 
@@ -300,6 +307,7 @@ export interface DailyPresence {
   person_id: string;
   organization_id: string;
   status: 'home' | 'base' | 'unavailable' | 'leave';
+  homeStatusType?: HomeStatusType; // Required when status='home'
   source: 'algorithm' | 'manual' | 'override';
   created_at?: string;
   updated_at?: string;

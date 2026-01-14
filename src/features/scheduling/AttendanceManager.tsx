@@ -250,7 +250,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הגדרות סבב אישי עודכנו', 'success');
     };
 
-    const handleUpdateAvailability = async (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[]) => {
+    const handleUpdateAvailability = async (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType) => {
         if (isViewer) return;
 
         const person = people.find(p => p.id === personId);
@@ -379,15 +379,21 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 newData.startHour = '00:00';
                 newData.endHour = '23:59';
             }
+            // Clear home status type when switching to base
+            newData.homeStatusType = undefined;
         } else if (status === 'home') {
             newData.isAvailable = false;
             newData.startHour = '00:00';
             newData.endHour = '00:00';
+            // Set home status type (required)
+            newData.homeStatusType = homeStatusType;
         } else if (status === 'unavailable') {
             newData.isAvailable = false;
             newData.startHour = '00:00';
             newData.endHour = '00:00';
             newData.reason = 'אילוץ / לא זמין';
+            // Clear home status type for unavailable
+            newData.homeStatusType = undefined;
         }
 
         const updatedPerson = {
@@ -418,22 +424,47 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 const month = viewDate.getMonth();
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-                const headers = ['תאריך', 'שם מלא', 'צוות', 'סטטוס', 'שעות', 'סיבה/הערות'];
-                const headerRow = worksheet.addRow(headers);
-                headerRow.font = { bold: true };
-                headerRow.eachCell(cell => {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                });
+                // Home status type labels
+                const homeStatusLabels: Record<string, string> = {
+                    'leave_shamp': 'חופשה בשמפ',
+                    'gimel': 'ג\'',
+                    'absent': 'נפקד',
+                    'organization_days': 'ימי התארגנות',
+                    'not_in_shamp': 'לא בשמ"פ'
+                };
 
+                // Build headers: Name, Team, then all dates
+                const headers = ['שם מלא', 'צוות'];
                 for (let d = 1; d <= daysInMonth; d++) {
                     const date = new Date(year, month, d);
-                    const dateStr = date.toLocaleDateString('he-IL');
-                    const dateKey = date.toLocaleDateString('en-CA');
+                    const dayName = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'][date.getDay()];
+                    headers.push(`${d}.${month + 1}\n${dayName}`);
+                }
 
-                    people.forEach(person => {
+                const headerRow = worksheet.addRow(headers);
+                headerRow.font = { bold: true };
+                headerRow.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                headerRow.height = 30;
+                headerRow.eachCell(cell => {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                });
+
+                // Add rows for each person
+                people.forEach(person => {
+                    const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
+                    const rowData: any[] = [person.name, teamName];
+
+                    // Add cell for each day
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const date = new Date(year, month, d);
+                        const dateKey = date.toLocaleDateString('en-CA');
                         const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
-                        const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
 
                         const relevantAbsence = absences.find(a =>
                             a.person_id === person.id &&
@@ -441,34 +472,68 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             dateKey <= a.end_date
                         );
 
-                        const isAtBase = avail.status === 'base' || avail.status === 'arrival' || avail.status === 'departure' || avail.status === 'full';
-                        const statusLabel = isAtBase ? 'בבסיס' : (avail.status === 'home' ? 'בית' : 'אילוץ');
-                        const hours = isAtBase ? `${avail.startHour} - ${avail.endHour}` : '-';
+                        let cellText = '';
+                        if (avail.status === 'base' || avail.status === 'full') {
+                            cellText = 'בבסיס';
+                        } else if (avail.status === 'arrival') {
+                            cellText = `הגעה\n${avail.startHour}`;
+                        } else if (avail.status === 'departure') {
+                            cellText = `יציאה\n${avail.endHour}`;
+                        } else if (avail.status === 'home') {
+                            const homeType = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : 'חופשה בשמפ';
+                            cellText = `בית - ${homeType}`;
 
-                        let reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'רגיל'));
-
-                        if (relevantAbsence) {
-                            const statusDesc = relevantAbsence.status === 'approved' ? 'מאושר' : (relevantAbsence.status === 'pending' ? 'ממתין' : 'נדחה');
-                            const absenceReason = relevantAbsence.reason || 'בקשת יציאה';
-                            reason = `${reason} | היעדרות (${statusDesc}): ${absenceReason}`;
+                            if (relevantAbsence) {
+                                const statusDesc = relevantAbsence.status === 'approved' ? '✓' :
+                                    (relevantAbsence.status === 'pending' ? '⏳' : '✗');
+                                cellText += `\n${statusDesc} ${relevantAbsence.reason || 'בקשה'}`;
+                            }
+                        } else {
+                            cellText = 'אילוץ';
                         }
 
-                        const row = worksheet.addRow([dateStr, person.name, teamName, statusLabel, hours, reason]);
+                        rowData.push(cellText);
+                    }
 
-                        const statusCell = row.getCell(4);
-                        if (statusLabel === 'בית') {
-                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-                            statusCell.font = { color: { argb: 'FF991B1B' } };
-                        } else if (statusLabel === 'בבסיס') {
-                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
-                            statusCell.font = { color: { argb: 'FF065F46' } };
-                        } else if (statusLabel === 'אילוץ') {
-                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-                            statusCell.font = { color: { argb: 'FF92400E' } };
+                    const row = worksheet.addRow(rowData);
+                    row.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    row.height = 40;
+
+                    // Style cells
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const date = new Date(year, month, d);
+                        const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+                        const cell = row.getCell(d + 2);
+
+                        cell.border = {
+                            top: { style: 'thin' },
+                            left: { style: 'thin' },
+                            bottom: { style: 'thin' },
+                            right: { style: 'thin' }
+                        };
+
+                        if (avail.status === 'home') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                            cell.font = { color: { argb: 'FF991B1B' }, size: 9 };
+                        } else if (avail.status === 'base' || avail.status === 'full') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                            cell.font = { color: { argb: 'FF065F46' }, size: 9 };
+                        } else if (avail.status === 'arrival' || avail.status === 'departure') {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                            cell.font = { color: { argb: 'FF92400E' }, size: 9 };
+                        } else {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+                            cell.font = { color: { argb: 'FF6B7280' }, size: 9 };
                         }
-                    });
+                    }
+                });
+
+                // Set column widths
+                worksheet.getColumn(1).width = 20;
+                worksheet.getColumn(2).width = 15;
+                for (let d = 3; d <= daysInMonth + 2; d++) {
+                    worksheet.getColumn(d).width = 12;
                 }
-                worksheet.columns = [{ width: 12 }, { width: 20 }, { width: 15 }, { width: 12 }, { width: 15 }, { width: 40 }];
                 fileName = `attendance_month_${month + 1}_${year}.xlsx`;
             } else {
                 const worksheet = workbook.addWorksheet('דוח יומי', { views: [{ rightToLeft: true }] });

@@ -3,9 +3,10 @@ import { ArrowRight, Plus, Trash, CalendarBlank as CalendarIcon, House, Building
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { logger } from '@/services/loggingService';
-import { AvailabilitySlot } from '@/types';
+import { AvailabilitySlot, HomeStatusType } from '@/types';
 import { TimePicker } from '@/components/ui/DatePicker';
 import { Input } from '@/components/ui/Input';
+import { HomeStatusSelector } from '@/components/ui/HomeStatusSelector';
 
 interface StatusEditModalProps {
     isOpen: boolean;
@@ -13,7 +14,7 @@ interface StatusEditModalProps {
     personName?: string;
     currentAvailability?: AvailabilitySlot;
     onClose: () => void;
-    onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => void;
+    onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: HomeStatusType) => void;
     defaultArrivalHour?: string;
     defaultDepartureHour?: string;
     disableJournal?: boolean;
@@ -29,6 +30,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     const [mainStatus, setMainStatus] = useState<'base' | 'home'>('base');
     const [customStart, setCustomStart] = useState(defaultArrivalHour);
     const [customEnd, setCustomEnd] = useState(defaultDepartureHour);
+    const [homeStatusType, setHomeStatusType] = useState<HomeStatusType>('leave_shamp'); // Default to leave_shamp
 
     // Blocks State
     const [unavailableBlocks, setUnavailableBlocks] = useState<{ id: string, start: string, end: string, reason?: string, type?: string }[]>([]);
@@ -49,6 +51,13 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                 setMainStatus('home');
             } else {
                 setMainStatus('base');
+            }
+
+            // Home Status Type
+            if (currentAvailability.homeStatusType) {
+                setHomeStatusType(currentAvailability.homeStatusType);
+            } else {
+                setHomeStatusType('leave_shamp'); // Default
             }
 
             // Times & Type
@@ -77,6 +86,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             setMainStatus('base');
             setUnavailableBlocks([]);
             setCustomType(null);
+            setHomeStatusType('leave_shamp'); // Default
         }
     }, [currentAvailability, isOpen, defaultArrivalHour, defaultDepartureHour]);
 
@@ -98,12 +108,13 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
         // Log the change
         const isCheckIn = mainStatus === 'base' && customType === null;
         logger.info(isCheckIn ? 'CHECK_IN' : 'UPDATE',
-            `${personName}: Updated status to ${mainStatus}${customType ? ` (${customType})` : ''} for ${date}`,
+            `${personName}: Updated status to ${mainStatus}${customType ? ` (${customType})` : ''}${mainStatus === 'home' ? ` - ${homeStatusType}` : ''} for ${date}`,
             {
                 personName,
                 date,
                 status: mainStatus,
                 type: customType,
+                homeStatusType: mainStatus === 'home' ? homeStatusType : undefined,
                 start: finalStart,
                 end: finalEnd,
                 blocksCount: unavailableBlocks.length,
@@ -111,7 +122,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             }
         );
 
-        onApply(mainStatus, { start: finalStart, end: finalEnd }, unavailableBlocks);
+        onApply(mainStatus, { start: finalStart, end: finalEnd }, unavailableBlocks, mainStatus === 'home' ? homeStatusType : undefined);
     };
 
     const addOrUpdateBlock = () => {
@@ -316,103 +327,119 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                         </button>
                     </div>
 
-                    {/* 2. Day Type Selection (if Base) */}
-                    {mainStatus === 'base' && (
-                        <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
-                            {/* Day Type Buttons - Subtle chips */}
-                            <div className="flex flex-wrap gap-2 justify-center">
-                                <button
-                                    onClick={() => setCustomType(null)}
-                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === null
-                                        ? 'bg-green-100 text-green-700 ring-1 ring-green-200'
-                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                        }`}
-                                >
-                                    יום שלם
-                                </button>
-                                <button
-                                    onClick={() => setCustomType('arrival')}
-                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'arrival'
-                                        ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
-                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                        }`}
-                                >
-                                    הגעה
-                                </button>
-                                <button
-                                    onClick={() => setCustomType('departure')}
-                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'departure'
-                                        ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200'
-                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                        }`}
-                                >
-                                    יציאה
-                                </button>
-                                <button
-                                    onClick={() => setCustomType('custom')}
-                                    className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'custom'
-                                        ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
-                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                        }`}
-                                >
-                                    יום בודד
-                                </button>
-                            </div>
-
-                            {/* Time Picker(s) - Show only for relevant types */}
-                            {customType === 'arrival' && (
-                                <div className="flex items-center gap-3 bg-emerald-50 p-4 rounded-xl border border-emerald-100 animate-in fade-in duration-200">
-                                    <span className="text-sm font-bold text-emerald-700">מגיע בשעה:</span>
-                                    <TimePicker
-                                        label=""
-                                        value={customStart}
-                                        onChange={setCustomStart}
-                                        className="text-center text-lg font-black max-w-[100px] bg-white"
-                                    />
-                                </div>
-                            )}
-
-                            {customType === 'departure' && (
-                                <div className="flex items-center gap-3 bg-amber-50 p-4 rounded-xl border border-amber-100 animate-in fade-in duration-200">
-                                    <span className="text-sm font-bold text-amber-700">יוצא בשעה:</span>
-                                    <TimePicker
-                                        label=""
-                                        value={customEnd}
-                                        onChange={setCustomEnd}
-                                        className="text-center text-lg font-black max-w-[100px] bg-white"
-                                    />
-                                </div>
-                            )}
-
-                            {customType === 'custom' && (
-                                <div className="grid grid-cols-2 gap-3 bg-blue-50 p-4 rounded-xl border border-blue-100 animate-in fade-in duration-200">
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-xs font-bold text-blue-700">מגיע בשעה:</span>
-                                        <TimePicker
-                                            label=""
-                                            value={customStart}
-                                            onChange={setCustomStart}
-                                            className="text-center font-black bg-white"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-xs font-bold text-blue-700">יוצא בשעה:</span>
-                                        <TimePicker
-                                            label=""
-                                            value={customEnd}
-                                            onChange={setCustomEnd}
-                                            className="text-center font-black bg-white"
-                                        />
-                                    </div>
-                                </div>
-                            )}
+                    {/* 2. Home Status Type Selector (if Home) */}
+                    {mainStatus === 'home' && (
+                        <div className="animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
+                            <HomeStatusSelector
+                                value={homeStatusType}
+                                onChange={setHomeStatusType}
+                                required={true}
+                            />
                         </div>
                     )}
 
-                    <div className="h-px bg-slate-100 mx-4" />
+                    {/* 3. Time Cards (if Base) - Premium Design */}
+                    {mainStatus === 'base' && (
+                        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
+                            {/* 2. Day Type Selection (if Base) */}
+                            {mainStatus === 'base' && (
+                                <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
+                                    {/* Day Type Buttons - Subtle chips */}
+                                    <div className="flex flex-wrap gap-2 justify-center">
+                                        <button
+                                            onClick={() => setCustomType(null)}
+                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === null
+                                                ? 'bg-green-100 text-green-700 ring-1 ring-green-200'
+                                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                                }`}
+                                        >
+                                            יום שלם
+                                        </button>
+                                        <button
+                                            onClick={() => setCustomType('arrival')}
+                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'arrival'
+                                                ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
+                                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                                }`}
+                                        >
+                                            הגעה
+                                        </button>
+                                        <button
+                                            onClick={() => setCustomType('departure')}
+                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'departure'
+                                                ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200'
+                                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                                }`}
+                                        >
+                                            יציאה
+                                        </button>
+                                        <button
+                                            onClick={() => setCustomType('custom')}
+                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'custom'
+                                                ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
+                                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                                }`}
+                                        >
+                                            יום בודד
+                                        </button>
+                                    </div>
 
-                    {/* 3. Daily Agenda / Blocks */}
-                    {mainStatus === 'base' && !disableJournal && renderTimeline()}
+                                    {/* Time Picker(s) - Show only for relevant types */}
+                                    {customType === 'arrival' && (
+                                        <div className="flex items-center gap-3 bg-emerald-50 p-4 rounded-xl border border-emerald-100 animate-in fade-in duration-200">
+                                            <span className="text-sm font-bold text-emerald-700">מגיע בשעה:</span>
+                                            <TimePicker
+                                                label=""
+                                                value={customStart}
+                                                onChange={setCustomStart}
+                                                className="text-center text-lg font-black max-w-[100px] bg-white"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {customType === 'departure' && (
+                                        <div className="flex items-center gap-3 bg-amber-50 p-4 rounded-xl border border-amber-100 animate-in fade-in duration-200">
+                                            <span className="text-sm font-bold text-amber-700">יוצא בשעה:</span>
+                                            <TimePicker
+                                                label=""
+                                                value={customEnd}
+                                                onChange={setCustomEnd}
+                                                className="text-center text-lg font-black max-w-[100px] bg-white"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {customType === 'custom' && (
+                                        <div className="grid grid-cols-2 gap-3 bg-blue-50 p-4 rounded-xl border border-blue-100 animate-in fade-in duration-200">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs font-bold text-blue-700">מגיע בשעה:</span>
+                                                <TimePicker
+                                                    label=""
+                                                    value={customStart}
+                                                    onChange={setCustomStart}
+                                                    className="text-center font-black bg-white"
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-xs font-bold text-blue-700">יוצא בשעה:</span>
+                                                <TimePicker
+                                                    label=""
+                                                    value={customEnd}
+                                                    onChange={setCustomEnd}
+                                                    className="text-center font-black bg-white"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="h-px bg-slate-100 mx-4" />
+
+                            {/* 3. Daily Agenda / Blocks */}
+                            {mainStatus === 'base' && !disableJournal && renderTimeline()}
+                        </div>
+                    )}
                 </>
             </div>
         </GenericModal>
