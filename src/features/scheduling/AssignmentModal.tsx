@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, SchedulingConstraint, InterPersonConstraint, DailyPresence } from '../../types';
+import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, SchedulingConstraint, InterPersonConstraint } from '../../types';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
@@ -30,7 +30,6 @@ interface AssignmentModalProps {
     onToggleCancelShift: (shiftId: string) => void;
     constraints: SchedulingConstraint[];
     interPersonConstraints?: InterPersonConstraint[];
-    unifiedPresence?: DailyPresence[];
 }
 
 export const AssignmentModal: React.FC<AssignmentModalProps> = ({
@@ -49,8 +48,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     onUpdateShift,
     onToggleCancelShift,
     constraints,
-    interPersonConstraints = [],
-    unifiedPresence = []
+    interPersonConstraints = []
 }) => {
     // -------------------------------------------------------------------------
     // 1. STATE & HOOKS (Preserved Logic)
@@ -138,7 +136,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             if (p.isActive === false) return false;
             if (selectedShift.assignedPersonIds.includes(p.id)) return false;
 
-            const availability = getEffectiveAvailability(p, selectedDate, teamRotations, [], [], unifiedPresence);
+            const availability = getEffectiveAvailability(p, selectedDate, teamRotations);
             if (availability.status === 'home') return false;
 
             if (availability.source === 'manual' && availability.isAvailable) {
@@ -646,7 +644,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     </div>
                     <div className="overflow-y-auto flex-1 p-3 md:p-2 space-y-3 md:space-y-1">
                         {availablePeople.map(p => {
-                            const availability = getEffectiveAvailability(p, selectedDate, teamRotations, [], [], unifiedPresence);
+                            const availability = getEffectiveAvailability(p, selectedDate, teamRotations);
                             return (
                                 <div
                                     key={p.id}

@@ -30,8 +30,6 @@ import { PermissionEditorContent } from './PermissionEditorContent';
 import { SYSTEM_ROLE_PRESETS } from '@/utils/permissions';
 
 export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onClose, user: targetUser, onSave, teams, templates = [], onManageTemplates, isHq }) => {
-    const { profile: currentUser } = useAuth();
-    const canManageBattalion = isHq || currentUser?.is_super_admin;
     const [permissions, setPermissions] = useState<UserPermissions>(targetUser.permissions || DEFAULT_PERMISSIONS);
     const [activeTemplateId, setActiveTemplateId] = useState<string | null>(targetUser.permission_template_id || null);
     const [saving, setSaving] = useState(false);
@@ -196,7 +194,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                     )}
                 </section>
 
-                <PermissionEditorContent permissions={permissions} setPermissions={handlePermissionsChange} teams={teams} isHq={canManageBattalion} />
+                <PermissionEditorContent permissions={permissions} setPermissions={handlePermissionsChange} teams={teams} isHq={isHq} />
             </div>
         </Modal>
     );

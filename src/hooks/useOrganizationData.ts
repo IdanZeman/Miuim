@@ -13,10 +13,9 @@ import {
     mapMissionReportFromDB,
     mapEquipmentFromDB,
     mapEquipmentDailyCheckFromDB,
-    mapOrganizationSettingsFromDB,
-    mapUnifiedPresenceFromDB
+    mapOrganizationSettingsFromDB
 } from '../services/mappers';
-import { Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, OrganizationSettings, DailyPresence } from '../types';
+import { Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, OrganizationSettings } from '../types';
 
 export interface OrganizationData {
     people: Person[];
@@ -33,7 +32,6 @@ export interface OrganizationData {
     missionReports: MissionReport[];
     equipment: Equipment[];
     equipmentDailyChecks: any[];
-    unifiedPresence: DailyPresence[];
 }
 
 export const fetchOrganizationData = async (organizationId: string, permissions?: any, userId?: string): Promise<OrganizationData> => {
@@ -52,8 +50,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         { data: settings },
         { data: reports },
         { data: equipment },
-        { data: checks },
-        { data: unifiedPresence }
+        { data: checks }
     ] = await Promise.all([
         supabase.from('people').select('*').eq('organization_id', organizationId),
         supabase.from('teams').select('*').eq('organization_id', organizationId),
@@ -67,8 +64,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         supabase.from('organization_settings').select('*').eq('organization_id', organizationId).maybeSingle(),
         supabase.from('mission_reports').select('*').eq('organization_id', organizationId),
         supabase.from('equipment').select('*').eq('organization_id', organizationId),
-        supabase.from('equipment_daily_checks').select('*').eq('organization_id', organizationId),
-        supabase.from('unified_presence').select('*').eq('organization_id', organizationId)
+        supabase.from('equipment_daily_checks').select('*').eq('organization_id', organizationId)
     ]);
 
     let mappedPeople = (people || []).map(mapPersonFromDB);
@@ -79,7 +75,6 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
     let mappedEquipment = (equipment || []).map(mapEquipmentFromDB);
     let mappedReports = (reports || []).map(mapMissionReportFromDB);
     let mappedChecks = (checks || []).map(mapEquipmentDailyCheckFromDB);
-    let mappedUnifiedPresence = (unifiedPresence || []).map(mapUnifiedPresenceFromDB);
 
     const scope = permissions?.dataScope;
     const isRestrictedScope = scope && scope !== 'organization';
@@ -134,20 +129,19 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
 
             return {
                 people: mappedPeople,
-                allPeople: (people || []).map(mapPersonFromDB),
+                allPeople: (people || []).map(mapPersonFromDB), // Unscoped for lottery
                 teams: (teams || []).map(mapTeamFromDB).filter(t => targetTeamIds.includes(t.id)),
                 rotations: (rotations || []).map(mapRotationFromDB).filter(r => targetTeamIds.includes(r.team_id)),
                 absences: mappedAbsences,
                 hourlyBlockages: mappedBlockages,
-                roles: (roles || []).map(mapRoleFromDB),
+                roles: (roles || []).map(mapRoleFromDB), // Roles are generally organization-wide but entries are scoped
                 shifts: mappedShifts,
                 taskTemplates: filteredTasks,
                 constraints: mappedConstraints,
                 settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
                 missionReports: mappedReports,
                 equipment: mappedEquipment,
-                equipmentDailyChecks: mappedChecks,
-                unifiedPresence: mappedUnifiedPresence.filter(up => teamPersonIds.has(up.person_id))
+                equipmentDailyChecks: mappedChecks
             };
         } else if (targetPersonId) {
             // Filter People to just me
@@ -183,8 +177,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
                 settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
                 missionReports: mappedReports,
                 equipment: mappedEquipment,
-                equipmentDailyChecks: mappedChecks,
-                unifiedPresence: mappedUnifiedPresence.filter(up => up.person_id === targetPersonId)
+                equipmentDailyChecks: mappedChecks
             };
         } else {
             return {
@@ -201,8 +194,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
                 settings: null,
                 missionReports: [],
                 equipment: [],
-                equipmentDailyChecks: [],
-                unifiedPresence: []
+                equipmentDailyChecks: []
             };
         }
     }
@@ -221,8 +213,7 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
         missionReports: mappedReports,
         equipment: mappedEquipment,
-        equipmentDailyChecks: mappedChecks,
-        unifiedPresence: mappedUnifiedPresence
+        equipmentDailyChecks: mappedChecks
     };
 };
 
@@ -250,6 +241,5 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
         missionReports: result.data?.missionReports || [],
         equipment: result.data?.equipment || [],
         equipmentDailyChecks: result.data?.equipmentDailyChecks || [],
-        unifiedPresence: result.data?.unifiedPresence || [],
     };
 };

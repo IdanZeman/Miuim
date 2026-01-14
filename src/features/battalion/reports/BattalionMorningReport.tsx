@@ -5,15 +5,6 @@ import { useBattalionSnapshots } from '../../../hooks/useBattalionSnapshots';
 import { getEffectiveAvailability } from '../../../utils/attendanceUtils';
 import { ActionBar } from '../../../components/ui/ActionBar';
 import { PageInfo } from '../../../components/ui/PageInfo';
-import { useAuth } from '../../../features/auth/AuthContext';
-import { captureBattalionSnapshots } from '../../../services/battalionService';
-import { useToast } from '../../../contexts/ToastContext';
-import { Button } from '../../../components/ui/Button';
-import { Camera, Sparkle, Trash } from '@phosphor-icons/react';
-import { useQueryClient } from '@tanstack/react-query';
-import { deleteSnapshotBatch } from '../../../services/battalionService';
-import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
-
 
 interface BattalionMorningReportProps {
     battalionId?: string | null;
@@ -21,15 +12,8 @@ interface BattalionMorningReportProps {
 
 export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ battalionId }) => {
     // defaults to today
-    const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
-    const [selectedTimestamp, setSelectedTimestamp] = useState<string | null>(null);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [expandedCompany, setExpandedCompany] = useState<string | null>(null);
-    const [isCapturing, setIsCapturing] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const { profile, organization } = useAuth();
-    const { showToast } = useToast();
-    const queryClient = useQueryClient();
 
     // Fetch Data
     const {
@@ -40,8 +24,7 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
         absences = [],
         hourlyBlockages = [],
         isLoading: loadingCurrent,
-        battalion,
-        unifiedPresence = []
+        battalion
     } = useBattalionData(battalionId, selectedDate);
 
     const {
@@ -60,42 +43,7 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
         );
     }
 
-    // Debug Logs
-    React.useEffect(() => {
-        console.log('[BattalionMorningReport] Data Check:', {
-            companiesCount: companies.length,
-            rotationsCount: teamRotations.length,
-            teamRotations,
-            snapshotCount: snapshots.length,
-            currentSoldiersCount: currentSoldiers?.length
-        });
-    }, [companies, teamRotations, snapshots, currentSoldiers]);
-
-    // Computed Logic: Group snapshots by capture time
-    const snapshotsGroupedByTime = useMemo(() => {
-        const groups: Record<string, any[]> = {};
-        snapshots.forEach(s => {
-            const time = s.captured_at;
-            if (!groups[time]) groups[time] = [];
-            groups[time].push(s);
-        });
-        return groups;
-    }, [snapshots]);
-
-    const availableTimestamps = useMemo(() =>
-        Object.keys(snapshotsGroupedByTime).sort(),
-        [snapshotsGroupedByTime]
-    );
-
-    // Auto-select earliest snapshot (Morning Report) if none selected
-    React.useEffect(() => {
-        if (availableTimestamps.length > 0 && !selectedTimestamp) {
-            setSelectedTimestamp(availableTimestamps[0]);
-        } else if (availableTimestamps.length === 0) {
-            setSelectedTimestamp(null);
-        }
-    }, [availableTimestamps, selectedTimestamp]);
-
+    // Computed Logic: Diffing
     const reportData = useMemo(() => {
         if (isLoading || !currentSoldiers) return null;
 
@@ -106,17 +54,15 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
             statsByCompany[company.id] = { total: 0, presentDetails: 0, changes: 0 };
         });
 
-        // Use the selected snapshot batch
-        const activeSnapshotBatch = selectedTimestamp ? snapshotsGroupedByTime[selectedTimestamp] : null;
-        const snapshotMap = new Map(activeSnapshotBatch?.map(s => [`${s.person_id}`, s]) || []);
+        // Map snapshots for fast lookup
+        const snapshotMap = new Map(snapshots.map(s => [`${s.person_id}`, s]));
 
         // Check if we have snapshots for this date
-        const hasSnapshots = !!activeSnapshotBatch;
+        const hasSnapshots = snapshots.length > 0;
         const targetDate = new Date(selectedDate);
         const SECTOR_STATUSES = ['base', 'full', 'arrival', 'departure'];
 
         // Iterate current soldiers to find changes or additions
-        let debugLogCount = 0; // Limit logs to prevent spam
         currentSoldiers.forEach(soldier => {
             if (soldier.isActive === false) return;
 
@@ -125,8 +71,8 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
 
             statsByCompany[companyId].total++;
 
-            // Resolve current status using Effective Availability
-            const avail = getEffectiveAvailability(soldier, targetDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
+            // Resolve current status using Effective Availability (Synchronized with Log/Dashboard)
+            const avail = getEffectiveAvailability(soldier, targetDate, teamRotations, absences, hourlyBlockages);
             const currentStatus = avail.status;
 
             if (SECTOR_STATUSES.includes(currentStatus)) {
@@ -136,79 +82,26 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
             // Only calculate changes if we actually have a snapshot to compare to
             if (hasSnapshots) {
                 const snapshot = snapshotMap.get(soldier.id);
-                // Snapshots status used during capture
+                // Snapshots status uses simple labels: 'base', 'home', 'leave', 'mission'
+                // We normalize currentStatus for comparison
                 const normalizedCurrent = (currentStatus === 'base' || currentStatus === 'full' || currentStatus === 'arrival' || currentStatus === 'departure') ? 'base' : currentStatus;
-                const snapshotStatus = snapshot ? snapshot.status : 'home'; // Default to 'home' if missing (New Soldier?)
-                const snapshotStatusClean = (snapshotStatus === 'base' || snapshotStatus === 'full' || snapshotStatus === 'arrival' || snapshotStatus === 'departure') ? 'base' : snapshotStatus;
 
-                if (snapshotStatusClean !== normalizedCurrent) {
-                    if (debugLogCount < 5) { // Log first 5 mismatches
-                        console.log(`[Diff Trace] ${soldier.name} (${soldier.id})`);
-                        console.log(`   Snapshot Status: ${snapshotStatus} (Raw Record: ${snapshot ? 'Found' : 'Missing'})`);
-                        console.log(`   Live Status: ${currentStatus} -> Normalized: ${normalizedCurrent}`);
-                        console.log(`   Live Source: ${avail.source}`);
-                        console.log(`   Detailed Avail:`, avail);
-                        if (snapshot) console.log(`   Snapshot Raw:`, snapshot);
-                        debugLogCount++;
-                    }
+                const snapshotStatus = snapshot ? snapshot.status : 'home';
 
+                if (snapshotStatus !== normalizedCurrent) {
                     statsByCompany[companyId].changes++;
                     changes.push({
                         soldier,
                         company: companies.find(c => c.id === companyId),
                         from: snapshotStatus,
-                        to: normalizedCurrent,
-                        snapshot_time: snapshot?.captured_at,
-                        current_presence: presenceSummary.find((p: any) => p.person_id === soldier.id)
+                        to: normalizedCurrent
                     });
                 }
             }
         });
 
-        return { statsByCompany, changes, hasSnapshots, activeSnapshotBatch };
-    }, [isLoading, companies, currentSoldiers, snapshotsGroupedByTime, selectedTimestamp, teamRotations, absences, hourlyBlockages, selectedDate, presenceSummary, unifiedPresence]);
-
-
-    const handleCaptureSnapshot = async () => {
-        try {
-            setIsCapturing(true);
-            await captureBattalionSnapshots();
-            showToast('צילום מצב בוצע בהצלחה', 'success');
-
-            // Invalidate the snapshots and presence queries to refresh data silently
-            queryClient.invalidateQueries({ queryKey: ['battalionSnapshots'] });
-            queryClient.invalidateQueries({ queryKey: ['battalionPresence'] });
-
-        } catch (error) {
-            console.error('Failed to capture snapshots:', error);
-            showToast('שגיאה בביצוע צילום מצב', 'error');
-        } finally {
-            setIsCapturing(false);
-        }
-    };
-
-    const handleDeleteSnapshot = async () => {
-        if (!selectedTimestamp) return;
-        setIsDeleteModalOpen(true);
-    };
-
-    const confirmDeleteSnapshot = async () => {
-        setIsDeleteModalOpen(false);
-        try {
-            setIsDeleting(true);
-            await deleteSnapshotBatch(selectedDate, selectedTimestamp);
-            showToast('צילום המצב נמחק בהצלחה', 'success');
-            setSelectedTimestamp(null);
-
-            // Invalidate the snapshots to refresh the list
-            queryClient.invalidateQueries({ queryKey: ['battalionSnapshots'] });
-        } catch (error) {
-            console.error(error);
-            showToast('ארעה שגיאה במחיקת צילום המצב', 'error');
-        } finally {
-            setIsDeleting(false);
-        }
-    };
+        return { statsByCompany, changes, hasSnapshots };
+    }, [isLoading, companies, currentSoldiers, snapshots, teamRotations, absences, hourlyBlockages, selectedDate]);
 
 
     const getStatusLabel = (status: string) => {
@@ -261,82 +154,17 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
                     </div>
                 }
                 rightActions={
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center bg-white rounded-xl p-1 shadow-sm border border-slate-200">
-                            <span className="px-3 text-slate-400 text-[10px] font-black uppercase tracking-widest border-l border-slate-100 pl-4 py-1">תאריך דוח</span>
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => {
-                                    setSelectedDate(e.target.value);
-                                    setSelectedTimestamp(null);
-                                }}
-                                className="bg-transparent border-none font-bold text-slate-700 outline-none px-3 text-sm"
-                            />
-                        </div>
-
-                        {availableTimestamps.length > 0 && (
-                            <div className="flex items-center gap-2">
-                                <div className="flex items-center bg-white rounded-xl p-1 shadow-sm border border-slate-200">
-                                    <span className="px-3 text-slate-400 text-[10px] font-black uppercase tracking-widest border-l border-slate-100 pl-4 py-1">השוואה לסטטוס</span>
-                                    <select
-                                        value={selectedTimestamp || ''}
-                                        onChange={(e) => setSelectedTimestamp(e.target.value)}
-                                        className="bg-transparent border-none font-bold text-slate-700 outline-none px-3 text-sm dir-ltr appearance-none cursor-pointer"
-                                    >
-                                        {availableTimestamps.map(t => (
-                                            <option key={t} value={t}>
-                                                {new Date(t).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <button
-                                    onClick={handleDeleteSnapshot}
-                                    disabled={isDeleting}
-                                    className={`p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    title="מחק צילום מצב זה"
-                                >
-                                    <Trash size={18} className={isDeleting ? 'animate-pulse' : ''} />
-                                </button>
-                            </div>
-                        )}
-
-                        {(profile?.is_super_admin || organization?.is_hq) && (
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                icon={isCapturing ? null : Camera}
-                                isLoading={isCapturing}
-                                onClick={handleCaptureSnapshot}
-                                className="h-10 px-4 rounded-xl font-bold shadow-sm"
-                            >
-                                {isCapturing ? 'מבצע צילום...' : 'בצע צילום מצב פלוגות עכשיו'}
-                            </Button>
-                        )}
+                    <div className="flex items-center bg-white rounded-xl p-1 shadow-sm border border-slate-200">
+                        <span className="px-3 text-slate-400 text-[10px] font-black uppercase tracking-widest border-l border-slate-100 pl-4 py-1">תאריך דוח</span>
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="bg-transparent border-none font-bold text-slate-700 outline-none px-3 text-sm"
+                        />
                     </div>
                 }
             />
-
-            <ConfirmationModal
-                isOpen={isDeleteModalOpen}
-                title="מחיקת צילום מצב"
-                type="danger"
-                onConfirm={confirmDeleteSnapshot}
-                onCancel={() => setIsDeleteModalOpen(false)}
-                confirmText="מחק לצמיתות"
-                cancelText="ביטול"
-            >
-                <div className="flex flex-col gap-2">
-                    <p>האם אתה בטוח שברצונך למחוק את צילום המצב הזה?</p>
-                    {selectedTimestamp && (
-                        <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                            <span className="text-red-700 font-black text-sm">שעה: {new Date(selectedTimestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                        </div>
-                    )}
-                    <p className="text-xs text-slate-400 mt-2 italic">* פעולה זו תמחק את כל הנתונים שנשמרו בנקודת זמן זו ולא ניתן יהיה לשחזרם.</p>
-                </div>
-            </ConfirmationModal>
 
             {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 bg-slate-50/30">
@@ -388,9 +216,9 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
                                 <Warning size={22} weight="fill" className="text-amber-600" />
                             </div>
                             <div className="space-y-1">
-                                <p className="font-black text-base">לא בוצע צילום מצב הבוקר</p>
+                                <p className="font-black text-base">לא בוצע צילום מצב הבוקר ({battalion?.morning_report_time || '09:00'})</p>
                                 <p className="text-sm font-medium opacity-80 leading-relaxed">
-                                    כדי להציג שינויים ודיוור בין הבוקר לעכשיו, המערכת חייבת לשמור "צילום" של הסטטוסים בשעה המוגדרת ({battalion?.morning_report_time || '09:00'}).
+                                    כדי להציג שינויים ודיוור בין הבוקר לעכשיו, המערכת חייבת לשמור "צילום" של הסטטוסים בשעה המוגדרת.
                                     <br />
                                     מכיוון שהצילום לא התקיים, מוצגת כרגע <strong>נוכחות עדכנית בלבד</strong> ללא השוואת שינויים.
                                 </p>
@@ -484,35 +312,16 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
                                                                     </div>
                                                                     <div className="flex items-center gap-6">
                                                                         <div className="flex flex-col items-end">
-                                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">
-                                                                                צילום {change.snapshot_time ? `(${new Date(change.snapshot_time).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })})` : ''}
-                                                                            </span>
+                                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">דיווח בוקר (09:00)</span>
                                                                             <div className={`px-2 py-0.5 rounded text-[10px] font-bold ${getStatusLabel(change.from).color}`}>
                                                                                 {getStatusLabel(change.from).label}
                                                                             </div>
                                                                         </div>
                                                                         <CaretLeftIcon size={14} weight="bold" className="text-slate-300 self-center mt-3" />
-                                                                        <div className="flex flex-col items-start min-w-[120px]">
-                                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">
-                                                                                מצב עדכני
-                                                                            </span>
-                                                                            <div className="flex flex-col gap-1">
-                                                                                <div className={`px-2 py-0.5 rounded text-[10px] font-bold w-fit ${getStatusLabel(change.to).color}`}>
-                                                                                    {getStatusLabel(change.to).label}
-                                                                                </div>
-                                                                                <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold whitespace-nowrap">
-                                                                                    {change.current_presence?.updated_at && (
-                                                                                        <span>
-                                                                                            {new Date(change.current_presence.updated_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                                                        </span>
-                                                                                    )}
-                                                                                    {change.current_presence?.last_editor?.full_name && (
-                                                                                        <>
-                                                                                            <span>•</span>
-                                                                                            <span>{change.current_presence.last_editor.full_name}</span>
-                                                                                        </>
-                                                                                    )}
-                                                                                </div>
+                                                                        <div className="flex flex-col items-start">
+                                                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">מצב עדכני</span>
+                                                                            <div className={`px-2 py-0.5 rounded text-[10px] font-bold ${getStatusLabel(change.to).color}`}>
+                                                                                {getStatusLabel(change.to).label}
                                                                             </div>
                                                                         </div>
                                                                     </div>

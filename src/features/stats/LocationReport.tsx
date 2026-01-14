@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Person, Shift, TaskTemplate, Team, DailyPresence, Absence, HourlyBlockage } from '../../types';
+import { Person, Shift, TaskTemplate, Team } from '../../types';
 import { MapPin, House as Home, Briefcase, Funnel as Filter, Copy, CaretDown as ChevronDown, Users, SquaresFour as LayoutGrid, ArrowsDownUp as ArrowUpDown, User, CaretRight as ChevronRight, CaretLeft as ChevronLeft, Clock, DotsThreeVertical as MoreVertical } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { useToast } from '../../contexts/ToastContext';
@@ -17,9 +17,6 @@ interface LocationReportProps {
     taskTemplates: TaskTemplate[];
     teamRotations?: any[];
     teams?: Team[]; // Added teams prop
-    unifiedPresence?: DailyPresence[];
-    absences?: Absence[];
-    hourlyBlockages?: HourlyBlockage[];
 }
 
 type LocationStatus = 'mission' | 'base' | 'home';
@@ -31,10 +28,7 @@ interface PersonLocation {
     time: string;
 }
 
-export const LocationReport: React.FC<LocationReportProps> = ({
-    people, shifts, taskTemplates, teamRotations = [], teams = [],
-    unifiedPresence = [], absences = [], hourlyBlockages = []
-}) => {
+export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, taskTemplates, teamRotations = [], teams = [] }) => {
     const { showToast } = useToast();
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [selectedTime, setSelectedTime] = useState<string>('08:00'); // Default check time
@@ -81,7 +75,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
             }
 
             // 2. Check Attendance (Home/Base)
-            const avail = getEffectiveAvailability(person, checkTime, teamRotations, absences, hourlyBlockages, unifiedPresence);
+            const avail = getEffectiveAvailability(person, checkTime, teamRotations);
 
             // User Rule: Arrival Day = Base, Departure Day = Home (But respect specific time check)
             if (avail.status === 'arrival') {

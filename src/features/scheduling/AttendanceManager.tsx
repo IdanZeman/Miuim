@@ -41,10 +41,6 @@ interface AttendanceManagerProps {
     initialOpenRotaWizard?: boolean;
     onDidConsumeInitialAction?: () => void;
     onRefresh?: () => void; // NEW
-    onUpdatePresence?: (p: DailyPresence) => void;
-    onUpdateMultiplePresence?: (p: DailyPresence[]) => void;
-    onDeletePresence?: (personId: string, date: string) => void;
-    unifiedPresence?: DailyPresence[]; // NEW: Unified Architecture source
 }
 
 export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
@@ -52,10 +48,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     tasks = [], constraints = [], absences = [], hourlyBlockages = [], settings = null,
     onUpdatePerson, onUpdatePeople,
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
-    isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction, onRefresh,
-    onUpdatePresence, onUpdateMultiplePresence,
-    onDeletePresence,
-    unifiedPresence = []
+    isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction, onRefresh
 }) => {
     const activePeople = people.filter(p => p.isActive !== false);
     const { profile } = useAuth();
@@ -87,7 +80,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     }, [initialOpenRotaWizard, onDidConsumeInitialAction]);
 
     const getPersonAvailability = (person: Person) => {
-        return getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
+        return getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);
     };
 
     const toggleTeamCollapse = (teamId: string) => {
@@ -105,35 +98,49 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const dateKey = selectedDate.toLocaleDateString('en-CA');
 
     const handleTogglePresence = (person: Person) => {
-        if (isViewer || !onUpdatePresence) return;
+        if (isViewer) return;
         const currentData = getPersonAvailability(person);
 
         const newIsAvailable = !currentData.isAvailable;
-
-        onUpdatePresence({
-            person_id: person.id,
-            organization_id: person.organization_id || '',
-            date: dateKey,
-            status: newIsAvailable ? 'base' : 'home',
-            start_time: newIsAvailable ? '10:00' : '00:00',
-            end_time: newIsAvailable ? '23:59' : '00:00',
+        let newData = {
+            isAvailable: newIsAvailable,
+            startHour: '00:00',
+            endHour: '23:59',
             source: 'manual'
-        });
+        };
+
+        if (!newIsAvailable) {
+            newData.startHour = '00:00';
+            newData.endHour = '00:00';
+        }
+
+        const updatedPerson = {
+            ...person,
+            dailyAvailability: {
+                ...person.dailyAvailability,
+                [dateKey]: newData
+            }
+        };
+        onUpdatePerson(updatedPerson);
     };
 
     const handleTimeChange = (person: Person, field: 'startHour' | 'endHour', value: string) => {
-        if (isViewer || !onUpdatePresence) return;
+        if (isViewer) return;
         const currentData = getPersonAvailability(person);
 
-        onUpdatePresence({
-            person_id: person.id,
-            organization_id: person.organization_id || '',
-            date: dateKey,
-            status: currentData.status || 'base',
-            start_time: field === 'startHour' ? value : currentData.startHour,
-            end_time: field === 'endHour' ? value : currentData.endHour,
-            source: 'manual'
-        });
+        const updatedPerson = {
+            ...person,
+            dailyAvailability: {
+                ...person.dailyAvailability,
+                [dateKey]: {
+                    ...currentData,
+                    isAvailable: true,
+                    [field]: value,
+                    source: 'manual'
+                }
+            }
+        };
+        onUpdatePerson(updatedPerson);
     };
 
     const filteredPeople = activePeople.filter(p => p.name.includes(searchTerm) || (p.phone && p.phone.includes(searchTerm)));
@@ -186,34 +193,37 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     };
 
     const handleBulkApply = (data: { startDate: string; endDate: string; isAvailable: boolean; startHour: string; endHour: string; reason?: string }) => {
-        if (!onUpdateMultiplePresence) return;
+        if (!onUpdatePeople) return;
 
-        const updates: DailyPresence[] = [];
+        const peopleToUpdate: Person[] = [];
         const start = new Date(data.startDate);
         const end = new Date(data.endDate);
 
         activePeople.forEach(person => {
             if (selectedPersonIds.has(person.id)) {
+                let updatedPerson = { ...person };
                 let current = new Date(start);
 
                 while (current <= end) {
                     const key = current.toLocaleDateString('en-CA');
-                    updates.push({
-                        person_id: person.id,
-                        organization_id: person.organization_id || '',
-                        date: key,
-                        status: data.isAvailable ? 'base' : 'home',
-                        start_time: data.startHour,
-                        end_time: data.endHour,
-                        source: 'manual'
-                    });
+                    updatedPerson.dailyAvailability = {
+                        ...updatedPerson.dailyAvailability,
+                        [key]: {
+                            isAvailable: data.isAvailable,
+                            status: data.isAvailable ? 'base' : 'home', // Infer status for bulk operations
+                            startHour: data.startHour,
+                            endHour: data.endHour,
+                            source: 'manual'
+                        }
+                    };
                     current.setDate(current.getDate() + 1);
                 }
+                peopleToUpdate.push(updatedPerson);
             }
         });
 
-        onUpdateMultiplePresence(updates);
-        showToast(`${selectedPersonIds.size} לוחמים עודכנו בהצלחה`, 'success');
+        onUpdatePeople(peopleToUpdate);
+        showToast(`${peopleToUpdate.length} לוחמים עודכנו בהצלחה`, 'success');
         setIsBulkMode(false);
         setSelectedPersonIds(new Set());
     };
@@ -224,7 +234,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             startDate: dateStr,
             endDate: dateStr,
             isAvailable,
-            startHour: isAvailable ? '10:00' : '00:00',
+            startHour: isAvailable ? '00:00' : '00:00',
             endHour: isAvailable ? '23:59' : '00:00'
         });
     };
@@ -342,17 +352,53 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             }
         }
 
-        if (onUpdatePresence) {
-            onUpdatePresence({
-                person_id: personId,
-                organization_id: person.organization_id || '',
-                date: date,
-                status: status === 'base' ? (customTimes ? (customTimes.start !== '00:00' ? 'arrival' : (customTimes.end !== '23:59' ? 'departure' : 'full')) : 'full') : status,
-                start_time: status === 'base' ? (customTimes?.start || '00:00') : '00:00',
-                end_time: status === 'base' ? (customTimes?.end || '23:59') : '00:00',
-                source: 'manual'
-            });
+        // 2. Update Daily Presence (Status & Hours)
+        // We set unavailableBlocks to [] because we migrated them to the new table!
+        // This effectively 'cleans' the json field for this record.
+        let newData: any = {
+            ...currentData,
+            source: 'manual',
+            status: status,
+            unavailableBlocks: []
+        };
+
+        logger.info('UPDATE', `Manually updated attendance status for ${person.name} to ${status}`, {
+            personId,
+            date,
+            oldStatus: currentData.status,
+            newStatus: status,
+            category: 'attendance'
+        });
+
+        if (status === 'base') {
+            newData.isAvailable = true;
+            if (customTimes) {
+                newData.startHour = customTimes.start;
+                newData.endHour = customTimes.end;
+            } else {
+                newData.startHour = '00:00';
+                newData.endHour = '23:59';
+            }
+        } else if (status === 'home') {
+            newData.isAvailable = false;
+            newData.startHour = '00:00';
+            newData.endHour = '00:00';
+        } else if (status === 'unavailable') {
+            newData.isAvailable = false;
+            newData.startHour = '00:00';
+            newData.endHour = '00:00';
+            newData.reason = 'אילוץ / לא זמין';
         }
+
+        const updatedPerson = {
+            ...person,
+            dailyAvailability: {
+                ...person.dailyAvailability,
+                [date]: newData
+            }
+        };
+
+        onUpdatePerson(updatedPerson);
         showToast('הסטטוס עודכן בהצלחה', 'success');
     };
 
@@ -386,7 +432,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     const dateKey = date.toLocaleDateString('en-CA');
 
                     people.forEach(person => {
-                        const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages, unifiedPresence);
+                        const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
                         const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
 
                         const relevantAbsence = absences.find(a =>
@@ -550,7 +596,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 teamRotations={teamRotations}
                                 absences={absences}
                                 hourlyBlockages={hourlyBlockages}
-                                unifiedPresence={unifiedPresence}
                                 onManageTeam={(teamId) => setShowRotationSettings(teamId)}
                                 onDateClick={handleDateClick}
                                 currentDate={viewDate}
@@ -583,14 +628,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 teamRotations={teamRotations}
                                 absences={absences}
                                 hourlyBlockages={hourlyBlockages}
-                                unifiedPresence={unifiedPresence}
                                 currentDate={selectedDate}
                                 onDateChange={setSelectedDate}
                                 onSelectPerson={(p) => {
                                     if (isBulkMode) handleToggleSelectPerson(p.id);
                                     else setSelectedPersonForCalendar(p);
                                 }}
-                                onUpdatePresence={isViewer ? undefined : onUpdatePresence}
+                                onUpdateAvailability={handleUpdateAvailability}
                                 className="h-full"
                                 isViewer={isViewer}
                             />
@@ -604,8 +648,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 <ActionBar
                     searchTerm={viewMode !== 'calendar' ? searchTerm : ''}
                     onSearchChange={setSearchTerm}
-                    isSearchHidden={viewMode === 'calendar'}
-                    onSearchExpandedChange={setIsSearchExpanded}
                     onExport={handleExport}
                     className="p-4"
                     leftActions={
@@ -645,10 +687,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     className={`px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 ${viewMode === tab.id
                                         ? 'bg-white text-blue-600 shadow-sm'
                                         : 'text-slate-500 hover:text-slate-700'
-                                        } ${isSearchExpanded ? 'px-3' : 'px-5'}`}
+                                        }`}
                                 >
                                     <tab.icon size={14} weight="duotone" />
-                                    {!isSearchExpanded && <span>{tab.label}</span>}
+                                    {tab.label}
                                 </button>
                             ))}
                         </div>
@@ -705,7 +747,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 teamRotations={teamRotations}
                                 absences={absences}
                                 hourlyBlockages={hourlyBlockages}
-                                unifiedPresence={unifiedPresence}
                                 onManageTeam={(teamId) => setShowRotationSettings(teamId)}
                                 onDateClick={handleDateClick}
                                 currentDate={viewDate}
@@ -723,7 +764,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 teamRotations={teamRotations}
                                 absences={absences}
                                 hourlyBlockages={hourlyBlockages}
-                                unifiedPresence={unifiedPresence}
                                 currentDate={viewMode === 'table' ? viewDate : selectedDate}
                                 onDateChange={viewMode === 'table' ? setViewDate : setSelectedDate}
                                 viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
@@ -731,7 +771,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     if (isBulkMode) handleToggleSelectPerson(p.id);
                                     else setSelectedPersonForCalendar(p);
                                 }}
-                                onUpdatePresence={isViewer ? undefined : onUpdatePresence}
+                                onUpdateAvailability={isViewer ? undefined : handleUpdateAvailability}
                                 className="h-full"
                                 isViewer={isViewer}
                                 showRequiredDetails={showRequiredDetails}
@@ -765,9 +805,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     absences={absences}
                     onClose={() => setSelectedPersonForCalendar(null)}
                     onUpdatePerson={onUpdatePerson}
-                    onUpdatePresence={onUpdatePresence}
-                    onDeletePresence={onDeletePresence}
-                    unifiedPresence={unifiedPresence}
                     isViewer={isViewer}
                 />
             )}

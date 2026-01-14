@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
-import { Battalion, Profile, Organization, Person, TeamRotation, DailyPresence, Absence, HourlyBlockage } from '../types';
+import { Battalion, Profile, Organization, Person } from '../types';
 import { mapPersonFromDB } from './mappers';
-import { getEffectiveAvailability } from '../utils/attendanceUtils';
 
 /**
  * Creates a new battalion and marks the user's organization as HQ.
@@ -199,8 +198,21 @@ export const fetchBattalionPresenceSummary = async (battalionId: string, date?: 
     const targetDate = date || new Date().toISOString().split('T')[0];
 
     const { data, error } = await supabase
-        .from('unified_presence')
-        .select('*, last_editor:profiles(full_name)')
+        .from('daily_presence')
+        .select(`
+            id,
+            status,
+            person_id,
+            organization_id,
+            date,
+            start_time,
+            end_time,
+            arrival_date,
+            departure_date,
+            people (
+                name
+            )
+        `)
         .in('organization_id', ids)
         .eq('date', targetDate);
 
@@ -228,94 +240,6 @@ export const updateBattalionMorningReportTime = async (battalionId: string, time
         .from('battalions')
         .update({ morning_report_time: time })
         .eq('id', battalionId);
-
-    if (error) throw error;
-};
-
-/**
- * Triggers the manual capture of battalion snapshots via RPC.
- */
-export const captureBattalionSnapshots = async () => {
-    // 1. Auth & Context
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-
-    const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
-    if (!profile?.organization_id) throw new Error('No organization found');
-
-    const { data: org } = await supabase.from('organizations').select('battalion_id').eq('id', profile.organization_id).single();
-    if (!org?.battalion_id) throw new Error('No battalion linked');
-
-    const battalionId = org.battalion_id;
-
-    // 2. Fetch Data Scope
-    const { data: companies } = await supabase.from('organizations').select('id').eq('battalion_id', battalionId);
-    if (!companies || companies.length === 0) return;
-    const orgIds = companies.map(c => c.id);
-
-    const today = new Date();
-    const dateKey = today.toLocaleDateString('en-CA');
-
-    // 3. Parallel Fetch of All Attendance Factors
-    const [
-        { data: rawPeople },
-        { data: rotations },
-        { data: unifiedPresence },
-        { data: absences },
-        { data: blockages }
-    ] = await Promise.all([
-        supabase.from('people').select('*').in('organization_id', orgIds),
-        supabase.from('team_rotations').select('*').in('organization_id', orgIds),
-        supabase.from('unified_presence').select('*').in('organization_id', orgIds).eq('date', dateKey),
-        supabase.from('absences').select('*').in('organization_id', orgIds).lte('start_date', dateKey).gte('end_date', dateKey).neq('status', 'rejected'),
-        supabase.from('hourly_blockages').select('*').in('organization_id', orgIds).eq('date', dateKey)
-    ]);
-
-    const people = (rawPeople || []).map(p => mapPersonFromDB(p));
-
-    // 4. Calculate Snapshots
-    const nowISO = today.toISOString();
-    const nowTime = today.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-    const snapshots = people.map(person => {
-        // Calculate Effective Status using the same logic as the UI
-        const effective = getEffectiveAvailability(
-            person,
-            today,
-            (rotations || []) as TeamRotation[],
-            (absences || []) as Absence[],
-            (blockages || []) as HourlyBlockage[],
-            (unifiedPresence || []) as DailyPresence[]
-        );
-
-        return {
-            organization_id: person.organization_id,
-            person_id: person.id,
-            date: dateKey,
-            status: effective.status,
-            start_time: effective.startHour,
-            end_time: effective.endHour,
-            captured_at: nowISO,
-            snapshot_definition_time: nowTime
-        };
-    });
-
-    // 5. Insert
-    if (snapshots.length > 0) {
-        const { error } = await supabase.from('daily_attendance_snapshots').insert(snapshots);
-        if (error) throw error;
-    }
-};
-
-/**
- * Deletes a batch of snapshots for a specific date and timestamp.
- */
-export const deleteSnapshotBatch = async (date: string, capturedAt: string) => {
-    const { error } = await supabase
-        .from('daily_attendance_snapshots')
-        .delete()
-        .eq('date', date)
-        .eq('captured_at', capturedAt);
 
     if (error) throw error;
 };

@@ -3,7 +3,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { fetchBattalion, fetchBattalionCompanies, fetchBattalionPresenceSummary } from '../services/battalionService';
 import { fetchOrganizationData } from '../hooks/useOrganizationData';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
-import { Organization, Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, DailyPresence } from '../types';
+import { Organization, Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment } from '../types';
 
 /**
  * useBattalionData aggregates data from all organizations within a battalion.
@@ -54,25 +54,7 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
                 total: companies.length,
                 loading: companyQueries.filter(q => q.isLoading).length
             });
-            return {
-                companies: [],
-                people: [],
-                teams: [],
-                teamRotations: [],
-                absences: [],
-                hourlyBlockages: [],
-                roles: [],
-                shifts: [],
-                taskTemplates: [],
-                constraints: [],
-                missionReports: [],
-                equipment: [],
-                equipmentDailyChecks: [],
-                presenceSummary: [],
-                unifiedPresence: [],
-                computedStats: { totalActive: 0, totalPresent: 0, totalHome: 0, unreportedCount: 0, companyStats: {} },
-                battalion: null
-            };
+            return null;
         }
 
         const people: Person[] = [];
@@ -87,7 +69,6 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
         const missionReports: MissionReport[] = [];
         const equipment: Equipment[] = [];
         const equipmentDailyChecks: any[] = [];
-        const unifiedPresence: DailyPresence[] = [];
 
         companyQueries.forEach((query, index) => {
             const data = query.data;
@@ -100,12 +81,7 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
 
             if (data.people) people.push(...data.people);
             if (data.teams) teams.push(...data.teams);
-            if (data.rotations) {
-                if (data.rotations.length > 0) {
-                    console.log(`[useBattalionData] Found ${data.rotations.length} rotations for company ${companies[index]?.name}`);
-                }
-                teamRotations.push(...data.rotations);
-            }
+            if (data.rotations) teamRotations.push(...data.rotations);
             if (data.absences) absences.push(...data.absences);
             if (data.hourlyBlockages) hourlyBlockages.push(...data.hourlyBlockages);
             if (data.roles) roles.push(...data.roles);
@@ -115,7 +91,6 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
             if (data.missionReports) missionReports.push(...data.missionReports);
             if (data.equipment) equipment.push(...data.equipment);
             if (data.equipmentDailyChecks) equipmentDailyChecks.push(...data.equipmentDailyChecks);
-            if (data.unifiedPresence) unifiedPresence.push(...data.unifiedPresence);
         });
 
         // Compute Effective Presence Stats (Synchronized with Attendance Log)
@@ -135,12 +110,8 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
             if (p.isActive === false) return;
             totalActive++;
 
-            const dateStr = targetDate.toLocaleDateString('en-CA');
-            const presence = unifiedPresence.find(up => up.person_id === p.id && up.date === dateStr);
-
-            // Fallback to getEffectiveAvailability if data for this date isn't in unifiedPresence cache
-            const status = presence ? presence.status : getEffectiveAvailability(p, targetDate, teamRotations, absences, hourlyBlockages).status;
-            const isPresent = SECTOR_STATUSES.includes(status);
+            const avail = getEffectiveAvailability(p, targetDate, teamRotations, absences, hourlyBlockages);
+            const isPresent = SECTOR_STATUSES.includes(avail.status);
 
             if (isPresent) totalPresent++;
             else totalHome++;
@@ -182,7 +153,6 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
             equipment,
             equipmentDailyChecks,
             presenceSummary,
-            unifiedPresence,
             computedStats,
             battalion
         };

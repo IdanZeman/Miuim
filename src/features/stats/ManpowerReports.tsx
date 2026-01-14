@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Person, Team, Role, DailyPresence, Absence, HourlyBlockage, TeamRotation } from '../../types';
-import { getEffectiveAvailability } from '../../utils/attendanceUtils';
+import { Person, Team, Role } from '../../types';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Label } from 'recharts';
 import { Users, Calendar, TrendUp as TrendingUp, WarningCircle as AlertCircle, CheckCircle as CheckCircle2, XCircle, SquaresFour as LayoutGrid, List, MagnifyingGlass as Search, DownloadSimple as Download } from '@phosphor-icons/react';
 import { DateNavigator } from '../../components/ui/DateNavigator';
@@ -16,16 +15,9 @@ interface ManpowerReportsProps {
     people: Person[];
     teams: Team[];
     roles: Role[];
-    unifiedPresence?: DailyPresence[];
-    absences?: Absence[];
-    hourlyBlockages?: HourlyBlockage[];
-    teamRotations?: TeamRotation[];
 }
 
-export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
-    people, teams, roles,
-    unifiedPresence = [], absences = [], hourlyBlockages = [], teamRotations = []
-}) => {
+export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams, roles }) => {
     // State
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [viewMode, setViewMode] = useState<'daily' | 'trends'>('daily');
@@ -47,19 +39,11 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
         const presentPeople: Person[] = [];
         const absentPeople: Person[] = [];
         let total = subsetPeople.length;
-        const targetDate = new Date(dateIso);
 
         subsetPeople.forEach(p => {
-            const availability = getEffectiveAvailability(
-                p,
-                targetDate,
-                teamRotations,
-                absences,
-                hourlyBlockages,
-                unifiedPresence
-            );
-
-            const isAvailable = availability.isAvailable;
+            const availability = p.dailyAvailability?.[dateIso];
+            // Default is available if not marked otherwise
+            const isAvailable = availability ? availability.isAvailable : true;
             if (isAvailable) {
                 present++;
                 presentPeople.push(p);
@@ -161,7 +145,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
         }));
 
         return { dailyStats, roleBreakdown, teamBreakdown, trendData, avgAttendance, roleRisks, weekdayAnalysis };
-    }, [people, selectedDate, selectedTeamIds, selectedRoleId, roles, teams, trendPeriod, unifiedPresence, absences, hourlyBlockages, teamRotations]);
+    }, [people, selectedDate, selectedTeamIds, selectedRoleId, roles, teams, trendPeriod]);
 
     const handleExport = async () => {
         try {
@@ -183,15 +167,8 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
             const rows = filteredPeople.map(p => {
                 const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
                 const roleStatuses = roles.map(r => (p.roleIds || [p.roleId]).includes(r.id) ? 'V' : '');
-                const availability = getEffectiveAvailability(
-                    p,
-                    selectedDate,
-                    teamRotations,
-                    absences,
-                    hourlyBlockages,
-                    unifiedPresence
-                );
-                const isAvailable = availability.isAvailable;
+                const availability = p.dailyAvailability?.[dateKey];
+                const isAvailable = availability ? availability.isAvailable : true;
                 const statusLabel = isAvailable ? 'נוכח' : 'בבית';
 
                 return [selectedDate.toLocaleDateString('he-IL'), p.name, teamName, ...roleStatuses, statusLabel];

@@ -10,25 +10,24 @@ interface AttendanceTableProps {
     teams: Team[];
     people: Person[];
     teamRotations: TeamRotation[];
-    absences: Absence[];
-    hourlyBlockages?: import('@/types').HourlyBlockage[];
-    tasks?: TaskTemplate[];
+    absences: Absence[]; // New prop
+    hourlyBlockages?: import('@/types').HourlyBlockage[]; // NEW
+    tasks?: TaskTemplate[]; // New prop
     currentDate: Date;
     onDateChange: (date: Date) => void;
     onSelectPerson: (person: Person) => void;
-    onUpdatePresence?: (presence: import('@/types').DailyPresence) => void; // UPDATED: Use unified presence
-    viewMode?: 'daily' | 'monthly';
-    className?: string;
-    isViewer?: boolean;
-    searchTerm?: string;
-    showRequiredDetails?: boolean;
-    companies?: import('@/types').Organization[];
-    hideAbsenceDetails?: boolean;
-    unifiedPresence?: import('@/types').DailyPresence[];
+    onUpdateAvailability?: (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => void;
+    viewMode?: 'daily' | 'monthly'; // New control prop
+    className?: string; // Allow parent styling for mobile sheet integration
+    isViewer?: boolean; // NEW: Security prop
+    searchTerm?: string; // NEW: Controlled search term
+    showRequiredDetails?: boolean; // NEW: Toggle required row
+    companies?: import('@/types').Organization[]; // NEW: For battalion view
+    hideAbsenceDetails?: boolean; // NEW: Security/Privacy prop
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
-    teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdatePresence, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = [], hideAbsenceDetails = false, unifiedPresence = []
+    teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = [], hideAbsenceDetails = false
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
@@ -89,7 +88,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     const weekDaysEnglish = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
     const handleCellClick = (e: React.MouseEvent, person: Person, date: Date) => {
-        if (!onUpdatePresence) return;
+        if (!onUpdateAvailability) return;
 
         // Prevent opening if clicking on the same open cell (toggle off)
         const dateStr = date.toLocaleDateString('en-CA');
@@ -106,23 +105,10 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     };
 
     const handleApplyStatus = (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => {
-        if (!editingCell || !onUpdatePresence) return;
-
-        const person = people.find(p => p.id === editingCell.personId);
-        if (!person) return;
-
-        // Convert to DailyPresence format
-        const presence: import('@/types').DailyPresence = {
-            person_id: editingCell.personId,
-            date: editingCell.date,
-            organization_id: person.organization_id,
-            status: status === 'home' ? 'home' : 'full',
-            start_time: customTimes?.start || '00:00',
-            end_time: customTimes?.end || '23:59',
-            source: 'manual'
-        };
-
-        onUpdatePresence(presence);
+        if (!editingCell || !onUpdateAvailability) return;
+        // Map 'unavailable' status (legacy) to 'home' or maintain compatibility if needed, 
+        // but typically the modal now controls 'base' vs 'home'.
+        onUpdateAvailability(editingCell.personId, editingCell.date, status, customTimes, unavailableBlocks);
         setEditingCell(null);
     };
 
@@ -149,13 +135,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         const totalPeople = sortedPeople.length;
         let presentCount = 0;
         sortedPeople.forEach(p => {
-            const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
+            const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages);
             if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
                 presentCount++;
             }
         });
         return { present: presentCount, total: totalPeople };
-    }, [sortedPeople, currentDate, teamRotations, absences, hourlyBlockages, unifiedPresence]);
+    }, [sortedPeople, currentDate, teamRotations, absences, hourlyBlockages]);
 
     // Team Stats Calculation (for Daily view)
     const teamStats = React.useMemo(() => {
@@ -164,7 +150,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             const members = sortedPeople.filter(p => p.teamId === team.id);
             let present = 0;
             members.forEach(p => {
-                const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
+                const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages);
                 if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
                     present++;
                 }
@@ -172,7 +158,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             stats[team.id] = { present, total: members.length };
         });
         return stats;
-    }, [teams, sortedPeople, currentDate, teamRotations, absences, hourlyBlockages, unifiedPresence]);
+    }, [teams, sortedPeople, currentDate, teamRotations, absences, hourlyBlockages]);
 
     return (
         <div className="h-full flex flex-col relative" dir="rtl">
@@ -264,7 +250,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         {!collapsedTeams.has(team.id) && (
                                             <div className="divide-y divide-slate-50">
                                                 {members.map(person => {
-                                                    const avail = getEffectiveAvailability(person, currentDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
+                                                    const avail = getEffectiveAvailability(person, currentDate, teamRotations, absences, hourlyBlockages);
                                                     const dateKey = currentDate.toLocaleDateString('en-CA');
 
                                                     // Check for official absences
@@ -289,8 +275,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         const nextDate = new Date(currentDate);
                                                         nextDate.setDate(currentDate.getDate() + 1);
 
-                                                        const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
-                                                        const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
+                                                        const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
+                                                        const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
 
                                                         const isArrival = !prevAvail.isAvailable || prevAvail.status === 'home';
                                                         const isDeparture = !nextAvail.isAvailable || nextAvail.status === 'home';
@@ -303,13 +289,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             icon: isArrival ? MapPin : isDeparture ? MapPin : CheckCircle2
                                                         };
 
-                                                        if (avail.startHour !== '00:00' || avail.endHour !== '23:59' || isArrival || isDeparture) {
+                                                        if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
                                                             if (isSingleDay || (!isArrival && !isDeparture)) {
                                                                 statusConfig.label += ` ${avail.startHour}-${avail.endHour}`;
-                                                            } else if (isArrival) {
-                                                                statusConfig.label += ` ${avail.startHour === '00:00' ? '10:00' : avail.startHour}`;
-                                                            } else if (isDeparture) {
-                                                                statusConfig.label += ` ${avail.endHour === '23:59' ? '14:00' : avail.endHour}`;
+                                                            } else if (isArrival && avail.startHour !== '00:00') {
+                                                                statusConfig.label += ` ${avail.startHour}`;
+                                                            } else if (isDeparture && avail.endHour !== '23:59') {
+                                                                statusConfig.label += ` ${avail.endHour}`;
                                                             }
                                                         }
                                                     } else if (avail.status === 'home') {
@@ -473,7 +459,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 // Calculate present people to compare
                                                 let present = 0;
                                                 sortedPeople.forEach(p => {
-                                                    const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages, unifiedPresence);
+                                                    const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
                                                     if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
                                                         present++;
                                                     }
@@ -508,7 +494,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             const dateKey = date.toISOString().split('T')[0];
                                             let present = 0;
                                             sortedPeople.forEach(p => {
-                                                const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages, unifiedPresence);
+                                                const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
                                                 if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
                                                     present++;
                                                 }
@@ -563,7 +549,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     {dates.map(date => {
                                                         const dateKey = date.toISOString().split('T')[0];
                                                         const teamDocs = teamPeople.filter(p => {
-                                                            const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages, unifiedPresence);
+                                                            const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
                                                             return avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
                                                         });
                                                         const present = teamDocs.length;
@@ -629,7 +615,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             {/* Attendance Grid Cells */}
                                                             <div className="flex min-w-max">
                                                                 {dates.map((date, dateIdx) => {
-                                                                    const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages, unifiedPresence);
+                                                                    const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
                                                                     const dateStr = date.toLocaleDateString('en-CA');
 
                                                                     const isToday = new Date().toDateString() === date.toDateString();
@@ -641,8 +627,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     const nextDate = new Date(date);
                                                                     nextDate.setDate(date.getDate() + 1);
 
-                                                                    const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
-                                                                    const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
+                                                                    const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
+                                                                    const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
 
                                                                     let content = null;
                                                                     let cellBg = "bg-white";
@@ -734,11 +720,11 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                     )}
                                                                                     <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-emerald-500"} weight="duotone" />
                                                                                     <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>הגעה</span>
-                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.startHour === '00:00' ? '10:00' : avail.startHour}</span>
+                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.startHour}</span>
                                                                                     {constraintText}
                                                                                 </div>
                                                                             );
-                                                                        } else if (isDeparture) {
+                                                                        } else if (isDeparture && avail.endHour !== '23:59') {
                                                                             // Only show Departure context if specific time is set
                                                                             cellBg = "bg-amber-50/60 text-amber-900";
                                                                             themeColor = "bg-amber-500";
@@ -751,7 +737,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                     )}
                                                                                     <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="duotone" />
                                                                                     <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יציאה</span>
-                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour === '23:59' ? '14:00' : avail.endHour}</span>
+                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour}</span>
                                                                                     {constraintText}
                                                                                 </div>
                                                                             );
@@ -849,7 +835,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             {
                 editingCell && (() => {
                     const person = people.find(p => p.id === editingCell.personId);
-                    const availability = person ? getEffectiveAvailability(person, new Date(editingCell.date), teamRotations, absences, hourlyBlockages, unifiedPresence) : undefined;
+                    const availability = person ? getEffectiveAvailability(person, new Date(editingCell.date), teamRotations, absences, hourlyBlockages) : undefined;
 
                     return (
                         <StatusEditModal

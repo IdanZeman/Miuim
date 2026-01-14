@@ -274,7 +274,6 @@ export interface AppState {
   hourlyBlockages: HourlyBlockage[]; // NEW
   equipment: Equipment[]; // NEW
   equipmentDailyChecks: EquipmentDailyCheck[]; // NEW - Daily check history
-  unifiedPresence?: DailyPresence[]; // NEW - Unified presence log
 }
 
 export type TicketStatus = 'new' | 'in_progress' | 'resolved';
@@ -300,19 +299,14 @@ export interface DailyPresence {
   date: string; // ISO Date YYYY-MM-DD
   person_id: string;
   organization_id: string;
-  status: 'home' | 'base' | 'full' | 'unavailable' | 'leave' | 'arrival' | 'departure';
-  source: 'algorithm' | 'manual' | 'override' | 'absence' | 'rotation' | 'default';
+  status: 'home' | 'base' | 'unavailable' | 'leave';
+  source: 'algorithm' | 'manual' | 'override';
   created_at?: string;
   updated_at?: string;
   start_time?: string; // HH:MM
   end_time?: string;   // HH:MM
   arrival_date?: string; // ISO string or date
   departure_date?: string; // ISO string or date
-  source_id?: string;
-  last_editor_id?: string;
-  last_editor?: {
-    full_name?: string;
-  };
 }
 
 export interface Absence {

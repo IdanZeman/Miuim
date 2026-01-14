@@ -30,34 +30,9 @@ export const getEffectiveAvailability = (
     date: Date,
     teamRotations: TeamRotation[],
     absences: import('../types').Absence[] = [],
-    hourlyBlockages: import('../types').HourlyBlockage[] = [],
-    unifiedPresence: import('../types').DailyPresence[] = []
+    hourlyBlockages: import('../types').HourlyBlockage[] = []
 ) => {
     const dateKey = date.toLocaleDateString('en-CA');
-
-    // 0. Check Unified Presence Table (New Source of Truth)
-    if (unifiedPresence && unifiedPresence.length > 0) {
-        const entry = unifiedPresence.find(up => up.person_id === person.id && up.date === dateKey);
-
-        if (entry) {
-            // Capture blocks first (still needed for UI display of reason/source)
-            const unavailableBlocks: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[] = [];
-
-            // Map the unified status to isAvailable
-            const isAvailable = !['home', 'unavailable', 'leave'].includes(entry.status);
-
-            // Reconstruct the response from the DB entry
-            return {
-                isAvailable,
-                startHour: entry.start_time || '00:00',
-                endHour: entry.end_time || '23:59',
-                status: entry.status,
-                source: entry.source,
-                sourceId: entry.source_id,
-                unavailableBlocks: [] // If we need granular blocks here, they'd need to be fetched separately or calculated
-            };
-        }
-    }
 
     // 1. Manual Override & Absences
     let unavailableBlocks: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[] = [];
@@ -172,9 +147,9 @@ export const getEffectiveAvailability = (
             // Rotation usually is base. Absences override rotation.
             // If result (absence) says unavailable, that wins.
             if (result.isAvailable) {
-                if (dayInCycle === 0) result = { ...result, status: 'arrival', startHour: '10:00', source: 'personal_rotation' };
+                if (dayInCycle === 0) result = { ...result, status: 'arrival', source: 'personal_rotation' };
                 else if (dayInCycle < daysOn - 1) result = { ...result, status: 'full', source: 'personal_rotation' };
-                else if (dayInCycle === daysOn - 1) result = { ...result, status: 'departure', endHour: '14:00', source: 'personal_rotation' };
+                else if (dayInCycle === daysOn - 1) result = { ...result, status: 'departure', source: 'personal_rotation' };
                 else result = { ...result, isAvailable: false, status: 'home', source: 'personal_rotation' };
             }
         }
@@ -187,7 +162,7 @@ export const getEffectiveAvailability = (
             const rotStatus = getRotationStatusForDate(date, rotation);
             if (rotStatus && result.isAvailable) { // Only apply if not already marked unavailable by absence
                 if (rotStatus === 'home') result = { ...result, isAvailable: false, startHour: '00:00', endHour: '00:00', status: rotStatus, source: 'rotation' };
-                else result = { ...result, isAvailable: true, startHour: rotStatus === 'arrival' ? '10:00' : '00:00', endHour: rotStatus === 'departure' ? '14:00' : '23:59', status: rotStatus, source: 'rotation' };
+                else result = { ...result, isAvailable: true, startHour: '00:00', endHour: '23:59', status: rotStatus, source: 'rotation' };
             }
         }
     }

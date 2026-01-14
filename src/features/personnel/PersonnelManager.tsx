@@ -82,7 +82,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     // -- State --
     const [activeTab, setActiveTab] = useState<Tab>(initialTab);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
     const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
     const [showInactive, setShowInactive] = useState(false);
@@ -1322,7 +1321,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             <ActionBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
-                onSearchExpandedChange={setIsSearchExpanded}
                 onExport={handleExport}
                 className="px-4 md:px-6 sticky top-0 z-40 bg-white/90 backdrop-blur-md md:bg-white border-b border-slate-100"
                 leftActions={
@@ -1357,29 +1355,14 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 ${activeTab === tab
+                                className={`px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 ${activeTab === tab
                                     ? 'bg-white text-indigo-600 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700'
-                                    } ${isSearchExpanded ? 'px-3' : 'px-5'}`}
+                                    }`}
                             >
-                                {tab === 'people' && (
-                                    <>
-                                        <User size={14} weight="duotone" />
-                                        {!isSearchExpanded && <span>חיילים</span>}
-                                    </>
-                                )}
-                                {tab === 'teams' && (
-                                    <>
-                                        <Users size={14} weight="duotone" />
-                                        {!isSearchExpanded && <span>צוותים</span>}
-                                    </>
-                                )}
-                                {tab === 'roles' && (
-                                    <>
-                                        <Shield size={14} weight="duotone" />
-                                        {!isSearchExpanded && <span>תפקידים</span>}
-                                    </>
-                                )}
+                                {tab === 'people' && 'חיילים'}
+                                {tab === 'teams' && 'צוותים'}
+                                {tab === 'roles' && 'תפקידים'}
                             </button>
                         ))}
                     </div>
