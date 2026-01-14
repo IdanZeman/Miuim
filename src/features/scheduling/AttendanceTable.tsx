@@ -26,11 +26,15 @@ interface AttendanceTableProps {
     hideAbsenceDetails?: boolean; // NEW: Security/Privacy prop
     defaultArrivalHour?: string; // Default arrival time for display
     defaultDepartureHour?: string; // Default departure time for display
+    showStatistics?: boolean; // NEW: Show base/home totals
+    onShowPersonStats?: (person: Person) => void; // NEW: Open stats modal
+    onShowTeamStats?: (team: Team) => void; // NEW: Open stats modal
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = [], hideAbsenceDetails = false,
-    defaultArrivalHour = '10:00', defaultDepartureHour = '14:00'
+    defaultArrivalHour = '10:00', defaultDepartureHour = '14:00',
+    showStatistics = false, onShowPersonStats, onShowTeamStats
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     // State for the modal (editing mode) - now supports multiple dates
@@ -486,6 +490,20 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                     <div className="w-60 shrink-0 bg-white border-b border-l border-slate-200 sticky right-0 z-[100] flex items-center px-6 py-4 font-black text-slate-400 text-xs uppercase tracking-widest">
                                         שם הלוחם
                                     </div>
+
+                                    {showStatistics && (
+                                        <>
+                                            <div className="w-16 shrink-0 bg-white border-b border-l border-slate-200 sticky right-60 z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
+                                                בסיס
+                                            </div>
+                                            <div className="w-16 shrink-0 bg-white border-b border-l border-slate-200 sticky right-[304px] z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
+                                                בית
+                                            </div>
+                                            <div className="w-16 shrink-0 bg-white border-b border-l border-slate-200 sticky right-[368px] z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
+                                                יחס
+                                            </div>
+                                        </>
+                                    )}
                                     <div className="flex bg-white border-b border-slate-200">
                                         {dates.map((date) => {
                                             const isToday = new Date().toDateString() === date.toDateString();
@@ -567,10 +585,42 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                 {/* Summary Row (Global Stats) */}
                                 <div className={`flex sticky z-[85] ${showRequiredDetails ? 'top-[112px]' : 'top-[64px]'} bg-white backdrop-blur-md h-12`}>
-                                    <div className="w-60 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[90] px-6">
+                                    <div
+                                        onClick={() => onShowTeamStats && onShowTeamStats({ id: 'all', name: 'כל הפלוגה' } as Team)}
+                                        className="w-60 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[90] px-6 cursor-pointer hover:bg-blue-50 transition-colors"
+                                    >
                                         <Users size={16} className="text-blue-600" weight="duotone" />
                                         <span className="text-sm font-black text-slate-900 tracking-tight">סך הכל פלוגה</span>
                                     </div>
+
+                                    {showStatistics && (() => {
+                                        let baseTotal = 0;
+                                        let homeTotal = 0;
+                                        sortedPeople.forEach(p => {
+                                            dates.forEach(d => {
+                                                const av = getEffectiveAvailability(p, d, teamRotations, absences, hourlyBlockages);
+                                                if (av.status === 'base' || av.status === 'full' || av.status === 'arrival' || av.status === 'departure') baseTotal++;
+                                                else homeTotal++;
+                                            });
+                                        });
+                                        const baseAvg = sortedPeople.length > 0 ? baseTotal / sortedPeople.length : 0;
+                                        const homeAvg = sortedPeople.length > 0 ? homeTotal / sortedPeople.length : 0;
+                                        const homeAvgNorm = Math.round((homeAvg / dates.length) * 14);
+                                        const baseAvgNorm = 14 - homeAvgNorm;
+                                        return (
+                                            <>
+                                                <div className="w-16 shrink-0 bg-emerald-50 border-b border-l border-emerald-100 h-full flex items-center justify-center sticky right-60 z-[90]">
+                                                    <span className="text-xs font-black text-emerald-700">{Math.round(baseAvg)}</span>
+                                                </div>
+                                                <div className="w-16 shrink-0 bg-red-50 border-b border-l border-red-100 h-full flex items-center justify-center sticky right-[304px] z-[90]">
+                                                    <span className="text-xs font-black text-red-700">{Math.round(homeAvg)}</span>
+                                                </div>
+                                                <div className="w-16 shrink-0 bg-blue-50 border-b border-l border-blue-100 h-full flex items-center justify-center sticky right-[368px] z-[90]" dir="ltr">
+                                                    <span className="text-[10px] font-black text-blue-700">{homeAvgNorm} / {baseAvgNorm}</span>
+                                                </div>
+                                            </>
+                                        );
+                                    })()}
                                     <div className="flex h-full">
                                         {dates.map(date => {
                                             const dateKey = date.toISOString().split('T')[0];
@@ -592,7 +642,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     `}
                                                     dir="ltr"
                                                 >
-                                                    {total} / {present}
+                                                    {present} / {total}
                                                 </div>
                                             );
                                         })}
@@ -626,6 +676,35 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         </span>
                                                     )}
                                                 </div>
+
+                                                {showStatistics && (() => {
+                                                    let baseTotal = 0;
+                                                    let homeTotal = 0;
+                                                    teamPeople.forEach(p => {
+                                                        dates.forEach(d => {
+                                                            const av = getEffectiveAvailability(p, d, teamRotations, absences, hourlyBlockages);
+                                                            if (av.status === 'base' || av.status === 'full' || av.status === 'arrival' || av.status === 'departure') baseTotal++;
+                                                            else homeTotal++;
+                                                        });
+                                                    });
+                                                    const baseAvg = teamPeople.length > 0 ? baseTotal / teamPeople.length : 0;
+                                                    const homeAvg = teamPeople.length > 0 ? homeTotal / teamPeople.length : 0;
+                                                    const homeAvgNorm = Math.round((homeAvg / dates.length) * 14);
+                                                    const baseAvgNorm = 14 - homeAvgNorm;
+                                                    return (
+                                                        <>
+                                                            <div className="w-16 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-60 z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }}>
+                                                                <span className="text-xs font-black text-emerald-600">{Math.round(baseAvg)}</span>
+                                                            </div>
+                                                            <div className="w-16 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-[304px] z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }}>
+                                                                <span className="text-xs font-black text-red-600">{Math.round(homeAvg)}</span>
+                                                            </div>
+                                                            <div className="w-16 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-[368px] z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }} dir="ltr">
+                                                                <span className="text-[10px] font-black text-blue-500">{homeAvgNorm} / {baseAvgNorm}</span>
+                                                            </div>
+                                                        </>
+                                                    );
+                                                })()}
                                                 {/* Per-Day Team Stats View */}
                                                 <div className="flex bg-white h-full">
                                                     {dates.map(date => {
@@ -645,8 +724,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                 className={`w-24 shrink-0 flex items-center justify-center border-l border-slate-200 text-[11px] font-black border-b h-full
                                                                     ${isFull ? 'text-emerald-700 bg-emerald-50/30' : isEmpty ? 'text-slate-400' : 'text-amber-700 bg-amber-50/30'}
                                                                 `}
+                                                                dir="ltr"
                                                             >
-                                                                {total} / {present}
+                                                                {present} / {total}
                                                             </div>
                                                         );
                                                     })}
@@ -693,6 +773,33 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     </div>
                                                                 </div>
                                                             </div>
+
+                                                            {showStatistics && (() => {
+                                                                let baseDays = 0;
+                                                                let homeDays = 0;
+                                                                dates.forEach(d => {
+                                                                    const av = getEffectiveAvailability(person, d, teamRotations, absences, hourlyBlockages);
+                                                                    if (av.status === 'base' || av.status === 'full' || av.status === 'arrival' || av.status === 'departure') baseDays++;
+                                                                    else homeDays++;
+                                                                });
+
+                                                                const homeNorm = Math.round((homeDays / dates.length) * 14);
+                                                                const baseNorm = 14 - homeNorm;
+
+                                                                return (
+                                                                    <>
+                                                                        <div className={`w-16 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-60 z-[60] flex items-center justify-center font-black text-sm text-emerald-600 cursor-pointer hover:bg-emerald-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)}>
+                                                                            {baseDays}
+                                                                        </div>
+                                                                        <div className={`w-16 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[304px] z-[60] flex items-center justify-center font-black text-sm text-red-600 cursor-pointer hover:bg-red-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)}>
+                                                                            {homeDays}
+                                                                        </div>
+                                                                        <div className={`w-16 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[368px] z-[60] flex items-center justify-center font-black text-[10px] text-blue-600 cursor-pointer hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)} dir="ltr">
+                                                                            {homeNorm} / {baseNorm}
+                                                                        </div>
+                                                                    </>
+                                                                );
+                                                            })()}
 
                                                             {/* Attendance Grid Cells */}
                                                             <div className="flex min-w-max">

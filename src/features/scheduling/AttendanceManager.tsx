@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ExcelJS from 'exceljs';
 import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
-import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical as MoreVertical, DownloadSimple as Download } from '@phosphor-icons/react';
+import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical as MoreVertical, DownloadSimple as Download, Info, ChartBar } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { DateNavigator } from '../../components/ui/DateNavigator';
@@ -13,6 +13,7 @@ import { logger } from '../../services/loggingService';
 import { AttendanceTable } from './AttendanceTable';
 import { BulkAttendanceModal } from './BulkAttendanceModal';
 import { ImportAttendanceModal } from '@/features/scheduling/ImportAttendanceModal';
+import { AttendanceStatsModal } from './AttendanceStatsModal';
 import { useToast } from '@/contexts/ToastContext';
 import { RotaWizardModal } from './RotaWizardModal';
 import { PageInfo } from '@/components/ui/PageInfo';
@@ -74,6 +75,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [showRotaWizard, setShowRotaWizard] = useState(initialOpenRotaWizard); // Initialize from prop
     const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [showMoreActions, setShowMoreActions] = useState(false);
+    const [showStatistics, setShowStatistics] = useState(false);
+    const [statsEntity, setStatsEntity] = useState<{ person?: Person, team?: Team } | null>(null);
 
     useEffect(() => {
         if (initialOpenRotaWizard && onDidConsumeInitialAction) {
@@ -795,6 +798,17 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 </button>
                             )}
 
+                            <button
+                                onClick={() => setShowStatistics(!showStatistics)}
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border-2 ${showStatistics
+                                    ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                                    }`}
+                                title="סטטיסטיקה"
+                            >
+                                <ChartBar size={20} weight={showStatistics ? "fill" : "duotone"} />
+                            </button>
+
                             <DateNavigator
                                 date={(viewMode === 'calendar' || viewMode === 'table') ? viewDate : selectedDate}
                                 onDateChange={(d) => {
@@ -862,6 +876,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 className="h-full"
                                 isViewer={isViewer}
                                 showRequiredDetails={showRequiredDetails}
+                                showStatistics={showStatistics}
+                                onShowPersonStats={(person) => setStatsEntity({ person })}
+                                onShowTeamStats={(team) => setStatsEntity({ team })}
                                 tasks={tasks}
                             />
                         </div>
@@ -870,6 +887,28 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             </div>
 
             {/* Modals & Overlays (Outside sheet flow or global) */}
+            {statsEntity && (
+                <AttendanceStatsModal
+                    person={statsEntity.person}
+                    team={statsEntity.team}
+                    people={activePeople}
+                    teamRotations={teamRotations}
+                    absences={absences}
+                    hourlyBlockages={hourlyBlockages}
+                    dates={(() => {
+                        const d = viewMode === 'table' ? viewDate : selectedDate;
+                        const vYear = d.getFullYear();
+                        const vMonth = d.getMonth();
+                        const dMonth = new Date(vYear, vMonth + 1, 0).getDate();
+                        const datesArr = [];
+                        for (let i = 1; i <= dMonth; i++) {
+                            datesArr.push(new Date(vYear, vMonth, i));
+                        }
+                        return datesArr;
+                    })()}
+                    onClose={() => setStatsEntity(null)}
+                />
+            )}
             {showRotationSettings && (() => {
                 const team = teams.find(t => t.id === showRotationSettings);
                 if (!team) return null;
