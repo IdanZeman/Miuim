@@ -109,96 +109,33 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const handleExport = async () => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('בקשות היעדרות');
-        worksheet.views = [{ rightToLeft: true }];
 
-        const headerRow = [
-            'שם חייל',
-            'צוות',
-            'תאריך התחלה',
-            'תאריך סיום',
-            'שעות',
-            'סיבה',
-            'סטטוס'
-        ];
-
-        const rows = absences.map(absence => {
-            const person = people.find(p => p.id === absence.person_id);
-            const team = teams.find(t => t.id === person?.teamId);
-            const times = absence.start_time && absence.end_time ? `${absence.start_time} - ${absence.end_time}` : 'יום מלא';
-            const statusLabel = absence.status === 'approved' ? 'מאושר' : absence.status === 'pending' ? 'ממתין' : 'נדחה';
-
-            return [
-                person?.name || 'לא ידוע',
-                team?.name || 'ללא צוות',
-                new Date(absence.start_date).toLocaleDateString('he-IL'),
-                new Date(absence.end_date).toLocaleDateString('he-IL'),
-                times,
-                absence.reason || '',
-                statusLabel
-            ];
-        });
-
-        // Add Table
-        worksheet.addTable({
-            name: 'AbsencesTable',
-            ref: 'A1',
-            headerRow: true,
-            style: {
-                theme: 'TableStyleMedium2',
-                showRowStripes: true,
-            },
-            columns: headerRow.map(h => ({ name: h, filterButton: true })),
-            rows: rows,
-        });
-
-        // Column widths
         worksheet.columns = [
-            { width: 20 }, // שם
-            { width: 15 }, // צוות
-            { width: 15 }, // התחלה
-            { width: 15 }, // סיום
-            { width: 15 }, // שעות
-            { width: 30 }, // סיבה
-            { width: 15 }  // סטטוס
+            { header: 'שם חייל', key: 'name', width: 20 },
+            { header: 'תאריך התחלה', key: 'startDate', width: 15 },
+            { header: 'תאריך סיום', key: 'endDate', width: 15 },
+            { header: 'שעות', key: 'times', width: 15 },
+            { header: 'סיבה', key: 'reason', width: 30 },
+            { header: 'סטטוס', key: 'status', width: 15 }
         ];
 
-        // Conditional Styling for Status (Column G)
-        worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber === 1) {
-                // Header styling
-                row.font = { bold: true };
-                row.alignment = { horizontal: 'center' };
-                return;
-            }
-
-            const statusCell = row.getCell(7);
-            const statusValue = statusCell.value;
-
-            if (statusValue === 'מאושר') {
-                statusCell.font = { color: { argb: 'FF006400' }, bold: true }; // Dark Green
-                statusCell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFE6FFFA' } // Very Light Green
-                };
-            } else if (statusValue === 'נדחה') {
-                statusCell.font = { color: { argb: 'FF8B0000' }, bold: true }; // Dark Red
-                statusCell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFFFF5F5' } // Very Light Red
-                };
-            } else if (statusValue === 'ממתין') {
-                statusCell.font = { color: { argb: 'FF856404' }, bold: true }; // Dark Yellow/Brown
-                statusCell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFFFFBEB' } // Very Light Yellow
-                };
-            }
-
-            row.alignment = { horizontal: 'right', vertical: 'middle' };
+        absences.forEach(absence => {
+            const person = people.find(p => p.id === absence.person_id);
+            const times = absence.start_time && absence.end_time ? `${absence.start_time} - ${absence.end_time}` : 'יום מלא';
+            worksheet.addRow({
+                name: person?.name || 'לא ידוע',
+                startDate: new Date(absence.start_date).toLocaleDateString('he-IL'),
+                endDate: new Date(absence.end_date).toLocaleDateString('he-IL'),
+                times: times,
+                reason: absence.reason || '',
+                status: absence.status === 'approved' ? 'מאושר' : absence.status === 'pending' ? 'ממתין' : 'נדחה'
+            });
         });
+
+        // Styling
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).alignment = { horizontal: 'center' };
+        worksheet.views = [{ rightToLeft: true }];
 
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

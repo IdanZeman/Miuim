@@ -61,7 +61,7 @@ export const ClaimProfileModal: React.FC<ClaimProfileModalProps> = ({ isOpen, on
                 .update({ full_name: selectedPerson.name })
                 .eq('id', user.id);
 
-            localStorage.removeItem('מערכת_לניהול_פלוגה_skip_linking');
+            localStorage.removeItem('miuim_skip_linking');
             await refreshProfile();
             onClose();
             window.location.reload();
