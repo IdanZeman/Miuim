@@ -76,6 +76,11 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
         }
     }, [selectedFieldKey, people, customFields]);
 
+    const VIRTUAL_FIELDS: CustomFieldDefinition[] = [
+        { id: 'v_role', key: '_role', label: 'תפקיד', type: 'multiselect' as CustomFieldType },
+        { id: 'v_team', key: '_team', label: 'צוות', type: 'select' as CustomFieldType },
+    ];
+
     const fetchCustomFields = async () => {
         if (!organization) return;
 
@@ -90,22 +95,23 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
                 // If column doesn't exist yet, show empty state
                 if (error.code === 'PGRST116' || error.message.includes('column')) {
                     console.warn('customFieldsSchema column not found - run migration: supabase/add_custom_fields_schema.sql');
-                    setCustomFields([]);
+                    setCustomFields(VIRTUAL_FIELDS);
                 } else {
                     throw error;
                 }
             } else {
                 const schema = data?.custom_fields_schema || [];
-                setCustomFields(schema);
+                const allFields = [...VIRTUAL_FIELDS, ...schema];
+                setCustomFields(allFields);
 
                 // Auto-select first field
-                if (schema.length > 0 && !selectedFieldKey) {
-                    setSelectedFieldKey(schema[0].key);
+                if (allFields.length > 0 && !selectedFieldKey) {
+                    setSelectedFieldKey(allFields[0].key);
                 }
             }
         } catch (error) {
             console.error('Error fetching custom fields:', error);
-            setCustomFields([]);
+            setCustomFields(VIRTUAL_FIELDS);
         } finally {
             setLoading(false);
         }
@@ -119,14 +125,28 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
         let numericValues: number[] = [];
 
         people.forEach(person => {
-            const value = person.customFields?.[fieldKey];
+            let value;
+            if (fieldKey === '_role') {
+                value = person.roleIds || (person.roleId ? [person.roleId] : []);
+            } else if (fieldKey === '_team') {
+                value = person.teamId || null;
+            } else {
+                value = person.customFields?.[fieldKey];
+            }
 
-            if (field.type === 'multiselect' && Array.isArray(value)) {
+            if ((field.type === 'multiselect' || fieldKey === '_role') && Array.isArray(value)) {
                 // Handle multiple values - person appears in multiple groups
-                value.forEach(v => {
-                    if (!groups.has(v)) groups.set(v, []);
-                    groups.get(v)!.push(person);
-                });
+                if (value.length === 0) {
+                    const groupKey = '(ללא ערך)';
+                    if (!groups.has(groupKey)) groups.set(groupKey, []);
+                    groups.get(groupKey)!.push(person);
+                } else {
+                    value.forEach(v => {
+                        const groupKey = v ?? '(ללא ערך)';
+                        if (!groups.has(groupKey)) groups.set(groupKey, []);
+                        groups.get(groupKey)!.push(person);
+                    });
+                }
             } else if (field.type === 'number' && typeof value === 'number') {
                 numericValues.push(value);
                 if (!groups.has(value)) groups.set(value, []);
@@ -143,7 +163,7 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
         const valueGroups: ValueGroup[] = Array.from(groups.entries())
             .map(([value, groupPeople]) => ({
                 value,
-                displayValue: formatDisplayValue(value, field.type),
+                displayValue: formatDisplayValue(value, field.type, fieldKey),
                 count: groupPeople.length,
                 percentage: (groupPeople.length / people.length) * 100,
                 people: groupPeople
@@ -176,8 +196,10 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
         });
     };
 
-    const formatDisplayValue = (value: any, type: CustomFieldType): string => {
-        if (value === null || value === undefined || value === '') return '(ללא ערך)';
+    const formatDisplayValue = (value: any, type: CustomFieldType, fieldKey?: string): string => {
+        if (value === null || value === undefined || value === '' || value === '(ללא ערך)') return '(ללא ערך)';
+        if (fieldKey === '_role') return getRoleName(value);
+        if (fieldKey === '_team') return getTeamName(value);
         if (type === 'boolean') return value ? 'כן' : 'לא';
         if (type === 'date') {
             try {
@@ -345,6 +367,128 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
         return null;
     };
 
+    const renderRoleOverview = () => {
+        if (selectedFieldKey === '_role') return null;
+
+        const roleCounts = new Map<string, number>();
+        people.forEach(p => {
+            const rIds = p.roleIds || (p.roleId ? [p.roleId] : []);
+            if (rIds.length === 0) {
+                roleCounts.set('none', (roleCounts.get('none') || 0) + 1);
+            } else {
+                rIds.forEach(id => {
+                    roleCounts.set(id, (roleCounts.get(id) || 0) + 1);
+                });
+            }
+        });
+
+        const chartData = Array.from(roleCounts.entries())
+            .map(([id, count], index) => ({
+                name: id === 'none' ? 'ללא תפקיד' : getRoleName(id),
+                value: count,
+                percentage: (count / people.length) * 100,
+                fill: COLORS[index % COLORS.length]
+            }))
+            .sort((a, b) => b.value - a.value);
+
+        if (chartData.length === 0) return null;
+
+        return (
+            <div className="mt-8 pt-8 border-t border-slate-100">
+                <div className="flex items-center gap-2 mb-6">
+                    <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                        <Briefcase size={18} className="text-amber-600" weight="duotone" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">התפלגות תפקידים כללית</h3>
+                        <p className="text-xs text-slate-500 font-bold">סקירה של כלל בעלי התפקידים במערך</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Pie Chart */}
+                    <div className="bg-white rounded-2xl border border-slate-100 p-6">
+                        <div className="flex flex-col lg:flex-row items-center gap-6">
+                            <div className="flex-shrink-0">
+                                <ResponsiveContainer width={200} height={200}>
+                                    <PieChart>
+                                        <Pie
+                                            data={chartData}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            outerRadius={80}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {chartData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="flex-1 space-y-2">
+                                {chartData.slice(0, 6).map((entry, index) => (
+                                    <div key={index} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-slate-50">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: entry.fill }} />
+                                            <span className="text-sm font-bold text-slate-700 truncate">{entry.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <span className="text-sm font-black text-slate-900">{entry.value}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                                {chartData.length > 6 && (
+                                    <div className="text-xs text-slate-400 font-bold text-center pt-2 italic">
+                                        + עוד {chartData.length - 6} תפקידים נוספים
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Stats table */}
+                    <div className="bg-white rounded-2xl border border-slate-100 p-6 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-slate-100">
+                                        <th className="text-right py-2 px-3 font-bold text-slate-500 text-xs uppercase tracking-wider">תפקיד</th>
+                                        <th className="text-center py-2 px-3 font-bold text-slate-500 text-xs uppercase tracking-wider">כמות</th>
+                                        <th className="text-left py-2 px-3 font-bold text-slate-500 text-xs uppercase tracking-wider">גרף</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {chartData.slice(0, 5).map((entry, index) => (
+                                        <tr key={index} className="hover:bg-slate-50 transition-colors">
+                                            <td className="py-2.5 px-3 text-right">
+                                                <span className="font-bold text-slate-700 text-sm">{entry.name}</span>
+                                            </td>
+                                            <td className="py-2.5 px-3 text-center">
+                                                <span className="font-black text-slate-900 text-sm">{entry.value}</span>
+                                            </td>
+                                            <td className="py-2.5 px-3">
+                                                <div className="w-24 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                                    <div
+                                                        className="h-full rounded-full"
+                                                        style={{ width: `${entry.percentage}%`, backgroundColor: entry.fill }}
+                                                    />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderPersonCard = (person: Person) => {
         const teamName = getTeamName(person.teamId || '');
         const roleNames = getAllRoleNames(person.roleIds);
@@ -373,8 +517,8 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
                     </div>
                 </div>
                 <div className={`text-xs px-2 py-0.5 rounded-full font-bold ${person.isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-slate-100 text-slate-600'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-slate-100 text-slate-600'
                     }`}>
                     {person.isActive ? 'פעיל' : 'לא פעיל'}
                 </div>
@@ -429,6 +573,40 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
                             {/* Expanded Content */}
                             {isExpanded && (
                                 <div className="border-t border-slate-100 p-5 bg-slate-50">
+                                    {/* Role Distribution in this group (unless analyzing roles) */}
+                                    {selectedFieldKey !== '_role' && (
+                                        <div className="mb-6 bg-white rounded-xl border border-slate-200 p-4">
+                                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                <Briefcase size={14} weight="duotone" className="text-amber-500" />
+                                                התפלגות תפקידים בקבוצה זו
+                                            </h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {(() => {
+                                                    const roleCounts = new Map<string, number>();
+                                                    group.people.forEach(p => {
+                                                        const rIds = p.roleIds || (p.roleId ? [p.roleId] : []);
+                                                        if (rIds.length === 0) {
+                                                            roleCounts.set('none', (roleCounts.get('none') || 0) + 1);
+                                                        } else {
+                                                            rIds.forEach(id => {
+                                                                roleCounts.set(id, (roleCounts.get(id) || 0) + 1);
+                                                            });
+                                                        }
+                                                    });
+
+                                                    return Array.from(roleCounts.entries())
+                                                        .sort((a, b) => b[1] - a[1])
+                                                        .map(([id, count]) => (
+                                                            <div key={id} className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-lg shadow-sm">
+                                                                <span className="text-sm font-bold text-slate-700">{id === 'none' ? 'ללא תפקיד' : getRoleName(id)}</span>
+                                                                <span className="bg-slate-200 text-slate-600 text-[10px] font-black px-1.5 rounded-md min-w-[20px] text-center">{count}</span>
+                                                            </div>
+                                                        ));
+                                                })()}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="space-y-2">
                                         {group.people
                                             .filter(p => searchTerm === '' || p.name.includes(searchTerm))
@@ -569,7 +747,9 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
             </div>
 
             {/* Charts */}
-            {renderCharts()}
+            <div className="space-y-6">
+                {renderCharts()}
+            </div>
 
             {/* Search */}
             {analysis && analysis.valueGroups.length > 0 && (

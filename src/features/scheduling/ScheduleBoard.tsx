@@ -9,7 +9,7 @@ import { generateShiftsForTask } from '../../utils/shiftUtils';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
-import { ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText } from '@phosphor-icons/react';
+import { ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText } from '@phosphor-icons/react';
 import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2 } from '@phosphor-icons/react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
@@ -59,21 +59,20 @@ export interface ScheduleBoardProps {
 }
 
 // Helper to calculate position based on time
-const PIXELS_PER_HOUR = 60;
 const START_HOUR = 0;
 const HEADER_HEIGHT = 40;
 
-const getPositionFromTime = (date: Date) => {
+const getPositionFromTime = (date: Date, pixelsPerHour: number) => {
     const hours = date.getHours();
     const minutes = date.getMinutes();
     const totalHours = hours + minutes / 60;
-    return (totalHours - START_HOUR) * PIXELS_PER_HOUR;
+    return (totalHours - START_HOUR) * pixelsPerHour;
 };
 
-const getHeightFromDuration = (start: Date, end: Date) => {
+const getHeightFromDuration = (start: Date, end: Date, pixelsPerHour: number) => {
     const durationMs = end.getTime() - start.getTime();
     const durationHours = durationMs / (1000 * 60 * 60);
-    return durationHours * PIXELS_PER_HOUR;
+    return durationHours * pixelsPerHour;
 };
 
 const hexToRgba = (hex: string, alpha: number) => {
@@ -102,7 +101,8 @@ const ShiftCard: React.FC<{
     onAutoSchedule?: () => void;
     isContinuedFromPrev?: boolean;
     isContinuedToNext?: boolean;
-}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext }) => {
+    isCompact?: boolean;
+}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext, isCompact }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const assigned = shift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
@@ -152,7 +152,7 @@ const ShiftCard: React.FC<{
     return (
         <div
             id={`shift-card-${shift.id}`}
-            className={`absolute flex flex-col p-1.5 rounded-md border text-xs cursor-pointer transition-all overflow-hidden ${bgColor} ${borderColor} hover:border-blue-400 group justify-between shadow-sm`}
+            className={`absolute flex flex-col ${isCompact ? 'p-0.5' : 'p-1.5'} rounded-md border text-xs cursor-pointer transition-all overflow-hidden ${bgColor} ${borderColor} hover:border-blue-400 group justify-between shadow-sm`}
             style={style}
             onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
             title={hasMissingRoles ? `חסרים תפקידים: ${missingRoles.join(', ')}` : undefined}
@@ -181,7 +181,7 @@ const ShiftCard: React.FC<{
             </div>
 
             {/* Top Row: Task Name */}
-            <div className="flex font-bold truncate text-slate-800 text-[11px] md:text-sm pl-12 items-start w-full">
+            <div className={`flex font-bold truncate text-slate-800 ${isCompact ? 'text-[9px] pl-10' : 'text-[11px] md:text-sm pl-12'} items-start w-full`}>
                 <div className="flex items-center gap-1 truncate w-full">
                     {shift.isCancelled && <Ban size={12} className="text-red-500 mr-1 shrink-0" weight="duotone" />}
 
@@ -258,12 +258,14 @@ const ShiftCard: React.FC<{
             <div className={`flex items-end justify-between ${!(style?.height && parseInt(String(style.height)) >= 50 && assigned.length > 0) ? 'mt-auto' : ''} pt-1 w-full overflow-hidden`}>
 
                 {/* Staffing Count */}
-                <div className={`text-[10px] font-medium leading-none flex-shrink-0 ml-1 mb-0.5 ${hasMissingRoles ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
-                    {assigned.length}/{req}
-                </div>
+                {(!isCompact || (style?.height && parseInt(String(style.height)) >= 28)) && (
+                    <div className={`text-[10px] font-medium leading-none flex-shrink-0 ml-1 mb-0.5 ${hasMissingRoles ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                        {assigned.length}/{req}
+                    </div>
+                )}
 
                 {/* Avatars Logic */}
-                {(assigned.length > 0) && (
+                {(assigned.length > 0 && (!isCompact || (style?.height && parseInt(String(style.height)) >= 32))) && (
                     <div className={`flex -space-x-1.5 space-x-reverse overflow-hidden px-1 pb-0.5 ${(style?.height && parseInt(String(style.height)) >= 50) ? 'md:hidden' : ''}`}>
                         {assigned.map(p => (
                             <div key={p.id} className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[9px] md:text-[10px] text-white font-bold ring-2 ring-white ${p.color} shadow-sm`} title={p.name}>
@@ -288,11 +290,14 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const { profile } = useAuth();
     // Scroll Synchronization Refs
     const verticalScrollRef = useRef<HTMLDivElement>(null);
+    const [isCompact, setIsCompact] = useState(false);
+    const pixelsPerHour = isCompact ? 26 : 60;
+    const headerHeight = isCompact ? 34 : 40;
 
     // FIXED HEIGHT CONTAINER to ensure internal scrolling works
     // Desktop: 100vh - header padding (32=8rem) - bottom padding (10=2.5rem) approx 11rem
     // Mobile: 100vh - header padding (32=8rem) - bottom nav (24=6rem) approx 15rem
-    const containerHeightClass = "h-auto md:h-[calc(100vh-11rem)]";
+    const containerHeightClass = isCompact ? "h-auto md:h-[calc(100vh-8.5rem)]" : "h-auto md:h-[calc(100vh-11rem)]";
 
     // Auto-scroll to current time on mount or date change (if Today)
     // Auto-scroll to current time on mount or date change (if Today)
@@ -307,8 +312,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 // Scroll to 1 hour before now for context
                 const currentHour = now.getHours();
                 const targetHour = Math.max(0, currentHour - 1);
-                // PIXELS_PER_HOUR = 60 (defined at top of file)
-                const scrollPosition = targetHour * 60;
+                // Dynamic pixelsPerHour
+                const scrollPosition = targetHour * pixelsPerHour;
 
                 // Use requestAnimationFrame to ensure layout is ready
                 requestAnimationFrame(() => {
@@ -368,12 +373,55 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New state for mobile action menu
     const [showRotaWizard, setShowRotaWizard] = useState(false);
 
-    // Helper to resolve warnings based on prop or local state
-    // If prop is provided, we can't set it locally easily without callback. 
     // For now assuming local handling to match previous logic found in file.
 
     const renderFeaturedCard = () => null; // Placeholder to fix build error
-    const handleExportToClipboard = async () => { }; // Placeholder
+
+    const handleExportToClipboard = async () => {
+        try {
+            const dateStr = selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+            let text = `📋 *סידור עבודה - ${dateStr}*\n\n`;
+
+            visibleTasks.forEach(task => {
+                const taskShifts = shifts.filter(s => {
+                    if (s.taskId !== task.id) return false;
+                    const shiftStart = new Date(s.startTime);
+                    const shiftEnd = new Date(s.endTime);
+                    const dayStart = new Date(selectedDate);
+                    dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(selectedDate);
+                    dayEnd.setHours(24, 0, 0, 0);
+                    return shiftStart < dayEnd && shiftEnd > dayStart;
+                }).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                if (taskShifts.length > 0) {
+                    text += `*${task.name}:*\n`;
+                    taskShifts.forEach(shift => {
+                        const personnelNames = shift.assignedPersonIds
+                            .map(id => people.find(p => p.id === id)?.name)
+                            .filter(Boolean)
+                            .join(', ');
+
+                        const sStart = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                        const sEnd = new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+                        text += `• ${sStart}-${sEnd}: ${personnelNames || 'לא שובץ'}\n`;
+                    });
+                    text += '\n';
+                }
+            });
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                showToast('הסידור הועתק ללוח', 'success');
+            } else {
+                throw new Error('Clipboard API not available');
+            }
+        } catch (err) {
+            console.error('Failed to copy', err);
+            showToast('שגיאה בהעתקת הסידור', 'error');
+        }
+    };
     const dateInputRef = useRef<HTMLInputElement>(null);
 
     // Measure header height for sticky stacking - REMOVED per user request
@@ -594,7 +642,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
 
             {/* Time Grid Board Container */}
-            <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 p-4 md:p-6 flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className={`bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col flex-1 min-h-0 overflow-hidden`}>
 
                 <ExportScheduleModal
                     isOpen={isExportModalOpen}
@@ -605,7 +653,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 />
 
                 {/* Controls Header - Sticky - SINGLE ROW LAYOUT */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-2 mb-2 flex-shrink-0 sticky top-0 z-50 bg-white pb-2 border-b border-transparent">
+                <div className={`flex flex-col md:flex-row items-center justify-between gap-2 ${isCompact ? 'mb-1' : 'mb-2'} flex-shrink-0 sticky top-0 z-50 bg-white pb-2 border-b border-transparent`}>
 
                     {/* Right Side: Title, Info, Stats */}
                     <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
@@ -679,14 +727,6 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             {/* Desktop Actions */}
                             <div className="hidden md:flex gap-2">
 
-                                <Button
-                                    variant="outline"
-                                    onClick={handleExportClick}
-                                    title="ייצוא לוח"
-                                    className="px-3"
-                                >
-                                    <Copy size={18} weight="duotone" />
-                                </Button>
                                 <ExportButton
                                     onExport={async () => { setIsExportModalOpen(true); }}
                                     label="ייצוא"
@@ -706,6 +746,18 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                         <span>נקה</span>
                                     </button>
                                 )}
+
+                                <button
+                                    onClick={() => setIsCompact(!isCompact)}
+                                    className={`flex items-center justify-center gap-2 h-9 px-4 rounded-xl text-xs font-bold transition-all shadow-sm border ${isCompact
+                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300'
+                                        }`}
+                                    title={isCompact ? "הרחב" : "כווץ"}
+                                >
+                                    {isCompact ? <ArrowsOutSimple size={14} weight="bold" /> : <ArrowsInSimple size={14} weight="bold" />}
+                                    <span>{isCompact ? "הרחב" : "כווץ"}</span>
+                                </button>
                             </div>
 
                             {/* Mobile Actions Dropdown */}
@@ -758,6 +810,19 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-base text-slate-800">העתק לוח</span>
                                                 <span className="text-xs text-slate-500">העתקת תמונת מצב לווצאפ</span>
+                                            </div>
+                                        </button>
+
+                                        <button
+                                            onClick={() => { setIsCompact(!isCompact); setIsMobileMenuOpen(false); }}
+                                            className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
+                                        >
+                                            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                                {isCompact ? <ArrowsOutSimple size={22} weight="duotone" /> : <ArrowsInSimple size={22} weight="duotone" />}
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-base text-slate-800">{isCompact ? "הרחב" : "כווץ"}</span>
+                                                <span className="text-xs text-slate-500">{isCompact ? "חזרה לתצוגה מרווחת" : "כיווץ הלוח למסך אחד"}</span>
                                             </div>
                                         </button>
 
@@ -817,7 +882,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         {/* ======================================================== */}
                         <div
                             className="sticky right-0 top-0 z-40 bg-slate-50 border-b border-l border-slate-200"
-                            style={{ height: HEADER_HEIGHT }}
+                            style={{ height: headerHeight }}
                         >
                             <div className="w-10 md:w-16 h-full flex items-center justify-center">
                                 <span className="text-[10px] text-slate-500 font-bold">זמנים</span>
@@ -831,7 +896,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         <div
                             // הכותרת נדבקת למעלה. גלילה אופקית מנוהלת ע"י ההורה verticalScrollRef.
                             className="sticky top-0 z-30 bg-white shadow-sm border-b border-slate-200"
-                            style={{ height: HEADER_HEIGHT }}
+                            style={{ height: headerHeight }}
                         >
                             {/* Task Headers: הרוחב המינימלי יוצר את הגלילה ב-overflow-x-auto של ההורה */}
                             <div className="flex relative">
@@ -840,15 +905,14 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                         key={task.id}
                                         className="min-w-[130px] md:min-w-[260px] flex-1 border-l border-b-2"
                                         style={{
-                                            height: HEADER_HEIGHT,
+                                            height: headerHeight,
                                             backgroundColor: hexToRgba(task.color, 0.4), // Increased visibility
                                             borderTopColor: task.color,
                                             borderTopWidth: 3,
                                             borderColor: 'rgb(241 245 249)', // slate-200 for side borders
-                                            borderBottomColor: task.color
                                         }}
                                     >
-                                        <h4 className="font-bold text-slate-800 text-xs md:text-sm truncate w-full px-2 pt-2 text-center">{task.name}</h4>
+                                        <h4 className={`font-bold text-slate-800 ${isCompact ? 'text-[10px] pt-1' : 'text-xs md:text-sm pt-2'} truncate w-full px-2 text-center`}>{task.name}</h4>
                                     </div>
                                 ))}
                             </div>
@@ -859,7 +923,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         {/* ======================================================== */}
                         <div className="sticky right-0 z-20 bg-slate-50 border-l border-slate-100">
                             {Array.from({ length: 25 }).map((_, i) => (
-                                <div key={i} className="h-[60px] border-t border-dashed border-slate-300 text-[9px] md:text-xs text-slate-400 font-bold flex justify-center pt-1 relative">
+                                <div key={i} className="border-t border-dashed border-slate-300 text-[9px] md:text-xs text-slate-400 font-bold flex justify-center pt-1 relative" style={{ height: pixelsPerHour }}>
                                     <span className="bg-slate-50 px-0.5 md:px-1">{i.toString().padStart(2, '0')}:00</span>
                                 </div>
                             ))}
@@ -892,13 +956,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     return (
                                         <div
                                             key={task.id}
-                                            className="min-w-[130px] md:min-w-[260px] flex-1 border-l border-slate-100 relative h-[1540px]"
-                                            style={{ backgroundColor: hexToRgba(task.color, 0.2) }} // Increased visibility
+                                            className="min-w-[130px] md:min-w-[260px] flex-1 border-l border-slate-100 relative"
+                                            style={{ backgroundColor: hexToRgba(task.color, 0.2), height: pixelsPerHour * 24 }} // Increased visibility
                                         >
                                             {/* Grid Lines */}
                                             <div className="absolute inset-0 pointer-events-none">
                                                 {Array.from({ length: 25 }).map((_, i) => (
-                                                    <div key={i} className="h-[60px] border-t border-dashed border-slate-300/50"></div>
+                                                    <div key={i} className="border-t border-dashed border-slate-300/50" style={{ height: pixelsPerHour }}></div>
                                                 ))}
                                             </div>
 
@@ -914,8 +978,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                 const effectiveStart = shiftStart < dayStart ? dayStart : shiftStart;
                                                 const effectiveEnd = shiftEnd > dayEnd ? dayEnd : shiftEnd;
 
-                                                const top = getPositionFromTime(effectiveStart);
-                                                const height = getHeightFromDuration(effectiveStart, effectiveEnd);
+                                                const top = getPositionFromTime(effectiveStart, pixelsPerHour);
+                                                const height = getHeightFromDuration(effectiveStart, effectiveEnd, pixelsPerHour);
                                                 const isContinuedFromPrev = shiftStart < dayStart;
                                                 const isContinuedToNext = shiftEnd > dayEnd;
 
@@ -935,9 +999,10 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                         onReportClick={(shift) => setSelectedReportShiftId(shift.id)}
                                                         isContinuedFromPrev={isContinuedFromPrev}
                                                         isContinuedToNext={isContinuedToNext}
+                                                        isCompact={isCompact}
                                                         style={{
                                                             top: `${top}px`,
-                                                            height: `${Math.max(height, 30)}px`,
+                                                            height: `${Math.max(height, isCompact ? 18 : 30)}px`,
                                                             left: '2px',
                                                             right: '2px',
                                                             width: 'auto',
@@ -963,7 +1028,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             const currentDayKey = now.toLocaleDateString('en-CA');
                             const selectedDayKey = selectedDate.toLocaleDateString('en-CA');
                             if (currentDayKey === selectedDayKey) {
-                                const top = getPositionFromTime(now) + HEADER_HEIGHT;
+                                const top = getPositionFromTime(now, pixelsPerHour) + headerHeight;
                                 return (
                                     <div
                                         className="absolute z-[60] flex items-center pointer-events-none"
