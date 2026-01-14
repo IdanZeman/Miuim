@@ -36,7 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!profile) return false;
 
     // Map battalion views to 'battalion' permission
-    const permissionKey = screen === 'battalion-home' || screen === 'battalion-personnel' || screen === 'battalion-attendance' || screen === 'battalion-settings' || screen === 'reports' ? 'battalion' :
+    const permissionKey = screen === 'battalion-home' || screen === 'battalion-personnel' || screen === 'battalion-attendance' || screen === 'battalion-settings' || screen === 'reports' || screen === 'battalion-location' ? 'battalion' :
       screen;
 
 

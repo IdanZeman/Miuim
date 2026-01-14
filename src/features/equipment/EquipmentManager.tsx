@@ -240,38 +240,78 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
             // Set RTL
             worksheet.views = [{ rightToLeft: true }];
 
-            // Headers
-            const headers = viewMode === 'list'
-                ? ['מספר צלם', 'סוג', 'שיוך', 'סטטוס', 'הערות']
-                : ['מספר צלם', 'סוג', `סטטוס בדיקה (${selectedDate.toLocaleDateString('he-IL')})`];
+            // Data Prep
+            const tableRows = filteredItems.map(item => {
+                const person = people.find(p => p.id === item.assigned_to_id);
+                const team = person ? teams.find(t => t.id === person.teamId) : null;
+                const assignedLabel = person ? `${person.name}${team ? ' (' + team.name + ')' : ''}` : 'לא חתום';
+                const statusLabel = getStatusLabel(item.status);
 
-            const headerRow = worksheet.addRow(headers);
-            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } }; // Indigo-600
-            headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-
-            // Data
-            const itemsToExport = filteredItems;
-            itemsToExport.forEach(item => {
-                let row;
                 if (viewMode === 'list') {
-                    const person = people.find(p => p.id === item.assigned_to_id)?.name || '-';
-                    const statusLabel = getStatusLabel(item.status);
-                    row = worksheet.addRow([item.serial_number, item.type, person, statusLabel, item.notes || '']);
+                    return [item.serial_number, item.type, assignedLabel, statusLabel, item.notes || ''];
                 } else {
                     const isVerified = item.last_verified_at && new Date(item.last_verified_at).toDateString() === selectedDate.toDateString();
-                    const status = isVerified ? getStatusLabel(item.status) : 'טרם דווח';
-                    row = worksheet.addRow([item.serial_number, item.type, status]);
+                    const dailyStatus = isVerified ? statusLabel : 'טרם דווח';
+                    return [item.serial_number, item.type, dailyStatus];
                 }
+            });
 
-                // Add border to all cells
-                row.eachCell(cell => {
-                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                });
+            const columns = viewMode === 'list'
+                ? [
+                    { name: 'מספר צלם', filterButton: true },
+                    { name: 'סוג', filterButton: true },
+                    { name: 'שיוך', filterButton: true },
+                    { name: 'סטטוס', filterButton: true },
+                    { name: 'הערות', filterButton: true }
+                ]
+                : [
+                    { name: 'מספר צלם', filterButton: true },
+                    { name: 'סוג', filterButton: true },
+                    { name: `סטטוס בדיקה (${selectedDate.toLocaleDateString('he-IL')})`, filterButton: true }
+                ];
+
+            worksheet.addTable({
+                name: 'EquipmentTable',
+                ref: 'A1',
+                headerRow: true,
+                style: { theme: 'TableStyleMedium2', showRowStripes: true },
+                columns: columns,
+                rows: tableRows
+            });
+
+            // Style Status Cell
+            const statusColIndex = viewMode === 'list' ? 4 : 3;
+            const statusColLetter = String.fromCharCode(64 + statusColIndex);
+
+            tableRows.forEach((row, idx) => {
+                const rowIndex = idx + 2;
+                const statusCell = worksheet.getCell(`${statusColLetter}${rowIndex}`);
+                const statusValue = row[statusColIndex - 1];
+
+                if (statusValue === 'נמצא') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                    statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                } else if (statusValue === 'חסר' || statusValue === 'אבד') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                    statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                } else if (statusValue === 'תקול') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                    statusCell.font = { color: { argb: 'FF92400E' }, bold: true };
+                } else if (statusValue === 'טרם דווח') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+                    statusCell.font = { color: { argb: 'FF475569' }, italic: true };
+                }
             });
 
             // Adjust column widths
-            worksheet.columns = headers.map(h => ({ width: Math.max(15, h.length * 2) }));
+            worksheet.columns = columns.map(c => ({ width: Math.max(15, c.name.length * 2) }));
+            if (viewMode === 'list') {
+                worksheet.getColumn(1).width = 15;
+                worksheet.getColumn(2).width = 15;
+                worksheet.getColumn(3).width = 25;
+                worksheet.getColumn(4).width = 12;
+                worksheet.getColumn(5).width = 30;
+            }
 
             // Generate and download
             const buffer = await workbook.xlsx.writeBuffer();

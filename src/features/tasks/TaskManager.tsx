@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TaskTemplate, Role, SchedulingSegment, Team } from '@/types';
-import { CheckSquare, Plus, PencilSimple as Pencil, Trash, Copy, Stack as Layers, Clock, Users, CalendarBlank as Calendar, DotsThreeVertical as MoreVertical, Globe } from '@phosphor-icons/react';
+import { CheckSquare, Plus, PencilSimple as Pencil, Trash, Copy, Stack as Layers, Clock, Users, CalendarBlank as Calendar, DotsThreeVertical as MoreVertical, Globe, Info, ArrowCounterClockwise as RotateCcw } from '@phosphor-icons/react';
 import { useToast } from '@/contexts/ToastContext';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { PageInfo } from '@/components/ui/PageInfo';
@@ -54,6 +54,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     const [endDate, setEndDate] = useState('');
     const [assignedTeamId, setAssignedTeamId] = useState('');
     const [segments, setSegments] = useState<SchedulingSegment[]>([]);
+    const [is247, setIs247] = useState(false);
 
     // Segment Editor State
     const [showSegmentEditor, setShowSegmentEditor] = useState(false);
@@ -71,6 +72,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         setEndDate('');
         setAssignedTeamId('');
         setSegments([]);
+        setIs247(false);
     };
 
     const handleEditClick = (task: TaskTemplate) => {
@@ -83,6 +85,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         setEndDate(task.endDate ? task.endDate.split('T')[0] : '');
         setAssignedTeamId(task.assignedTeamId || '');
         setSegments(task.segments || []);
+        setIs247(!!task.is247);
         setIsAdding(false);
     };
 
@@ -129,7 +132,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             endDate: endDate || undefined,
             assignedTeamId: assignedTeamId || undefined,
             segments: processedSegments,
-            is247: false
+            is247: is247
         };
 
         if (editId) {
@@ -146,10 +149,13 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     };
 
     const handleSaveSegment = (segment: SchedulingSegment) => {
+        // If 24/7 is enabled, force isRepeat to true
+        const processedSegment = is247 ? { ...segment, isRepeat: true } : { ...segment, isRepeat: false };
+
         if (editingSegment) {
-            setSegments(prev => prev.map(s => s.id === segment.id ? segment : s));
+            setSegments(prev => prev.map(s => s.id === processedSegment.id ? processedSegment : s));
         } else {
-            setSegments(prev => [...prev, segment]);
+            setSegments(prev => [...prev, processedSegment]);
         }
     };
 
@@ -505,11 +511,24 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
                         {/* Add Segment Button - Clean separate block */}
                         <button
-                            onClick={() => { setEditingSegment(undefined); setShowSegmentEditor(true); }}
-                            className="w-full py-3 bg-white border border-slate-200 border-dashed rounded-xl text-blue-600 font-bold text-sm hover:bg-blue-50 hover:border-blue-300 transition-all flex items-center justify-center gap-2"
+                            onClick={() => {
+                                if (is247 && segments.length >= 1) {
+                                    showToast('במצב 24/7 ניתן להגדיר מקטע אחד בלבד', 'info');
+                                    return;
+                                }
+                                setEditingSegment(undefined);
+                                setShowSegmentEditor(true);
+                            }}
+                            disabled={is247 && segments.length >= 1}
+                            className={cn(
+                                "w-full py-3 border border-dashed rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
+                                is247 && segments.length >= 1
+                                    ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed opacity-60"
+                                    : "bg-white border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+                            )}
                         >
                             <Plus size={18} weight="bold" />
-                            הוסף מקטע / משמרת
+                            {is247 && segments.length >= 1 ? 'לא ניתן להוסיף מקטעים נוספים ב-24/7' : 'הוסף מקטע / משמרת'}
                         </button>
 
                     </div>

@@ -10,6 +10,7 @@ import { TimePicker } from '../../components/ui/DatePicker';
 import { logger } from '../../services/loggingService';
 import { ExportButton } from '../../components/ui/ExportButton';
 import { GenericModal } from '../../components/ui/GenericModal';
+import { generateLocationReportExcel } from '../../utils/excelExport';
 
 interface LocationReportProps {
     people: Person[];
@@ -60,9 +61,17 @@ export const LocationReport: React.FC<LocationReportProps> = ({
         const [hours, minutes] = selectedTime.split(':').map(Number);
         checkTime.setHours(hours, minutes, 0, 0);
 
-        const activePeople = people.filter(p => p.isActive !== false);
+        const report: PersonLocation[] = people.map(person => {
+            // Check if inactive
+            if (person.isActive === false) {
+                return {
+                    person,
+                    status: 'inactive' as any,
+                    details: 'לא פעיל (בבסיס)',
+                    time: 'קבוע'
+                };
+            }
 
-        const report: PersonLocation[] = activePeople.map(person => {
             // 1. Check if in active shift at this time
             const activeShift = shifts.find(s => {
                 const start = new Date(s.startTime);
@@ -76,7 +85,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                     person,
                     status: 'mission',
                     details: task?.name || 'משימה',
-                    time: `${new Date(activeShift.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(activeShift.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                    time: `${new Date(activeShift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${new Date(activeShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false })}`
                 };
             }
 
@@ -171,6 +180,22 @@ export const LocationReport: React.FC<LocationReportProps> = ({
 
     const reportData = generateReport();
 
+    const handleExportExcel = async () => {
+        // Hydrate orgName with team name since the utility uses orgName/team field logic
+        const dataForExport = reportData
+            .filter(r => r.status !== 'inactive') // Exclude inactive from Excel
+            .map(r => ({
+                ...r,
+                orgName: r.person.teamId ? getTeamName(r.person.teamId) : ''
+            }));
+
+        await generateLocationReportExcel(
+            dataForExport,
+            `location_report_${selectedDate.toISOString().split('T')[0]}`,
+            false // isBattalionReport
+        );
+    };
+
     useEffect(() => {
         logger.info('VIEW', 'Viewed Location Report', {
             date: selectedDate.toISOString().split('T')[0],
@@ -186,11 +211,12 @@ export const LocationReport: React.FC<LocationReportProps> = ({
             const grouped = {
                 mission: reportData.filter(r => r.status === 'mission').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name)),
                 base: reportData.filter(r => r.status === 'base').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name)),
-                home: reportData.filter(r => r.status === 'home').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name))
+                home: reportData.filter(r => r.status === 'home').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name)),
+                inactive: reportData.filter(r => r.status === 'inactive').sort((a, b) => getTeamName(a.person.teamId).localeCompare(getTeamName(b.person.teamId)) || a.person.name.localeCompare(b.person.name))
             };
 
             const renderSectionHeader = (
-                key: 'mission' | 'base' | 'home',
+                key: LocationStatus,
                 title: string,
                 count: number,
                 icon: React.ReactNode,
@@ -216,7 +242,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
             return (
                 <div className="space-y-6">
                     <section>
-                        {renderSectionHeader('mission', 'במשימה', grouped.mission.length, <Briefcase size={20} className="text-rose-500" weight="duotone" />, 'bg-rose-50/50 hover:bg-rose-50', 'border-rose-100')}
+                        {renderSectionHeader('mission', 'במשימה', grouped.mission.length, <Briefcase size={20} className="text-rose-500" weight="bold" />, 'bg-rose-50/50 hover:bg-rose-50', 'border-rose-100')}
                         {isSectionExpanded('mission') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 {grouped.mission.map(r => <PersonCard key={r.person.id} r={r} teamName={getTeamName(r.person.teamId)} />)}
@@ -226,7 +252,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                     </section>
 
                     <section>
-                        {renderSectionHeader('base', 'בבסיס', grouped.base.length, <MapPin size={20} className="text-emerald-600" weight="duotone" />, 'bg-emerald-50/50 hover:bg-emerald-50', 'border-emerald-100')}
+                        {renderSectionHeader('base', 'בבסיס', grouped.base.length, <MapPin size={20} className="text-emerald-600" weight="bold" />, 'bg-emerald-50/50 hover:bg-emerald-50', 'border-emerald-100')}
                         {isSectionExpanded('base') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 {grouped.base.map(r => <PersonCard key={r.person.id} r={r} type="base" teamName={getTeamName(r.person.teamId)} />)}
@@ -236,7 +262,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                     </section>
 
                     <section>
-                        {renderSectionHeader('home', 'בבית', grouped.home.length, <Home size={20} className="text-slate-500" weight="duotone" />, 'bg-slate-50 hover:bg-slate-100', 'border-slate-200')}
+                        {renderSectionHeader('home', 'בבית', grouped.home.length, <Home size={20} className="text-slate-500" weight="bold" />, 'bg-slate-50 hover:bg-slate-100', 'border-slate-200')}
                         {isSectionExpanded('home') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 {grouped.home.map(r => <PersonCard key={r.person.id} r={r} type="home" teamName={getTeamName(r.person.teamId)} />)}
@@ -244,6 +270,17 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                             </div>
                         )}
                     </section>
+
+                    {grouped.inactive.length > 0 && (
+                        <section>
+                            {renderSectionHeader('inactive', 'לא פעילים (בבסיס)', grouped.inactive.length, <User size={20} className="text-slate-400" weight="bold" />, 'bg-slate-100/50 hover:bg-slate-100', 'border-slate-200')}
+                            {isSectionExpanded('inactive') && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {grouped.inactive.map(r => <PersonCard key={r.person.id} r={r} teamName={getTeamName(r.person.teamId)} showStatusBadge />)}
+                                </div>
+                            )}
+                        </section>
+                    )}
                 </div>
             );
         } else if (groupBy === 'team') {
@@ -269,7 +306,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                 className="flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 border-slate-100 bg-white hover:bg-slate-50 cursor-pointer shadow-sm transition-all"
                             >
                                 <div className="flex items-center gap-3">
-                                    <Users size={20} className="text-blue-500" weight="duotone" />
+                                    <Users size={20} className="text-blue-500" weight="bold" />
                                     <span className="text-base">{teamName} <span className="text-slate-400 font-black text-sm ml-1">({members.length})</span></span>
                                 </div>
                                 <ChevronDown
@@ -301,7 +338,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                     <section>
                         <div className="flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 border-slate-100 bg-slate-50/50">
                             <div className="flex items-center gap-3">
-                                <User size={20} className="text-indigo-500" weight="duotone" />
+                                <User size={20} className="text-indigo-500" weight="bold" />
                                 <span className="text-base">רשימה שמית <span className="text-slate-400 font-black text-sm ml-1">({sorted.length})</span></span>
                             </div>
                         </div>
@@ -330,7 +367,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center justify-between w-full md:w-auto">
                         <h2 className="text-xl md:text-2xl font-black text-slate-800 flex items-center gap-2 shrink-0">
-                            <MapPin className="text-emerald-500" size={24} weight="duotone" />
+                            <MapPin className="text-emerald-500" size={24} weight="bold" />
                             דוח מיקום כוחות
                         </h2>
 
@@ -362,27 +399,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                         <div className="w-px h-6 bg-slate-200 mx-1" />
 
                         <ExportButton
-                            onExport={async () => {
-                                let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
-                                reportData.forEach(r => {
-                                    const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
-                                    const team = r.person.teamId || '';
-                                    csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
-                                });
-                                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-                                const link = document.createElement('a');
-                                const url = URL.createObjectURL(blob);
-                                link.setAttribute('href', url);
-                                link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                logger.info('EXPORT', `Exported Location Report to CSV for ${selectedDate.toLocaleDateString('he-IL')}`, {
-                                    date: selectedDate.toISOString().split('T')[0],
-                                    itemCount: reportData.length,
-                                    category: 'data'
-                                });
-                            }}
+                            onExport={handleExportExcel}
                             iconOnly
                             variant="secondary"
                             size="sm"
@@ -415,7 +432,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                             className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
                             title="העתק לווצאפ"
                         >
-                            <Copy size={18} weight="duotone" />
+                            <Copy size={18} weight="bold" />
                         </button>
 
                         <Select
@@ -478,21 +495,8 @@ export const LocationReport: React.FC<LocationReportProps> = ({
             >
                 <div className="flex flex-col gap-2 p-2">
                     <button
-                        onClick={async () => {
-                            let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
-                            reportData.forEach(r => {
-                                const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
-                                const team = r.person.teamId || '';
-                                csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
-                            });
-                            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-                            const link = document.createElement('a');
-                            const url = URL.createObjectURL(blob);
-                            link.setAttribute('href', url);
-                            link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
+                        onClick={() => {
+                            handleExportExcel();
                             setIsActionsMenuOpen(false);
                         }}
                         className="flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors text-right"
@@ -521,7 +525,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                         }}
                         className="flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors text-right"
                     >
-                        <Copy size={20} weight="duotone" className="text-blue-600" />
+                        <Copy size={20} weight="bold" className="text-blue-600" />
                         <span className="font-bold text-slate-800">העתק לווצאפ</span>
                     </button>
 
@@ -593,7 +597,7 @@ const PersonCard: React.FC<PersonCardProps> = ({ r, showStatusBadge = false, tea
                     {r.details}
                 </span>
                 {r.time && r.time !== 'כל היום' && (
-                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 rounded">
+                    <span dir="ltr" className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 rounded">
                         {r.time}
                     </span>
                 )}

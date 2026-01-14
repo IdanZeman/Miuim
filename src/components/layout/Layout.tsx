@@ -19,6 +19,7 @@ interface LayoutProps {
 
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
+import { Footer } from './Footer';
 
 export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, isPublic = false }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -218,8 +219,11 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
         <div className={`${isBattalionMode ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-hero-pattern'} h-32 md:h-40 w-full absolute top-0 left-0 z-0 transition-all shadow-inner`} />
 
         {/* Content Cards Container - Responsive spacing */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 pt-4 md:pt-6 pb-24 md:pb-10 min-h-full">
-          {children}
+        <div className="relative z-10 min-h-full flex flex-col">
+          <div className="flex-1 max-w-7xl mx-auto px-4 pt-4 md:pt-6 w-full">
+            {children}
+          </div>
+          <Footer setView={setView} checkAccess={checkAccess} />
         </div>
       </main>
     </div>

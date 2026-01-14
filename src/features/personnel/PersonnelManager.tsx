@@ -14,6 +14,7 @@ import { ExcelImportWizard } from './ExcelImportWizard';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
+import { PersonEditorModal } from './PersonEditorModal';
 import { ROLE_ICONS } from '../../constants';
 import ExcelJS from 'exceljs';
 import { ExportButton } from '../../components/ui/ExportButton';
@@ -101,10 +102,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     // Form/Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
-
-    // Editing IDs
-    const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
-    const [isPropagating, setIsPropagating] = useState(false); // NEW
     const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
     const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
 
@@ -122,14 +119,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
     const [isSaving, setIsSaving] = useState(false); // NEW: Loading state
 
-    // Form Fields
-    const [newName, setNewName] = useState('');
-    const [newEmail, setNewEmail] = useState('');
-    const [newPhone, setNewPhone] = useState(''); // NEW
-    const [newItemActive, setNewItemActive] = useState(true); // NEW
-    const [newTeamId, setNewTeamId] = useState('');
-    const [newRoleIds, setNewRoleIds] = useState<string[]>([]);
-    const [newCustomFields, setNewCustomFields] = useState<Record<string, any>>({});
+    const [personToEditForModal, setPersonToEditForModal] = useState<Person | null>(null);
+    const [isPersonEditorOpen, setIsPersonEditorOpen] = useState(false);
 
     // Custom Fields Schema
     const [customFieldsSchema, setCustomFieldsSchema] = useState<CustomFieldDefinition[]>([]);
@@ -379,34 +370,18 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     };
 
     const closeForm = () => {
-        setIsModalOpen(false);
         setIsAdding(false);
-        setDuplicateWarning(null);
-        setEditingPersonId(null);
         setEditingTeamId(null);
         setEditingRoleId(null);
-        setNewName('');
-        setNewEmail('');
-        setNewPhone(''); // NEW
-        setNewItemActive(true); // NEW
-        setNewTeamId('');
-        setNewRoleIds([]);
-        setNewCustomFields({});
         setNewItemName('');
         setNewItemIcon('Shield');
+        setNewItemColor('border-slate-500');
+        setIsModalOpen(false);
     };
 
     // -- Handlers --
     const handleEditPersonClick = (person: Person) => {
-        setEditingPersonId(person.id);
-        setNewName(person.name);
-        setNewEmail(person.email || '');
-        setNewPhone(person.phone || ''); // NEW
-        setNewItemActive(person.isActive !== false); // NEW
-        setNewTeamId(person.teamId);
-        setNewRoleIds(person.roleIds || []);
-        setNewCustomFields(person.customFields || {});
-        setIsModalOpen(true);
+        handleEditPerson(person);
     };
 
     const handleEditTeamClick = (team: Team) => {
@@ -465,8 +440,23 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     rows: rows,
                 });
 
+                // Add conditional formatting for status
+                rows.forEach((row, idx) => {
+                    const rowIndex = idx + 2;
+                    const statusCell = worksheet.getCell(`F${rowIndex}`);
+                    const status = row[5]; // status value
+
+                    if (status === 'פעיל') {
+                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                        statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                    } else if (status === 'לא פעיל') {
+                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                        statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                    }
+                });
+
                 worksheet.columns = [
-                    { width: 25 }, { width: 15 }, { width: 30 }, { width: 15 }, { width: 25 }, { width: 12 }
+                    { width: 25 }, { width: 15 }, { width: 30 }, { width: 15 }, { width: 25 }, { width: 15 }
                 ];
                 fileName = `people_export_${new Date().toLocaleDateString('en-CA')}.xlsx`;
             } else if (activeTab === 'teams') {
@@ -603,132 +593,27 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         }
     };
 
-    const executeSavePerson = async () => {
-        // Clean up empty orphaned fields before saving
-        const cleanedCustomFields = { ...newCustomFields };
-        Object.entries(cleanedCustomFields).forEach(([key, value]) => {
-            const inSchema = customFieldsSchema.some(f => f.key === key);
-            if (!inSchema && (value === undefined || value === null || value === "")) {
-                delete cleanedCustomFields[key];
-            }
-        });
 
-        // Specific normalization for phone/email fields in custom data
-        customFieldsSchema.forEach(field => {
-            if (field.type === 'phone' && cleanedCustomFields[field.key]) {
-                cleanedCustomFields[field.key] = formatPhoneNumber(cleanedCustomFields[field.key]);
-            }
-        });
+    const handleEditPerson = (person: Person) => {
+        setPersonToEditForModal(person);
+        setIsPersonEditorOpen(true);
+    };
 
-        const personData: any = {
-            name: newName,
-            email: newEmail,
-            phone: formatPhoneNumber(newPhone),
-            isActive: newItemActive,
-            teamId: newTeamId,
-            roleIds: newRoleIds,
-            customFields: cleanedCustomFields,
-            color: 'bg-blue-500' // Default
-        };
-
-        try {
-            if (editingPersonId) {
-                const person = people.find(p => p.id === editingPersonId);
-                await onUpdatePerson({ ...person, ...personData, id: editingPersonId } as Person);
-                logger.logUpdate('person', editingPersonId, personData.name, person, personData);
-                showToast('החייל עודכן בהצלחה', 'success');
-            } else {
-                const newId = `person-${Date.now()}`;
-                await onAddPerson({ ...personData, id: newId } as Person);
-                logger.logCreate('person', newId, personData.name, personData);
-                showToast('החייל נוסף בהצלחה', 'success');
-            }
-
-            // Custom Field Propagation logic
-            const newKeys = Object.keys(newCustomFields);
-            const originalPerson = editingPersonId ? people.find(p => p.id === editingPersonId) : null;
-            const oldKeys = originalPerson?.customFields ? Object.keys(originalPerson.customFields) : [];
-
-            // Identify keys that are present in the submitted form but were missing in the original person
-            const addedKeys = newKeys.filter(key => !oldKeys.includes(key));
-
-            if (addedKeys.length > 0) {
-                // We have new columns to propagate to everyone else!
-                setIsPropagating(true);
-
-                // IMPORTANT: Only propagate to people in the SAME organization as the person being edited
-                // to prevent leakage across companies in battalion view.
-                const targetOrgId = editingPersonId
-                    ? people.find(p => p.id === editingPersonId)?.organization_id
-                    : organization?.id;
-
-                const peopleToUpdate = people
-                    .filter(p => p.id !== editingPersonId && p.organization_id === targetOrgId)
-                    .map(p => {
-                        const pFields = p.customFields || {};
-                        const missingKeys = addedKeys.filter(k => !Object.prototype.hasOwnProperty.call(pFields, k));
-
-                        // If this person is missing any of the new keys, structure an update
-                        if (missingKeys.length > 0) {
-                            const updatedFields = { ...pFields };
-                            missingKeys.forEach(k => updatedFields[k] = "");
-                            return { ...p, customFields: updatedFields };
-                        }
-                        return null;
-                    })
-                    .filter(Boolean) as Person[];
-
-                if (peopleToUpdate.length > 0) {
-                    // Fire and forget (let it run in background)
-                    onUpdatePeople(peopleToUpdate);
-                }
-                setIsPropagating(false);
-            }
-
-            closeForm();
-        } catch (e: any) {
-            console.error("Save Error", e);
-            showToast(e.message || 'שגיאה בשמירה', 'error');
-            logger.logError(editingPersonId ? 'UPDATE' : 'CREATE', 'Failed to save person', e);
-        } finally {
-            setIsSaving(false);
-        }
+    const handleAddPerson = () => {
+        setPersonToEditForModal(null);
+        setIsPersonEditorOpen(true);
     };
 
     const handleSave = async () => {
-        if (activeTab === 'people') {
-            if (!newName.trim()) { showToast('נא להזין שם', 'error'); return; }
-            if (!newTeamId && teams.length > 0) { showToast('נא לבחור צוות', 'error'); return; }
-
-            // Validate Required Custom Fields
-            for (const field of customFieldsSchema) {
-                const val = newCustomFields[field.key];
-                if (field.required && (val === undefined || val === null || (typeof val === 'string' && val.trim() === ''))) {
-                    showToast(`נא להזין ${field.label}`, 'error');
-                    return;
-                }
-            }
-
-            // Duplicate Check (Manual Creation)
-            if (!editingPersonId) {
-                const dup = people.find(p =>
-                    p.name.trim() === newName.trim() ||
-                    (newEmail && p.email?.toLowerCase() === newEmail.toLowerCase()) ||
-                    (newPhone && p.phone?.replace(/\D/g, '') === newPhone.replace(/\D/g, ''))
-                );
-                if (dup) {
-                    setDuplicateWarning({ person: dup, isOpen: true });
-                    return;
-                }
-            }
-            await executeSavePerson();
+        if (!newItemName.trim()) {
+            showToast(`נא להזין שם ${activeTab === 'teams' ? 'צוות' : 'תפקיד'}`, 'error');
+            return;
         }
-        else if (activeTab === 'teams') {
-            if (!newItemName.trim()) { showToast('נא להזין שם צוות', 'error'); return; }
-            const teamData = { name: newItemName, color: newItemColor };
 
-            setIsSaving(true);
-            try {
+        setIsSaving(true);
+        try {
+            if (activeTab === 'teams') {
+                const teamData = { name: newItemName, color: newItemColor };
                 if (editingTeamId) {
                     await onUpdateTeam({ ...teamData, id: editingTeamId });
                     showToast('הצוות עודכן', 'success');
@@ -736,21 +621,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     await onAddTeam({ ...teamData, id: `team-${Date.now()}` });
                     showToast('הצוות נוצר', 'success');
                 }
-                closeForm();
-            } catch (e: any) {
-                console.error("Team Save Error", e);
-                showToast("שגיאה בשמירת צוות", 'error');
-                logger.error(editingTeamId ? 'UPDATE' : 'CREATE', "Failed to save team", e);
-            } finally {
-                setIsSaving(false);
-            }
-        }
-        else if (activeTab === 'roles') {
-            if (!newItemName.trim()) { showToast('נא להזין שם תפקיד', 'error'); return; }
-            const roleData = { name: newItemName, color: newItemColor, icon: newItemIcon };
-
-            setIsSaving(true);
-            try {
+            } else if (activeTab === 'roles') {
+                const roleData = { name: newItemName, color: newItemColor, icon: newItemIcon };
                 if (editingRoleId) {
                     await onUpdateRole({ ...roleData, id: editingRoleId });
                     showToast('התפקיד עודכן', 'success');
@@ -758,416 +630,32 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     await onAddRole({ ...roleData, id: `role-${Date.now()}` });
                     showToast('התפקיד נוצר', 'success');
                 }
-                closeForm();
-            } catch (e: any) {
-                console.error("Role Save Error", e);
-                showToast("שגיאה בשמירת תפקיד", 'error');
-                logger.error(editingRoleId ? 'UPDATE' : 'CREATE', "Failed to save role", e);
-            } finally {
-                setIsSaving(false);
             }
+            closeForm();
+        } catch (e: any) {
+            console.error("Save Error", e);
+            showToast("שגיאה בשמירה", 'error');
+            logger.error(editingTeamId || editingRoleId ? 'UPDATE' : 'CREATE', "Failed to save", e);
+        } finally {
+            setIsSaving(false);
         }
     };
 
+    const handlePersonSuccess = () => {
+        setIsPersonEditorOpen(false);
+        setPersonToEditForModal(null);
+        // Data should be refetched by the parent since we use props
+    };
+
     const getModalTitle = () => {
-        if (activeTab === 'people') return editingPersonId ? 'עריכת חייל' : 'הוספת חייל חדש';
         if (activeTab === 'teams') return editingTeamId ? 'עריכת צוות' : 'הוספת צוות חדש';
         if (activeTab === 'roles') return editingRoleId ? 'עריכת תפקיד' : 'הוספת תפקיד חדש';
         return '';
     };
 
-
-
-    // Use effect to open modal when state changes if needed, 
-    // but we control it explicitly in click handlers
-    useEffect(() => {
-        if (isAdding) setIsModalOpen(true);
-    }, [isAdding]);
-
-
-    // ...
-
     const renderModalContent = () => {
         if (activeTab === 'people') {
-            return (
-                <div className="space-y-6">
-                    {/* 1. Essential Info Group */}
-                    <div className="space-y-3">
-                        <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">פרטים אישיים</h3>
-                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden divide-y divide-slate-100">
-                            {/* Name */}
-                            <div className="flex items-center px-5 py-4 group">
-                                <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                    <User size={18} weight="duotone" />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">שם מלא</label>
-                                    <input
-                                        value={newName}
-                                        onChange={e => setNewName(e.target.value)}
-                                        placeholder="ישראל ישראלי"
-                                        className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300"
-                                    />
-                                </div>
-                            </div>
-                            {/* Phone */}
-                            <div className="flex items-center px-5 py-4 group">
-                                <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                    <div className="text-sm font-black">#</div>
-                                </div>
-                                <div className="flex-1">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">טלפון</label>
-                                    <input
-                                        value={newPhone}
-                                        onChange={e => setNewPhone(e.target.value)}
-                                        placeholder="050-0000000"
-                                        type="tel"
-                                        className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300"
-                                        dir="ltr"
-                                    />
-                                </div>
-                            </div>
-                            {/* Email */}
-                            <div className="flex items-center px-5 py-4 group">
-                                <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                    <Mail size={18} weight="duotone" />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">אימייל</label>
-                                    <input
-                                        value={newEmail}
-                                        onChange={e => setNewEmail(e.target.value)}
-                                        placeholder="email@example.com"
-                                        type="email"
-                                        className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300"
-                                        dir="ltr"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 2. Team & Status Group */}
-                    <div className="space-y-3">
-                        <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">שיוך וסטטוס</h3>
-                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden divide-y divide-slate-100">
-                            {/* Team Selector */}
-                            <div className="flex items-center px-5 py-4 group bg-white relative">
-                                <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                    <Users size={18} weight="duotone" />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">צוות</label>
-                                    <Select
-                                        value={newTeamId}
-                                        onChange={(val) => setNewTeamId(val)}
-                                        options={sortedTeamsAsc.map(t => ({ value: t.id, label: t.name }))}
-                                        placeholder="בחר צוות"
-                                        className="bg-transparent border-none shadow-none hover:bg-slate-50 pr-0 h-auto py-0 font-bold text-base"
-                                        containerClassName="w-full"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Active Status */}
-                            <div
-                                className="flex items-center justify-between px-5 py-4 cursor-pointer active:bg-slate-50 transition-colors"
-                                onClick={() => setNewItemActive(!newItemActive)}
-                                role="switch"
-                                aria-checked={newItemActive}
-                                aria-label="סטטוס פעיל"
-                                tabIndex={0}
-                                onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setNewItemActive(!newItemActive); } }}
-                            >
-                                <div className="flex items-center">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ml-4 transition-colors ${newItemActive ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-400'}`}>
-                                        <Activity size={18} weight="duotone" />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-black text-slate-900">סטטוס פעיל</div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase">מופיע בחיפושים ושיבוצים</div>
-                                    </div>
-                                </div>
-                                <div className={`w-12 h-6 rounded-full transition-all relative ${newItemActive ? 'bg-green-500' : 'bg-slate-200'}`}>
-                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${newItemActive ? 'left-1' : 'left-7'}`} />
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-
-                    {/* 3. Roles Group */}
-                    <div className="space-y-3">
-                        <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">תפקידים והכשרות</h3>
-                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5">
-                            <div className="flex flex-wrap gap-2.5">
-                                {sortedRolesAsc.map(role => {
-                                    const isSelected = newRoleIds.includes(role.id);
-                                    const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Shield;
-                                    return (
-                                        <button
-                                            key={role.id}
-                                            onClick={() => {
-                                                if (isSelected) setNewRoleIds(newRoleIds.filter(id => id !== role.id));
-                                                else setNewRoleIds([...newRoleIds, role.id]);
-                                            }}
-                                            className={`h-11 px-4 rounded-2xl text-xs font-black border-2 transition-all flex items-center gap-2.5 active:scale-95 ${isSelected
-                                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-md shadow-indigo-100'
-                                                : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'
-                                                }`}
-                                        >
-                                            <Icon size={16} strokeWidth={isSelected ? 3 : 2} className={isSelected ? 'text-indigo-600' : 'text-slate-400'} />
-                                            {role.name}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            {roles.length === 0 && (
-                                <p className="text-xs font-bold text-slate-400 text-center py-4">אין תפקידים מוגדרים במערכת</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* 4. Custom Fields Group - Schema Based */}
-                    <div className="space-y-3">
-                        <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">נתונים נוספים</h3>
-
-                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden p-5 space-y-4">
-                            {customFieldsSchema
-                                .sort((a, b) => (a.order || 0) - (b.order || 0))
-                                .map(field => {
-                                    const value = newCustomFields[field.key];
-
-                                    return (
-                                        <div key={field.key} className="space-y-1.5 group">
-                                            <div className="flex items-center justify-between">
-                                                <label className="block text-xs font-bold text-slate-700">
-                                                    {field.label}
-                                                    {field.required && <span className="text-red-500 mr-1">*</span>}
-                                                </label>
-                                                {canEdit && (
-                                                    <button
-                                                        onClick={() => handleDeleteFieldGlobally(field.key)}
-                                                        className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                        title="מחק שדה מהארגון"
-                                                    >
-                                                        <Trash size={14} weight="bold" />
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {/* Render Input based on Type */}
-                                            {field.type === 'boolean' ? (
-                                                <div
-                                                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors"
-                                                    onClick={() => setNewCustomFields({ ...newCustomFields, [field.key]: !value })}
-                                                >
-                                                    <div className={`w-10 h-6 rounded-full transition-all relative ${value ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-                                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${value ? 'left-1' : 'left-5'}`} />
-                                                    </div>
-                                                    <span className="text-sm font-medium text-slate-600">
-                                                        {value ? 'כן' : 'לא'}
-                                                    </span>
-                                                </div>
-                                            ) : field.type === 'select' ? (
-                                                <Select
-                                                    value={value}
-                                                    onChange={(val) => setNewCustomFields({ ...newCustomFields, [field.key]: val })}
-                                                    options={[
-                                                        { value: '', label: field.placeholder || 'בחר...' },
-                                                        ...(field.options || []).map(opt => ({ value: opt, label: opt }))
-                                                    ]}
-                                                    placeholder={field.placeholder || "בחר..."}
-                                                    className="bg-slate-50 border-slate-200 rounded-xl"
-                                                />
-                                            ) : field.type === 'multiselect' ? (
-                                                <div className="space-y-2">
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {((value as string[]) || []).map((val: string) => (
-                                                            <span key={val} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
-                                                                {val}
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const current = (value as string[]) || [];
-                                                                        setNewCustomFields({
-                                                                            ...newCustomFields,
-                                                                            [field.key]: current.filter(v => v !== val)
-                                                                        });
-                                                                    }}
-                                                                    className="hover:text-red-500"
-                                                                >
-                                                                    <X size={12} weight="bold" />
-                                                                </button>
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                    <select
-                                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20"
-                                                        onChange={(e) => {
-                                                            if (!e.target.value) return;
-                                                            const current = (value as string[]) || [];
-                                                            if (!current.includes(e.target.value)) {
-                                                                setNewCustomFields({
-                                                                    ...newCustomFields,
-                                                                    [field.key]: [...current, e.target.value]
-                                                                });
-                                                            }
-                                                            e.target.value = '';
-                                                        }}
-                                                    >
-                                                        <option value="">{field.placeholder || "הוסף אפשרות..."}</option>
-                                                        {(field.options || []).filter(opt => !((value as string[]) || []).includes(opt)).map(opt => (
-                                                            <option key={opt} value={opt}>{opt}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            ) : field.type === 'textarea' ? (
-                                                <textarea
-                                                    value={value || ''}
-                                                    onChange={(e) => setNewCustomFields({ ...newCustomFields, [field.key]: e.target.value })}
-                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 min-h-[80px]"
-                                                    placeholder={field.placeholder}
-                                                />
-                                            ) : (
-                                                <Input
-                                                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
-                                                    value={value || ''}
-                                                    onChange={(e) => setNewCustomFields({ ...newCustomFields, [field.key]: e.target.value })}
-                                                    placeholder={field.placeholder}
-                                                    className="bg-slate-50 border-slate-200 rounded-xl"
-                                                />
-                                            )}
-
-                                            {field.helpText && (
-                                                <p className="text-[10px] text-slate-400 mr-1">{field.helpText}</p>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-
-                            {/* 2. Orphaned / Legacy Fields (Not in Schema) */}
-                            {Object.entries(newCustomFields || {})
-                                .filter(([key, value]) => {
-                                    const inSchema = customFieldsSchema.some(f => f.key === key);
-                                    if (inSchema) return false;
-                                    // Only show if it has an actual value (even "false" for boolean)
-                                    return value !== undefined && value !== null && value !== "";
-                                })
-                                .map(([key, value]) => (
-                                    <div key={key} className="flex items-center gap-2 group">
-                                        <div className="flex-1">
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5 truncate flex items-center gap-1">
-                                                {key}
-                                                <span className="bg-slate-100 text-slate-500 px-1 py-0.5 rounded text-[8px] font-normal">לא מוגדר</span>
-                                            </label>
-                                            <input
-                                                value={value}
-                                                onChange={(e) => setNewCustomFields({ ...newCustomFields, [key]: e.target.value })}
-                                                className="block w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold shadow-sm"
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                const next = { ...newCustomFields };
-                                                delete next[key];
-                                                setNewCustomFields(next);
-                                            }}
-                                            className="p-2 text-slate-400 hover:text-red-500 transition-colors mt-4 bg-slate-50 rounded-xl"
-                                            title="מחק שדה"
-                                        >
-                                            <Trash size={16} weight="bold" />
-                                        </button>
-                                    </div>
-                                ))
-                            }
-
-                            {/* 3. New Field Creator */}
-                            <div className="pt-4 border-t border-slate-100">
-                                <button
-                                    onClick={() => setIsCreatingField(true)}
-                                    className="w-full py-3 border border-dashed border-slate-300 rounded-xl text-slate-500 text-xs font-bold hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2 group"
-                                >
-                                    <div className="w-6 h-6 rounded-lg bg-white border border-slate-200 flex items-center justify-center group-hover:bg-indigo-50 group-hover:border-indigo-200 transition-colors">
-                                        <Plus size={14} weight="bold" />
-                                    </div>
-                                    <span>הוסף שדה מותאם חדש</span>
-                                </button>
-
-                                <GenericModal
-                                    isOpen={isCreatingField}
-                                    onClose={() => setIsCreatingField(false)}
-                                    title="הגדרת שדה חדש"
-                                    size="sm"
-                                    footer={
-                                        <div className="flex gap-3 w-full">
-                                            <Button
-                                                variant="primary"
-                                                onClick={handleCreateField}
-                                                disabled={!creatingFieldData.label}
-                                                className="flex-1"
-                                            >
-                                                שמור שדה
-                                            </Button>
-                                            <Button
-                                                variant="secondary"
-                                                onClick={() => setIsCreatingField(false)}
-                                                className="flex-1"
-                                            >
-                                                ביטול
-                                            </Button>
-                                        </div>
-                                    }
-                                >
-                                    <div className="space-y-4 py-2">
-                                        <div className="space-y-1.5">
-                                            <label className="text-sm font-bold text-slate-700">שם השדה</label>
-                                            <Input
-                                                placeholder="לדוגמה: מידת נעליים"
-                                                value={creatingFieldData.label}
-                                                onChange={e => setCreatingFieldData({ ...creatingFieldData, label: e.target.value })}
-                                                autoFocus
-                                            />
-                                        </div>
-
-                                        <div className="space-y-1.5">
-                                            <label className="text-sm font-bold text-slate-700">סוג שדה</label>
-                                            <Select
-                                                value={creatingFieldData.type}
-                                                onChange={val => setCreatingFieldData({ ...creatingFieldData, type: val })}
-                                                options={[
-                                                    { value: 'text', label: 'טקסט חופשי' },
-                                                    { value: 'number', label: 'מספר' },
-                                                    { value: 'phone', label: 'טלפון' },
-                                                    { value: 'email', label: 'אימייל' },
-                                                    { value: 'date', label: 'תאריך' },
-                                                    { value: 'boolean', label: 'כן/לא' },
-                                                    { value: 'select', label: 'רשימת בחירה' },
-                                                    { value: 'multiselect', label: 'בחירה מרובה' },
-                                                    { value: 'textarea', label: 'טקסט ארוך' }
-                                                ]}
-                                                className="w-full"
-                                            />
-                                        </div>
-
-                                        {(creatingFieldData.type === 'select' || creatingFieldData.type === 'multiselect') && (
-                                            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
-                                                <label className="text-sm font-bold text-slate-700">אפשרויות בחירה</label>
-                                                <Input
-                                                    placeholder="הפרד בפסיק (דוגמה: S,M,L,XL)"
-                                                    value={creatingFieldData.optionsString}
-                                                    onChange={e => setCreatingFieldData({ ...creatingFieldData, optionsString: e.target.value })}
-                                                />
-                                                <p className="text-[11px] text-slate-400">הזן את הערכים האפשריים מופרדים בפסיקים</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </GenericModal>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="h-6" />
-                </div>
-            );
+            return null; // Handled by PersonEditorModal
         }
 
         return (
@@ -1184,33 +672,35 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">בחירת צבע</h3>
-                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5">
-                        <div className="flex flex-wrap gap-4 justify-center">
-                            {[
-                                { value: 'border-red-500', bg: 'bg-red-500' },
-                                { value: 'border-orange-500', bg: 'bg-orange-500' },
-                                { value: 'border-yellow-500', bg: 'bg-yellow-500' },
-                                { value: 'border-green-500', bg: 'bg-green-500' },
-                                { value: 'border-teal-500', bg: 'bg-teal-500' },
-                                { value: 'border-blue-500', bg: 'bg-blue-500' },
-                                { value: 'border-indigo-500', bg: 'bg-indigo-500' },
-                                { value: 'border-purple-500', bg: 'bg-purple-500' },
-                                { value: 'border-pink-500', bg: 'bg-pink-500' },
-                                { value: 'border-slate-500', bg: 'bg-slate-500' },
-                            ].map((color) => (
-                                <button
-                                    key={color.value}
-                                    onClick={() => setNewItemColor(color.value)}
-                                    className={`w-10 h-10 rounded-2xl ${color.bg} transition-all hover:scale-110 flex items-center justify-center active:scale-90 ${newItemColor === color.value ? 'ring-4 ring-offset-2 ring-indigo-500/20 shadow-lg scale-110' : 'opacity-80'}`}
-                                >
-                                    {newItemColor === color.value && <Check size={20} className="text-white" weight="bold" />}
-                                </button>
-                            ))}
+                {activeTab !== 'roles' && (
+                    <div className="space-y-3">
+                        <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">בחירת צבע</h3>
+                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5">
+                            <div className="flex flex-wrap gap-4 justify-center">
+                                {[
+                                    { value: 'border-red-500', bg: 'bg-red-500' },
+                                    { value: 'border-orange-500', bg: 'bg-orange-500' },
+                                    { value: 'border-yellow-500', bg: 'bg-yellow-500' },
+                                    { value: 'border-green-500', bg: 'bg-green-500' },
+                                    { value: 'border-teal-500', bg: 'bg-teal-500' },
+                                    { value: 'border-blue-500', bg: 'bg-blue-500' },
+                                    { value: 'border-indigo-500', bg: 'bg-indigo-500' },
+                                    { value: 'border-purple-500', bg: 'bg-purple-500' },
+                                    { value: 'border-pink-500', bg: 'bg-pink-500' },
+                                    { value: 'border-slate-500', bg: 'bg-slate-500' },
+                                ].map((color) => (
+                                    <button
+                                        key={color.value}
+                                        onClick={() => setNewItemColor(color.value)}
+                                        className={`w-10 h-10 rounded-2xl ${color.bg} transition-all hover:scale-110 flex items-center justify-center active:scale-90 ${newItemColor === color.value ? 'ring-4 ring-offset-2 ring-indigo-500/20 shadow-lg scale-110' : 'opacity-80'}`}
+                                    >
+                                        {newItemColor === color.value && <Check size={20} className="text-white" weight="bold" />}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 {activeTab === 'roles' && (
                     <div className="space-y-3">
@@ -1237,6 +727,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             </div>
         );
     };
+
 
     const renderCustomFilterInput = () => {
         if (filterCustomField === 'all') return null;
@@ -2063,7 +1554,11 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                             setActiveTab('teams');
                                             return;
                                         }
-                                        setIsAdding(true); setEditingTeamId(null); setEditingPersonId(null); setEditingRoleId(null); setNewItemName(''); setNewName(''); setNewName(''); setNewEmail('');
+                                        if (activeTab === 'people') {
+                                            handleAddPerson();
+                                        } else {
+                                            setIsAdding(true); setIsModalOpen(true); setEditingTeamId(null); setEditingRoleId(null); setNewItemName('');
+                                        }
                                     }}
                                     ariaLabel={`הוסף ${activeTab === 'people' ? 'חייל' : activeTab === 'teams' ? 'צוות' : 'תפקיד'}`}
                                     show={true}
@@ -2133,7 +1628,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         )
                     }
 
-                    {/* Reusable GenericModal for All Forms */}
+                    {/* Reusable GenericModal for Teams and Roles */}
                     <GenericModal
                         isOpen={isModalOpen}
                         onClose={closeForm}
@@ -2164,49 +1659,17 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         </div>
                     </GenericModal>
 
-                    {/* Duplicate Warning Modal */}
-                    <GenericModal
-                        isOpen={!!duplicateWarning?.isOpen}
-                        onClose={() => setDuplicateWarning(null)}
-                        title="התראה: כפילות אפשרית"
-                        size="sm"
-                        footer={(
-                            <div className="flex justify-end gap-3 w-full">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setDuplicateWarning(null)}
-                                    className="border-slate-300 hover:bg-slate-50 flex-1"
-                                >
-                                    ביטול
-                                </Button>
-                                <Button
-                                    onClick={() => {
-                                        setDuplicateWarning(null);
-                                        executeSavePerson();
-                                    }}
-                                    className="bg-amber-500 hover:bg-amber-600 text-white border-transparent flex-1"
-                                >
-                                    צור כפילות
-                                </Button>
-                            </div>
-                        )}
-                    >
-                        <div className="space-y-6">
-                            <div className="flex items-start gap-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                                <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={24} />
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-lg">נמצאה התאמה במערכת</h4>
-                                    <p className="text-slate-600 mt-1 leading-relaxed">
-                                        החייל <strong>{duplicateWarning?.person.name}</strong> כבר קיים אצלנו (זוהה לפי שם, טלפון או אימייל).
-                                    </p>
-                                </div>
-                            </div>
+                    {/* New Person Editor Modal */}
+                    <PersonEditorModal
+                        isOpen={isPersonEditorOpen}
+                        onClose={() => setIsPersonEditorOpen(false)}
+                        person={personToEditForModal}
+                        organizationId={activeOrgId || ''}
+                        teams={teams}
+                        roles={roles}
+                        onSuccess={handlePersonSuccess}
+                    />
 
-                            <p className="text-slate-600 text-lg leading-relaxed">
-                                יצירת כרטיס נוסף תגרום לכפילות נתונים. האם אתם בטוחים שברצונכם להמשיך?
-                            </p>
-                        </div>
-                    </GenericModal>
 
                     <ExcelImportWizard
                         isOpen={isImportWizardOpen}

@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery, keepPreviousData } from '@tanstack/react-query';
 import { fetchBattalion, fetchBattalionCompanies, fetchBattalionPresenceSummary } from '../services/battalionService';
 import { fetchOrganizationData } from '../hooks/useOrganizationData';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
-import { Organization, Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, DailyPresence } from '../types';
+import { Organization, Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, DailyPresence, DailyPresenceSummary } from '../types';
+
+// Global constant for stable empty array reference
+const EMPTY_ARRAY: any[] = [];
 
 /**
  * useBattalionData aggregates data from all organizations within a battalion.
@@ -20,31 +23,41 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
     });
 
     // 1. Fetch battalion companies metadata
-    const { data: companies = [], isLoading: isLoadingCompanies } = useQuery({
+    const { data: companiesData, isLoading: isLoadingCompanies } = useQuery({
         queryKey: ['battalionCompanies', battalionId],
         queryFn: () => fetchBattalionCompanies(battalionId!),
         enabled: !!battalionId,
         staleTime: 1000 * 60 * 30, // Organizations list changes rarely
     });
+    const companies = companiesData ?? EMPTY_ARRAY;
 
     // 2. Fetch specific organization data for each company in parallel
+    const queryOptions = useMemo(() => companies.map(company => ({
+        queryKey: ['organizationData', company.id],
+        queryFn: () => fetchOrganizationData(company.id),
+        staleTime: 1000 * 60 * 5,
+    })), [companies]);
+
     const companyQueries = useQueries({
-        queries: companies.map(company => ({
-            queryKey: ['organizationData', company.id],
-            queryFn: () => fetchOrganizationData(company.id),
-            staleTime: 1000 * 60 * 5,
-        }))
+        queries: queryOptions
     });
 
     const isAnyCompanyLoading = companyQueries.some(q => q.isLoading);
 
     // 3. Fetch Battalion Presence Summary (For the specific date)
-    const { data: presenceSummary = [], isLoading: isLoadingPresence } = useQuery({
+    const { data: presenceSummaryData, isLoading: isLoadingPresence, isFetching: isFetchingPresence } = useQuery({
         queryKey: ['battalionPresence', battalionId, date],
         queryFn: () => fetchBattalionPresenceSummary(battalionId!, date),
         enabled: !!battalionId,
         staleTime: 1000 * 60 * 1, // Presence updates frequently
+        placeholderData: keepPreviousData, // Keep showing previous date's data while fetching new date
     });
+    // Explicitly cast to array or any to avoid 'unknown' type errors if fetch return type isn't generic
+    const presenceSummary = (presenceSummaryData as DailyPresenceSummary[]) ?? EMPTY_ARRAY;
+
+    // Create a stable dependency for the aggregation by checking last update times
+    // This avoids re-running aggregation just because companyQueries array reference changed
+    const companiesDataDeps = companyQueries.map(q => q.dataUpdatedAt).join(',');
 
     // 4. Aggregate all data
     const aggregatedData = useMemo(() => {
@@ -160,12 +173,7 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
             companyStats
         };
 
-        console.log('useBattalionData: Aggregation Complete', {
-            companiesCount: companies.length,
-            peopleCount: people.length,
-            presenceSummaryCount: presenceSummary?.length,
-            computedPresent: totalPresent
-        });
+
 
         return {
             companies,
@@ -186,10 +194,12 @@ export const useBattalionData = (battalionId?: string | null, date?: string) => 
             computedStats,
             battalion
         };
-    }, [companyQueries, companies, isAnyCompanyLoading, presenceSummary, date, battalion]);
+    }, [companiesDataDeps, companies, isAnyCompanyLoading, presenceSummary, date, battalion]); // Depend on data timestamps, not query objects
 
-    return {
+    const finalResult = useMemo(() => ({
         ...aggregatedData,
         isLoading: isLoadingBattalion || isLoadingCompanies || isAnyCompanyLoading || isLoadingPresence
-    };
+    }), [aggregatedData, isLoadingBattalion, isLoadingCompanies, isAnyCompanyLoading, isLoadingPresence]);
+
+    return finalResult;
 };

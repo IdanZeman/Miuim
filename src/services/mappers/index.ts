@@ -75,7 +75,8 @@ export const mapRoleFromDB = (r: any): Role => ({
     id: r.id,
     name: r.name || '',
     color: r.color || 'bg-slate-200',
-    icon: r.icon
+    icon: r.icon,
+    organization_id: r.organization_id
 });
 
 export const mapRoleToDB = (r: Role) => ({

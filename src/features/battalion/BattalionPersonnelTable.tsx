@@ -2,16 +2,149 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useBattalionData } from '../../hooks/useBattalionData';
 import { Person } from '@/types';
-import { MagnifyingGlass as Search, DownloadSimple as Download, CircleNotch as Loader2, User, CaretDown, CaretRight, Users, Eye } from '@phosphor-icons/react';
+import { MagnifyingGlass as Search, DownloadSimple as Download, CircleNotch as Loader2, User, CaretDown, CaretRight, Users, Eye, Plus, PencilSimple as Pencil, Trash, DotsThreeVertical } from '@phosphor-icons/react';
 import { ExportButton } from '../../components/ui/ExportButton';
 import ExcelJS from 'exceljs';
 import { ActionBar } from '../../components/ui/ActionBar';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
+import { PersonEditorModal } from '../personnel/PersonEditorModal';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { useToast } from '../../contexts/ToastContext';
+import { supabase } from '../../services/supabaseClient';
+import { logger } from '../../services/loggingService';
+import { useQueryClient } from '@tanstack/react-query';
+
+// --- Sub-component to avoid code duplication ---
+interface PersonRowProps {
+    person: Person;
+    roles: any[]; // Or stricter type if available
+    presence: { status: string; label: string; class: string; details: string | null };
+    canEdit: boolean;
+    onEdit: (e: React.MouseEvent) => void;
+    onDelete: (e: React.MouseEvent) => void;
+    onClick: () => void;
+    mobileMenuOpen: boolean;
+    onMobileMenuToggle: (e: React.MouseEvent) => void;
+    onMobileMenuClose: (e: React.MouseEvent) => void;
+}
+
+const PersonRow: React.FC<PersonRowProps> = ({
+    person,
+    roles,
+    presence,
+    canEdit,
+    onEdit,
+    onDelete,
+    onClick,
+    mobileMenuOpen,
+    onMobileMenuToggle,
+    onMobileMenuClose
+}) => {
+    // Helper to get role names
+    const personRoleNames = roles.filter(r => person.roleIds?.includes(r.id)).map(r => r.name);
+
+    return (
+        <div
+            className="p-4 pr-12 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer border-b border-slate-50 last:border-0"
+            onClick={onClick}
+        >
+            <div className="flex items-center gap-4 flex-1">
+                <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                    <User size={20} />
+                </div>
+                <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                        <p className="font-black text-slate-900 leading-none">{person.name}</p>
+                    </div>
+                    {personRoleNames.length > 0 && (
+                        <p className="hidden md:block text-xs font-bold text-slate-500 mt-1">
+                            {personRoleNames.join(', ')}
+                        </p>
+                    )}
+                </div>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className={`px-3 py-1.5 rounded-xl text-xs font-black ${presence.class}`}>
+                    {presence.label}
+                </div>
+                {/* Eye icon hidden on mobile */}
+                <Eye size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors hidden md:block" />
+
+                {canEdit && (
+                    <>
+                        {/* Desktop Actions */}
+                        <div className="hidden md:flex items-center gap-1">
+                            <button
+                                onClick={onEdit}
+                                className="p-1.5 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                                title="ערוך חייל"
+                            >
+                                <Pencil size={16} weight="bold" />
+                            </button>
+                            <button
+                                onClick={onDelete}
+                                className="p-1.5 rounded-lg text-slate-300 hover:text-red-600 hover:bg-red-50 transition-all"
+                                title="מחק חייל"
+                            >
+                                <Trash size={16} weight="bold" />
+                            </button>
+                        </div>
+
+                        {/* Mobile Actions Menu */}
+                        <div className="md:hidden relative">
+                            <button
+                                onClick={onMobileMenuToggle}
+                                className={`p-1.5 rounded-lg transition-all ${mobileMenuOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`}
+                            >
+                                <DotsThreeVertical size={20} weight="bold" />
+                            </button>
+
+                            {mobileMenuOpen && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-40 bg-black/5"
+                                        onClick={onMobileMenuClose}
+                                    />
+                                    <div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-xl shadow-xl border border-slate-100 p-1 min-w-[140px] flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
+                                        <button
+                                            onClick={(e) => {
+                                                onEdit(e);
+                                                onMobileMenuClose(e);
+                                            }}
+                                            className="w-full p-2.5 rounded-lg text-right text-sm font-bold text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center gap-3"
+                                        >
+                                            <Pencil size={16} weight="bold" />
+                                            ערוך
+                                        </button>
+                                        <div className="h-px bg-slate-100 mx-1" />
+                                        <button
+                                            onClick={(e) => {
+                                                onDelete(e);
+                                                onMobileMenuClose(e);
+                                            }}
+                                            className="w-full p-2.5 rounded-lg text-right text-sm font-bold text-red-600 hover:bg-red-50 transition-all flex items-center gap-3"
+                                        >
+                                            <Trash size={16} weight="bold" />
+                                            מחק
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
 
 export const BattalionPersonnelTable: React.FC = () => {
-    const { organization } = useAuth();
+    const { organization, checkAccess } = useAuth();
+    const { showToast } = useToast();
+    const canEdit = checkAccess('personnel', 'edit');
+    const queryClient = useQueryClient();
 
     // Optimized Data Hook - Must be first to avoid reference errors
     const {
@@ -20,8 +153,9 @@ export const BattalionPersonnelTable: React.FC = () => {
         teams = [],
         roles = [],
         presenceSummary = [],
-        isLoading
-    } = useBattalionData(organization?.battalion_id);
+        isLoading,
+        refetch
+    } = useBattalionData(organization?.battalion_id) as any;
 
     // UI State - Initialize after data is available
     const [searchTerm, setSearchTerm] = useState('');
@@ -30,40 +164,56 @@ export const BattalionPersonnelTable: React.FC = () => {
     const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
 
-    // Companies start collapsed by default
-    // Users can expand them manually by clicking
+    // -- Management State --
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [personToEdit, setPersonToEdit] = useState<Person | null>(null);
+    const [targetOrgId, setTargetOrgId] = useState<string>('');
+
+    const [personToDelete, setPersonToDelete] = useState<Person | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [mobileMenuPersonId, setMobileMenuPersonId] = useState<string | null>(null);
+
+    // Optimize presence lookup using a Map (O(1) instead of O(N))
+    const presenceMap = useMemo(() => {
+        const map = new Map<string, { status: string; label: string; class: string; details: string | null }>();
+        presenceSummary.forEach((entry: any) => {
+            let label = '';
+            let details = null;
+            let statusClass = 'bg-slate-50 text-slate-400';
+
+            switch (entry.status) {
+                case 'base':
+                    label = 'בבסיס';
+                    statusClass = 'bg-emerald-50 text-emerald-600';
+                    if (entry.arrival_date) details = `הגיע: ${new Date(entry.arrival_date).toLocaleDateString('he-IL')}`;
+                    break;
+                case 'home':
+                    label = 'בבית';
+                    statusClass = 'bg-blue-50 text-blue-600';
+                    if (entry.departure_date) details = `יצא: ${new Date(entry.departure_date).toLocaleDateString('he-IL')}`;
+                    break;
+                case 'sick':
+                    label = 'גימלים';
+                    statusClass = 'bg-rose-50 text-rose-600';
+                    break;
+                case 'leave':
+                    label = 'חופשה';
+                    statusClass = 'bg-indigo-50 text-indigo-600';
+                    break;
+                default:
+                    label = 'לא הוזן';
+            }
+            map.set(entry.person_id, { status: entry.status, label, class: statusClass, details });
+        });
+        return map;
+    }, [presenceSummary]);
 
     const getPersonPresence = (personId: string) => {
-        const entry = presenceSummary.find(p => p.person_id === personId);
-        if (!entry) return { status: 'none', label: 'לא הוזן', class: 'bg-slate-50 text-slate-400', details: null };
-
-        let label = '';
-        let details = null;
-
-        switch (entry.status) {
-            case 'base':
-                label = 'בבסיס';
-                if (entry.arrival_date) {
-                    details = `הגיע: ${new Date(entry.arrival_date).toLocaleDateString('he-IL')}`;
-                }
-                return { status: entry.status, label, class: 'bg-emerald-50 text-emerald-600', details };
-            case 'home':
-                label = 'בבית';
-                if (entry.departure_date) {
-                    details = `יצא: ${new Date(entry.departure_date).toLocaleDateString('he-IL')}`;
-                }
-                return { status: entry.status, label, class: 'bg-blue-50 text-blue-600', details };
-            case 'sick':
-                return { status: entry.status, label: 'גימלים', class: 'bg-rose-50 text-rose-600', details: null };
-            case 'leave':
-                return { status: entry.status, label: 'חופשה', class: 'bg-indigo-50 text-indigo-600', details: null };
-            default:
-                return { status: entry.status, label: 'לא הוזן', class: 'bg-slate-50 text-slate-400', details: null };
-        }
+        return presenceMap.get(personId) || { status: 'none', label: 'לא הוזן', class: 'bg-slate-50 text-slate-400', details: null };
     };
 
     const getPersonRoles = (person: Person) => {
-        return roles.filter(r => person.roleIds?.includes(r.id)).map(r => r.name);
+        return roles.filter((r: any) => person.roleIds?.includes(r.id)).map((r: any) => r.name);
     };
 
     const toggleCompany = (companyId: string) => {
@@ -87,7 +237,7 @@ export const BattalionPersonnelTable: React.FC = () => {
     };
 
     const filteredPeople = useMemo(() => {
-        return people.filter(p => {
+        return people.filter((p: any) => {
             const name = p?.name || '';
             const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesActive = showInactive || p?.isActive !== false;
@@ -100,63 +250,70 @@ export const BattalionPersonnelTable: React.FC = () => {
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('סד"כ גדודי', { views: [{ rightToLeft: true }] });
 
-            // Headers
-            const headers = ['שם מלא', 'פלוגה', 'צוות', 'תפקידים', 'מצב נוכחות', 'פירוט'];
-            const headerRow = worksheet.addRow(headers);
-            headerRow.font = { bold: true };
-            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-            headerRow.eachCell(cell => {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }; // Slate 200
-                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-            });
-
-            // Data
-            filteredPeople.forEach(p => {
-                const org = companies.find(c => c.id === p.organization_id);
-                const team = teams.find(t => t.id === p.teamId);
+            // Data preparation for table
+            const tableRows = filteredPeople.map((p: any) => {
+                const org = companies.find((c: any) => c.id === p.organization_id);
+                const team = teams.find((t: any) => t.id === p.teamId);
                 const personRoles = getPersonRoles(p).join(', ');
                 const presence = getPersonPresence(p.id);
 
-                const row = worksheet.addRow([
+                return [
                     p.name,
                     org?.name || '-',
                     team?.name || '-',
                     personRoles || '-',
                     presence.label,
                     presence.details || '-'
-                ]);
+                ];
+            });
 
-                // Style Status Cell
-                const statusCell = row.getCell(5);
-                statusCell.alignment = { horizontal: 'center' };
-                if (presence.status === 'base') {
-                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // Green
-                    statusCell.font = { color: { argb: 'FF065F46' } };
-                } else if (presence.status === 'home') {
-                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Red
-                    statusCell.font = { color: { argb: 'FF991B1B' } };
-                } else if (presence.status === 'sick') {
-                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE4E6' } }; // Rose
-                    statusCell.font = { color: { argb: 'FFBE123C' } };
-                } else if (presence.status === 'leave') {
-                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } }; // Indigo
-                    statusCell.font = { color: { argb: 'FF3730A3' } };
+            const columns = [
+                { name: 'שם מלא', filterButton: true },
+                { name: 'פלוגה', filterButton: true },
+                { name: 'צוות', filterButton: true },
+                { name: 'תפקידים', filterButton: true },
+                { name: 'מצב נוכחות', filterButton: true },
+                { name: 'פירוט', filterButton: true }
+            ];
+
+            worksheet.addTable({
+                name: 'BattalionPersonnel',
+                ref: 'A1',
+                headerRow: true,
+                style: { theme: 'TableStyleMedium2', showRowStripes: true },
+                columns: columns,
+                rows: tableRows
+            });
+
+            // Style Status Cell
+            tableRows.forEach((rowData, idx) => {
+                const rowIndex = idx + 2;
+                const statusCell = worksheet.getCell(`E${rowIndex}`);
+                const statusLabel = rowData[4];
+
+                if (statusLabel === 'בבסיס') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                    statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                } else if (statusLabel === 'בבית') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                    statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                } else if (statusLabel === 'גימלים') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE4E6' } };
+                    statusCell.font = { color: { argb: 'FFBE123C' }, bold: true };
+                } else if (statusLabel === 'חופשה') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
+                    statusCell.font = { color: { argb: 'FF3730A3' }, bold: true };
                 }
-
-                // General borders
-                row.eachCell(cell => {
-                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                });
             });
 
             // Column Widths
             worksheet.columns = [
-                { width: 20 }, // Name
+                { width: 25 }, // Name
                 { width: 15 }, // Company
                 { width: 15 }, // Team
-                { width: 25 }, // Roles
+                { width: 30 }, // Roles
                 { width: 15 }, // Status
-                { width: 30 }  // Details
+                { width: 35 }  // Details
             ];
 
             const buffer = await workbook.xlsx.writeBuffer();
@@ -170,6 +327,53 @@ export const BattalionPersonnelTable: React.FC = () => {
         } catch (error) {
             console.error('Export Error:', error);
         }
+    };
+
+    const handleDeletePerson = async () => {
+        if (!personToDelete || isDeleting) return;
+
+        setIsDeleting(true);
+        try {
+            const { error } = await supabase
+                .from('people')
+                .delete()
+                .eq('id', personToDelete.id);
+
+            if (error) throw error;
+
+            await logger.logDelete('person', personToDelete.id, personToDelete.name, personToDelete);
+
+            // Close modal immediately
+            setPersonToDelete(null);
+            showToast('החייל נמחק בהצלחה', 'success');
+
+            // Invalidate queries in background (using hook)
+            queryClient.invalidateQueries({ queryKey: ['battalionCompanies'] });
+            queryClient.invalidateQueries({ queryKey: ['organizationData'] });
+            queryClient.invalidateQueries({ queryKey: ['battalionPresence'] });
+
+            // Also call refetch as backup
+            if (refetch) refetch();
+        } catch (err: any) {
+            console.error('Error deleting person:', err);
+            showToast('שגיאה במחיקת חייל', 'error');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleEditPerson = (p: Person, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setPersonToEdit(p);
+        setTargetOrgId(p.organization_id || '');
+        setIsEditorOpen(true);
+    };
+
+    const handleAddPerson = (orgId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setPersonToEdit(null);
+        setTargetOrgId(orgId);
+        setIsEditorOpen(true);
     };
 
     if (isLoading) {
@@ -237,21 +441,34 @@ export const BattalionPersonnelTable: React.FC = () => {
                         return (
                             <div key={company.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                                 {/* Company Header */}
-                                <button
-                                    onClick={() => toggleCompany(company.id)}
-                                    className="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-colors"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        {isExpanded ? <CaretDown size={20} weight="bold" className="text-blue-600" /> : <CaretRight size={20} weight="bold" className="text-slate-400" />}
-                                        <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg shadow-sm">
-                                            {company.name.charAt(0)}
+                                <div className="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-all">
+                                    <button
+                                        onClick={() => toggleCompany(company.id)}
+                                        className="flex items-center gap-4 flex-1 text-right"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            {isExpanded ? <CaretDown size={20} weight="bold" className="text-blue-600" /> : <CaretRight size={20} weight="bold" className="text-slate-400" />}
+                                            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg shadow-sm">
+                                                {company.name.charAt(0)}
+                                            </div>
+                                            <div className="text-right">
+                                                <h3 className="text-xl font-black text-slate-900">{company.name}</h3>
+                                                <p className="text-sm font-bold text-slate-400">{companyPeople.length} חיילים</p>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <h3 className="text-xl font-black text-slate-900">{company.name}</h3>
-                                            <p className="text-sm font-bold text-slate-400">{companyPeople.length} חיילים</p>
-                                        </div>
-                                    </div>
-                                </button>
+                                    </button>
+
+                                    {canEdit && (
+                                        <button
+                                            onClick={(e) => handleAddPerson(company.id, e)}
+                                            className="ml-4 p-3 rounded-2xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all flex items-center gap-2 group/btn"
+                                            title="הוסף חייל לפלוגה"
+                                        >
+                                            <Plus size={18} weight="bold" />
+                                            <span className="max-w-0 overflow-hidden group-hover/btn:max-w-xs transition-all duration-300 font-black text-xs whitespace-nowrap">הוסף חייל</span>
+                                        </button>
+                                    )}
+                                </div>
 
                                 {/* Company Content */}
                                 {isExpanded && (
@@ -281,41 +498,28 @@ export const BattalionPersonnelTable: React.FC = () => {
                                                     {/* Team People */}
                                                     {isTeamExpanded && (
                                                         <div className="bg-slate-50/50 divide-y divide-slate-100">
-                                                            {teamPeople.map(person => {
+                                                            {teamPeople.map((person: any) => {
                                                                 const presence = getPersonPresence(person.id);
-                                                                const personRoles = getPersonRoles(person);
-
                                                                 return (
-                                                                    <div
+                                                                    <PersonRow
                                                                         key={person.id}
-                                                                        className="p-4 pr-16 flex items-center justify-between hover:bg-white transition-colors group cursor-pointer"
+                                                                        person={person}
+                                                                        roles={roles}
+                                                                        presence={presence}
+                                                                        canEdit={canEdit}
+                                                                        onEdit={(e) => handleEditPerson(person, e)}
+                                                                        onDelete={(e) => { e.stopPropagation(); setPersonToDelete(person); }}
                                                                         onClick={() => setSelectedPerson(person)}
-                                                                    >
-                                                                        <div className="flex items-center gap-4 flex-1">
-                                                                            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                                                                                <User size={20} />
-                                                                            </div>
-                                                                            <div className="flex-1">
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <p className="font-black text-slate-900 leading-none">{person.name}</p>
-                                                                                    <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[9px] font-black border border-blue-100/50">
-                                                                                        {companies.find(c => c.id === person.organization_id)?.name}
-                                                                                    </span>
-                                                                                </div>
-                                                                                {personRoles.length > 0 && (
-                                                                                    <p className="text-xs font-bold text-slate-500 mt-1">
-                                                                                        {personRoles.join(', ')}
-                                                                                    </p>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className={`px-3 py-1.5 rounded-xl text-xs font-black ${presence.class}`}>
-                                                                                {presence.label}
-                                                                            </div>
-                                                                            <Eye size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
-                                                                        </div>
-                                                                    </div>
+                                                                        mobileMenuOpen={mobileMenuPersonId === person.id}
+                                                                        onMobileMenuToggle={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setMobileMenuPersonId(mobileMenuPersonId === person.id ? null : person.id);
+                                                                        }}
+                                                                        onMobileMenuClose={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setMobileMenuPersonId(null);
+                                                                        }}
+                                                                    />
                                                                 );
                                                             })}
                                                         </div>
@@ -325,41 +529,28 @@ export const BattalionPersonnelTable: React.FC = () => {
                                         })}
 
                                         {/* People without team */}
-                                        {companyPeople.filter(p => !p.teamId).map(person => {
+                                        {companyPeople.filter(p => !p.teamId).map((person: any) => {
                                             const presence = getPersonPresence(person.id);
-                                            const personRoles = getPersonRoles(person);
-
                                             return (
-                                                <div
+                                                <PersonRow
                                                     key={person.id}
-                                                    className="p-4 pr-12 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer border-b border-slate-50 last:border-0"
+                                                    person={person}
+                                                    roles={roles}
+                                                    presence={presence}
+                                                    canEdit={canEdit}
+                                                    onEdit={(e) => handleEditPerson(person, e)}
+                                                    onDelete={(e) => { e.stopPropagation(); setPersonToDelete(person); }}
                                                     onClick={() => setSelectedPerson(person)}
-                                                >
-                                                    <div className="flex items-center gap-4 flex-1">
-                                                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                                                            <User size={20} />
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="font-black text-slate-900 leading-none">{person.name}</p>
-                                                                <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[9px] font-black border border-blue-100/50">
-                                                                    {companies.find(c => c.id === person.organization_id)?.name}
-                                                                </span>
-                                                            </div>
-                                                            {personRoles.length > 0 && (
-                                                                <p className="text-xs font-bold text-slate-500 mt-1">
-                                                                    {personRoles.join(', ')}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`px-3 py-1.5 rounded-xl text-xs font-black ${presence.class}`}>
-                                                            {presence.label}
-                                                        </div>
-                                                        <Eye size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
-                                                    </div>
-                                                </div>
+                                                    mobileMenuOpen={mobileMenuPersonId === person.id}
+                                                    onMobileMenuToggle={(e) => {
+                                                        e.stopPropagation();
+                                                        setMobileMenuPersonId(mobileMenuPersonId === person.id ? null : person.id);
+                                                    }}
+                                                    onMobileMenuClose={(e) => {
+                                                        e.stopPropagation();
+                                                        setMobileMenuPersonId(null);
+                                                    }}
+                                                />
                                             );
                                         })}
                                     </div>
@@ -477,6 +668,28 @@ export const BattalionPersonnelTable: React.FC = () => {
                     </Modal>
                 )}
             </div>
+
+            {/* Person Editor Modal - Shows only company-specific roles */}
+            <PersonEditorModal
+                isOpen={isEditorOpen}
+                onClose={() => setIsEditorOpen(false)}
+                person={personToEdit}
+                organizationId={targetOrgId}
+                teams={teams.filter(t => t.organization_id === targetOrgId)}
+                roles={roles.filter(r => r.organization_id === targetOrgId)}
+                onSuccess={() => refetch?.()}
+            />
+
+            {/* Delete Confirmation */}
+            <ConfirmationModal
+                isOpen={!!personToDelete}
+                onCancel={() => setPersonToDelete(null)}
+                onConfirm={handleDeletePerson}
+                title="מחיקת חייל"
+                message={`האם אתה בטוח שברצונך למחוק את ${personToDelete?.name}? פעולה זו תמחוק גם את כל היסטוריית הנוכחות והשיבוצים שלו.`}
+                confirmText="מחק חייל"
+                type="danger"
+            />
         </div>
     );
 };

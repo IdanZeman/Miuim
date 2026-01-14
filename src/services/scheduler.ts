@@ -33,9 +33,18 @@ export interface SchedulingSuggestion {
   }[];
 }
 
+export interface SchedulingViolation {
+  type: 'REST_REDUCED' | 'ROLE_MISMATCH' | 'TEAM_MISMATCH';
+  personName: string;
+  taskName: string;
+  startTime: number;
+  details: string;
+}
+
 export interface SchedulingResult {
   shifts: Shift[];
   suggestions: SchedulingSuggestion[];
+  violations: SchedulingViolation[];
 }
 
 interface AlgoTask {
@@ -275,7 +284,8 @@ const findBestCandidates = (
     // Availability/Rest logic
     let restMs = minRestMs;
     if (relaxationLevel === 2) restMs = minRestMs / 2;
-    if (relaxationLevel >= 3) restMs = 0;
+    // Level 3+ usually dropped rest to 0, now we cap it at 50%
+    if (relaxationLevel >= 3) restMs = minRestMs / 2; 
 
     return canFit(u, taskStart, taskEnd, restMs);
   });
@@ -307,6 +317,7 @@ export const solveSchedule = (
   const { people, taskTemplates, shifts, constraints, settings } = currentState;
   console.log('[Scheduler] Solve - IPCs in settings:', settings?.interPersonConstraints);
   const suggestions: SchedulingSuggestion[] = [];
+  const violations: SchedulingViolation[] = [];
 
   const nightStart = settings?.night_shift_start || '21:00';
   const nightEnd = settings?.night_shift_end || '07:00';
@@ -326,7 +337,7 @@ export const solveSchedule = (
     fixedShiftsOnDay = allOnDay.filter(s => !shiftsToSolve.includes(s));
   }
 
-  if (shiftsToSolve.length === 0) return { shifts: [], suggestions: [] };
+  if (shiftsToSolve.length === 0) return { shifts: [], suggestions: [], violations: [] };
 
   const activePeople = people.filter(p => p.isActive !== false);
   const rolePoolCounts = new Map<string, number>();
@@ -407,7 +418,31 @@ export const solveSchedule = (
         }
         selected.forEach(u => {
           task.currentAssignees.push(u.person.id);
-          addToTimeline(u, task.startTime, task.endTime, 'TASK', task.taskId, task.isCritical, !(u.person.roleIds || []).includes(comp.roleId));
+          const isRoleMismatch = !(u.person.roleIds || []).includes(comp.roleId);
+          
+          // Check for rest relaxation violation
+          const hasFullRest = canFit(u, task.startTime, task.endTime, task.minRest * 3600000);
+          if (!hasFullRest) {
+            violations.push({
+              type: 'REST_REDUCED',
+              personName: u.person.name,
+              taskName: taskTemplates.find(t => t.id === task.taskId)?.name || task.taskId,
+              startTime: task.startTime,
+              details: `זמן מנוחה צומצם (מינימום נדרש: ${task.minRest} שעות)`
+            });
+          }
+          if (isRoleMismatch) {
+            const roleName = currentState.roles.find(r => r.id === comp.roleId)?.name || comp.roleId;
+            violations.push({
+              type: 'ROLE_MISMATCH',
+              personName: u.person.name,
+              taskName: taskTemplates.find(t => t.id === task.taskId)?.name || task.taskId,
+              startTime: task.startTime,
+              details: `שובץ ללא תפקיד מתאים (נדרש: ${roleName})`
+            });
+          }
+
+          addToTimeline(u, task.startTime, task.endTime, 'TASK', task.taskId, task.isCritical, isRoleMismatch);
           if (task.minRest > 0) addToTimeline(u, task.endTime, task.endTime + task.minRest * 3600000, 'REST');
           u.loadScore += (task.durationHours * task.difficulty);
           u.shiftsCount++;
@@ -425,6 +460,7 @@ export const solveSchedule = (
 
   return {
     shifts: shiftsToSolve.map(s => ({ ...s, assignedPersonIds: assignmentMap.get(s.id) || [] })),
-    suggestions
+    suggestions,
+    violations
   };
 };

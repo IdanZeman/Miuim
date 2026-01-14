@@ -33,7 +33,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
     useEffect(() => {
         if (isOpen) {
             const date = initialDate || new Date(); // Fallback
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             setStartDate(dateStr);
             setEndDate(dateStr);
             // Select all tasks by default
@@ -74,8 +74,11 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
         // Allow UI to render the spinner before starting the heavy calculation
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        const start = new Date(startDate);
-        const end = mode === 'range' ? new Date(endDate) : new Date(startDate);
+        const [sY, sM, sD] = startDate.split('-').map(Number);
+        const start = new Date(sY, sM - 1, sD);
+
+        const [eY, eM, eD] = (mode === 'range' ? endDate : startDate).split('-').map(Number);
+        const end = new Date(eY, eM - 1, eD);
 
         // Set end of day for the end date
         end.setHours(23, 59, 59, 999);
