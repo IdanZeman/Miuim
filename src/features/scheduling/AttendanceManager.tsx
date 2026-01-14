@@ -713,13 +713,15 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 <ActionBar
                     searchTerm={viewMode !== 'calendar' ? searchTerm : ''}
                     onSearchChange={setSearchTerm}
+                    isSearchExpanded={isSearchExpanded}
+                    onSearchExpandedChange={setIsSearchExpanded}
                     onExport={handleExport}
                     className="p-4"
                     leftActions={
                         <div className="flex items-center gap-4">
                             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
                                 <Calendar className="text-blue-600" size={24} weight="duotone" />
-                                יומן נוכחות
+                                <span className={isSearchExpanded ? 'hidden lg:inline' : 'inline'}>יומן נוכחות</span>
                                 <PageInfo
                                     title="יומן נוכחות"
                                     description={
@@ -749,13 +751,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 <button
                                     key={tab.id}
                                     onClick={() => setViewMode(tab.id as any)}
-                                    className={`px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 ${viewMode === tab.id
+                                    className={`px-3 lg:px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 ${viewMode === tab.id
                                         ? 'bg-white text-blue-600 shadow-sm'
                                         : 'text-slate-500 hover:text-slate-700'
                                         }`}
+                                    title={tab.label}
                                 >
-                                    <tab.icon size={14} weight="duotone" />
-                                    {tab.label}
+                                    <tab.icon size={16} weight="duotone" />
+                                    <span className={isSearchExpanded ? 'hidden' : 'inline'}>{tab.label}</span>
                                 </button>
                             ))}
                         </div>
