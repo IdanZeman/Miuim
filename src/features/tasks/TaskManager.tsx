@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { logger } from '@/services/loggingService';
+import { cn } from '@/lib/utils';
 
 interface TaskManagerProps {
     tasks: TaskTemplate[];
@@ -118,6 +119,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             return;
         }
 
+        if (is247 && segments.length > 1) {
+            showToast('משימה במצב 24/7 יכולה להכיל מקטע אחד בלבד', 'error');
+            return;
+        }
+
         const taskId = editId || crypto.randomUUID();
 
         // Ensure all segments have the correct taskId
@@ -204,7 +210,6 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 </h2>
             </div>
 
-            {/* Task Grid - Cards Layout */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 p-4 md:p-6">
                 {[...tasks].sort((a, b) => a.name.localeCompare(b.name, 'he')).map(task => (
                     <div
@@ -453,6 +458,47 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    {/* Group 2.5: 24/7 Toggle */}
+                    <div className="space-y-3">
+                        <div className={cn(
+                            "bg-white rounded-3xl border transition-all px-5 py-4 flex items-center justify-between cursor-pointer",
+                            is247 ? "border-amber-200 shadow-md shadow-amber-50" : "border-slate-200/60 shadow-sm"
+                        )}
+                            onClick={() => {
+                                if (!is247 && segments.length > 1) {
+                                    showToast('לא ניתן להפעיל מצב 24/7 למשימה עם יותר ממקטע אחד. נא למחוק מקטעים מיותרים קודם.', 'warning');
+                                    return;
+                                }
+                                const newval = !is247;
+                                setIs247(newval);
+                                // Sync existing segment isRepeat if it exists
+                                if (segments.length === 1) {
+                                    setSegments(prev => [{ ...prev[0], isRepeat: newval }]);
+                                }
+                            }}>
+                            <div>
+                                <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <RotateCcw size={18} className={is247 ? "text-amber-500" : "text-slate-400"} weight="bold" />
+                                    מחזור רציף (סבב 24/7)
+                                </div>
+                                <p className="text-[11px] font-bold text-slate-400 mt-1">יצירת רצף משמרות אוטומטי לכל אורך היממה (למשל: ש"ג)</p>
+                            </div>
+                            <div className={cn("w-12 h-7 rounded-full transition-all relative", is247 ? "bg-amber-500" : "bg-slate-200")}>
+                                <div className={cn("absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm", is247 ? "left-1" : "left-6")} />
+                            </div>
+                        </div>
+
+                        {is247 && (
+                            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex gap-3 animate-in fade-in slide-in-from-top-2">
+                                <Info size={20} className="text-amber-600 shrink-0" weight="bold" />
+                                <div className="text-xs text-amber-800 leading-relaxed font-medium">
+                                    <p className="font-bold mb-1">שים לב:</p>
+                                    במצב 24/7 המערכת מייצרת רצף משמרות אוטומטי. לכן, ניתן להגדיר <strong>מקטע אחד בלבד</strong> (למשל: משמרת של 4 שעות שרצה בלופ). המערכת תדאג למלא את כל שעות היממה בהתאם למשך שהגדרת.
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Group 3: Segments */}
