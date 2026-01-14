@@ -3,7 +3,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { fetchBattalion, fetchBattalionCompanies, fetchBattalionPresenceSummary } from '../services/battalionService';
 import { fetchOrganizationData } from '../hooks/useOrganizationData';
 import { getEffectiveAvailability } from '../utils/attendanceUtils';
-import { Organization, Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment } from '../types';
+import { Organization, Person, Team, TeamRotation, Absence, Role, Shift, TaskTemplate, SchedulingConstraint, MissionReport, Equipment, DailyPresence } from '../types';
 
 /**
  * useBattalionData aggregates data from all organizations within a battalion.

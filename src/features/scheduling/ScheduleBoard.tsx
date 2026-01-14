@@ -13,6 +13,7 @@ import { ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText } fro
 import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2 } from '@phosphor-icons/react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
+import { MultiSelect } from '../../components/ui/MultiSelect';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { analytics } from '../../services/analytics';
@@ -339,6 +340,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
     const [selectedReportShiftId, setSelectedReportShiftId] = useState<string | null>(null);
+    const [filterTaskIds, setFilterTaskIds] = useState<string[]>([]); // NEW: Task Filter State
     const selectedShift = useMemo(() => shifts.find(s => s.id === selectedShiftId), [shifts, selectedShiftId]);
     const selectedReportShift = useMemo(() => shifts.find(s => s.id === selectedReportShiftId), [shifts, selectedReportShiftId]);
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(false);
@@ -430,6 +432,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             const day = String(selectedDate.getDate()).padStart(2, '0');
             const dateStr = `${year}-${month}-${day}`;
 
+            // 2. Filter by User Selection
+            if (filterTaskIds.length > 0 && !filterTaskIds.includes(task.id)) {
+                return false;
+            }
+
             if (task.startDate && dateStr < task.startDate) return false;
             if (task.endDate && dateStr > task.endDate) return false;
 
@@ -446,7 +453,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 return false;
             });
         }).sort((a, b) => a.name.localeCompare(b.name, 'he'));
-    }, [taskTemplates, selectedDate]);
+    }, [taskTemplates, selectedDate, filterTaskIds]);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -646,6 +653,17 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     {/* Center/Left: Date Navigation & Actions */}
                     <div className="flex flex-row items-center gap-2 w-full md:w-auto">
 
+                        {/* Task Filter (Desktop) */}
+                        <div className="hidden xl:block w-64 z-50">
+                            <MultiSelect
+                                options={taskTemplates.map(t => ({ value: t.id, label: t.name }))}
+                                value={filterTaskIds}
+                                onChange={setFilterTaskIds}
+                                placeholder="סנן לפי משימות..."
+                                className="bg-white"
+                            />
+                        </div>
+
                         {/* Date Navigation */}
                         <DateNavigator
                             date={selectedDate}
@@ -707,6 +725,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     size="sm"
                                 >
                                     <div className="flex flex-col gap-2">
+                                        <div className="mb-2">
+                                            <span className="text-xs font-bold text-slate-500 mb-1 block">סינון משימות</span>
+                                            <MultiSelect
+                                                options={taskTemplates.map(t => ({ value: t.id, label: t.name }))}
+                                                value={filterTaskIds}
+                                                onChange={setFilterTaskIds}
+                                                placeholder="סנן משימות..."
+                                                className="bg-slate-50 w-full"
+                                            />
+                                        </div>
                                         <button
                                             onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
                                             className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
