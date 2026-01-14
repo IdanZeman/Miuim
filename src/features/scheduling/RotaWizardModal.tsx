@@ -36,12 +36,13 @@ interface RotaWizardModalProps {
     constraints: SchedulingConstraint[];
     absences: Absence[];
     hourlyBlockages: import('@/types').HourlyBlockage[]; // NEW
+    unifiedPresence?: DailyPresence[];
     onSaveRoster?: (data: DailyPresence[]) => void;
 }
 
 
 export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
-    isOpen, onClose, people, teams, roles, tasks, settings, teamRotations, constraints, absences, hourlyBlockages, onSaveRoster
+    isOpen, onClose, people, teams, roles, tasks, settings, teamRotations, constraints, absences, hourlyBlockages, unifiedPresence = [], onSaveRoster
 }) => {
     const queryClient = useQueryClient();
     const activePeople = people.filter(p => p.isActive !== false);
@@ -696,29 +697,25 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     const override = manualOverrides[overrideKey];
 
                     if (override) {
-                        r.status = override.status as any; // Temporary override for sorting/logic
-
                         if (override.status === 'base') {
-                            startTime = '00:00';
-                            endTime = '23:59';
-                            if (override.startTime) startTime = override.startTime;
-                            if (override.endTime) endTime = override.endTime;
+                            r.status = 'full';
+                            startTime = override.startTime || '00:00';
+                            endTime = override.endTime || '23:59';
+                            if (startTime !== '00:00' && endTime !== '23:59') r.status = 'base';
+                            else if (startTime !== '00:00') r.status = 'arrival';
+                            else if (endTime !== '23:59') r.status = 'departure';
                         } else if (override.status === 'home' || override.status === 'unavailable') {
+                            r.status = override.status as any;
                             startTime = '00:00';
                             endTime = '00:00';
                         } else if (override.status === 'arrival') {
-                            r.status = 'base'; // DB status is base
+                            r.status = 'arrival';
                             startTime = override.startTime || userArrivalHour;
                             endTime = '23:59';
                         } else if (override.status === 'departure') {
-                            r.status = 'base'; // DB status is base
+                            r.status = 'departure';
                             startTime = '00:00';
                             endTime = override.endTime || userDepartureHour;
-                        } else if (override.status === 'custom') {
-                            // Should be caught by 'base' usually, but just in case
-                            r.status = 'base';
-                            startTime = override.startTime || '00:00';
-                            endTime = override.endTime || '23:59';
                         }
                     }
 
@@ -754,10 +751,12 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         if (r.status === 'base') {
                             if (!isPrevBase) {
                                 // Arrival Day (First day of Base streak)
+                                r.status = 'arrival';
                                 startTime = userArrivalHour;
                                 endTime = '23:59';
                             } else {
                                 // Full Base
+                                r.status = 'full';
                                 startTime = '00:00';
                                 endTime = '23:59';
                             }
@@ -793,16 +792,16 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         date: r.date,
                         person_id: r.person_id,
                         organization_id: settings.organization_id,
-                        status: r.status === 'base' ? 'base' : (r.status === 'unavailable' ? 'unavailable' : 'home'),
-                        source: override ? 'override' : 'algorithm',
+                        status: r.status as any,
+                        source: override ? 'manual' : 'algorithm',
                         start_time: startTime,
                         end_time: endTime
                     } as DailyPresence);
                 });
             });
 
-            // 1. Bulk Upsert into daily_presence (History)
-            const { error } = await supabase.from('daily_presence').upsert(payload, { onConflict: 'date,person_id,organization_id' });
+            // 1. Bulk Upsert into unified_presence (New Truth)
+            const { error } = await supabase.from('unified_presence').upsert(payload, { onConflict: 'person_id,date' });
 
             if (error) throw error;
 

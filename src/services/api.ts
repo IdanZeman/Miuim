@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
-import { SchedulingConstraint, Absence, Equipment, HourlyBlockage } from '@/types';
-import { mapAbsenceFromDB, mapAbsenceToDB, mapEquipmentFromDB, mapEquipmentToDB, mapHourlyBlockageFromDB, mapHourlyBlockageToDB, mapConstraintFromDB, mapConstraintToDB } from './mappers';
+import { SchedulingConstraint, Absence, Equipment, HourlyBlockage, DailyPresence } from '@/types';
+import { mapAbsenceFromDB, mapAbsenceToDB, mapEquipmentFromDB, mapEquipmentToDB, mapHourlyBlockageFromDB, mapHourlyBlockageToDB, mapConstraintFromDB, mapConstraintToDB, mapUnifiedPresenceToDB } from './mappers';
 
 // Constraints
 export const fetchConstraints = async (organizationId: string): Promise<SchedulingConstraint[]> => {
@@ -88,13 +88,22 @@ export const deleteAbsence = async (id: string) => {
 
     if (error) throw error;
 };
-// Daily Presence
-export const upsertDailyPresence = async (updates: any[]) => {
+// Unified Presence
+export const upsertUnifiedPresence = async (updates: DailyPresence[]) => {
     if (updates.length === 0) return;
 
+    const dbPayloads = updates.map(mapUnifiedPresenceToDB);
     const { error } = await supabase
-        .from('daily_presence')
-        .upsert(updates, { onConflict: 'date,person_id,organization_id' });
+        .from('unified_presence')
+        .upsert(dbPayloads, { onConflict: 'person_id,date' });
+
+    if (error) throw error;
+};
+
+export const updatePresence = async (presence: DailyPresence) => {
+    const { error } = await supabase
+        .from('unified_presence')
+        .upsert(mapUnifiedPresenceToDB(presence), { onConflict: 'person_id,date' });
 
     if (error) throw error;
 };

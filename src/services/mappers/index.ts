@@ -1,4 +1,4 @@
-import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage, MissionReport } from '@/types';
+import { Person, Role, Team, TaskTemplate, Shift, SchedulingConstraint, Absence, Equipment, TeamRotation, HourlyBlockage, MissionReport, DailyPresence } from '@/types';
 
 // --- Mappers (App Types <-> DB Types) ---
 
@@ -284,6 +284,39 @@ export const mapHourlyBlockageFromDB = (dbBlock: any): HourlyBlockage => ({
     end_time: dbBlock.end_time,
     reason: dbBlock.reason,
     created_at: dbBlock.created_at
+});
+
+// Unified Presence
+export const mapUnifiedPresenceFromDB = (db: any): DailyPresence => ({
+    id: db.id,
+    date: db.date,
+    person_id: db.person_id,
+    organization_id: db.organization_id,
+    status: db.status,
+    source: db.source,
+    source_id: db.source_id,
+    start_time: db.start_time,
+    end_time: db.end_time,
+    arrival_date: db.arrival_date,
+    departure_date: db.departure_date,
+    created_at: db.created_at,
+    updated_at: db.updated_at,
+    last_editor_id: db.last_editor_id,
+    last_editor: db.last_editor
+});
+
+export const mapUnifiedPresenceToDB = (p: DailyPresence) => ({
+    id: p.id,
+    date: p.date,
+    person_id: p.person_id,
+    organization_id: p.organization_id,
+    status: p.status,
+    source: p.source,
+    source_id: p.source_id,
+    start_time: p.start_time,
+    end_time: p.end_time,
+    arrival_date: p.arrival_date,
+    departure_date: p.departure_date
 });
 
 export const mapHourlyBlockageToDB = (block: HourlyBlockage) => ({

@@ -20,6 +20,7 @@ export const BattalionAttendanceManager: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [viewDate, setViewDate] = useState(new Date());
     const [searchTerm, setSearchTerm] = useState('');
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [showMoreActions, setShowMoreActions] = useState(false);
     const [selectedPersonForCalendar, setSelectedPersonForCalendar] = useState<Person | null>(null);
 
@@ -32,6 +33,7 @@ export const BattalionAttendanceManager: React.FC = () => {
         absences = [],
         hourlyBlockages = [],
         presenceSummary = [],
+        unifiedPresence = [],
         isLoading
     } = useBattalionData(organization?.battalion_id);
 
@@ -94,7 +96,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                         // Access effective availability for this person/date from Battalion Data
                         // Note: Battalion data might not have full history for everyone if not fetched.
                         // Assuming getEffectiveAvailability can work with provided data.
-                        const avail = getEffectiveAvailability(person, dateObj, teamRotations, absences, hourlyBlockages);
+                        const avail = getEffectiveAvailability(person, dateObj, teamRotations, absences, hourlyBlockages, unifiedPresence);
 
                         let cellText = '';
                         let cellColor = '';
@@ -218,7 +220,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                 sortedPeople.forEach(person => {
                     const companyName = companies.find(c => c.id === person.organization_id)?.name || '-';
                     const teamName = teams.find(t => t.id === person.teamId)?.name || '-';
-                    const avail = getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);
+                    const avail = getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
 
                     const isAtBase = avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
 
@@ -386,6 +388,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 teamRotations={teamRotations}
                                 absences={absences}
                                 hourlyBlockages={hourlyBlockages}
+                                unifiedPresence={unifiedPresence}
                                 onDateClick={handleDateClick}
                                 currentDate={viewDate}
                                 onDateChange={setViewDate}
@@ -416,6 +419,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 teamRotations={teamRotations}
                                 absences={absences}
                                 hourlyBlockages={hourlyBlockages}
+                                unifiedPresence={unifiedPresence}
                                 currentDate={selectedDate}
                                 onDateChange={setSelectedDate}
                                 onSelectPerson={setSelectedPersonForCalendar}
@@ -434,6 +438,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                 <ActionBar
                     searchTerm={viewMode !== 'calendar' ? searchTerm : ''}
                     onSearchChange={setSearchTerm}
+                    onSearchExpandedChange={setIsSearchExpanded}
                     onExport={handleExport}
                     className="p-4"
                     leftActions={
@@ -473,10 +478,10 @@ export const BattalionAttendanceManager: React.FC = () => {
                                     className={`px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 ${viewMode === tab.id
                                         ? 'bg-white text-blue-600 shadow-sm'
                                         : 'text-slate-500 hover:text-slate-700'
-                                        }`}
+                                        } ${isSearchExpanded ? 'px-3' : 'px-5'}`}
                                 >
                                     <tab.icon size={14} weight="duotone" />
-                                    {tab.label}
+                                    {!isSearchExpanded && <span>{tab.label}</span>}
                                 </button>
                             ))}
                         </div>
@@ -503,6 +508,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 teamRotations={teamRotations}
                                 absences={absences}
                                 hourlyBlockages={hourlyBlockages}
+                                unifiedPresence={unifiedPresence}
                                 onDateClick={handleDateClick}
                                 currentDate={viewDate}
                                 onDateChange={setViewDate}
@@ -518,6 +524,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 teamRotations={teamRotations}
                                 absences={absences}
                                 hourlyBlockages={hourlyBlockages}
+                                unifiedPresence={unifiedPresence}
                                 currentDate={viewMode === 'table' ? viewDate : selectedDate}
                                 onDateChange={viewMode === 'table' ? setViewDate : setSelectedDate}
                                 viewMode={viewMode === 'day_detail' ? 'daily' : 'monthly'}
@@ -538,6 +545,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                     person={selectedPersonForCalendar}
                     teamRotations={teamRotations}
                     absences={absences}
+                    unifiedPresence={unifiedPresence}
                     onClose={() => setSelectedPersonForCalendar(null)}
                     onUpdatePerson={() => { }}
                     isViewer={true}

@@ -55,6 +55,7 @@ export interface ScheduleBoardProps {
     settings?: import('../../types').OrganizationSettings | null;
     onRefreshData?: () => void;
     onAutoSchedule?: () => void;
+    unifiedPresence?: DailyPresence[];
 }
 
 // Helper to calculate position based on time
@@ -281,7 +282,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     selectedDate, onDateChange, onSelect, onDelete, isViewer,
     acknowledgedWarnings: propAcknowledgedWarnings, onClearDay, onNavigate, onAssign,
     onUnassign, onAddShift, onUpdateShift, onToggleCancelShift, teamRotations, onRefreshData,
-    absences = [], hourlyBlockages = [], settings = null, onAutoSchedule
+    absences = [], hourlyBlockages = [], settings = null, onAutoSchedule, unifiedPresence = []
 }) => {
     const activePeople = useMemo(() => people.filter(p => p.isActive !== false), [people]);
     const { profile } = useAuth();
@@ -549,7 +550,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 if (!person) return false;
 
                 // Check availability
-                const availability = getEffectiveAvailability(person, selectedDate, teamRotations);
+                const availability = getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
                 if (!availability.isAvailable) return true;
 
                 // Check double booking
@@ -624,11 +625,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                         {/* Availability Badge (Hidden on very small screens if crowded, but useful) */}
                         {!isViewer && (() => {
-                            const dateKey = selectedDate.toLocaleDateString('en-CA');
                             const unavailableCount = activePeople.filter(p => {
-                                // if (p.unavailableDates?.includes(dateKey)) return true; // Removed invalid property
-                                if (p.dailyAvailability?.[dateKey]?.isAvailable === false) return true;
-                                return false;
+                                const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages, unifiedPresence);
+                                return availability.status === 'home';
                             }).length;
                             const availableCount = activePeople.length - unavailableCount;
 
@@ -979,6 +978,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     teamRotations={teamRotations}
                     constraints={constraints}
                     interPersonConstraints={settings?.interPersonConstraints || []}
+                    unifiedPresence={unifiedPresence}
                     isViewer={isViewer}
                     onClose={() => setSelectedShiftId(null)}
                     onAssign={onAssign}
@@ -1029,6 +1029,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     settings={settings}
                     teamRotations={teamRotations}
                     hourlyBlockages={hourlyBlockages}
+                    unifiedPresence={unifiedPresence}
                     onSaveRoster={(roster: DailyPresence[]) => { }}
                 />
             )}

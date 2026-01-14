@@ -46,9 +46,11 @@ import {
     mapTaskFromDB, mapTaskToDB,
     mapConstraintFromDB, mapConstraintToDB,
     mapRotationFromDB, mapRotationToDB,
-    mapAbsenceFromDB, mapAbsenceToDB, // Added imports
+    mapAbsenceFromDB, mapAbsenceToDB,
     mapEquipmentFromDB, mapEquipmentToDB
 } from './services/supabaseClient';
+import { updateAbsence, updatePresence, upsertUnifiedPresence } from './services/api';
+import { DailyPresence } from './types';
 import { solveSchedule, SchedulingSuggestion, SchedulingResult } from './services/scheduler';
 import { fetchUserHistory, calculateHistoricalLoad } from './services/historyService';
 import { FloatingActionButton } from './components/ui/FloatingActionButton';
@@ -186,6 +188,7 @@ const useMainAppState = () => {
         equipment,
         equipmentDailyChecks,
         hourlyBlockages,
+        unifiedPresence,
         isLoading: isOrgLoading,
         error: orgError,
         refetch: refetchOrgData
@@ -208,7 +211,8 @@ const useMainAppState = () => {
         equipment: equipment || [],
         equipmentDailyChecks: equipmentDailyChecks || [],
         settings: settings || null,
-        hourlyBlockages: hourlyBlockages || []
+        hourlyBlockages: hourlyBlockages || [],
+        unifiedPresence: unifiedPresence || []
     };
 
     // Combined Loading Logic
@@ -227,7 +231,25 @@ const useMainAppState = () => {
     // For V1 Performance: We simply invalidate the query to refetch fresh data
     const queryClient = useQueryClient();
     const refreshData = () => {
-        return queryClient.invalidateQueries({ queryKey: ['organizationData', activeOrgId, user?.id] });
+        console.log('🔄 [refreshData] START', {
+            activeOrgId,
+            organizationId: organization?.id,
+            battalionId: organization?.battalion_id
+        });
+
+        // Invalidate broadly so both individual and battalion views refresh
+        queryClient.invalidateQueries({ queryKey: ['organizationData', activeOrgId] });
+        queryClient.invalidateQueries({ queryKey: ['organizationData', organization?.id] });
+
+        console.log('🔄 [refreshData] Invalidated organizationData queries');
+
+        // Also refresh battalion-wide presence summary if in battalion context
+        if (organization?.battalion_id) {
+            queryClient.invalidateQueries({ queryKey: ['battalionPresence', organization.battalion_id] });
+            console.log('🔄 [refreshData] Invalidated battalionPresence query');
+        }
+
+        console.log('🔄 [refreshData] COMPLETE');
     };
 
     const myPerson = React.useMemo(() => {
@@ -367,6 +389,75 @@ const useMainAppState = () => {
             console.warn("DB Update Failed:", e);
             refreshData(); // Revert
             throw e;
+        }
+    };
+
+    const handleUpdatePresence = async (presence: DailyPresence) => {
+        const orgIdForQuery = activeOrgId || organization?.id;
+
+        // Optimistic Update - MUST return completely new objects for React Query to detect changes
+        queryClient.setQueryData(['organizationData', orgIdForQuery, user?.id], (old: any) => {
+            if (!old) return old;
+
+            const currentPresence = old.unifiedPresence || [];
+            const existingIndex = currentPresence.findIndex((up: DailyPresence) =>
+                up.person_id === presence.person_id && up.date === presence.date
+            );
+
+            let newUnifiedPresence;
+            if (existingIndex >= 0) {
+                // Create a NEW array with the updated item
+                newUnifiedPresence = [
+                    ...currentPresence.slice(0, existingIndex),
+                    presence,
+                    ...currentPresence.slice(existingIndex + 1)
+                ];
+            } else {
+                // Create a NEW array with the new item
+                newUnifiedPresence = [...currentPresence, presence];
+            }
+
+            // Return a COMPLETELY NEW object
+            return {
+                ...old,
+                unifiedPresence: newUnifiedPresence
+            };
+        });
+
+        try {
+            await updatePresence(presence);
+            refreshData();
+        } catch (e) {
+            console.error("Presence update failed", e);
+            refreshData(); // Revert
+            throw e;
+        }
+    };
+
+    const handleUpdateMultiplePresence = async (presenceUpdates: DailyPresence[]) => {
+        try {
+            await upsertUnifiedPresence(presenceUpdates);
+            refreshData();
+        } catch (e) {
+            console.error("Bulk presence update failed", e);
+            showToast("שגיאה בעדכון נוכחות", 'error');
+        }
+    };
+
+    const handleDeletePresence = async (personId: string, date: string) => {
+        try {
+            const { error } = await supabase
+                .from('unified_presence')
+                .delete()
+                .eq('person_id', personId)
+                .eq('date', date);
+
+            if (error) throw error;
+            await refreshData();
+            showToast('שינוי ידני נמחק בהצלחה', 'success');
+        } catch (e: any) {
+            console.error('Delete Presence Error:', e);
+            showToast('שגיאה במחיקת שינוי ידני', 'error');
         }
     };
 
@@ -1203,6 +1294,9 @@ const useMainAppState = () => {
                 settings={state.settings}
                 onUpdatePerson={handleUpdatePerson}
                 onUpdatePeople={handleUpdatePeople}
+                onUpdatePresence={handleUpdatePresence}
+                onUpdateMultiplePresence={handleUpdateMultiplePresence}
+                onDeletePresence={handleDeletePresence}
                 onAddRotation={handleAddRotation}
                 onUpdateRotation={handleUpdateRotation}
                 onDeleteRotation={handleDeleteRotation}
@@ -1217,6 +1311,7 @@ const useMainAppState = () => {
                 isViewer={!checkAccess('attendance', 'edit')}
                 initialOpenRotaWizard={autoOpenRotaWizard}
                 onDidConsumeInitialAction={() => setAutoOpenRotaWizard(false)}
+                unifiedPresence={state.unifiedPresence}
             />;
             case 'battalion-home': return <BattalionDashboard setView={setView} />;
             case 'battalion-personnel': return <BattalionPersonnelTable />;
@@ -1224,7 +1319,20 @@ const useMainAppState = () => {
             case 'battalion-settings': return <BattalionSettings />;
             case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} isViewer={!checkAccess('personnel', 'edit')} organizationId={orgIdForActions} />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onDeleteTask={handleDeleteTask} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} isViewer={!checkAccess('tasks', 'edit')} />;
-            case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
+            case 'stats': return <StatsDashboard
+                people={state.people}
+                shifts={state.shifts}
+                tasks={state.taskTemplates}
+                roles={state.roles}
+                teams={state.teams}
+                teamRotations={state.teamRotations}
+                absences={state.absences}
+                hourlyBlockages={state.hourlyBlockages}
+                isViewer={!checkAccess('stats', 'edit')}
+                currentUserEmail={profile?.email}
+                currentUserName={profile?.full_name}
+                unifiedPresence={state.unifiedPresence}
+            />;
             case 'settings': return checkAccess('settings', 'edit') ? <OrganizationSettingsComponent teams={state.teams} /> : <Navigate to="/" />;
             case 'logs': return profile?.is_super_admin ? <AdminLogsViewer /> : <Navigate to="/" />;
             case 'org-logs': return checkAccess('org-logs', 'view') ? <OrganizationLogsViewer limit={100} /> : <Navigate to="/" />;
@@ -1309,6 +1417,7 @@ const useMainAppState = () => {
         scheduleStartDate, isScheduling, handleClearDay, handleNavigate, handleAssign, handleUnassign,
         handleAddShift, handleUpdateShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
         autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
+        handleUpdatePresence, handleUpdateMultiplePresence, handleDeletePresence,
         setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent
     };
 };

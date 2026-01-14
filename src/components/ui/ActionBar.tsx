@@ -39,6 +39,7 @@ interface ActionBarProps {
     isSearchExpandedDefault?: boolean;
     isSearchHidden?: boolean;
     mobileMoreActions?: React.ReactNode;
+    onSearchExpandedChange?: (isExpanded: boolean) => void;
     testId?: string;
 }
 
@@ -56,10 +57,16 @@ export const ActionBar: React.FC<ActionBarProps> = ({
     isSearchExpandedDefault = false,
     isSearchHidden = false,
     mobileMoreActions,
+    onSearchExpandedChange,
     testId
 }) => {
     const [isSearchExpanded, setIsSearchExpanded] = useState(isSearchExpandedDefault || !!searchTerm);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Sync expanded state with parent
+    React.useEffect(() => {
+        onSearchExpandedChange?.(isSearchExpanded || !!searchTerm);
+    }, [isSearchExpanded, searchTerm, onSearchExpandedChange]);
 
     const activeFiltersCount = filters.filter(f => f.value && f.value !== 'all').length;
 

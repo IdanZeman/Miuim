@@ -1,4 +1,4 @@
-import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint, TeamRotation, Absence, InterPersonConstraint } from "../types";
+import { AppState, Person, Shift, TaskTemplate, SchedulingConstraint, TeamRotation, Absence, InterPersonConstraint, DailyPresence } from "../types";
 import { getEffectiveAvailability } from "../utils/attendanceUtils";
 
 // --- Internal Types for the Algorithm ---
@@ -92,7 +92,8 @@ const initializeUsers = (
   roleCounts: Map<string, number>,
   constraints: SchedulingConstraint[] = [],
   teamRotations: TeamRotation[] = [],
-  absences: Absence[] = []
+  absences: Absence[] = [],
+  unifiedPresence: DailyPresence[] = []
 ): AlgoUser[] => {
   console.log(`[InitializeUsers] Processing ${people.length} people for ${targetDate.toLocaleDateString()}`);
 
@@ -120,7 +121,7 @@ const initializeUsers = (
     });
 
     // 2. Availability
-    const avail = getEffectiveAvailability(p, targetDate, teamRotations);
+    const avail = getEffectiveAvailability(p, targetDate, teamRotations, absences, [], unifiedPresence);
     if (avail) {
       if (!avail.isAvailable) {
         addToTimeline(algoUser, targetDate.getTime(), targetDate.getTime() + 24 * 60 * 60 * 1000, 'EXTERNAL_CONSTRAINT', undefined, undefined, undefined, 'availability');
@@ -332,7 +333,7 @@ export const solveSchedule = (
   activePeople.forEach(p => (p.roleIds || []).forEach(rid => rolePoolCounts.set(rid, (rolePoolCounts.get(rid) || 0) + 1)));
   const isRareRole = (roleId: string) => (rolePoolCounts.get(roleId) || 0) <= rareRoleThreshold;
 
-  const algoUsers = initializeUsers(activePeople, startDate, historyScores, [...futureAssignments, ...fixedShiftsOnDay], taskTemplates, shifts, rolePoolCounts, constraints || [], currentState.teamRotations || [], currentState.absences || []);
+  const algoUsers = initializeUsers(activePeople, startDate, historyScores, [...futureAssignments, ...fixedShiftsOnDay], taskTemplates, shifts, rolePoolCounts, constraints || [], currentState.teamRotations || [], currentState.absences || [], currentState.unifiedPresence || []);
 
   const algoTasks: AlgoTask[] = shiftsToSolve.map(s => {
     const template = taskTemplates.find(t => t.id === s.taskId);

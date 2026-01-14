@@ -26,7 +26,8 @@ import {
     Copy,
     XCircle,
     WarningCircle,
-    CalendarBlank as Calendar
+    CalendarBlank as Calendar,
+    List
 } from '@phosphor-icons/react';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
@@ -68,6 +69,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
     const { showToast } = useToast();
     const [viewMode, setViewMode] = useState<'list' | 'verify'>('list');
     const [searchTerm, setSearchTerm] = useState('');
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [filterType, setFilterType] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
 
@@ -300,6 +302,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                     <ActionBar
                         searchTerm={searchTerm}
                         onSearchChange={setSearchTerm}
+                        onSearchExpandedChange={setIsSearchExpanded}
                         onExport={handleExport}
                         isSearchHidden={viewMode !== 'list'}
                         className="sticky top-0 md:top-auto z-40"
@@ -350,18 +353,20 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                     className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-black transition-all ${viewMode === 'list'
                                         ? 'bg-white text-indigo-700 shadow-sm'
                                         : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                                        }`}
+                                        } ${isSearchExpanded ? 'px-3' : 'px-4'}`}
                                 >
-                                    רשימה
+                                    <List size={14} weight="duotone" />
+                                    {!isSearchExpanded && <span>רשימה</span>}
                                 </button>
                                 <button
                                     onClick={() => setViewMode('verify')}
                                     className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-black transition-all ${viewMode === 'verify'
                                         ? 'bg-white text-indigo-700 shadow-sm'
                                         : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-                                        }`}
+                                        } ${isSearchExpanded ? 'px-3' : 'px-4'}`}
                                 >
-                                    בדיקה יומית
+                                    <CheckCircle size={14} weight="duotone" />
+                                    {!isSearchExpanded && <span>בדיקה יומית</span>}
                                 </button>
                             </div>
                         }

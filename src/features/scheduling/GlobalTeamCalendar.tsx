@@ -17,13 +17,15 @@ interface GlobalTeamCalendarProps {
     viewType?: 'grid' | 'table';
     onViewTypeChange?: (type: 'grid' | 'table') => void;
     organizationName?: string;
+    unifiedPresence?: import('@/types').DailyPresence[]; // NEW
 }
 
 export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
     teams, people, teamRotations, absences = [], hourlyBlockages = [],
     onManageTeam, onToggleTeamAvailability, onDateClick,
     currentDate, onDateChange,
-    viewType = 'grid', onViewTypeChange, organizationName
+    viewType = 'grid', onViewTypeChange, organizationName,
+    unifiedPresence = []
 }) => {
     const [selectedTeamIds, setSelectedTeamIds] = useState<Set<string>>(new Set(teams.map(t => t.id)));
     const [showTeamFilter, setShowTeamFilter] = useState(false);
@@ -58,7 +60,7 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
             let presentPeople = 0;
             relevantPeople.forEach(person => {
                 totalPeople++;
-                const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+                const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages, unifiedPresence);
                 if (avail.isAvailable) presentPeople++;
             });
 
