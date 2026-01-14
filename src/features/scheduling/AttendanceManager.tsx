@@ -12,6 +12,7 @@ import { PersonalRotationEditor } from './PersonalRotationEditor';
 import { logger } from '../../services/loggingService';
 import { AttendanceTable } from './AttendanceTable';
 import { BulkAttendanceModal } from './BulkAttendanceModal';
+import { ImportAttendanceModal } from '@/features/scheduling/ImportAttendanceModal';
 import { useToast } from '@/contexts/ToastContext';
 import { RotaWizardModal } from './RotaWizardModal';
 import { PageInfo } from '@/components/ui/PageInfo';
@@ -69,6 +70,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [showRequiredDetails, setShowRequiredDetails] = useState(false); // New State
     const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
     const [showBulkModal, setShowBulkModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
     const [showRotaWizard, setShowRotaWizard] = useState(initialOpenRotaWizard); // Initialize from prop
     const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [showMoreActions, setShowMoreActions] = useState(false);
@@ -617,6 +619,15 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             className="w-9 h-9 rounded-xl"
                             title="ייצוא נתוני נוכחות"
                         />
+                        {!isViewer && (
+                            <button
+                                onClick={() => setShowImportModal(true)}
+                                className="w-9 h-9 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 active:scale-95 transition-all shrink-0"
+                                title="ייבוא מאקסל"
+                            >
+                                <Download size={18} weight="duotone" className="rotate-180" />
+                            </button>
+                        )}
                     </div>
 
                     {/* Date Navigator - Optimized for Mobile */}
@@ -706,6 +717,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     isSearchExpanded={isSearchExpanded}
                     onSearchExpandedChange={setIsSearchExpanded}
                     onExport={handleExport}
+                    isSearchHidden={viewMode === 'calendar'}
                     className="p-4"
                     leftActions={
                         <div className="flex items-center gap-4">
@@ -770,6 +782,16 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 >
                                     <Sparkles size={18} weight="duotone" className="group-hover:text-blue-600 transition-colors" />
                                     <span className="hidden xl:inline">מחולל סבבים</span>
+                                </button>
+                            )}
+
+                            {!isViewer && (
+                                <button
+                                    onClick={() => setShowImportModal(true)}
+                                    className="h-10 px-4 bg-emerald-50/50 text-emerald-600 hover:bg-white hover:text-emerald-700 rounded-xl text-xs font-black transition-all border border-emerald-100 shadow-sm flex items-center gap-2 group"
+                                >
+                                    <Download size={18} weight="duotone" className="group-hover:text-emerald-700 transition-colors rotate-180" />
+                                    <span className="hidden xl:inline">ייבוא מאקסל</span>
                                 </button>
                             )}
 
@@ -890,6 +912,17 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 selectedCount={selectedPersonIds.size}
             />
 
+            {showImportModal && (
+                <ImportAttendanceModal
+                    isOpen={showImportModal}
+                    onClose={() => setShowImportModal(false)}
+                    people={people}
+                    onUpdatePeople={(updates) => {
+                        if (onUpdatePeople) onUpdatePeople(updates);
+                    }}
+                />
+            )}
+
             {showRotaWizard && (
                 <RotaWizardModal
                     isOpen={showRotaWizard}
@@ -908,4 +941,4 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             )}
         </div>
     );
-};
+}; 

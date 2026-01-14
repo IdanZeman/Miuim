@@ -254,8 +254,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                     </div>
                                 </div>
                                 <div className="text-left">
-                                    <span className="text-lg font-black text-slate-300 ml-1">{globalStats.total}</span>
-                                    <span className="text-4xl font-bold text-slate-900 ">/ {globalStats.present}</span>
+                                    <span className="text-4xl font-bold text-slate-900 ml-1">{globalStats.present}</span>
+                                    <span className="text-lg font-black text-slate-300 ">/ {globalStats.total}</span>
                                 </div>
                             </div>
 
@@ -592,7 +592,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     `}
                                                     dir="ltr"
                                                 >
-                                                    {present} / {total}
+                                                    {total} / {present}
                                                 </div>
                                             );
                                         })}
@@ -646,7 +646,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     ${isFull ? 'text-emerald-700 bg-emerald-50/30' : isEmpty ? 'text-slate-400' : 'text-amber-700 bg-amber-50/30'}
                                                                 `}
                                                             >
-                                                                {present} / {total}
+                                                                {total} / {present}
                                                             </div>
                                                         );
                                                     })}
