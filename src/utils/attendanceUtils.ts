@@ -100,7 +100,7 @@ export const getEffectiveAvailability = (
             unavailableBlocks = [...unavailableBlocks, ...manual.unavailableBlocks];
         }
 
-        return { ...manual, status, source: manual.source || 'manual', unavailableBlocks };
+        return { ...manual, status, source: manual.source || 'manual', unavailableBlocks, homeStatusType: manual.homeStatusType };
     }
 
     // Default return structure
@@ -125,7 +125,8 @@ export const getEffectiveAvailability = (
         endHour: '23:59',
         status: derivedStatus,
         source: fullDayAbsence ? 'absence' : 'default',
-        unavailableBlocks
+        unavailableBlocks,
+        homeStatusType: undefined as import('@/types').HomeStatusType | undefined
     };
 
     // 2. Personal Rotation
@@ -147,10 +148,10 @@ export const getEffectiveAvailability = (
             // Rotation usually is base. Absences override rotation.
             // If result (absence) says unavailable, that wins.
             if (result.isAvailable) {
-                if (dayInCycle === 0) result = { ...result, status: 'arrival', source: 'personal_rotation' };
-                else if (dayInCycle < daysOn - 1) result = { ...result, status: 'full', source: 'personal_rotation' };
-                else if (dayInCycle === daysOn - 1) result = { ...result, status: 'departure', source: 'personal_rotation' };
-                else result = { ...result, isAvailable: false, status: 'home', source: 'personal_rotation' };
+                if (dayInCycle === 0) result = { ...result, status: 'arrival', source: 'personal_rotation', homeStatusType: undefined };
+                else if (dayInCycle < daysOn - 1) result = { ...result, status: 'full', source: 'personal_rotation', homeStatusType: undefined };
+                else if (dayInCycle === daysOn - 1) result = { ...result, status: 'departure', source: 'personal_rotation', homeStatusType: undefined };
+                else result = { ...result, isAvailable: false, status: 'home', source: 'personal_rotation', homeStatusType: undefined };
             }
         }
     }
@@ -161,8 +162,8 @@ export const getEffectiveAvailability = (
         if (rotation) {
             const rotStatus = getRotationStatusForDate(date, rotation);
             if (rotStatus && result.isAvailable) { // Only apply if not already marked unavailable by absence
-                if (rotStatus === 'home') result = { ...result, isAvailable: false, startHour: '00:00', endHour: '00:00', status: rotStatus, source: 'rotation' };
-                else result = { ...result, isAvailable: true, startHour: '00:00', endHour: '23:59', status: rotStatus, source: 'rotation' };
+                if (rotStatus === 'home') result = { ...result, isAvailable: false, startHour: '00:00', endHour: '00:00', status: rotStatus, source: 'rotation', homeStatusType: undefined };
+                else result = { ...result, isAvailable: true, startHour: '00:00', endHour: '23:59', status: rotStatus, source: 'rotation', homeStatusType: undefined };
             }
         }
     }

@@ -3,9 +3,10 @@ import { ArrowRight, Plus, Trash, CalendarBlank as CalendarIcon, House, Building
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { logger } from '@/services/loggingService';
-import { AvailabilitySlot } from '@/types';
+import { AvailabilitySlot, HomeStatusType } from '@/types';
 import { TimePicker } from '@/components/ui/DatePicker';
 import { Input } from '@/components/ui/Input';
+import { HomeStatusSelector } from '@/components/ui/HomeStatusSelector';
 
 interface StatusEditModalProps {
     isOpen: boolean;
@@ -13,7 +14,7 @@ interface StatusEditModalProps {
     personName?: string;
     currentAvailability?: AvailabilitySlot;
     onClose: () => void;
-    onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => void;
+    onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: HomeStatusType) => void;
     defaultArrivalHour?: string;
     defaultDepartureHour?: string;
     disableJournal?: boolean;
@@ -29,6 +30,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     const [mainStatus, setMainStatus] = useState<'base' | 'home'>('base');
     const [customStart, setCustomStart] = useState(defaultArrivalHour);
     const [customEnd, setCustomEnd] = useState(defaultDepartureHour);
+    const [homeStatusType, setHomeStatusType] = useState<HomeStatusType>('leave_shamp'); // Default to leave_shamp
 
     // Blocks State
     const [unavailableBlocks, setUnavailableBlocks] = useState<{ id: string, start: string, end: string, reason?: string, type?: string }[]>([]);
@@ -49,6 +51,13 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                 setMainStatus('home');
             } else {
                 setMainStatus('base');
+            }
+
+            // Home Status Type
+            if (currentAvailability.homeStatusType) {
+                setHomeStatusType(currentAvailability.homeStatusType);
+            } else {
+                setHomeStatusType('leave_shamp'); // Default
             }
 
             // Times & Type
@@ -77,6 +86,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             setMainStatus('base');
             setUnavailableBlocks([]);
             setCustomType(null);
+            setHomeStatusType('leave_shamp'); // Default
         }
     }, [currentAvailability, isOpen, defaultArrivalHour, defaultDepartureHour]);
 
@@ -98,12 +108,13 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
         // Log the change
         const isCheckIn = mainStatus === 'base' && customType === null;
         logger.info(isCheckIn ? 'CHECK_IN' : 'UPDATE',
-            `${personName}: Updated status to ${mainStatus}${customType ? ` (${customType})` : ''} for ${date}`,
+            `${personName}: Updated status to ${mainStatus}${customType ? ` (${customType})` : ''}${mainStatus === 'home' ? ` - ${homeStatusType}` : ''} for ${date}`,
             {
                 personName,
                 date,
                 status: mainStatus,
                 type: customType,
+                homeStatusType: mainStatus === 'home' ? homeStatusType : undefined,
                 start: finalStart,
                 end: finalEnd,
                 blocksCount: unavailableBlocks.length,
@@ -111,7 +122,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             }
         );
 
-        onApply(mainStatus, { start: finalStart, end: finalEnd }, unavailableBlocks);
+        onApply(mainStatus, { start: finalStart, end: finalEnd }, unavailableBlocks, mainStatus === 'home' ? homeStatusType : undefined);
     };
 
     const addOrUpdateBlock = () => {
@@ -317,7 +328,18 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                             </button>
                         </div>
 
-                        {/* 2. Time Cards (if Base) - Premium Design */}
+                        {/* 2. Home Status Type Selector (if Home) */}
+                        {mainStatus === 'home' && (
+                            <div className="animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
+                                <HomeStatusSelector
+                                    value={homeStatusType}
+                                    onChange={setHomeStatusType}
+                                    required={true}
+                                />
+                            </div>
+                        )}
+
+                        {/* 3. Time Cards (if Base) - Premium Design */}
                         {mainStatus === 'base' && (
                             <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
                                 <button
@@ -345,7 +367,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
 
                         <div className="h-px bg-slate-100 mx-4" />
 
-                        {/* 3. Daily Agenda / Blocks */}
+                        {/* 4. Daily Agenda / Blocks */}
                         {mainStatus === 'base' && !disableJournal && renderTimeline()}
                     </>
                 ) : (

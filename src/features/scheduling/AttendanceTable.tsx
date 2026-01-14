@@ -16,7 +16,7 @@ interface AttendanceTableProps {
     currentDate: Date;
     onDateChange: (date: Date) => void;
     onSelectPerson: (person: Person) => void;
-    onUpdateAvailability?: (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => void;
+    onUpdateAvailability?: (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType) => void;
     viewMode?: 'daily' | 'monthly'; // New control prop
     className?: string; // Allow parent styling for mobile sheet integration
     isViewer?: boolean; // NEW: Security prop
@@ -104,11 +104,11 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         logger.info('CLICK', `Opened attendance status editor for ${person.name} on ${dateStr}`, { personId: person.id, date: dateStr });
     };
 
-    const handleApplyStatus = (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[]) => {
+    const handleApplyStatus = (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType) => {
         if (!editingCell || !onUpdateAvailability) return;
         // Map 'unavailable' status (legacy) to 'home' or maintain compatibility if needed, 
         // but typically the modal now controls 'base' vs 'home'.
-        onUpdateAvailability(editingCell.personId, editingCell.date, status, customTimes, unavailableBlocks);
+        onUpdateAvailability(editingCell.personId, editingCell.date, status, customTimes, unavailableBlocks, homeStatusType);
         setEditingCell(null);
     };
 
@@ -299,8 +299,18 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             }
                                                         }
                                                     } else if (avail.status === 'home') {
+                                                        // Get home status type label
+                                                        const homeStatusLabels: Record<string, string> = {
+                                                            'leave_shamp': 'חופשה בשמפ',
+                                                            'gimel': 'ג\'',
+                                                            'absent': 'נפקד',
+                                                            'organization_days': 'ימי התארגנות',
+                                                            'not_in_shamp': 'לא בשמ"פ'
+                                                        };
+                                                        const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : 'חופשה בשמפ';
+
                                                         statusConfig = {
-                                                            label: 'בבית',
+                                                            label: homeTypeLabel,
                                                             bg: 'bg-red-50 text-red-600 ring-1 ring-red-100',
                                                             dot: 'bg-red-500',
                                                             icon: Home
@@ -678,10 +688,27 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         themeColor = "bg-red-400";
                                                                         const isConstraint = avail.status === 'unavailable';
 
+                                                                        // Get home status type label
+                                                                        const homeStatusLabels: Record<string, string> = {
+                                                                            'leave_shamp': 'חופשה בשמפ',
+                                                                            'gimel': 'ג\'',
+                                                                            'absent': 'נפקד',
+                                                                            'organization_days': 'ימי התארגנות',
+                                                                            'not_in_shamp': 'לא בשמ"פ'
+                                                                        };
+                                                                        const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : undefined;
+                                                                        // Show default 'חופשה בשמפ' for home status without explicit type
+                                                                        const displayHomeType = !isConstraint && avail.status === 'home'
+                                                                            ? (homeTypeLabel || 'חופשה בשמפ')
+                                                                            : undefined;
+
                                                                         content = (
                                                                             <div className="flex flex-col items-center justify-center gap-0.5">
                                                                                 <Home size={14} className="text-red-300" weight="duotone" />
                                                                                 <span className="text-[10px] font-black">{isConstraint ? 'אילוץ' : 'בית'}</span>
+                                                                                {displayHomeType && (
+                                                                                    <span className="text-[8px] font-bold text-red-500/70 leading-tight">{displayHomeType}</span>
+                                                                                )}
                                                                                 {constraintText}
                                                                             </div>
                                                                         );
