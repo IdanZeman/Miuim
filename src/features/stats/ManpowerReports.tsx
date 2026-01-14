@@ -187,7 +187,8 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
             worksheet.eachRow((row, rowNumber) => {
                 if (rowNumber === 1) return;
                 const statusCell = row.getCell(columns.length);
-                const statusVal = statusCell.value;
+                const statusVal = statusCell.value?.toString() || '';
+
                 if (statusVal === 'בבית') {
                     statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
                     statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
@@ -195,6 +196,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                     statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
                     statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
                 }
+                statusCell.alignment = { horizontal: 'center' };
             });
 
             worksheet.columns = [{ width: 15 }, { width: 25 }, { width: 20 }, ...roles.map(() => ({ width: 12 })), { width: 15 }];

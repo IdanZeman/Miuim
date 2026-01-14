@@ -439,8 +439,23 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     rows: rows,
                 });
 
+                // Add conditional formatting for status
+                rows.forEach((row, idx) => {
+                    const rowIndex = idx + 2;
+                    const statusCell = worksheet.getCell(`F${rowIndex}`);
+                    const status = row[5]; // status value
+
+                    if (status === 'פעיל') {
+                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                        statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                    } else if (status === 'לא פעיל') {
+                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                        statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                    }
+                });
+
                 worksheet.columns = [
-                    { width: 25 }, { width: 15 }, { width: 30 }, { width: 15 }, { width: 25 }, { width: 12 }
+                    { width: 25 }, { width: 15 }, { width: 30 }, { width: 15 }, { width: 25 }, { width: 15 }
                 ];
                 fileName = `people_export_${new Date().toLocaleDateString('en-CA')}.xlsx`;
             } else if (activeTab === 'teams') {

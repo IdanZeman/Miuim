@@ -1098,46 +1098,31 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 views: [{ rightToLeft: true }]
             });
 
-            // 1. Headers
-            const headers = ['שם', 'צוות'];
+            // 1. Headers & Date Keys
             const start = new Date(startDate);
             const end = new Date(endDate);
             const dateKeys: string[] = [];
+            const tableColumns = [
+                { name: 'שם', filterButton: true },
+                { name: 'צוות', filterButton: true }
+            ];
 
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                 const dateKey = d.toLocaleDateString('en-CA');
                 dateKeys.push(dateKey);
-                headers.push(d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }));
+                tableColumns.push({ name: d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }), filterButton: true });
             }
-            headers.push('סיכום (בסיס/בית)');
+            tableColumns.push({ name: 'סיכום (בסיס/בית)', filterButton: true });
 
-            const headerRow = worksheet.addRow(headers);
-            headerRow.font = { bold: true, size: 12 };
-            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-            headerRow.eachCell((cell) => {
-                cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFE2E8F0' } // Slate 200
-                };
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-            });
-
-            // 2. Rows
-            people
+            // 2. Data Rows
+            const tableRows = people
                 .filter(p => selectedTeamId === 'all' || String(p.teamId) === String(selectedTeamId))
-                .forEach(p => {
+                .map(p => {
                     const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא';
-                    const rowValues = [p.name, teamName];
                     let baseCount = 0;
                     let homeCount = 0;
 
-                    dateKeys.forEach((dateKey, idx) => {
+                    const presenceValues = dateKeys.map((dateKey, idx) => {
                         const override = manualOverrides[`${p.id}-${dateKey}`];
                         let cellVal = 'בבסיס';
                         let status = result.personStatuses?.[dateKey]?.[p.id] || 'base';
@@ -1164,7 +1149,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                 if (prevStatus === 'base') cellVal = `יציאה (${userDepartureHour})`;
                                 else cellVal = 'בית';
                             } else if (status === 'unavailable') {
-                                cellVal = 'בית (אילוץ)';
+                                cellVal = 'אילוץ';
                             } else if (status === 'base') {
                                 const prevKey = idx > 0 ? dateKeys[idx - 1] : null;
                                 let prevStatus = 'home';
@@ -1186,40 +1171,48 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         if (status === 'home' || status === 'unavailable' || cellVal.startsWith('יציאה')) homeCount++;
                         else baseCount++;
 
-                        rowValues.push(cellVal);
+                        return cellVal;
                     });
 
-                    rowValues.push(`${baseCount} / ${homeCount}`);
-                    const row = worksheet.addRow(rowValues);
-
-                    // Style the cells
-                    row.eachCell((cell, colNumber) => {
-                        cell.border = {
-                            top: { style: 'thin' },
-                            left: { style: 'thin' },
-                            bottom: { style: 'thin' },
-                            right: { style: 'thin' }
-                        };
-
-                        if (colNumber > 2 && colNumber < rowValues.length) {
-                            const val = cell.value?.toString() || '';
-                            if (val.startsWith('בית') || val.startsWith('אילוץ')) {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Red 100
-                                cell.font = { color: { argb: 'FF991B1B' } }; // Red 800
-                            } else if (val.startsWith('יציאה') || val.startsWith('הגעה')) {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } }; // Amber 100
-                                cell.font = { color: { argb: 'FF92400E' } }; // Amber 800
-                            } else if (val.startsWith('בסיס') || val.startsWith('בבסיס')) {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // Emerald 100
-                                cell.font = { color: { argb: 'FF065F46' } }; // Emerald 800
-                            }
-                        }
-                    });
+                    return [p.name, teamName, ...presenceValues, `${baseCount} / ${homeCount}`];
                 });
+
+            worksheet.addTable({
+                name: 'RotaWizardExport',
+                ref: 'A1',
+                headerRow: true,
+                style: { theme: 'TableStyleMedium2', showRowStripes: true },
+                columns: tableColumns,
+                rows: tableRows
+            });
+
+            // 3. Style Specific Cells
+            tableRows.forEach((row, rowIdx) => {
+                const rowIndex = rowIdx + 2;
+                row.forEach((cellVal, colIdx) => {
+                    const colNumber = colIdx + 1;
+                    if (colNumber > 2 && colNumber < row.length) {
+                        const cell = worksheet.getCell(rowIndex, colNumber);
+                        const val = cellVal?.toString() || '';
+
+                        if (val.includes('בית') || val.includes('אילוץ')) {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                            cell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                        } else if (val.includes('יציאה') || val.includes('הגעה')) {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                            cell.font = { color: { argb: 'FF92400E' }, bold: true };
+                        } else if (val.includes('בסיס') || val.includes('בבסיס')) {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                            cell.font = { color: { argb: 'FF065F46' }, bold: true };
+                        }
+                        cell.alignment = { horizontal: 'center' };
+                    }
+                });
+            });
 
             // Column Widths
             worksheet.columns = [
-                { width: 20 }, // Name
+                { width: 25 }, // Name
                 { width: 15 }, // Team
                 ...dateKeys.map(() => ({ width: 15 })), // Dates
                 { width: 18 }  // Summary

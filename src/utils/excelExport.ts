@@ -120,7 +120,7 @@ export const generateLocationReportExcel = async (
             return [row.name, row.team, row.status, row.details, row.time];
         });
 
-        worksheet.addTable({
+        const table = worksheet.addTable({
             name: 'LocationReportTable',
             ref: 'A1',
             headerRow: true,
@@ -131,6 +131,28 @@ export const generateLocationReportExcel = async (
             },
             columns: tableColumns,
             rows: tableRows
+        });
+
+        // Apply formatting to cells based on status
+        const statusColIndex = isBattalionReport ? 3 : 3; // Column C for both
+        tableRows.forEach((rowData, index) => {
+            const rowIndex = index + 2; // +1 for header, +1 for 1-based index
+            const statusCell = worksheet.getCell(rowIndex, statusColIndex);
+            const statusValue = rowData[statusColIndex - 1];
+
+            if (statusValue === 'בבסיס') {
+                statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+            } else if (statusValue === 'בבית') {
+                statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+            } else if (statusValue === 'במשימה') {
+                statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+                statusCell.font = { color: { argb: 'FF1E40AF' }, bold: true };
+            } else if (statusValue === 'לא פעיל') {
+                statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+                statusCell.font = { color: { argb: 'FF475569' }, bold: true };
+            }
         });
     }
 

@@ -250,63 +250,70 @@ export const BattalionPersonnelTable: React.FC = () => {
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('סד"כ גדודי', { views: [{ rightToLeft: true }] });
 
-            // Headers
-            const headers = ['שם מלא', 'פלוגה', 'צוות', 'תפקידים', 'מצב נוכחות', 'פירוט'];
-            const headerRow = worksheet.addRow(headers);
-            headerRow.font = { bold: true };
-            headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-            headerRow.eachCell(cell => {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }; // Slate 200
-                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-            });
-
-            // Data
-            filteredPeople.forEach((p: any) => {
+            // Data preparation for table
+            const tableRows = filteredPeople.map((p: any) => {
                 const org = companies.find((c: any) => c.id === p.organization_id);
                 const team = teams.find((t: any) => t.id === p.teamId);
                 const personRoles = getPersonRoles(p).join(', ');
                 const presence = getPersonPresence(p.id);
 
-                const row = worksheet.addRow([
+                return [
                     p.name,
                     org?.name || '-',
                     team?.name || '-',
                     personRoles || '-',
                     presence.label,
                     presence.details || '-'
-                ]);
+                ];
+            });
 
-                // Style Status Cell
-                const statusCell = row.getCell(5);
-                statusCell.alignment = { horizontal: 'center' };
-                if (presence.status === 'base') {
-                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } }; // Green
-                    statusCell.font = { color: { argb: 'FF065F46' } };
-                } else if (presence.status === 'home') {
-                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Red
-                    statusCell.font = { color: { argb: 'FF991B1B' } };
-                } else if (presence.status === 'sick') {
-                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE4E6' } }; // Rose
-                    statusCell.font = { color: { argb: 'FFBE123C' } };
-                } else if (presence.status === 'leave') {
-                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } }; // Indigo
-                    statusCell.font = { color: { argb: 'FF3730A3' } };
+            const columns = [
+                { name: 'שם מלא', filterButton: true },
+                { name: 'פלוגה', filterButton: true },
+                { name: 'צוות', filterButton: true },
+                { name: 'תפקידים', filterButton: true },
+                { name: 'מצב נוכחות', filterButton: true },
+                { name: 'פירוט', filterButton: true }
+            ];
+
+            worksheet.addTable({
+                name: 'BattalionPersonnel',
+                ref: 'A1',
+                headerRow: true,
+                style: { theme: 'TableStyleMedium2', showRowStripes: true },
+                columns: columns,
+                rows: tableRows
+            });
+
+            // Style Status Cell
+            tableRows.forEach((rowData, idx) => {
+                const rowIndex = idx + 2;
+                const statusCell = worksheet.getCell(`E${rowIndex}`);
+                const statusLabel = rowData[4];
+
+                if (statusLabel === 'בבסיס') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                    statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                } else if (statusLabel === 'בבית') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                    statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                } else if (statusLabel === 'גימלים') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE4E6' } };
+                    statusCell.font = { color: { argb: 'FFBE123C' }, bold: true };
+                } else if (statusLabel === 'חופשה') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
+                    statusCell.font = { color: { argb: 'FF3730A3' }, bold: true };
                 }
-
-                // General borders
-                row.eachCell(cell => {
-                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                });
             });
 
             // Column Widths
             worksheet.columns = [
-                { width: 20 }, // Name
+                { width: 25 }, // Name
                 { width: 15 }, // Company
                 { width: 15 }, // Team
-                { width: 25 }, // Roles
+                { width: 30 }, // Roles
                 { width: 15 }, // Status
-                { width: 30 }  // Details
+                { width: 35 }  // Details
             ];
 
             const buffer = await workbook.xlsx.writeBuffer();

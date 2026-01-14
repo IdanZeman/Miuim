@@ -418,89 +418,125 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 const month = viewDate.getMonth();
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-                const headers = ['תאריך', 'שם מלא', 'צוות', 'סטטוס', 'שעות', 'סיבה/הערות'];
-                const headerRow = worksheet.addRow(headers);
-                headerRow.font = { bold: true };
-                headerRow.eachCell(cell => {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                });
-
+                const tableRows: any[] = [];
                 for (let d = 1; d <= daysInMonth; d++) {
                     const date = new Date(year, month, d);
                     const dateStr = date.toLocaleDateString('he-IL');
                     const dateKey = date.toLocaleDateString('en-CA');
 
                     people.forEach(person => {
+                        if (person.isActive === false) return; // Skip inactive
+
                         const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
                         const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
-
-                        const relevantAbsence = absences.find(a =>
-                            a.person_id === person.id &&
-                            dateKey >= a.start_date &&
-                            dateKey <= a.end_date
-                        );
-
-
-                        if (person.isActive === false) return; // Skip inactive
+                        const relevantAbsence = absences.find(a => a.person_id === person.id && dateKey >= a.start_date && dateKey <= a.end_date);
 
                         const isAtBase = avail.status === 'base' || avail.status === 'arrival' || avail.status === 'departure' || avail.status === 'full';
                         const statusLabel = isAtBase ? 'בבסיס' : (avail.status === 'home' ? 'בית' : 'אילוץ');
                         const hours = isAtBase ? `${avail.startHour} - ${avail.endHour}` : '-';
 
                         let reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'רגיל'));
-
                         if (relevantAbsence) {
                             const statusDesc = relevantAbsence.status === 'approved' ? 'מאושר' : (relevantAbsence.status === 'pending' ? 'ממתין' : 'נדחה');
-                            const absenceReason = relevantAbsence.reason || 'בקשת יציאה';
-                            reason = `${reason} | היעדרות (${statusDesc}): ${absenceReason}`;
+                            reason = `${reason} | היעדרות (${statusDesc}): ${relevantAbsence.reason || 'בקשת יציאה'}`;
                         }
 
-                        const row = worksheet.addRow([dateStr, person.name, teamName, statusLabel, hours, reason]);
-
-                        const statusCell = row.getCell(4);
-                        if (statusLabel === 'בית') {
-                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-                            statusCell.font = { color: { argb: 'FF991B1B' } };
-                        } else if (statusLabel === 'בבסיס') {
-                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
-                            statusCell.font = { color: { argb: 'FF065F46' } };
-                        } else if (statusLabel === 'אילוץ') {
-                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-                            statusCell.font = { color: { argb: 'FF92400E' } };
-                        }
+                        tableRows.push([dateStr, person.name, teamName, statusLabel, hours, reason]);
                     });
                 }
-                worksheet.columns = [{ width: 12 }, { width: 20 }, { width: 15 }, { width: 12 }, { width: 15 }, { width: 40 }];
+
+                worksheet.addTable({
+                    name: 'MonthlyAttendance',
+                    ref: 'A1',
+                    headerRow: true,
+                    style: { theme: 'TableStyleMedium2', showRowStripes: true },
+                    columns: [
+                        { name: 'תאריך', filterButton: true },
+                        { name: 'שם מלא', filterButton: true },
+                        { name: 'צוות', filterButton: true },
+                        { name: 'סטטוס', filterButton: true },
+                        { name: 'שעות', filterButton: true },
+                        { name: 'סיבה/הערות', filterButton: true }
+                    ],
+                    rows: tableRows
+                });
+
+                // Style Status Cells
+                tableRows.forEach((row, idx) => {
+                    const rowIndex = idx + 2;
+                    const statusCell = worksheet.getCell(`D${rowIndex}`);
+                    const statusLabel = row[3];
+
+                    if (statusLabel === 'בית') {
+                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                        statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                    } else if (statusLabel === 'בבסיס') {
+                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                        statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                    } else if (statusLabel === 'אילוץ') {
+                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                        statusCell.font = { color: { argb: 'FF92400E' }, bold: true };
+                    }
+                });
+
+                worksheet.columns = [{ width: 15 }, { width: 20 }, { width: 15 }, { width: 12 }, { width: 15 }, { width: 45 }];
                 fileName = `attendance_month_${month + 1}_${year}.xlsx`;
             } else {
                 const worksheet = workbook.addWorksheet('דוח יומי', { views: [{ rightToLeft: true }] });
-                const headers = ['שם מלא', 'צוות', 'סטטוס', 'שעות', 'סיבה/הערות'];
-                const headerRow = worksheet.addRow(headers);
-                headerRow.font = { bold: true };
-                headerRow.eachCell(cell => cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } });
-
                 const dateKey = selectedDate.toLocaleDateString('en-CA');
-                people.forEach(person => {
-                    const avail = getPersonAvailability(person);
-                    const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
-                    const relevantAbsence = absences.find(a => a.person_id === person.id && dateKey >= a.start_date && dateKey <= a.end_date);
-                    if (person.isActive === false) return; // Skip inactive
 
-                    const isAtBase = avail.status === 'base' || avail.status === 'arrival' || avail.status === 'departure' || avail.status === 'full';
-                    const statusLabel = isAtBase ? 'בבסיס' : (avail.status === 'home' ? 'בית' : 'אילוץ');
-                    const hours = isAtBase ? `${avail.startHour} - ${avail.endHour}` : '-';
-                    let reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'רגיל'));
-                    if (relevantAbsence) {
-                        const statusDesc = relevantAbsence.status === 'approved' ? 'מאושר' : (relevantAbsence.status === 'pending' ? 'ממתין' : 'נדחה');
-                        reason = `${reason} | היעדרות (${statusDesc}): ${relevantAbsence.reason || 'בקשת יציאה'}`;
-                    }
-                    const row = worksheet.addRow([person.name, teamName, statusLabel, hours, reason]);
-                    const statusCell = row.getCell(3);
-                    if (statusLabel === 'בית') statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-                    else if (statusLabel === 'בבסיס') statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                const tableRows = people
+                    .filter(p => p.isActive !== false)
+                    .map(person => {
+                        const avail = getPersonAvailability(person);
+                        const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
+                        const relevantAbsence = absences.find(a => a.person_id === person.id && dateKey >= a.start_date && dateKey <= a.end_date);
+
+                        const isAtBase = avail.status === 'base' || avail.status === 'arrival' || avail.status === 'departure' || avail.status === 'full';
+                        const statusLabel = isAtBase ? 'בבסיס' : (avail.status === 'home' ? 'בית' : 'אילוץ');
+                        const hours = isAtBase ? `${avail.startHour} - ${avail.endHour}` : '-';
+                        let reason = (avail as any).reason || (avail.source === 'rotation' ? 'סבב' : (avail.source === 'manual' ? 'ידני' : 'רגיל'));
+                        if (relevantAbsence) {
+                            const statusDesc = relevantAbsence.status === 'approved' ? 'מאושר' : (relevantAbsence.status === 'pending' ? 'ממתין' : 'נדחה');
+                            reason = `${reason} | היעדרות (${statusDesc}): ${relevantAbsence.reason || 'בקשת יציאה'}`;
+                        }
+                        return [person.name, teamName, statusLabel, hours, reason];
+                    });
+
+                worksheet.addTable({
+                    name: 'DailyAttendance',
+                    ref: 'A1',
+                    headerRow: true,
+                    style: { theme: 'TableStyleMedium2', showRowStripes: true },
+                    columns: [
+                        { name: 'שם מלא', filterButton: true },
+                        { name: 'צוות', filterButton: true },
+                        { name: 'סטטוס', filterButton: true },
+                        { name: 'שעות', filterButton: true },
+                        { name: 'סיבה/הערות', filterButton: true }
+                    ],
+                    rows: tableRows
                 });
-                worksheet.columns = [{ width: 20 }, { width: 15 }, { width: 12 }, { width: 15 }, { width: 40 }];
+
+                // Style Status Cells
+                tableRows.forEach((row, idx) => {
+                    const rowIndex = idx + 2;
+                    const statusCell = worksheet.getCell(`C${rowIndex}`);
+                    const statusLabel = row[2];
+
+                    if (statusLabel === 'בית') {
+                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                        statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                    } else if (statusLabel === 'בבסיס') {
+                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                        statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                    } else if (statusLabel === 'אילוץ') {
+                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                        statusCell.font = { color: { argb: 'FF92400E' }, bold: true };
+                    }
+                });
+
+                worksheet.columns = [{ width: 25 }, { width: 15 }, { width: 12 }, { width: 15 }, { width: 45 }];
                 fileName = `attendance_${selectedDate.toLocaleDateString('en-CA')}.xlsx`;
             }
 

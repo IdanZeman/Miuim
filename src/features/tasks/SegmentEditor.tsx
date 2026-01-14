@@ -225,143 +225,124 @@ export const SegmentEditor: React.FC<SegmentEditorProps> = ({
                         )}
                     </div>
 
-                    {/* Continuous Cycle Toggle */}
-                    <div className="space-y-3">
-                        <div className={cn(
-                            "bg-white rounded-3xl border transition-all px-5 py-4 flex items-center justify-between cursor-pointer",
-                            isRepeat ? "border-amber-200 shadow-md shadow-amber-50" : "border-slate-200/60 shadow-sm"
-                        )}
-                            onClick={() => setIsRepeat(!isRepeat)}>
-                            <div>
-                                <div className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                    <RotateCcw size={18} className={isRepeat ? "text-amber-500" : "text-slate-400"} weight="bold" />
-                                    מחזור רציף (סבב 24/7)
-                                </div>
-                                <p className="text-[11px] font-bold text-slate-400 mt-1">יצירת רצף משמרות אוטומטי לכל אורך היממה</p>
-                            </div>
-                            <div className={cn("w-12 h-7 rounded-full transition-all relative", isRepeat ? "bg-amber-500" : "bg-slate-200")}>
-                                <div className={cn("absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm", isRepeat ? "left-1" : "left-6")} />
-                            </div>
-                        </div>
-
-                    </div>
                 </div>
-
-                {/* 2. Timing Controls (Counters) */}
-                <div className="space-y-3">
-                    <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">זמנים והגבלות</h3>
-                    <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 grid grid-cols-2 gap-4">
-                        {/* Start Time */}
-                        <div className="col-span-2 py-2">
-                            <TimePicker
-                                label="שעת התחלה"
-                                value={startTime}
-                                onChange={setStartTime}
-                            />
-                        </div>
-
-                        {/* Duration Counter */}
-                        <div className="flex flex-col items-center gap-2">
-                            <span className="text-xs font-bold text-slate-500">משך (שעות)</span>
-                            <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-1.5">
-                                <button
-                                    onClick={() => setDuration(Math.max(1, duration - 1))}
-                                    className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
-                                >
-                                    <Minus size={18} weight="bold" />
-                                </button>
-                                <span className="w-8 text-center font-black text-xl text-slate-800">{duration}</span>
-                                <button
-                                    onClick={() => setDuration(duration + 1)}
-                                    className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
-                                >
-                                    <Plus size={18} weight="bold" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Rest Counter */}
-                        <div className="flex flex-col items-center gap-2">
-                            <span className="text-xs font-bold text-slate-500">מנוחה נדרשת</span>
-                            <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-1.5">
-                                <button
-                                    onClick={() => setMinRest(Math.max(0, minRest - 1))}
-                                    className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
-                                >
-                                    <Minus size={18} weight="bold" />
-                                </button>
-                                <span className="w-8 text-center font-black text-xl text-slate-800">{minRest}</span>
-                                <button
-                                    onClick={() => setMinRest(minRest + 1)}
-                                    className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
-                                >
-                                    <Plus size={18} weight="bold" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 3. Workforce Requirements (Role Grid) */}
-                <div className="space-y-3">
-                    <div className="flex justify-between items-center px-4">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">דרישות תפקיד</h3>
-                        <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-black tracking-tight">
-                            סה"כ: {roleComposition.reduce((sum, rc) => sum + rc.count, 0)}
-                        </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        {roles.map(role => {
-                            const count = getRoleCount(role.id);
-                            // @ts-ignore
-                            const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Users;
-
-                            return (
-                                <div key={role.id} className={cn(
-                                    "bg-white border rounded-2xl p-3 flex flex-col gap-3 transition-all",
-                                    count > 0 ? "border-indigo-200 shadow-md shadow-indigo-100/50" : "border-slate-200/60 shadow-sm"
-                                )}>
-                                    <div className="flex items-center gap-2.5">
-                                        <div className={cn("p-2 rounded-xl", role.color || 'bg-slate-100')}>
-                                            <Icon size={16} className="text-slate-600" weight="bold" />
-                                        </div>
-                                        <span className="text-sm font-black text-slate-800 truncate flex-1 leading-tight">{role.name}</span>
-                                    </div>
-
-                                    <div className="flex items-center justify-between bg-slate-50/80 rounded-xl p-1">
-                                        <button
-                                            onClick={() => updateRoleCount(role.id, -1)}
-                                            className={cn(
-                                                "w-8 h-8 flex items-center justify-center rounded-lg transition-all active:scale-90",
-                                                count > 0 ? "bg-white shadow-sm text-slate-700 hover:text-red-500" : "text-slate-300 cursor-not-allowed"
-                                            )}
-                                            disabled={count === 0}
-                                        >
-                                            <Minus size={16} weight="bold" />
-                                        </button>
-                                        <span className={cn("font-black text-lg", count > 0 ? "text-indigo-600" : "text-slate-300")}>{count}</span>
-                                        <button
-                                            onClick={() => updateRoleCount(role.id, 1)}
-                                            className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-700 hover:text-green-600 active:scale-90 transition-all"
-                                        >
-                                            <Plus size={16} weight="bold" />
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        {roles.length === 0 && (
-                            <div className="col-span-2 text-center py-6 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-slate-400">
-                                <Users size={32} className="mx-auto mb-2 opacity-20" weight="bold" />
-                                <span className="text-sm font-bold">לא הוגדרו תפקידים במערכת</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <div className="h-4" />
             </div>
-        </Modal>
+
+            {/* 2. Timing Controls (Counters) */}
+            <div className="space-y-3">
+                <h3 className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest">זמנים והגבלות</h3>
+                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 grid grid-cols-2 gap-4">
+                    {/* Start Time */}
+                    <div className="col-span-2 py-2">
+                        <TimePicker
+                            label="שעת התחלה"
+                            value={startTime}
+                            onChange={setStartTime}
+                        />
+                    </div>
+
+                    {/* Duration Counter */}
+                    <div className="flex flex-col items-center gap-2">
+                        <span className="text-xs font-bold text-slate-500">משך (שעות)</span>
+                        <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-1.5">
+                            <button
+                                onClick={() => setDuration(Math.max(1, duration - 1))}
+                                className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
+                            >
+                                <Minus size={18} weight="bold" />
+                            </button>
+                            <span className="w-8 text-center font-black text-xl text-slate-800">{duration}</span>
+                            <button
+                                onClick={() => setDuration(duration + 1)}
+                                className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
+                            >
+                                <Plus size={18} weight="bold" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Rest Counter */}
+                    <div className="flex flex-col items-center gap-2">
+                        <span className="text-xs font-bold text-slate-500">מנוחה נדרשת</span>
+                        <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-1.5">
+                            <button
+                                onClick={() => setMinRest(Math.max(0, minRest - 1))}
+                                className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
+                            >
+                                <Minus size={18} weight="bold" />
+                            </button>
+                            <span className="w-8 text-center font-black text-xl text-slate-800">{minRest}</span>
+                            <button
+                                onClick={() => setMinRest(minRest + 1)}
+                                className="w-9 h-9 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-blue-600 active:scale-95 transition-all"
+                            >
+                                <Plus size={18} weight="bold" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Workforce Requirements (Role Grid) */}
+            <div className="space-y-3">
+                <div className="flex justify-between items-center px-4">
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">דרישות תפקיד</h3>
+                    <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-black tracking-tight">
+                        סה"כ: {roleComposition.reduce((sum, rc) => sum + rc.count, 0)}
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    {roles.map(role => {
+                        const count = getRoleCount(role.id);
+                        // @ts-ignore
+                        const Icon = role.icon && ROLE_ICONS[role.icon] ? ROLE_ICONS[role.icon] : Users;
+
+                        return (
+                            <div key={role.id} className={cn(
+                                "bg-white border rounded-2xl p-3 flex flex-col gap-3 transition-all",
+                                count > 0 ? "border-indigo-200 shadow-md shadow-indigo-100/50" : "border-slate-200/60 shadow-sm"
+                            )}>
+                                <div className="flex items-center gap-2.5">
+                                    <div className={cn("p-2 rounded-xl", role.color || 'bg-slate-100')}>
+                                        <Icon size={16} className="text-slate-600" weight="bold" />
+                                    </div>
+                                    <span className="text-sm font-black text-slate-800 truncate flex-1 leading-tight">{role.name}</span>
+                                </div>
+
+                                <div className="flex items-center justify-between bg-slate-50/80 rounded-xl p-1">
+                                    <button
+                                        onClick={() => updateRoleCount(role.id, -1)}
+                                        className={cn(
+                                            "w-8 h-8 flex items-center justify-center rounded-lg transition-all active:scale-90",
+                                            count > 0 ? "bg-white shadow-sm text-slate-700 hover:text-red-500" : "text-slate-300 cursor-not-allowed"
+                                        )}
+                                        disabled={count === 0}
+                                    >
+                                        <Minus size={16} weight="bold" />
+                                    </button>
+                                    <span className={cn("font-black text-lg", count > 0 ? "text-indigo-600" : "text-slate-300")}>{count}</span>
+                                    <button
+                                        onClick={() => updateRoleCount(role.id, 1)}
+                                        className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-700 hover:text-green-600 active:scale-90 transition-all"
+                                    >
+                                        <Plus size={16} weight="bold" />
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {roles.length === 0 && (
+                        <div className="col-span-2 text-center py-6 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-slate-400">
+                            <Users size={32} className="mx-auto mb-2 opacity-20" weight="bold" />
+                            <span className="text-sm font-bold">לא הוגדרו תפקידים במערכת</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="h-4" />
+        </div>
+        </Modal >
     );
 };
