@@ -576,7 +576,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100dvh-80px)] md:h-[calc(100vh-100px)] relative overflow-hidden">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative">
             {/* --- GREEN HEADER (Mobile & Desktop Unified or Mobile Only?) --- */}
 
             {/* --- UNIFIED MOBILE CONTAINER --- */}
@@ -713,7 +713,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             </div>
 
             {/* --- DESKTOP VIEW CONTAINER --- */}
-            <div className="hidden md:flex flex-col flex-1 overflow-hidden">
+            <div className="hidden md:flex flex-col flex-1">
                 <ActionBar
                     searchTerm={viewMode !== 'calendar' ? searchTerm : ''}
                     onSearchChange={setSearchTerm}
@@ -777,38 +777,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     }
                     rightActions={
                         <div className="flex items-center gap-2">
-                            {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
-                                <button
-                                    onClick={() => setShowRotaWizard(true)}
-                                    data-testid="open-rota-wizard-btn"
-                                    className="h-10 px-4 bg-slate-100/50 text-slate-600 hover:bg-white hover:text-blue-600 rounded-xl text-xs font-black transition-all border border-slate-200 shadow-sm flex items-center gap-2 group"
-                                >
-                                    <Sparkles size={18} weight="duotone" className="group-hover:text-blue-600 transition-colors" />
-                                    <span className="hidden 2xl:inline">מחולל סבבים</span>
-                                </button>
-                            )}
-
-                            {!isViewer && (
-                                <button
-                                    onClick={() => setShowImportModal(true)}
-                                    className="h-10 px-4 bg-emerald-50/50 text-emerald-600 hover:bg-white hover:text-emerald-700 rounded-xl text-xs font-black transition-all border border-emerald-100 shadow-sm flex items-center gap-2 group"
-                                >
-                                    <Download size={18} weight="duotone" className="group-hover:text-emerald-700 transition-colors rotate-180" />
-                                    <span className="hidden 2xl:inline">ייבוא מאקסל</span>
-                                </button>
-                            )}
-
-                            <button
-                                onClick={() => setShowStatistics(!showStatistics)}
-                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border-2 ${showStatistics
-                                    ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                                    }`}
-                                title="סטטיסטיקה"
-                            >
-                                <ChartBar size={20} weight={showStatistics ? "fill" : "duotone"} />
-                            </button>
-
                             <DateNavigator
                                 date={(viewMode === 'calendar' || viewMode === 'table') ? viewDate : selectedDate}
                                 onDateChange={(d) => {
@@ -824,6 +792,38 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     return d;
                                 })() : undefined}
                             />
+                            {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
+                                <button
+                                    onClick={() => setShowRotaWizard(true)}
+                                    data-testid="open-rota-wizard-btn"
+                                    className="h-10 w-10 flex items-center justify-center bg-slate-100/50 text-slate-600 hover:bg-white hover:text-blue-600 rounded-xl transition-all border border-slate-200 shadow-sm group"
+                                    title="מחולל סבבים"
+                                >
+                                    <Sparkles size={18} weight="duotone" className="group-hover:text-blue-600 transition-colors" />
+                                </button>
+                            )}
+
+                            {!isViewer && (
+                                <button
+                                    onClick={() => setShowImportModal(true)}
+                                    className="h-10 w-10 flex items-center justify-center bg-emerald-50/50 text-emerald-600 hover:bg-white hover:text-emerald-700 rounded-xl transition-all border border-emerald-100 shadow-sm group"
+                                    title="ייבוא מאקסל"
+                                >
+                                    <Download size={18} weight="duotone" className="group-hover:text-emerald-700 transition-colors rotate-180" />
+                                </button>
+                            )}
+
+                            <button
+                                onClick={() => setShowStatistics(!showStatistics)}
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border-2 ${showStatistics
+                                    ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                                    }`}
+                                title="סטטיסטיקה"
+                            >
+                                <ChartBar size={20} weight={showStatistics ? "fill" : "duotone"} />
+                            </button>
+
 
                             {viewMode === 'table' && (
                                 <button
@@ -858,7 +858,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             />
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
+                        <div className="h-full flex flex-col bg-white border border-slate-200">
                             <AttendanceTable
                                 teams={teams}
                                 people={filteredPeople}

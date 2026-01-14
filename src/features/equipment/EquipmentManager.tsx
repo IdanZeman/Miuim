@@ -288,12 +288,12 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
     };
 
     return (
-        <div className="bg-slate-50 md:bg-white rounded-[2rem] md:rounded-2xl shadow-xl md:shadow-none border md:border-slate-100 p-0 md:p-6 min-h-[600px] relative overflow-hidden" dir="rtl">
+        <div className="bg-slate-50 md:bg-white rounded-[2rem] md:rounded-2xl border md:border-slate-100 p-0 md:p-6 relative flex flex-col" dir="rtl">
 
             <div className="pb-32">
 
                 {/* Content Sheet (Responsive) */}
-                <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 min-h-[70vh] md:mt-2 overflow-hidden">
+                <div className="bg-white rounded-[2rem] border border-slate-100 md:mt-2 flex flex-col flex-1 relative">
 
 
                     {/* Unified Action Bar */}
@@ -302,7 +302,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                         onSearchChange={setSearchTerm}
                         onExport={handleExport}
                         isSearchHidden={viewMode !== 'list'}
-                        className="sticky top-0 md:top-auto z-40"
+                        className="sticky top-0 z-40 bg-white px-4 md:px-6"
                         leftActions={
                             <div className="flex items-center gap-2">
                                 <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-100/50">

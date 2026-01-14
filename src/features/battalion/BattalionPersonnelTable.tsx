@@ -182,12 +182,12 @@ export const BattalionPersonnelTable: React.FC = () => {
     }
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative animate-in fade-in slide-in-from-bottom-4 duration-700">
             <ActionBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 onExport={handleExport}
-                className="p-4"
+                className="px-4 md:px-6 sticky top-0 z-40 bg-white"
                 leftActions={
                     <div className="flex items-center gap-4">
                         <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">

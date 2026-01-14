@@ -658,15 +658,15 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     return (
         <div className="relative min-h-screen bg-transparent" dir="rtl">
             {/* Main Premium Container */}
-            <div className="relative z-10 max-w-[1600px] mx-auto pt-0 md:pt-6 px-0 md:px-6 pb-6 h-[calc(100dvh-64px)] md:h-[calc(100vh-48px)] flex flex-col">
-                <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 overflow-hidden flex flex-col flex-1 relative">
+            <div className="relative z-10 max-w-[1600px] mx-auto pt-0 md:pt-6 px-0 md:px-6 pb-6 flex flex-col">
+                <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col flex-1 relative">
 
                     {/* Unified Action Bar */}
                     <ActionBar
                         searchTerm={searchTerm}
                         onSearchChange={setSearchTerm}
                         onExport={handleExport}
-                        className="px-4 md:px-6 sticky top-0 z-40 bg-white border-b border-slate-100"
+                        className="px-4 md:px-6 sticky top-0"
                         mobileMoreActions={
                             <div className="space-y-2">
                                 <Select

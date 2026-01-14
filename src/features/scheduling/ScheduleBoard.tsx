@@ -294,10 +294,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const pixelsPerHour = isCompact ? 26 : 60;
     const headerHeight = isCompact ? 34 : 40;
 
-    // FIXED HEIGHT CONTAINER to ensure internal scrolling works
-    // Desktop: 100vh - header padding (32=8rem) - bottom padding (10=2.5rem) approx 11rem
-    // Mobile: 100vh - header padding (32=8rem) - bottom nav (24=6rem) approx 15rem
-    const containerHeightClass = isCompact ? "h-auto md:h-[calc(100vh-8.5rem)]" : "h-auto md:h-[calc(100vh-11rem)]";
+    // Simplified layout avoids fixed height containers
 
     // Auto-scroll to current time on mount or date change (if Today)
     // Auto-scroll to current time on mount or date change (if Today)
@@ -636,13 +633,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     };
 
     return (
-        <div className={`flex flex-col gap-2 ${containerHeightClass}`}>
+        <div className={`flex flex-col gap-2`}>
             {isViewer && renderFeaturedCard()}
 
 
 
             {/* Time Grid Board Container */}
-            <div className={`bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col flex-1 min-h-0 overflow-hidden`}>
+            <div className={`bg-white rounded-[2rem] border border-slate-100 ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col flex-1 min-h-0`}>
 
                 <ExportScheduleModal
                     isOpen={isExportModalOpen}

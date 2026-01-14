@@ -36,7 +36,7 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
 
     if (!battalionId) {
         return (
-            <div className="bg-slate-50 md:bg-white rounded-[2rem] shadow-xl md:shadow-portal border md:border-slate-100 p-0 h-[85vh] md:h-[calc(100vh-140px)] relative overflow-hidden flex flex-col items-center justify-center text-slate-400">
+            <div className="bg-slate-50 md:bg-white rounded-[2rem] border md:border-slate-100 p-0 relative flex flex-col items-center justify-center text-slate-400">
                 <Warning size={48} className="mb-4 opacity-20" />
                 <span className="text-lg font-medium">לא נמצא גדוד מקושר למשתמש זה.</span>
             </div>
@@ -119,7 +119,7 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
 
     if (isLoading) {
         return (
-            <div className="bg-slate-50 md:bg-white rounded-[2rem] shadow-xl md:shadow-portal border md:border-slate-100 p-0 h-[85vh] md:h-[calc(100vh-140px)] relative overflow-hidden flex flex-col items-center justify-center text-slate-400">
+            <div className="bg-slate-50 md:bg-white rounded-[2rem] border md:border-slate-100 p-0 relative flex flex-col items-center justify-center text-slate-400">
                 <ChartLineUp size={48} className="animate-pulse mb-4 opacity-20" />
                 <span className="text-lg font-medium">טוען נתוני דוח בוקר...</span>
             </div>
@@ -138,13 +138,13 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
     const totalHome = Object.values(reportData?.statsByCompany || {}).reduce((acc, curr) => acc + (curr.total - curr.presentDetails), 0);
 
     return (
-        <div className="bg-slate-50 md:bg-white rounded-[2rem] shadow-xl md:shadow-portal border md:border-slate-100 p-0 h-[85vh] md:h-[calc(100vh-140px)] relative overflow-hidden flex flex-col">
+        <div className="bg-slate-50 md:bg-white rounded-[2rem] border md:border-slate-100 p-0 relative flex flex-col pb-10">
             {/* Unified Action Bar */}
             <ActionBar
                 searchTerm=""
                 onSearchChange={() => { }}
                 isSearchHidden={true}
-                className="px-4 md:px-6 sticky top-0 z-40 bg-white/90 backdrop-blur-md md:bg-white border-b border-slate-100"
+                className="px-4 md:px-6 sticky top-0"
                 leftActions={
                     <div className="flex items-center gap-3 shrink-0">
                         <div className="flex flex-col min-w-0">

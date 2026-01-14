@@ -300,11 +300,11 @@ export const BattalionAttendanceManager: React.FC = () => {
     }
 
     return (
-        <div className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100vh-150px)] md:h-[calc(100vh-100px)] relative overflow-hidden">
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative">
             {/* Mobile View */}
             <div className="flex-1 flex flex-col md:hidden relative isolate z-10 overflow-hidden">
                 {/* Mobile Header */}
-                <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 py-3 flex flex-col gap-3">
+                <div className="bg-white sticky top-0 z-50 px-3 py-3 flex flex-col gap-3">
                     <div className="flex items-center gap-2">
                         {/* View Mode Selector */}
                         <div className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 h-9">
@@ -407,7 +407,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                     searchTerm={viewMode !== 'calendar' ? searchTerm : ''}
                     onSearchChange={setSearchTerm}
                     onExport={handleExport}
-                    className="p-4"
+                    className="px-4 md:px-6 sticky top-0 z-40 bg-white"
                     leftActions={
                         <div className="flex items-center gap-4">
                             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
