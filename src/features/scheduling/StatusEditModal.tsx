@@ -11,6 +11,7 @@ import { HomeStatusSelector } from '@/components/ui/HomeStatusSelector';
 interface StatusEditModalProps {
     isOpen: boolean;
     date?: string;
+    dates?: string[]; // NEW: Support for multiple dates
     personName?: string;
     currentAvailability?: AvailabilitySlot;
     onClose: () => void;
@@ -21,11 +22,16 @@ interface StatusEditModalProps {
 }
 
 export const StatusEditModal: React.FC<StatusEditModalProps> = ({
-    isOpen, date, personName, currentAvailability, onClose, onApply,
+    isOpen, date, dates, personName, currentAvailability, onClose, onApply,
     defaultArrivalHour = '10:00',
     defaultDepartureHour = '14:00',
     disableJournal = false
 }) => {
+    // Determine effective date label
+    const dateLabel = dates && dates.length > 1
+        ? `${dates.length} ימים נבחרים`
+        : (date || dates?.[0] || '');
+
     // Main Status State
     const [mainStatus, setMainStatus] = useState<'base' | 'home'>('base');
     const [customStart, setCustomStart] = useState(defaultArrivalHour);
@@ -108,10 +114,10 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
         // Log the change
         const isCheckIn = mainStatus === 'base' && customType === null;
         logger.info(isCheckIn ? 'CHECK_IN' : 'UPDATE',
-            `${personName}: Updated status to ${mainStatus}${customType ? ` (${customType})` : ''}${mainStatus === 'home' ? ` - ${homeStatusType}` : ''} for ${date}`,
+            `${personName}: Updated status to ${mainStatus}${customType ? ` (${customType})` : ''}${mainStatus === 'home' ? ` - ${homeStatusType}` : ''} for ${dateLabel}`,
             {
                 personName,
-                date,
+                date: dateLabel,
                 status: mainStatus,
                 type: customType,
                 homeStatusType: mainStatus === 'home' ? homeStatusType : undefined,
@@ -269,7 +275,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{personName}</span>
                 <span className="text-[10px] text-slate-300">•</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{date}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{dateLabel}</span>
             </div>
         </div>
     );

@@ -16,7 +16,7 @@ interface AttendanceTableProps {
     currentDate: Date;
     onDateChange: (date: Date) => void;
     onSelectPerson: (person: Person) => void;
-    onUpdateAvailability?: (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType) => void;
+    onUpdateAvailability?: (personId: string, date: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType) => void;
     viewMode?: 'daily' | 'monthly'; // New control prop
     className?: string; // Allow parent styling for mobile sheet integration
     isViewer?: boolean; // NEW: Security prop
@@ -33,7 +33,10 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     defaultArrivalHour = '10:00', defaultDepartureHour = '14:00'
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
-    const [editingCell, setEditingCell] = useState<{ personId: string; date: string } | null>(null);
+    // State for the modal (editing mode) - now supports multiple dates
+    const [editingCell, setEditingCell] = useState<{ personId: string; dates: string[] } | null>(null);
+    // State for visual selection (before modal opens)
+    const [selection, setSelection] = useState<{ personId: string; dates: string[] } | null>(null);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -90,20 +93,86 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     const weekDaysShort = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
     const weekDaysEnglish = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
+    // Clear selection when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            // Check if clicked element is part of a cell
+            const isCell = target.closest('[data-testid^="attendance-cell-"]');
+            if (!isCell) {
+                setSelection(null);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const handleCellClick = (e: React.MouseEvent, person: Person, date: Date) => {
         if (!onUpdateAvailability) return;
 
-        // Prevent opening if clicking on the same open cell (toggle off)
         const dateStr = date.toLocaleDateString('en-CA');
-        if (editingCell?.personId === person.id && editingCell?.date === dateStr) {
-            setEditingCell(null);
+
+        // 1. Handle Selection Logic (Ctrl/Cmd/Shift)
+        if (e.ctrlKey || e.metaKey) {
+            // Toggle selection
+            setSelection(prev => {
+                if (prev && prev.personId === person.id) {
+                    const newDates = prev.dates.includes(dateStr)
+                        ? prev.dates.filter(d => d !== dateStr)
+                        : [...prev.dates, dateStr];
+                    return newDates.length > 0 ? { personId: person.id, dates: newDates } : null;
+                }
+                return { personId: person.id, dates: [dateStr] };
+            });
             return;
         }
 
+        if (e.shiftKey) {
+            if (selection && selection.personId === person.id && selection.dates.length > 0) {
+                // Range Selection
+                const lastDateStr = selection.dates[selection.dates.length - 1];
+                const start = new Date(lastDateStr);
+                const end = new Date(dateStr);
+                const rangeDates: string[] = [];
+
+                // Generate range
+                const current = new Date(Math.min(start.getTime(), end.getTime()));
+                const final = new Date(Math.max(start.getTime(), end.getTime()));
+
+                while (current <= final) {
+                    rangeDates.push(current.toLocaleDateString('en-CA'));
+                    current.setDate(current.getDate() + 1);
+                }
+
+                // Merge with existing
+                const uniqueDates = Array.from(new Set([...selection.dates, ...rangeDates]));
+                setSelection({ personId: person.id, dates: uniqueDates });
+            } else {
+                setSelection({ personId: person.id, dates: [dateStr] });
+            }
+            return;
+        }
+
+        // 2. Handle Normal Click (Open Modal)
+        // If clicking on a selected cell group, open modal for that group
+        if (selection && selection.personId === person.id && selection.dates.includes(dateStr)) {
+            setEditingCell({
+                personId: person.id,
+                dates: selection.dates
+            });
+            setSelection(null); // Clear selection after opening modal
+            logger.info('CLICK', `Opened bulk editor for ${person.name}`, { personId: person.id, count: selection.dates.length });
+            return;
+        }
+
+        // Normal single cell click - Clear triggers or open single? 
+        // If I Click a non-selected cell, I select just that cell and open modal immediately (old behavior).
         setEditingCell({
             personId: person.id,
-            date: dateStr
+            dates: [dateStr]
         });
+        setSelection(null); // Clear any unrelated selection
         logger.info('CLICK', `Opened attendance status editor for ${person.name} on ${dateStr}`, { personId: person.id, date: dateStr });
     };
 
@@ -111,7 +180,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         if (!editingCell || !onUpdateAvailability) return;
         // Map 'unavailable' status (legacy) to 'home' or maintain compatibility if needed, 
         // but typically the modal now controls 'base' vs 'home'.
-        onUpdateAvailability(editingCell.personId, editingCell.date, status, customTimes, unavailableBlocks, homeStatusType);
+        onUpdateAvailability(editingCell.personId, editingCell.dates, status, customTimes, unavailableBlocks, homeStatusType);
         setEditingCell(null);
     };
 
@@ -632,7 +701,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     const dateStr = date.toLocaleDateString('en-CA');
 
                                                                     const isToday = new Date().toDateString() === date.toDateString();
-                                                                    const isSelected = editingCell?.personId === person.id && editingCell?.date === date.toLocaleDateString('en-CA');
+                                                                    const isSelected = (editingCell?.personId === person.id && editingCell?.dates.includes(dateStr)) ||
+                                                                        (selection?.personId === person.id && selection?.dates.includes(dateStr));
 
                                                                     // Roster Wizard Style Logic
                                                                     const prevDate = new Date(date);
@@ -865,12 +935,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             {
                 editingCell && (() => {
                     const person = people.find(p => p.id === editingCell.personId);
-                    const availability = person ? getEffectiveAvailability(person, new Date(editingCell.date), teamRotations, absences, hourlyBlockages) : undefined;
+                    const firstDate = editingCell.dates[0];
+                    const availability = person ? getEffectiveAvailability(person, new Date(firstDate), teamRotations, absences, hourlyBlockages) : undefined;
 
                     return (
                         <StatusEditModal
                             isOpen={!!editingCell}
-                            date={editingCell.date}
+                            date={firstDate}
+                            dates={editingCell.dates}
                             personName={person?.name}
                             currentAvailability={availability}
                             onClose={() => setEditingCell(null)}

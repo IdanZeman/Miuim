@@ -250,162 +250,152 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הגדרות סבב אישי עודכנו', 'success');
     };
 
-    const handleUpdateAvailability = async (personId: string, date: string, status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType) => {
+    const handleUpdateAvailability = async (personId: string, dateOrDates: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType) => {
         if (isViewer) return;
 
         const person = people.find(p => p.id === personId);
         if (!person) return;
-        const currentData = person.dailyAvailability?.[date] || {
-            isAvailable: true,
-            startHour: '00:00',
-            endHour: '23:59',
-            source: 'manual',
-            unavailableBlocks: []
-        };
 
-        // 1. Sync Hourly Blockages (NEW TABLE)
-        if (newUnavailableBlocks) {
-            // Fetch existing blocks for this person/date to diff
-            // Note: We already have 'hourlyBlockages' from props (all org blocks).
-            // We can filter from there instead of strict DB fetch if we trust props are fresh enough.
-            // But for safety on write, let's trust the props or just do upsert.
+        const dates = Array.isArray(dateOrDates) ? dateOrDates : [dateOrDates];
+        let updatedAvailability = { ...person.dailyAvailability };
+        let promises: Promise<any>[] = [];
 
-            const dateKey = new Date(date).toISOString().split('T')[0]; // Ensure 'YYYY-MM-DD'
-            const existingBlocks = hourlyBlockages.filter(b => b.person_id === personId && b.date === dateKey);
-            const incomingBlocks = newUnavailableBlocks.filter(b => b.type !== 'absence'); // Only manual blocks
+        for (const date of dates) {
+            const currentData = updatedAvailability[date] || {
+                isAvailable: true,
+                startHour: '00:00',
+                endHour: '23:59',
+                source: 'manual',
+                unavailableBlocks: []
+            };
 
-            const promises: Promise<any>[] = [];
+            // 1. Sync Hourly Blockages (NEW TABLE)
+            if (newUnavailableBlocks) {
+                const dateKey = new Date(date).toISOString().split('T')[0]; // Ensure 'YYYY-MM-DD'
+                const existingBlocks = hourlyBlockages.filter(b => b.person_id === personId && b.date === dateKey);
+                const incomingBlocks = newUnavailableBlocks.filter(b => b.type !== 'absence'); // Only manual blocks
 
-            // A. DELETE blocks that are no longer present
-            const incomingIds = incomingBlocks.map(b => b.id);
-            const toDelete = existingBlocks.filter(b => !incomingIds.includes(b.id));
-            toDelete.forEach(b => promises.push(deleteHourlyBlockage(b.id)));
+                // A. DELETE blocks that are no longer present
+                const incomingIds = incomingBlocks.map(b => b.id);
+                const toDelete = existingBlocks.filter(b => !incomingIds.includes(b.id));
+                toDelete.forEach(b => promises.push(deleteHourlyBlockage(b.id)));
 
-            // B. UPSERT (Add or Update) incoming
-            for (const mb of incomingBlocks) {
-                const existing = existingBlocks.find(b => b.id === mb.id);
-                // Check if changed
-                if (!existing || existing.start_time !== mb.start || existing.end_time !== mb.end || existing.reason !== mb.reason) {
-                    if (existing) {
-                        promises.push(updateHourlyBlockage({
-                            id: mb.id, // Use existing ID if matched (though UUID from modal might match DB)
-                            person_id: personId,
-                            organization_id: profile.organization_id,
-                            date: dateKey,
-                            start_time: mb.start,
-                            end_time: mb.end,
-                            reason: mb.reason || ''
-                        }));
-                    } else {
-                        // New
-                        promises.push(addHourlyBlockage({
-                            person_id: personId,
-                            organization_id: profile.organization_id, // Fix
-                            date: dateKey,
-                            start_time: mb.start,
-                            end_time: mb.end,
-                            reason: mb.reason || ''
-                        }));
+                // B. UPSERT (Add or Update) incoming
+                for (const mb of incomingBlocks) {
+                    const existing = existingBlocks.find(b => b.id === mb.id);
+                    // Check if changed
+                    if (!existing || existing.start_time !== mb.start || existing.end_time !== mb.end || existing.reason !== mb.reason) {
+                        if (existing) {
+                            promises.push(updateHourlyBlockage({
+                                id: mb.id, // Use existing ID if matched (though UUID from modal might match DB)
+                                person_id: personId,
+                                organization_id: profile.organization_id,
+                                date: dateKey,
+                                start_time: mb.start,
+                                end_time: mb.end,
+                                reason: mb.reason || ''
+                            }));
+                        } else {
+                            // New
+                            promises.push(addHourlyBlockage({
+                                person_id: personId,
+                                organization_id: profile.organization_id, // Fix
+                                date: dateKey,
+                                start_time: mb.start,
+                                end_time: mb.end,
+                                reason: mb.reason || ''
+                            }));
+                        }
                     }
                 }
             }
 
-            if (promises.length > 0) {
-                try {
-                    await Promise.all(promises);
-                    logger.info('UPDATE', `Updated ${promises.length} hourly blocks for ${person.name}`, { personId, date: dateKey, count: promises.length });
-                    if (onRefresh) onRefresh();
-                } catch (err) {
-                    logger.error('ERROR', 'Failed to sync blocks', err);
-                    showToast('שגיאה בשמירת חסימות', 'error');
+            // 2. Conflict Resolution - Auto-Reject Approved Absences
+            if (status === 'base') {
+                const dateKey = new Date(date).toISOString().split('T')[0];
+                const conflictingAbsence = absences.find(a =>
+                    a.person_id === personId &&
+                    a.status === 'approved' &&
+                    dateKey >= a.start_date &&
+                    dateKey <= a.end_date
+                );
+
+                if (conflictingAbsence) {
+                    try {
+                        promises.push(updateAbsence({ ...conflictingAbsence, status: 'rejected' }));
+                        logger.info('UPDATE', `Auto-rejected conflicting absence for ${person.name}`, {
+                            personId,
+                            absenceId: conflictingAbsence.id,
+                            date: dateKey,
+                            action: 'conflict_resolution'
+                        });
+                        showToast('היעדרות מאושרת לחפיפה זו בוטלה (נדחתה) עקב שינוי ידני לבסיס', 'info');
+                    } catch (e) {
+                        // Error logging moved to catch block of Promise.all
+                    }
                 }
             }
-        }
 
-        // 2. NEW: Conflict Resolution - Auto-Reject Approved Absences if Manual Override is 'base'
-        if (status === 'base') {
-            const dateKey = new Date(date).toISOString().split('T')[0];
-            const conflictingAbsence = absences.find(a =>
-                a.person_id === personId &&
-                a.status === 'approved' &&
-                dateKey >= a.start_date &&
-                dateKey <= a.end_date
-            );
+            // 3. Prepare New Data
+            let newData: any = {
+                ...currentData,
+                source: 'manual',
+                status: status,
+                unavailableBlocks: [] // Cleared as they are now in a separate table
+            };
 
-            if (conflictingAbsence) {
-                // Auto-Reject the absence
-                try {
-                    await updateAbsence({ ...conflictingAbsence, status: 'rejected' });
-                    logger.info('UPDATE', `Auto-rejected conflicting absence for ${person.name}`, {
-                        personId,
-                        absenceId: conflictingAbsence.id,
-                        date: dateKey,
-                        action: 'conflict_resolution'
-                    });
-                    showToast('היעדרות מאושרת לחפיפה זו בוטלה (נדחתה) עקב שינוי ידני לבסיס', 'info');
-                    // Note: We don't need to manually update state here because onRefresh() or onUpdateAbsence (if we had it) would handle it.
-                    // But AttendanceManager receives absences as props, so we rely on the parent to refresh or the onRefresh callback.
-                } catch (e) {
-                    logger.error('ERROR', "Failed to auto-reject absence", e);
-                    console.error(e);
+            if (status === 'base') {
+                newData.isAvailable = true;
+                if (customTimes) {
+                    newData.startHour = customTimes.start;
+                    newData.endHour = customTimes.end;
+                } else {
+                    newData.startHour = '00:00';
+                    newData.endHour = '23:59';
                 }
-            }
-        }
-
-        // 2. Update Daily Presence (Status & Hours)
-        // We set unavailableBlocks to [] because we migrated them to the new table!
-        // This effectively 'cleans' the json field for this record.
-        let newData: any = {
-            ...currentData,
-            source: 'manual',
-            status: status,
-            unavailableBlocks: []
-        };
-
-        logger.info('UPDATE', `Manually updated attendance status for ${person.name} to ${status}`, {
-            personId,
-            date,
-            oldStatus: currentData.status,
-            newStatus: status,
-            category: 'attendance'
-        });
-
-        if (status === 'base') {
-            newData.isAvailable = true;
-            if (customTimes) {
-                newData.startHour = customTimes.start;
-                newData.endHour = customTimes.end;
-            } else {
+                newData.homeStatusType = undefined;
+            } else if (status === 'home') {
+                newData.isAvailable = false;
                 newData.startHour = '00:00';
-                newData.endHour = '23:59';
+                newData.endHour = '00:00';
+                newData.homeStatusType = homeStatusType;
+            } else if (status === 'unavailable') {
+                newData.isAvailable = false;
+                newData.startHour = '00:00';
+                newData.endHour = '00:00';
+                newData.reason = 'אילוץ / לא זמין';
+                newData.homeStatusType = undefined;
             }
-            // Clear home status type when switching to base
-            newData.homeStatusType = undefined;
-        } else if (status === 'home') {
-            newData.isAvailable = false;
-            newData.startHour = '00:00';
-            newData.endHour = '00:00';
-            // Set home status type (required)
-            newData.homeStatusType = homeStatusType;
-        } else if (status === 'unavailable') {
-            newData.isAvailable = false;
-            newData.startHour = '00:00';
-            newData.endHour = '00:00';
-            newData.reason = 'אילוץ / לא זמין';
-            // Clear home status type for unavailable
-            newData.homeStatusType = undefined;
+
+            updatedAvailability[date] = newData;
+        }
+
+        // Execute side effects (DB updates)
+        if (promises.length > 0) {
+            try {
+                await Promise.all(promises);
+                if (onRefresh) onRefresh();
+            } catch (err) {
+                logger.error('ERROR', 'Failed to sync blocks/absences', err);
+                showToast('שגיאה בשמירת נתונים נלווים', 'error');
+            }
         }
 
         const updatedPerson = {
             ...person,
-            dailyAvailability: {
-                ...person.dailyAvailability,
-                [date]: newData
-            }
+            dailyAvailability: updatedAvailability
         };
 
+        const logDate = dates.length > 1 ? `${dates[0]} - ${dates[dates.length - 1]} (${dates.length} days)` : dates[0];
+        logger.info('UPDATE', `Manually updated attendance status for ${person.name} to ${status}`, {
+            personId,
+            date: logDate,
+            newStatus: status,
+            category: 'attendance'
+        });
+
         onUpdatePerson(updatedPerson);
-        showToast('הסטטוס עודכן בהצלחה', 'success');
+        showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה` : 'הסטטוס עודכן בהצלחה', 'success');
     };
 
     const handleExport = async () => {
@@ -727,7 +717,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                             <p className="mb-2">כאן ניתן לראות ולנהל את זמינות הלוחמים.</p>
                                             <ul className="list-disc list-inside space-y-1 mb-2 text-right">
                                                 <li><b>תצוגת לוח שנה:</b> מבט חודשי גלובלי על הסבבים והנוכחות.</li>
-                                                <li><b>תצוגת רשימה:</b> ניהול מפורט של זמינות לכל לוחם ברמה היומית.</li>
+                                                <li><b>תצוגת רשימה (טבלה):</b> ניהול מפורט של זמינות.
+                                                    <ul className="list-inside list-disc mr-4 text-slate-600 mt-1 space-y-0.5">
+                                                        <li>לחיצה רגילה לעריכת יום בודד.</li>
+                                                        <li><b>Ctrl + לחיצה:</b> לבחירת מספר ימים בודדים.</li>
+                                                        <li><b>Shift + לחיצה:</b> לבחירת טווח תאריכים.</li>
+                                                    </ul>
+                                                </li>
+                                                <li><b>רשימה יומית:</b> פירוט מלא של הנוכחים והנעדרים ליום ספציפי.</li>
                                                 <li><b>סבבים:</b> הגדרת סבבי יציאות (11/3, חצאים וכו') לניהול מהיר.</li>
                                             </ul>
                                             <p className="text-sm bg-blue-50 p-2 rounded text-blue-800">
