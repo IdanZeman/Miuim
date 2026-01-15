@@ -134,12 +134,16 @@ export const updateHourlyBlockage = async (block: HourlyBlockage) => {
     const dbBlock = mapHourlyBlockageToDB(block);
     const { id, ...updateData } = dbBlock as any;
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('hourly_blockages')
         .update(updateData)
-        .eq('id', block.id);
+        .eq('id', block.id)
+        .select()
+        .single();
 
     if (error) throw error;
+    
+    return mapHourlyBlockageFromDB(data);
 };
 
 export const deleteHourlyBlockage = async (id: string) => {

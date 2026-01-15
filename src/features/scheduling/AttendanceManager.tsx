@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import ExcelJS from 'exceljs';
 import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
 import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical as MoreVertical, DownloadSimple as Download, ChartBar } from '@phosphor-icons/react';
@@ -76,6 +77,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [statsEntity, setStatsEntity] = useState<{ person?: Person, team?: Team } | null>(null);
     const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [showMoreActions, setShowMoreActions] = useState(false);
+
+    const queryClient = useQueryClient();
 
     useEffect(() => {
         if (initialOpenRotaWizard && onDidConsumeInitialAction) {
@@ -262,7 +265,11 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
         const dates = Array.isArray(dateOrDates) ? dateOrDates : [dateOrDates];
         let updatedAvailability = { ...person.dailyAvailability };
-        let promises: Promise<any>[] = [];
+
+        const blockAddPromises: Promise<any>[] = [];
+        const blockUpdatePromises: Promise<any>[] = [];
+        const blockDeleteIds: string[] = [];
+        const otherPromises: Promise<any>[] = [];
 
         for (const date of dates) {
             const currentData = updatedAvailability[date] || {
@@ -282,7 +289,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 // A. DELETE blocks that are no longer present
                 const incomingIds = incomingBlocks.map(b => b.id);
                 const toDelete = existingBlocks.filter(b => !incomingIds.includes(b.id));
-                toDelete.forEach(b => promises.push(deleteHourlyBlockage(b.id)));
+                toDelete.forEach(b => {
+                    blockDeleteIds.push(b.id);
+                    otherPromises.push(deleteHourlyBlockage(b.id));
+                });
 
                 // B. UPSERT (Add or Update) incoming
                 for (const mb of incomingBlocks) {
@@ -290,8 +300,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     // Check if changed
                     if (!existing || existing.start_time !== mb.start || existing.end_time !== mb.end || existing.reason !== mb.reason) {
                         if (existing) {
-                            promises.push(updateHourlyBlockage({
-                                id: mb.id, // Use existing ID if matched (though UUID from modal might match DB)
+                            blockUpdatePromises.push(updateHourlyBlockage({
+                                id: mb.id, // Use existing ID if matched
                                 person_id: personId,
                                 organization_id: profile.organization_id,
                                 date: dateKey,
@@ -301,7 +311,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             }));
                         } else {
                             // New
-                            promises.push(addHourlyBlockage({
+                            blockAddPromises.push(addHourlyBlockage({
                                 person_id: personId,
                                 organization_id: profile.organization_id, // Fix
                                 date: dateKey,
@@ -326,7 +336,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
                 if (conflictingAbsence) {
                     try {
-                        promises.push(updateAbsence({ ...conflictingAbsence, status: 'rejected' }));
+                        otherPromises.push(updateAbsence({ ...conflictingAbsence, status: 'rejected' }));
                         logger.info('UPDATE', `Auto-rejected conflicting absence for ${person.name}`, {
                             personId,
                             absenceId: conflictingAbsence.id,
@@ -375,9 +385,40 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         }
 
         // Execute side effects (DB updates)
-        if (promises.length > 0) {
+        if (blockAddPromises.length > 0 || blockUpdatePromises.length > 0 || otherPromises.length > 0) {
             try {
-                await Promise.all(promises);
+                const [addedBlocks, updatedBlocks] = await Promise.all([
+                    Promise.all(blockAddPromises),
+                    Promise.all(blockUpdatePromises),
+                    Promise.all(otherPromises)
+                ]);
+
+                // Manually update cache to reflect block changes immediately
+                queryClient.setQueriesData({ queryKey: ['organizationData'] }, (old: any) => {
+                    if (!old || !old.hourlyBlockages) return old;
+
+                    let newBlockages = [...old.hourlyBlockages];
+
+                    // 1. Remove deleted
+                    if (blockDeleteIds.length > 0) {
+                        newBlockages = newBlockages.filter(b => !blockDeleteIds.includes(b.id));
+                    }
+
+                    // 2. Update existing
+                    updatedBlocks.forEach((b: any) => {
+                        if (b) newBlockages = newBlockages.map(exist => exist.id === b.id ? b : exist);
+                    });
+
+                    // 3. Add new
+                    addedBlocks.forEach((b: any) => {
+                        if (b && !newBlockages.find(exist => exist.id === b.id)) {
+                            newBlockages.push(b);
+                        }
+                    });
+
+                    return { ...old, hourlyBlockages: newBlockages };
+                });
+
                 if (onRefresh) onRefresh();
             } catch (err) {
                 logger.error('ERROR', 'Failed to sync blocks/absences', err);
