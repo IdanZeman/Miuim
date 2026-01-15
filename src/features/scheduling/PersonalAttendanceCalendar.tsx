@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Person, TeamRotation, Absence, HomeStatusType } from '@/types';
-import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, CheckCircle as CheckCircle2, MapPin, Info, WarningCircle as AlertCircle } from '@phosphor-icons/react';
+import { Person, TeamRotation, Absence, HomeStatusType, HourlyBlockage } from '@/types';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, CheckCircle as CheckCircle2, MapPin, Info, WarningCircle as AlertCircle, Phone, Envelope } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
@@ -11,10 +11,13 @@ import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
 import ExcelJS from 'exceljs';
 
+// ... imports
+
 interface PersonalAttendanceCalendarProps {
     person: Person;
     teamRotations: TeamRotation[];
     absences?: Absence[];
+    hourlyBlockages?: HourlyBlockage[];
     onClose: () => void;
     onUpdatePerson: (p: Person) => void;
     isViewer?: boolean;
@@ -22,7 +25,7 @@ interface PersonalAttendanceCalendarProps {
 
 const formatTime = (time?: string) => time?.slice(0, 5) || '';
 
-export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({ person: initialPerson, teamRotations, absences = [], onClose, onUpdatePerson, isViewer = false }) => {
+export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({ person: initialPerson, teamRotations, absences = [], hourlyBlockages = [], onClose, onUpdatePerson, isViewer = false }) => {
     const [person, setPerson] = useState(initialPerson);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [editingDate, setEditingDate] = useState<Date | null>(null);
@@ -64,7 +67,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
     // Helper to calculate availability including personal rotation
     const getDisplayAvailability = (date: Date) => {
-        return getEffectiveAvailability(person, date, teamRotations, absences);
+        return getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
     };
 
     const handleSaveStatus = (
@@ -297,6 +300,9 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     {isManual && (
                         <span className="absolute top-2 left-2 w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse shadow-sm z-20" title="שינוי ידני"></span>
                     )}
+                    {(avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
+                        <span className={`absolute top-2 ${isManual ? 'left-5' : 'left-2'} w-1.5 h-1.5 bg-red-500 rounded-full shadow-sm z-20`} title="ישנם אילוצים ביום זה"></span>
+                    )}
 
                     <div className="mt-6 h-full pointer-events-none flex flex-col items-center justify-center gap-1">
                         {statusConfig.label && (
@@ -306,6 +312,21 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                             `}>
                                 <Icon size={20} weight={statusConfig.bg.includes('500') ? "fill" : "duotone"} className="mb-0.5 opacity-90" />
                                 <span className="text-[11px] px-1">{statusConfig.label}</span>
+                            </div>
+                        )}
+
+                        {/* Blockages / Constraints Display */}
+                        {avail.unavailableBlocks && avail.unavailableBlocks.length > 0 && (
+                            <div className="flex flex-col items-center gap-1 mt-1 z-20">
+                                {avail.unavailableBlocks.slice(0, 2).map((block, idx) => (
+                                    <div key={idx} className="flex items-center gap-1 text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100 shadow-sm" title={block.reason}>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                        <span>{block.start.slice(0, 5)}-{block.end.slice(0, 5)}</span>
+                                    </div>
+                                ))}
+                                {avail.unavailableBlocks.length > 2 && (
+                                    <div className="w-1 h-1 rounded-full bg-red-300" />
+                                )}
                             </div>
                         )}
                     </div>
@@ -318,14 +339,31 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
     const modalTitle = (
         <div className="flex items-center gap-3 pr-2 text-right">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} text-sm shrink-0`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} text-base shrink-0`}>
                 {getPersonInitials(person.name)}
             </div>
             <div className="flex flex-col gap-0.5">
                 <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">{person.name}</h2>
-                <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wider">
-                    <CalendarIcon size={14} className="text-slate-400" weight="duotone" />
-                    <span>לוח נוכחות אישי</span>
+                <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold tracking-wider flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                        <CalendarIcon size={14} className="text-slate-400" weight="duotone" />
+                        <span>לוח נוכחות אישי</span>
+                    </div>
+                    {(person.phone || person.email) && (
+                        <div className="hidden md:flex items-center gap-2 text-slate-300 mx-1">|</div>
+                    )}
+                    {person.phone && (
+                        <a href={`tel:${person.phone}`} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition-colors" title="התקשר">
+                            <Phone size={14} weight="duotone" className="text-slate-400" />
+                            <span>{person.phone}</span>
+                        </a>
+                    )}
+                    {person.email && (
+                        <a href={`mailto:${person.email}`} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition-colors lowercase">
+                            <Envelope size={14} weight="duotone" className="text-slate-400" />
+                            <span title={person.email}>{person.email}</span>
+                        </a>
+                    )}
                 </div>
             </div>
         </div>
@@ -368,19 +406,32 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             }
         }
         return (
-            <div className="flex items-center justify-between w-full">
-                <div className="flex gap-6 items-center">
-                    <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                        <span className="text-sm font-bold text-slate-600">בבסיס: <span className="text-emerald-700">{daysOnBase} ימים</span></span>
+            <div className="flex flex-col gap-2 w-full">
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex gap-6 items-center flex-wrap">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                            <span className="text-sm font-bold text-slate-600">בבסיס: <span className="text-emerald-700">{daysOnBase} ימים</span></span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                            <span className="text-sm font-bold text-slate-600">בבית: <span className="text-slate-800">{daysAtHome} ימים</span></span>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                        <span className="text-sm font-bold text-slate-600">בבית: <span className="text-slate-800">{daysAtHome} ימים</span></span>
+                    <div className="text-[10px] md:text-xs text-slate-400 font-bold italic">
+                        * יום יציאה נספר כיום בבית
                     </div>
                 </div>
-                <div className="text-[10px] md:text-xs text-slate-400 font-bold italic">
-                    * יום יציאה נספר כיום בבית
+                <div className="flex items-center gap-4 pt-2 border-t border-slate-100 flex-wrap">
+                    <span className="text-xs font-black text-slate-400">מקרא:</span>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-amber-400" />
+                        <span className="text-xs font-bold text-slate-500">שינוי ידני</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-red-500" />
+                        <span className="text-xs font-bold text-slate-500">אילוץ / חסימה</span>
+                    </div>
                 </div>
             </div>
         );

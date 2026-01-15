@@ -510,6 +510,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                     person={selectedPersonForCalendar}
                     teamRotations={teamRotations}
                     absences={absences}
+                    hourlyBlockages={hourlyBlockages}
                     onClose={() => setSelectedPersonForCalendar(null)}
                     onUpdatePerson={() => { }}
                     isViewer={true}

@@ -1014,7 +1014,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                                                             {/* Is Manual/Algorithm dot */}
                                                                             {(avail.source === 'manual' || avail.source === 'algorithm') && (
-                                                                                <div className={`absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full ${avail.source === 'manual' ? 'bg-amber-400' : 'bg-blue-400'}`} />
+                                                                                <div className={`absolute top-1.5 ${isUnapprovedExit ? 'left-5' : 'left-1.5'} w-1.5 h-1.5 rounded-full ${avail.source === 'manual' ? 'bg-amber-400' : 'bg-blue-400'}`} />
                                                                             )}
                                                                         </div>
                                                                     );
@@ -1031,18 +1031,27 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                         </div>
 
                         {/* Footer Summary - STICKY FIXED */}
-                        <div className="sticky bottom-0 z-50 p-3 bg-white border-t border-slate-200 flex items-center justify-center gap-4 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                        <div className="sticky bottom-0 z-50 p-2 md:p-3 bg-white border-t border-slate-200 flex items-center justify-center gap-3 md:gap-6 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex-wrap">
                             <div className="flex items-center gap-1.5">
                                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
-                                <span className="text-[10px] font-bold text-slate-500">נמצא בבסיס</span>
+                                <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap">נמצא בבסיס</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <div className="w-2.5 h-2.5 rounded-full bg-red-400/40 shadow-sm" />
-                                <span className="text-[10px] font-bold text-slate-500">נמצא בבית</span>
+                                <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap">נמצא בבית</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm" />
-                                <span className="text-[10px] font-bold text-slate-500">אילוץ / חריג</span>
+                                <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap">יציאה</span>
+                            </div>
+                            <div className="w-px h-3 bg-slate-200 hidden md:block" />
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-2 h-2 rounded-full bg-amber-400 shadow-sm" />
+                                <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap">שינוי ידני</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <AlertCircle size={10} className="text-red-500" weight="fill" />
+                                <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap">חסימה בלו"ז</span>
                             </div>
                         </div>
                     </div>
