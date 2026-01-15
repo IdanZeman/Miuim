@@ -33,6 +33,8 @@ interface AssignmentModalProps {
     constraints: SchedulingConstraint[];
     interPersonConstraints?: InterPersonConstraint[];
     settings?: OrganizationSettings | null;
+    absences?: import('../../types').Absence[];
+    hourlyBlockages?: import('../../types').HourlyBlockage[];
 }
 
 export const AssignmentModal: React.FC<AssignmentModalProps> = ({
@@ -52,7 +54,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     onToggleCancelShift,
     constraints,
     interPersonConstraints = [],
-    settings
+    settings,
+    absences = [],
+    hourlyBlockages = []
 }) => {
     // -------------------------------------------------------------------------
     // 1. STATE & HOOKS (Preserved Logic)
@@ -141,7 +145,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             if (p.isActive === false) return false;
             if (selectedShift.assignedPersonIds.includes(p.id)) return false;
 
-            const availability = getEffectiveAvailability(p, selectedDate, teamRotations);
+            const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
             if (availability.status === 'home') return false;
 
             if (availability.source === 'manual' && availability.isAvailable) {
@@ -151,6 +155,30 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             }
 
             if (overlappingShifts.some(s => s.assignedPersonIds.includes(p.id))) return false;
+
+            // Check for hourly blockages that overlap with this shift
+            if (availability.unavailableBlocks && availability.unavailableBlocks.length > 0) {
+                const shiftStart = new Date(selectedShift.startTime);
+                const shiftEnd = new Date(selectedShift.endTime);
+
+                const hasBlockageOverlap = availability.unavailableBlocks.some(block => {
+                    // Parse block times (format: "HH:MM")
+                    const [blockStartHour, blockStartMin] = block.start.split(':').map(Number);
+                    const [blockEndHour, blockEndMin] = block.end.split(':').map(Number);
+
+                    // Create Date objects for block times on the same day as the shift
+                    const blockStart = new Date(shiftStart);
+                    blockStart.setHours(blockStartHour, blockStartMin, 0, 0);
+
+                    const blockEnd = new Date(shiftStart);
+                    blockEnd.setHours(blockEndHour, blockEndMin, 0, 0);
+
+                    // Check for overlap: block overlaps if it starts before shift ends AND ends after shift starts
+                    return blockStart < shiftEnd && blockEnd > shiftStart;
+                });
+
+                if (hasBlockageOverlap) return false;
+            }
 
             // Apply Filters
             if (selectedRoleFilter) {
@@ -686,7 +714,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     </div>
                     <div className="overflow-y-auto flex-1 p-3 md:p-2 space-y-3 md:space-y-1">
                         {availablePeople.map(p => {
-                            const availability = getEffectiveAvailability(p, selectedDate, teamRotations);
+                            const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
 
                             const badges = (() => {
                                 const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id) && !s.isCancelled && s.id !== selectedShift.id);
