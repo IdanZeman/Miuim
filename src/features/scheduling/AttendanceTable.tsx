@@ -240,10 +240,12 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         <div className="h-full flex flex-col relative" dir="rtl">
             {/* --- DAILY AGENDA VIEW (Mobile default, Desktop optional) --- */}
             {(viewMode === 'daily' || !viewMode) && (
-                <div className={`flex-1 overflow-y-auto custom-scrollbar bg-slate-50/40 pb-32 ${viewMode === 'daily' ? '' : 'md:hidden'}`}>
+                <div
+                    className={`flex-1 overflow-y-auto custom-scrollbar bg-slate-50/40 pb-32 ${viewMode === 'daily' ? '' : 'md:hidden'}`}
+                >
                     <div className="max-w-5xl mx-auto bg-white min-h-full shadow-sm border-x border-slate-100">
                         {/* Global Summary Card - Daily View (Light Premium Style) */}
-                        <div className="bg-white p-6 m-4 mt-6 rounded-3xl border border-slate-100 relative overflow-hidden group">
+                        <div className="bg-white p-6 m-4 mt-6 rounded-3xl shadow-xl shadow-slate-200/40 border border-slate-100 relative overflow-hidden group">
                             {/* Subtle Background Decoration */}
                             <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-50/50 rounded-full blur-3xl" />
 
@@ -322,9 +324,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             </div>
                                         </div>
 
-                                        {/* Personnel List - Optimized for Touch */}
+                                        {/* Personnel List Container - Separate DIV as requested */}
                                         {!collapsedTeams.has(team.id) && (
-                                            <div className="divide-y divide-slate-50">
+                                            <div className="bg-white divide-y divide-slate-50 shadow-inner">
                                                 {members.map(person => {
                                                     const avail = getEffectiveAvailability(person, currentDate, teamRotations, absences, hourlyBlockages);
                                                     const dateKey = currentDate.toLocaleDateString('en-CA');
@@ -483,7 +485,10 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
 
                         {/* Table Area (Desktop Only) */}
-                        <div className="flex-1 overflow-auto bg-slate-50/10 relative custom-scrollbar h-full" ref={scrollContainerRef}>
+                        <div
+                            className="flex-1 overflow-auto bg-slate-50/10 relative custom-scrollbar h-full"
+                            ref={scrollContainerRef}
+                        >
                             <div className="min-w-max">
                                 {/* Floating Header (Dates) */}
                                 <div className="flex sticky top-0 z-[90] bg-white">
@@ -528,7 +533,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                 {/* Summary Row (Required Manpower) - Optional */}
                                 {showRequiredDetails && (
-                                    <div className="flex sticky z-[85] top-[64px] bg-white backdrop-blur-md h-12 border-b border-slate-200">
+                                    <div className="flex sticky z-[85] top-[64px] bg-white backdrop-blur-md h-12 border-b border-slate-200 shadow-sm">
                                         <div className="w-60 shrink-0 bg-rose-50 border-l border-rose-100 h-full flex items-center gap-2 sticky right-0 z-[90] px-6">
                                             <AlertCircle size={16} className="text-rose-500" weight="duotone" />
                                             <span className="text-sm font-black text-rose-900 tracking-tight">נדרשים למשימות</span>
@@ -724,7 +729,6 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                 className={`w-24 shrink-0 flex items-center justify-center border-l border-slate-200 text-[11px] font-black border-b h-full
                                                                     ${isFull ? 'text-emerald-700 bg-emerald-50/30' : isEmpty ? 'text-slate-400' : 'text-amber-700 bg-amber-50/30'}
                                                                 `}
-                                                                dir="ltr"
                                                             >
                                                                 {present} / {total}
                                                             </div>
@@ -735,9 +739,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 <div className="flex-1 bg-slate-50 border-b border-slate-200 h-full" />
                                             </div>
 
-                                            {/* Team Members */}
+                                            {/* Team Members List Container - Separate DIV as requested */}
                                             {!isCollapsed && (
-                                                <div className="divide-y divide-slate-100">
+                                                <div className="divide-y divide-slate-100 bg-white">
                                                     {teamPeople.map((person, idx) => (
                                                         <div key={person.id} className="flex group/row hover:bg-blue-50/20 transition-all">
                                                             {/* Person Info Sticky Cell */}
@@ -794,7 +798,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         <div className={`w-16 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[304px] z-[60] flex items-center justify-center font-black text-sm text-red-600 cursor-pointer hover:bg-red-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)}>
                                                                             {homeDays}
                                                                         </div>
-                                                                        <div className={`w-16 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[368px] z-[60] flex items-center justify-center font-black text-[10px] text-blue-600 cursor-pointer hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)} dir="ltr">
+                                                                        <div className={`w-16 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[368px] z-[60] flex items-center justify-center font-black text-[11px] text-blue-500 cursor-pointer hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)} dir="ltr">
                                                                             {homeNorm} / {baseNorm}
                                                                         </div>
                                                                     </>

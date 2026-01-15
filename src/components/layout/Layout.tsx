@@ -78,7 +78,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
   const themeShadow = isBattalionMode ? 'rgba(59,130,246,0.3)' : 'rgba(37,99,235,0.3)';
 
   return (
-    <div className={`flex flex-col min-h-screen font-sans ${isBattalionMode ? 'bg-slate-50' : 'bg-idf-bg'}`}>
+    <div className={`flex flex-col h-screen overflow-hidden font-sans ${isBattalionMode ? 'bg-slate-50' : 'bg-idf-bg'}`}>
       {/* Navbar */}
       <Navbar
         currentView={currentView}
@@ -213,7 +213,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
       )}
 
       {/* Main Content - Scrollable */}
-      <main ref={mainRef} className={`flex-1 relative scroll-smooth ${isBattalionMode ? 'bg-slate-50' : 'bg-idf-bg'}`}>
+      <main ref={mainRef} className={`flex-1 overflow-y-auto relative scroll-smooth ${isBattalionMode ? 'bg-slate-50' : 'bg-idf-bg'}`}>
         {/* Hero Section - Responsive height */}
         <div className={`${isBattalionMode ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-hero-pattern'} h-32 md:h-40 w-full absolute top-0 left-0 z-0 transition-all shadow-inner`} />
 

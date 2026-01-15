@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ExcelJS from 'exceljs';
 import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
-import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical as MoreVertical, DownloadSimple as Download, Info, ChartBar } from '@phosphor-icons/react';
+import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical as MoreVertical, DownloadSimple as Download, ChartBar } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { DateNavigator } from '../../components/ui/DateNavigator';
@@ -12,10 +12,9 @@ import { PersonalRotationEditor } from './PersonalRotationEditor';
 import { logger } from '../../services/loggingService';
 import { AttendanceTable } from './AttendanceTable';
 import { BulkAttendanceModal } from './BulkAttendanceModal';
-import { ImportAttendanceModal } from '@/features/scheduling/ImportAttendanceModal';
-import { AttendanceStatsModal } from './AttendanceStatsModal';
 import { useToast } from '@/contexts/ToastContext';
 import { RotaWizardModal } from './RotaWizardModal';
+import { AttendanceStatsModal } from './AttendanceStatsModal';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { useAuth } from '@/features/auth/AuthContext';
 import { addHourlyBlockage, updateHourlyBlockage, deleteHourlyBlockage, updateAbsence } from '@/services/api';
@@ -65,18 +64,18 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [selectedPersonForCalendar, setSelectedPersonForCalendar] = useState<Person | null>(null);
     const [editingPersonalRotation, setEditingPersonalRotation] = useState<Person | null>(null);
     const dateInputRef = useRef<HTMLInputElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // Bulk Mode State
     const [isBulkMode, setIsBulkMode] = useState(false);
     const [showRequiredDetails, setShowRequiredDetails] = useState(false); // New State
     const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
     const [showBulkModal, setShowBulkModal] = useState(false);
-    const [showImportModal, setShowImportModal] = useState(false);
     const [showRotaWizard, setShowRotaWizard] = useState(initialOpenRotaWizard); // Initialize from prop
-    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-    const [showMoreActions, setShowMoreActions] = useState(false);
     const [showStatistics, setShowStatistics] = useState(false);
     const [statsEntity, setStatsEntity] = useState<{ person?: Person, team?: Team } | null>(null);
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+    const [showMoreActions, setShowMoreActions] = useState(false);
 
     useEffect(() => {
         if (initialOpenRotaWizard && onDidConsumeInitialAction) {
@@ -576,7 +575,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative">
+        <div ref={containerRef} className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100dvh-70px)] md:h-[calc(100vh-90px)] relative overflow-hidden">
             {/* --- GREEN HEADER (Mobile & Desktop Unified or Mobile Only?) --- */}
 
             {/* --- UNIFIED MOBILE CONTAINER --- */}
@@ -622,15 +621,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             className="w-9 h-9 rounded-xl"
                             title="ייצוא נתוני נוכחות"
                         />
-                        {!isViewer && (
-                            <button
-                                onClick={() => setShowImportModal(true)}
-                                className="w-9 h-9 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 active:scale-95 transition-all shrink-0"
-                                title="ייבוא מאקסל"
-                            >
-                                <Download size={18} weight="bold" className="rotate-180" />
-                            </button>
-                        )}
                     </div>
 
                     {/* Date Navigator - Optimized for Mobile */}
@@ -713,14 +703,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             </div>
 
             {/* --- DESKTOP VIEW CONTAINER --- */}
-            <div className="hidden md:flex flex-col flex-1">
+            <div className="hidden md:flex flex-col flex-1 overflow-hidden">
                 <ActionBar
                     searchTerm={viewMode !== 'calendar' ? searchTerm : ''}
                     onSearchChange={setSearchTerm}
+                    isSearchHidden={viewMode === 'calendar'}
                     isSearchExpanded={isSearchExpanded}
                     onSearchExpandedChange={setIsSearchExpanded}
                     onExport={handleExport}
-                    isSearchHidden={viewMode === 'calendar'}
                     className="p-4"
                     leftActions={
                         <div className="flex items-center gap-4">
@@ -770,7 +760,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     title={tab.label}
                                 >
                                     <tab.icon size={16} weight="duotone" />
-                                    <span className={isSearchExpanded ? 'hidden' : 'hidden 2xl:inline'}>{tab.label}</span>
+                                    <span className={(isSearchExpanded || searchTerm) ? 'hidden' : 'inline'}>{tab.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -792,48 +782,38 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     return d;
                                 })() : undefined}
                             />
-                            {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
-                                <button
-                                    onClick={() => setShowRotaWizard(true)}
-                                    data-testid="open-rota-wizard-btn"
-                                    className="h-10 w-10 flex items-center justify-center bg-slate-100/50 text-slate-600 hover:bg-white hover:text-blue-600 rounded-xl transition-all border border-slate-200 shadow-sm group"
-                                    title="מחולל סבבים"
-                                >
-                                    <Sparkles size={18} weight="duotone" className="group-hover:text-blue-600 transition-colors" />
-                                </button>
-                            )}
 
-                            {!isViewer && (
-                                <button
-                                    onClick={() => setShowImportModal(true)}
-                                    className="h-10 w-10 flex items-center justify-center bg-emerald-50/50 text-emerald-600 hover:bg-white hover:text-emerald-700 rounded-xl transition-all border border-emerald-100 shadow-sm group"
-                                    title="ייבוא מאקסל"
-                                >
-                                    <Download size={18} weight="duotone" className="group-hover:text-emerald-700 transition-colors rotate-180" />
-                                </button>
-                            )}
+                            <div className="flex items-center gap-2">
+                                {viewMode === 'table' && (
+                                    <>
+                                        <button
+                                            onClick={() => setShowStatistics(!showStatistics)}
+                                            className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showStatistics ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
+                                            title={showStatistics ? 'הסתר סטטיסטיקה' : 'הצג סטטיסטיקה'}
+                                        >
+                                            <ChartBar size={20} weight="duotone" />
+                                        </button>
+                                        <button
+                                            onClick={() => setShowRequiredDetails(!showRequiredDetails)}
+                                            className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showRequiredDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
+                                            title={showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
+                                        >
+                                            <ListChecks size={20} weight="duotone" />
+                                        </button>
+                                    </>
+                                )}
 
-                            <button
-                                onClick={() => setShowStatistics(!showStatistics)}
-                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border-2 ${showStatistics
-                                    ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
-                                    }`}
-                                title="סטטיסטיקה"
-                            >
-                                <ChartBar size={20} weight={showStatistics ? "fill" : "duotone"} />
-                            </button>
-
-
-                            {viewMode === 'table' && (
-                                <button
-                                    onClick={() => setShowRequiredDetails(!showRequiredDetails)}
-                                    className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showRequiredDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
-                                    title={showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
-                                >
-                                    <ListChecks size={20} weight="duotone" />
-                                </button>
-                            )}
+                                {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
+                                    <button
+                                        onClick={() => setShowRotaWizard(true)}
+                                        data-testid="open-rota-wizard-btn"
+                                        className="h-10 w-10 flex items-center justify-center bg-slate-100/50 text-slate-500 hover:bg-white hover:text-blue-600 rounded-xl transition-all border border-slate-200 shadow-sm transition-all group"
+                                        title="מחולל סבבים"
+                                    >
+                                        <Sparkles size={18} weight="duotone" className="group-hover:text-blue-600 transition-colors" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     }
                 />
@@ -858,7 +838,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             />
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col bg-white border border-slate-200">
+                        <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200">
                             <AttendanceTable
                                 teams={teams}
                                 people={filteredPeople}
@@ -877,8 +857,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 isViewer={isViewer}
                                 showRequiredDetails={showRequiredDetails}
                                 showStatistics={showStatistics}
-                                onShowPersonStats={(person) => setStatsEntity({ person })}
-                                onShowTeamStats={(team) => setStatsEntity({ team })}
+                                onShowPersonStats={(p) => setStatsEntity({ person: p })}
+                                onShowTeamStats={(t) => setStatsEntity({ team: t })}
                                 tasks={tasks}
                             />
                         </div>
@@ -887,62 +867,46 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             </div>
 
             {/* Modals & Overlays (Outside sheet flow or global) */}
-            {statsEntity && (
-                <AttendanceStatsModal
-                    person={statsEntity.person}
-                    team={statsEntity.team}
-                    people={activePeople}
-                    teamRotations={teamRotations}
-                    absences={absences}
-                    hourlyBlockages={hourlyBlockages}
-                    dates={(() => {
-                        const d = viewMode === 'table' ? viewDate : selectedDate;
-                        const vYear = d.getFullYear();
-                        const vMonth = d.getMonth();
-                        const dMonth = new Date(vYear, vMonth + 1, 0).getDate();
-                        const datesArr = [];
-                        for (let i = 1; i <= dMonth; i++) {
-                            datesArr.push(new Date(vYear, vMonth, i));
-                        }
-                        return datesArr;
-                    })()}
-                    onClose={() => setStatsEntity(null)}
-                />
-            )}
-            {showRotationSettings && (() => {
-                const team = teams.find(t => t.id === showRotationSettings);
-                if (!team) return null;
-                return (
-                    <RotationEditor
-                        team={team}
-                        existing={teamRotations.find(r => r.team_id === team.id)}
-                        onClose={() => setShowRotationSettings(null)}
-                        onAddRotation={onAddRotation}
-                        onUpdateRotation={onUpdateRotation}
-                        onDeleteRotation={onDeleteRotation}
+            {
+                showRotationSettings && (() => {
+                    const team = teams.find(t => t.id === showRotationSettings);
+                    if (!team) return null;
+                    return (
+                        <RotationEditor
+                            team={team}
+                            existing={teamRotations.find(r => r.team_id === team.id)}
+                            onClose={() => setShowRotationSettings(null)}
+                            onAddRotation={onAddRotation}
+                            onUpdateRotation={onUpdateRotation}
+                            onDeleteRotation={onDeleteRotation}
+                        />
+                    );
+                })()
+            }
+
+            {
+                selectedPersonForCalendar && !isBulkMode && (
+                    <PersonalAttendanceCalendar
+                        person={selectedPersonForCalendar}
+                        teamRotations={teamRotations}
+                        absences={absences}
+                        onClose={() => setSelectedPersonForCalendar(null)}
+                        onUpdatePerson={onUpdatePerson}
+                        isViewer={isViewer}
                     />
-                );
-            })()}
+                )
+            }
 
-            {selectedPersonForCalendar && !isBulkMode && (
-                <PersonalAttendanceCalendar
-                    person={selectedPersonForCalendar}
-                    teamRotations={teamRotations}
-                    absences={absences}
-                    onClose={() => setSelectedPersonForCalendar(null)}
-                    onUpdatePerson={onUpdatePerson}
-                    isViewer={isViewer}
-                />
-            )}
-
-            {editingPersonalRotation && !isBulkMode && (
-                <PersonalRotationEditor
-                    person={editingPersonalRotation}
-                    isOpen={true}
-                    onClose={() => setEditingPersonalRotation(null)}
-                    onSave={handleUpdatePersonalRotation}
-                />
-            )}
+            {
+                editingPersonalRotation && !isBulkMode && (
+                    <PersonalRotationEditor
+                        person={editingPersonalRotation}
+                        isOpen={true}
+                        onClose={() => setEditingPersonalRotation(null)}
+                        onSave={handleUpdatePersonalRotation}
+                    />
+                )
+            }
 
             <BulkAttendanceModal
                 isOpen={showBulkModal}
@@ -951,33 +915,48 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 selectedCount={selectedPersonIds.size}
             />
 
-            {showImportModal && (
-                <ImportAttendanceModal
-                    isOpen={showImportModal}
-                    onClose={() => setShowImportModal(false)}
-                    people={people}
-                    onUpdatePeople={(updates) => {
-                        if (onUpdatePeople) onUpdatePeople(updates);
-                    }}
-                />
-            )}
+            {
+                showRotaWizard && (
+                    <RotaWizardModal
+                        isOpen={showRotaWizard}
+                        onClose={() => setShowRotaWizard(false)}
+                        people={activePeople}
+                        teams={teams}
+                        roles={roles}
+                        tasks={tasks}
+                        constraints={constraints}
+                        absences={absences}
+                        settings={settings}
+                        teamRotations={teamRotations}
+                        hourlyBlockages={hourlyBlockages}
+                        onSaveRoster={(roster: DailyPresence[]) => { }}
+                    />
+                )
+            }
 
-            {showRotaWizard && (
-                <RotaWizardModal
-                    isOpen={showRotaWizard}
-                    onClose={() => setShowRotaWizard(false)}
-                    people={activePeople}
-                    teams={teams}
-                    roles={roles}
-                    tasks={tasks}
-                    constraints={constraints}
-                    absences={absences}
-                    settings={settings}
-                    teamRotations={teamRotations}
-                    hourlyBlockages={hourlyBlockages}
-                    onSaveRoster={(roster: DailyPresence[]) => { }}
-                />
-            )}
+            {
+                statsEntity && (
+                    <AttendanceStatsModal
+                        person={statsEntity.person}
+                        team={statsEntity.team}
+                        people={activePeople}
+                        teamRotations={teamRotations}
+                        absences={absences}
+                        hourlyBlockages={hourlyBlockages}
+                        dates={(() => {
+                            const year = viewDate.getFullYear();
+                            const month = viewDate.getMonth();
+                            const daysInMonth = new Date(year, month + 1, 0).getDate();
+                            const dates = [];
+                            for (let d = 1; d <= daysInMonth; d++) {
+                                dates.push(new Date(year, month, d));
+                            }
+                            return dates;
+                        })()}
+                        onClose={() => setStatsEntity(null)}
+                    />
+                )
+            }
         </div>
     );
-}; 
+};
