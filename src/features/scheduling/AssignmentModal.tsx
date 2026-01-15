@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import {
     X, Plus, MagnifyingGlass as Search, MagicWand as Wand2, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles,
-    CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil
+    CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle
 } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
@@ -342,11 +342,48 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 type: "warning",
                 onConfirm: () => {
                     setConfirmationState(prev => ({ ...prev, isOpen: false }));
-                    checkInterPersonAndAssign(p);
+                    checkRestAndAssign(p);
                 }
             });
             return;
         }
+        checkRestAndAssign(p);
+    };
+
+    const checkRestAndAssign = (p: Person) => {
+        // Check for insufficient rest from PREVIOUS shift
+        const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id) && !s.isCancelled && s.id !== selectedShift.id);
+        const thisStart = new Date(selectedShift.startTime);
+
+        // Find the last shift that ended before this one starts
+        const lastShift = personShifts
+            .filter(s => new Date(s.endTime) <= thisStart)
+            .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0];
+
+        if (lastShift) {
+            const lastEnd = new Date(lastShift.endTime);
+            const gapMs = thisStart.getTime() - lastEnd.getTime();
+            const gapHours = gapMs / (1000 * 60 * 60);
+
+            // Use the previous shift's defined rest requirement, or default to 8 hours
+            const requiredRest = lastShift.requirements?.minRest || 8;
+
+            if (gapHours < requiredRest) {
+                setConfirmationState({
+                    isOpen: true,
+                    title: 'התראת מנוחה לא מספקת',
+                    message: `החייל סיים משמרת קודמת לפני ${Math.floor(gapHours)} שעות (נדרש: ${requiredRest}). לשבץ בכל זאת?`,
+                    confirmText: "שבץ בכל זאת",
+                    type: "danger",
+                    onConfirm: () => {
+                        setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                        checkInterPersonAndAssign(p);
+                    }
+                });
+                return;
+            }
+        }
+
         checkInterPersonAndAssign(p);
     };
 
@@ -658,6 +695,35 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                         <div className="flex flex-col">
                                             <div className="flex items-baseline gap-2">
                                                 <span className="text-base md:text-sm font-black text-slate-800 tracking-tight">{p.name}</span>
+                                                {/* Rest Warning */}
+                                                {(() => {
+                                                    const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id) && !s.isCancelled && s.id !== selectedShift.id);
+                                                    const thisStart = new Date(selectedShift.startTime);
+                                                    const lastShift = personShifts
+                                                        .filter(s => new Date(s.endTime) <= thisStart)
+                                                        .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0];
+
+                                                    if (lastShift) {
+                                                        const lastEnd = new Date(lastShift.endTime);
+                                                        const gapMs = thisStart.getTime() - lastEnd.getTime();
+                                                        const gapHours = gapMs / (1000 * 60 * 60);
+                                                        const requiredRest = lastShift.requirements?.minRest || 8;
+
+                                                        if (gapHours < requiredRest) {
+                                                            return (
+                                                                <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100 group/warning" title={`מנוחה קצרה: ${Math.floor(gapHours)} שעות (נדרש: ${requiredRest})`}>
+                                                                    <div className="text-red-600 animate-pulse">
+                                                                        <AlertTriangle size={12} weight="fill" />
+                                                                    </div>
+                                                                    <span className="text-[10px] text-red-600 font-bold whitespace-nowrap">
+                                                                        סיים משמרת לפני {Math.floor(gapHours)} שעות
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        }
+                                                    }
+                                                    return null;
+                                                })()}
                                                 <div className="flex gap-1">
                                                     {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => (
                                                         <span key={r.id} className="text-[10px] md:text-[9px] px-1.5 bg-slate-100 text-slate-500 rounded font-bold">{r.name}</span>
