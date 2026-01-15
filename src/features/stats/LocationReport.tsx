@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ExcelJS from 'exceljs';
 import { Person, Shift, TaskTemplate, Team, OrganizationSettings, Absence, HourlyBlockage, Role } from '../../types';
 import { MapPin, House as Home, Briefcase, Funnel as Filter, Copy, CaretDown as ChevronDown, Users, SquaresFour as LayoutGrid, ArrowsDownUp as ArrowUpDown, User, CaretRight as ChevronRight, CaretLeft as ChevronLeft, Clock, DotsThreeVertical as MoreVertical } from '@phosphor-icons/react';
@@ -11,6 +11,7 @@ import { TimePicker } from '../../components/ui/DatePicker';
 import { logger } from '../../services/loggingService';
 import { ExportButton } from '../../components/ui/ExportButton';
 import { GenericModal } from '../../components/ui/GenericModal';
+import { ActionBar } from '../../components/ui/ActionBar';
 
 interface LocationReportProps {
     people: Person[];
@@ -44,9 +45,11 @@ export const LocationReport: React.FC<LocationReportProps> = ({
         return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     });
     const [filterTeam, setFilterTeam] = useState<string>('all');
-    const [groupBy, setGroupBy] = useState<'status' | 'team' | 'alpha'>('status');
+    const [groupBy, setGroupBy] = useState<'status' | 'team' | 'alpha' | 'mission'>('status');
+    const [showCustomFields, setShowCustomFields] = useState<boolean>(false);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const toggleSection = (section: string) => {
         setExpanded(prev => ({ ...prev, [section]: !(prev[section] ?? true) }));
@@ -171,7 +174,9 @@ export const LocationReport: React.FC<LocationReportProps> = ({
             };
         });
 
-        return report.filter(r => filterTeam === 'all' || r.person.teamId === filterTeam);
+        return report
+            .filter(r => filterTeam === 'all' || r.person.teamId === filterTeam)
+            .filter(r => r.person.name.toLowerCase().includes(searchTerm.toLowerCase()));
     };
 
     const reportData = generateReport();
@@ -224,7 +229,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                         {renderSectionHeader('mission', 'במשימה', grouped.mission.length, <Briefcase size={20} className="text-rose-500" weight="duotone" />, 'bg-rose-50/50 hover:bg-rose-50', 'border-rose-100')}
                         {isSectionExpanded('mission') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                {grouped.mission.map(r => <PersonCard key={r.person.id} r={r} teamName={getTeamName(r.person.teamId)} />)}
+                                {grouped.mission.map(r => <PersonCard key={r.person.id} r={r} teamName={getTeamName(r.person.teamId)} settings={settings} showCustomFields={showCustomFields} />)}
                                 {grouped.mission.length === 0 && <p className="text-sm text-slate-400 italic px-2">אין חיילים במשימה בזמן זה</p>}
                             </div>
                         )}
@@ -234,7 +239,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                         {renderSectionHeader('base', 'בבסיס', grouped.base.length, <MapPin size={20} className="text-emerald-600" weight="duotone" />, 'bg-emerald-50/50 hover:bg-emerald-50', 'border-emerald-100')}
                         {isSectionExpanded('base') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                {grouped.base.map(r => <PersonCard key={r.person.id} r={r} type="base" teamName={getTeamName(r.person.teamId)} />)}
+                                {grouped.base.map(r => <PersonCard key={r.person.id} r={r} type="base" teamName={getTeamName(r.person.teamId)} settings={settings} showCustomFields={showCustomFields} />)}
                                 {grouped.base.length === 0 && <p className="text-sm text-slate-400 italic px-2">אין חיילים בבסיס</p>}
                             </div>
                         )}
@@ -244,7 +249,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                         {renderSectionHeader('home', 'בבית', grouped.home.length, <Home size={20} className="text-slate-500" weight="duotone" />, 'bg-slate-50 hover:bg-slate-100', 'border-slate-200')}
                         {isSectionExpanded('home') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                {grouped.home.map(r => <PersonCard key={r.person.id} r={r} type="home" teamName={getTeamName(r.person.teamId)} />)}
+                                {grouped.home.map(r => <PersonCard key={r.person.id} r={r} type="home" teamName={getTeamName(r.person.teamId)} settings={settings} showCustomFields={showCustomFields} />)}
                                 {grouped.home.length === 0 && <p className="text-sm text-slate-400 italic px-2">כולם בבסיס</p>}
                             </div>
                         )}
@@ -291,12 +296,100 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                             r={r}
                                             showStatusBadge
                                             teamName={teamName}
+                                            settings={settings}
+                                            showCustomFields={showCustomFields}
                                         />
                                     ))}
                                 </div>
                             )}
                         </section>
                     ))}
+                </div>
+            );
+        } else if (groupBy === 'mission') {
+            const missionsMap = new Map<string, PersonLocation[]>();
+            const onMission = reportData.filter(r => r.status === 'mission');
+            const notOnMission = reportData.filter(r => r.status !== 'mission');
+
+            // Group by mission/task
+            onMission.forEach(r => {
+                const missionName = r.details;
+                if (!missionsMap.has(missionName)) {
+                    missionsMap.set(missionName, []);
+                }
+                missionsMap.get(missionName)!.push(r);
+            });
+
+            // Sort missions by personnel count
+            const sortedMissions = Array.from(missionsMap.entries()).sort((a, b) => b[1].length - a[1].length);
+
+            return (
+                <div className="space-y-6">
+                    {sortedMissions.map(([missionName, members]) => (
+                        <section key={missionName}>
+                            <div
+                                onClick={() => toggleSection(missionName)}
+                                className="flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 border-rose-100 bg-rose-50/50 hover:bg-rose-50 cursor-pointer shadow-sm transition-all"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Briefcase size={20} className="text-rose-500" weight="duotone" />
+                                    <span className="text-base">{missionName} <span className="text-slate-400 font-black text-sm ml-1">({members.length})</span></span>
+                                </div>
+                                <ChevronDown
+                                    size={18}
+                                    className={`transition-transform duration-300 ${isSectionExpanded(missionName) ? 'rotate-180' : ''}`}
+                                    weight="bold"
+                                />
+                            </div>
+                            {isSectionExpanded(missionName) && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {members.map(r => (
+                                        <PersonCard
+                                            key={r.person.id}
+                                            r={r}
+                                            teamName={getTeamName(r.person.teamId)}
+                                            settings={settings}
+                                            showCustomFields={showCustomFields}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    ))}
+
+                    {/* Base/Home personnel */}
+                    {notOnMission.length > 0 && (
+                        <section>
+                            <div
+                                onClick={() => toggleSection('not_on_mission')}
+                                className="flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 border-slate-100 bg-slate-50 hover:bg-slate-100 cursor-pointer shadow-sm transition-all"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Users size={20} className="text-slate-500" weight="duotone" />
+                                    <span className="text-base">ללא משימה <span className="text-slate-400 font-black text-sm ml-1">({notOnMission.length})</span></span>
+                                </div>
+                                <ChevronDown
+                                    size={18}
+                                    className={`transition-transform duration-300 ${isSectionExpanded('not_on_mission') ? 'rotate-180' : ''}`}
+                                    weight="bold"
+                                />
+                            </div>
+                            {isSectionExpanded('not_on_mission') && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {notOnMission.map(r => (
+                                        <PersonCard
+                                            key={r.person.id}
+                                            r={r}
+                                            showStatusBadge
+                                            teamName={getTeamName(r.person.teamId)}
+                                            settings={settings}
+                                            showCustomFields={showCustomFields}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    )}
                 </div>
             );
         } else {
@@ -317,6 +410,8 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                     r={r}
                                     showStatusBadge
                                     teamName={getTeamName(r.person.teamId)}
+                                    settings={settings}
+                                    showCustomFields={showCustomFields}
                                 />
                             ))}
                         </div>
@@ -328,43 +423,103 @@ export const LocationReport: React.FC<LocationReportProps> = ({
 
     return (
         <div className="bg-transparent min-h-full flex flex-col">
-            <div className="bg-white p-4 md:p-6 border-b border-slate-100 sticky top-0 z-30 flex flex-col gap-4 shadow-sm">
-
-                {/* Top Row: Title & Controls */}
-                {/* Top Row: Title & Controls */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center justify-between w-full md:w-auto">
-                        <h2 className="text-xl md:text-2xl font-black text-slate-800 flex items-center gap-2 shrink-0">
-                            <MapPin className="text-emerald-500" size={24} weight="duotone" />
-                            דוח מיקום כוחות
+            <ActionBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                searchPlaceholder="חיפוש לפי שם..."
+                leftActions={
+                    <div className="flex items-center gap-2">
+                        <MapPin className="text-emerald-500 hidden md:block" size={24} weight="duotone" />
+                        <h2 className="text-xl md:text-2xl font-black text-slate-800 whitespace-nowrap">
+                            דוח מיקום
                         </h2>
-
-                        <button
-                            onClick={() => setIsActionsMenuOpen(true)}
-                            className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-500 active:bg-slate-100 transition-colors shrink-0"
-                            aria-label="פעולות נוספות"
-                        >
-                            <MoreVertical size={20} weight="bold" />
-                        </button>
                     </div>
-
-                    {/* Desktop: All Controls */}
-                    <div className="hidden md:flex items-center gap-2">
+                }
+                centerActions={
+                    <div className="flex items-center gap-2">
                         <DateNavigator
                             date={selectedDate}
                             onDateChange={setSelectedDate}
                             mode="day"
                             className="h-10"
                         />
-
                         <TimePicker
                             label=""
                             value={selectedTime}
                             onChange={setSelectedTime}
-                            className="w-28 h-10"
+                            className="w-24 md:w-28 h-10"
                         />
+                    </div>
+                }
+                filters={[
+                    {
+                        id: 'team',
+                        value: filterTeam,
+                        onChange: setFilterTeam,
+                        icon: Filter,
+                        options: [
+                            { value: 'all', label: 'כל הצוותים' },
+                            ...(teams.length > 0
+                                ? teams.map(t => ({ value: t.id, label: t.name }))
+                                : Array.from(new Set(people.map(p => p.teamId).filter(Boolean))).map(tid => ({ value: tid!, label: tid! }))
+                            )
+                        ],
+                        placeholder: 'סינון לפי צוות'
+                    },
+                    {
+                        id: 'groupBy',
+                        value: groupBy,
+                        onChange: (val) => setGroupBy(val as any),
+                        icon: ArrowUpDown,
+                        options: [
+                            { value: 'status', label: 'לפי סטטוס' },
+                            { value: 'mission', label: 'לפי משימה' },
+                            { value: 'team', label: 'לפי צוות' },
+                            { value: 'alpha', label: 'לפי א-ב' }
+                        ],
+                        placeholder: 'מיון'
+                    }
+                ]}
+                rightActions={
+                    <>
+                        <button
+                            onClick={() => setShowCustomFields(!showCustomFields)}
+                            className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-colors shadow-sm hidden md:flex ${showCustomFields
+                                ? 'bg-blue-50 border-blue-200 text-blue-600'
+                                : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50'
+                                }`}
+                            title="הצג שדות מותאמים"
+                        >
+                            <LayoutGrid size={18} weight="duotone" />
+                        </button>
 
-                        <div className="w-px h-6 bg-slate-200 mx-1" />
+                        <button
+                            onClick={async () => {
+                                let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
+                                const grouped = {
+                                    mission: reportData.filter(r => r.status === 'mission'),
+                                    base: reportData.filter(r => r.status === 'base'),
+                                    home: reportData.filter(r => r.status === 'home')
+                                };
+                                if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
+                                if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
+                                if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
+
+                                try {
+                                    await navigator.clipboard.writeText(text);
+                                    showToast('הועתק', 'success');
+                                    logger.info('EXPORT', `Copied Location Report to clipboard for ${selectedDate.toLocaleDateString('he-IL')}`, {
+                                        date: selectedDate.toISOString().split('T')[0],
+                                        itemCount: reportData.length,
+                                        category: 'data'
+                                    });
+                                } catch (e) { showToast('שגיאה', 'error'); }
+                            }}
+                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm hidden md:flex"
+                            title="העתק לווצאפ"
+                        >
+                            <Copy size={18} weight="duotone" />
+                        </button>
 
                         <ExportButton
                             onExport={async () => {
@@ -389,15 +544,12 @@ export const LocationReport: React.FC<LocationReportProps> = ({
 
                                     const rows = reportData.map(r => {
                                         const teamName = teams.find(t => t.id === r.person.teamId)?.name || 'כללי';
-
-                                        // Get roles as a comma-separated string
                                         const personRoleIds = r.person.roleIds || [r.person.roleId];
                                         const personRolesStr = personRoleIds
                                             .map(id => roles.find(role => role.id === id)?.name)
                                             .filter(Boolean)
                                             .join(', ');
 
-                                        // Get custom fields values
                                         const customFieldValues = customFields.map(cf => {
                                             const val = r.person.customFields?.[cf.key];
                                             if (cf.type === 'boolean') return val ? 'V' : '';
@@ -429,10 +581,9 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                         style: { theme: 'TableStyleMedium2', showRowStripes: true }
                                     });
 
-                                    // Status coloring
                                     worksheet.eachRow((row, rowNumber) => {
                                         if (rowNumber === 1) return;
-                                        const statusCell = row.getCell(columns.length - 2); // Status column
+                                        const statusCell = row.getCell(columns.length - 2);
                                         const statusVal = statusCell.value?.toString() || '';
                                         if (statusVal === 'בבית') {
                                             statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
@@ -446,7 +597,6 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                         }
                                     });
 
-                                    // Column widths
                                     const colWidths = [15, 12, 25, 20, 25, ...customFields.map(() => 15), 15, 30, 15];
                                     worksheet.columns = colWidths.map(w => ({ width: w }));
 
@@ -473,251 +623,28 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                             iconOnly
                             variant="secondary"
                             size="sm"
-                            className="w-10 h-10 rounded-xl"
+                            className="hidden md:flex w-10 h-10 rounded-xl"
                             title="ייצוא דוח מיקום"
                         />
-
+                    </>
+                }
+                mobileMoreActions={
+                    <>
                         <button
-                            onClick={async () => {
-                                let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
-                                const grouped = {
-                                    mission: reportData.filter(r => r.status === 'mission'),
-                                    base: reportData.filter(r => r.status === 'base'),
-                                    home: reportData.filter(r => r.status === 'home')
-                                };
-                                if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
-                                if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
-                                if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
-
-                                try {
-                                    await navigator.clipboard.writeText(text);
-                                    showToast('הועתק', 'success');
-                                    logger.info('EXPORT', `Copied Location Report to clipboard for ${selectedDate.toLocaleDateString('he-IL')}`, {
-                                        date: selectedDate.toISOString().split('T')[0],
-                                        itemCount: reportData.length,
-                                        category: 'data'
-                                    });
-                                } catch (e) { showToast('שגיאה', 'error'); }
-                            }}
-                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
-                            title="העתק לווצאפ"
+                            onClick={() => setShowCustomFields(!showCustomFields)}
+                            className={`w-full flex items-center justify-between p-3 rounded-xl border transition-colors ${showCustomFields
+                                ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                : 'bg-white border-slate-200 text-slate-600'
+                                }`}
                         >
-                            <Copy size={18} weight="duotone" />
+                            <span className="font-bold text-sm">הצג שדות מותאמים אישית</span>
+                            <div className={`w-10 h-6 rounded-full relative transition-colors ${showCustomFields ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200 ${showCustomFields ? 'left-1' : 'left-5'}`} />
+                            </div>
                         </button>
-
-                        <Select
-                            triggerMode="icon"
-                            value={filterTeam}
-                            onChange={setFilterTeam}
-                            options={[
-                                { value: 'all', label: 'כל הצוותים' },
-                                ...(teams.length > 0
-                                    ? teams.map(t => ({ value: t.id, label: t.name }))
-                                    : Array.from(new Set(people.map(p => p.teamId).filter(Boolean))).map(tid => ({ value: tid!, label: tid! }))
-                                )
-                            ]}
-                            placeholder="סינון לפי צוות"
-                            icon={Filter}
-                            className="w-10 h-10 p-0 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
-                        />
-
-                        <Select
-                            triggerMode="icon"
-                            value={groupBy}
-                            onChange={(val) => setGroupBy(val as any)}
-                            options={[
-                                { value: 'status', label: 'לפי סטטוס' },
-                                { value: 'team', label: 'לפי צוות' },
-                                { value: 'alpha', label: 'לפי א-ב' }
-                            ]}
-                            placeholder="מיון תצוגה"
-                            icon={ArrowUpDown}
-                            className="w-10 h-10 p-0 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
-                        />
-                    </div>
-
-                    {/* Mobile: Date, Time (Menu moved to top) */}
-                    <div className="md:hidden flex items-center gap-2 w-full">
-                        <DateNavigator
-                            date={selectedDate}
-                            onDateChange={setSelectedDate}
-                            mode="day"
-                            className="h-10 flex-1"
-                            showTodayButton={false}
-                        />
-
-                        <TimePicker
-                            label=""
-                            value={selectedTime}
-                            onChange={setSelectedTime}
-                            className="w-24 h-10"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* Mobile Actions Menu */}
-            <GenericModal
-                isOpen={isActionsMenuOpen}
-                onClose={() => setIsActionsMenuOpen(false)}
-                title="פעולות"
-                size="sm"
-            >
-                <div className="flex flex-col gap-2 p-2">
-                    <button
-                        onClick={async () => {
-                            try {
-                                const workbook = new ExcelJS.Workbook();
-                                const worksheet = workbook.addWorksheet('דוח מיקום', { views: [{ rightToLeft: true }] });
-
-                                const customFields = settings?.customFieldsSchema || [];
-                                const dateKey = selectedDate.toLocaleDateString('en-CA');
-
-                                const columns = [
-                                    { name: 'תאריך', filterButton: true },
-                                    { name: 'שעת בדיקה', filterButton: true },
-                                    { name: 'שם מלא', filterButton: true },
-                                    { name: 'צוות', filterButton: true },
-                                    { name: 'תפקידים', filterButton: true },
-                                    ...customFields.map(cf => ({ name: cf.label, filterButton: true })),
-                                    { name: 'סטטוס מיקום', filterButton: true },
-                                    { name: 'פירוט', filterButton: true },
-                                    { name: 'שעות', filterButton: true }
-                                ];
-
-                                const rows = reportData.map(r => {
-                                    const teamName = teams.find(t => t.id === r.person.teamId)?.name || 'כללי';
-                                    const personRoleIds = r.person.roleIds || [r.person.roleId];
-                                    const personRolesStr = personRoleIds
-                                        .map(id => roles.find(role => role.id === id)?.name)
-                                        .filter(Boolean)
-                                        .join(', ');
-                                    const customFieldValues = customFields.map(cf => {
-                                        const val = r.person.customFields?.[cf.key];
-                                        if (cf.type === 'boolean') return val ? 'V' : '';
-                                        if (Array.isArray(val)) return val.join(', ');
-                                        return val || '';
-                                    });
-                                    const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
-                                    return [
-                                        selectedDate.toLocaleDateString('he-IL'),
-                                        selectedTime,
-                                        r.person.name,
-                                        teamName,
-                                        personRolesStr,
-                                        ...customFieldValues,
-                                        statusMap[r.status],
-                                        r.details,
-                                        r.time
-                                    ];
-                                });
-
-                                worksheet.addTable({
-                                    name: 'LocationReportTable',
-                                    ref: 'A1',
-                                    headerRow: true,
-                                    columns: columns,
-                                    rows: rows,
-                                    style: { theme: 'TableStyleMedium2', showRowStripes: true }
-                                });
-
-                                worksheet.eachRow((row, rowNumber) => {
-                                    if (rowNumber === 1) return;
-                                    const statusCell = row.getCell(columns.length - 2);
-                                    const statusVal = statusCell.value?.toString() || '';
-                                    if (statusVal === 'בבית') {
-                                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-                                        statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
-                                    } else if (statusVal === 'בבסיס') {
-                                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
-                                        statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
-                                    } else if (statusVal === 'במשימה') {
-                                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } };
-                                        statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
-                                    }
-                                });
-
-                                const colWidths = [15, 12, 25, 20, 25, ...customFields.map(() => 15), 15, 30, 15];
-                                worksheet.columns = colWidths.map(w => ({ width: w }));
-
-                                const buffer = await workbook.xlsx.writeBuffer();
-                                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                                const url = URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = `location_report_${dateKey}_${selectedTime.replace(':', '')}.xlsx`;
-                                link.click();
-                                URL.revokeObjectURL(url);
-                                setIsActionsMenuOpen(false);
-                                showToast('הדוח יוצא בהצלחה', 'success');
-                            } catch (error) {
-                                console.error('Export failed:', error);
-                                showToast('שגיאה בתהליך הייצוא', 'error');
-                            }
-                        }}
-                        className="flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors text-right"
-                    >
-                        <img src="/images/excel.svg" alt="Excel" width={20} height={20} className="object-contain" />
-                        <span className="font-bold text-slate-800">ייצוא לאקסל</span>
-                    </button>
-
-                    <button
-                        onClick={async () => {
-                            let text = `📍 *דוח מיקום* - ${selectedDate.toLocaleDateString('he-IL')}\n\n`;
-                            const grouped = {
-                                mission: reportData.filter(r => r.status === 'mission'),
-                                base: reportData.filter(r => r.status === 'base'),
-                                home: reportData.filter(r => r.status === 'home')
-                            };
-                            if (grouped.mission.length) text += `*במשימה (${grouped.mission.length}):*\n` + grouped.mission.map(r => `• ${r.person.name} (${r.details})`).join('\n') + '\n\n';
-                            if (grouped.base.length) text += `*בבסיס (${grouped.base.length}):*\n` + grouped.base.map(r => `• ${r.person.name}`).join('\n') + '\n\n';
-                            if (grouped.home.length) text += `*בבית (${grouped.home.length}):*\n` + grouped.home.map(r => `• ${r.person.name}`).join('\n');
-
-                            try {
-                                await navigator.clipboard.writeText(text);
-                                showToast('הועתק', 'success');
-                                setIsActionsMenuOpen(false);
-                            } catch (e) { showToast('שגיאה', 'error'); }
-                        }}
-                        className="flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors text-right"
-                    >
-                        <Copy size={20} weight="duotone" className="text-blue-600" />
-                        <span className="font-bold text-slate-800">העתק לווצאפ</span>
-                    </button>
-
-                    <div className="border-t border-slate-100 my-2" />
-
-                    <div className="px-2 py-2">
-                        <label className="text-xs font-bold text-slate-500 mb-2 block">סינון לפי צוות</label>
-                        <Select
-                            value={filterTeam}
-                            onChange={(val) => { setFilterTeam(val); }}
-                            options={[
-                                { value: 'all', label: 'כל הצוותים' },
-                                ...(teams.length > 0
-                                    ? teams.map(t => ({ value: t.id, label: t.name }))
-                                    : Array.from(new Set(people.map(p => p.teamId).filter(Boolean))).map(tid => ({ value: tid!, label: tid! }))
-                                )
-                            ]}
-                            className="w-full"
-                        />
-                    </div>
-
-                    <div className="px-2 py-2">
-                        <label className="text-xs font-bold text-slate-500 mb-2 block">מיון תצוגה</label>
-                        <Select
-                            value={groupBy}
-                            onChange={(val) => { setGroupBy(val as any); }}
-                            options={[
-                                { value: 'status', label: 'לפי סטטוס' },
-                                { value: 'team', label: 'לפי צוות' },
-                                { value: 'alpha', label: 'לפי א-ב' }
-                            ]}
-                            className="w-full"
-                        />
-                    </div>
-                </div>
-            </GenericModal>
+                    </>
+                }
+            />
 
             <div className="flex-1 overflow-y-auto pt-6 pb-20 custom-scrollbar relative">
                 {renderContent()}
@@ -731,9 +658,13 @@ interface PersonCardProps {
     type?: 'mission' | 'base' | 'home';
     showStatusBadge?: boolean;
     teamName?: string;
+    settings?: OrganizationSettings | null;
+    showCustomFields?: boolean;
 }
 
-const PersonCard: React.FC<PersonCardProps> = ({ r, showStatusBadge = false, teamName }) => {
+const PersonCard: React.FC<PersonCardProps> = ({ r, showStatusBadge = false, teamName, settings, showCustomFields = false }) => {
+    const customFields = settings?.customFieldsSchema || [];
+
     return (
         <div className="p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors flex items-start text-right bg-white">
             <div className="flex-1 min-w-0">
@@ -746,6 +677,32 @@ const PersonCard: React.FC<PersonCardProps> = ({ r, showStatusBadge = false, tea
                     )}
                 </div>
                 {teamName && <span className="text-[11px] text-slate-400 block">{teamName}</span>}
+
+                {/* Custom Fields Display */}
+                {showCustomFields && customFields.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                        {customFields.map(cf => {
+                            const val = r.person.customFields?.[cf.key];
+                            if (!val && cf.type !== 'boolean') return null;
+
+                            let displayValue = '';
+                            if (cf.type === 'boolean') {
+                                if (!val) return null;
+                                displayValue = '✓';
+                            } else if (Array.isArray(val)) {
+                                displayValue = val.join(', ');
+                            } else {
+                                displayValue = String(val);
+                            }
+
+                            return (
+                                <span key={cf.key} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold">
+                                    {cf.label}: {displayValue}
+                                </span>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             <div className="flex flex-col items-end gap-1 pl-2">
