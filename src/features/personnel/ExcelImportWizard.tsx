@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { logger } from '../../services/loggingService';
 import * as XLSX from 'xlsx';
 import { UploadSimple as Upload, FileXls as FileSpreadsheet, ArrowRight, ArrowLeft, Check, WarningCircle as AlertCircle, Plus, ArrowUpRight, X, Warning as AlertTriangle } from '@phosphor-icons/react';
-import { Person, Team, Role } from '../../types';
+import { Person, Team, Role, CustomFieldDefinition } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
@@ -13,10 +13,11 @@ import { formatPhoneNumber } from '../../utils/nameUtils';
 interface ExcelImportWizardProps {
     isOpen: boolean;
     onClose: () => void;
-    onImport: (people: Person[], newTeams?: Team[], newRoles?: Role[]) => Promise<void>;
+    onImport: (people: Person[], newTeams?: Team[], newRoles?: Role[], newCustomFields?: CustomFieldDefinition[]) => Promise<void>;
     teams: Team[];
     roles: Role[];
     people: Person[]; // NEW: Existing people for conflict check
+    customFieldsSchema?: CustomFieldDefinition[]; // NEW
     onAddTeam: (t: Team) => void;
     onAddRole: (r: Role) => void;
     isSaving?: boolean;
@@ -26,7 +27,7 @@ type Step = 'upload' | 'mapping' | 'resolution' | 'preview';
 
 interface ColumnMapping {
     excelColumn: string;
-    systemField: 'name' | 'first_name' | 'last_name' | 'team' | 'role' | 'mobile' | 'email' | 'is_commander' | 'is_active' | 'ignore';
+    systemField: 'name' | 'first_name' | 'last_name' | 'team' | 'role' | 'mobile' | 'email' | 'is_commander' | 'is_active' | 'ignore' | 'new_custom_field' | string;
 }
 
 interface ParsedData {
@@ -50,6 +51,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
     teams,
     roles,
     people,
+    customFieldsSchema = [],
     onAddTeam,
     onAddRole,
     isSaving = false // Default to false
@@ -59,6 +61,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
     const [parsedData, setParsedData] = useState<ParsedData | null>(null);
     const [mappings, setMappings] = useState<ColumnMapping[]>([]);
     const [previewData, setPreviewData] = useState<Person[]>([]);
+    const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
     const [resolutions, setResolutions] = useState<ResolutionItem[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,7 +88,8 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         { value: 'email', label: 'אימייל' },
         { value: 'mobile', label: 'טלפון נייד' },
         { value: 'is_active', label: 'פעיל (כן/לא)' },
-        { value: 'custom_fields', label: 'שדות מותאמים (JSON)' },
+        { value: 'new_custom_field', label: 'הוסף כשדה מותאם אישית (חדש)' },
+        ...customFieldsSchema.map(f => ({ value: `cf_${f.key}`, label: `שדה: ${f.label}` })),
         { value: 'ignore', label: 'התעלם' }
     ];
 
@@ -417,7 +421,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             const parseBoolean = (value: any): boolean => {
                 if (typeof value === 'boolean') return value;
                 const str = String(value).trim().toLowerCase();
-                return str === 'כן' || str === 'yes' || str === 'true' || str === '1';
+                return str === 'כן' || str === 'yes' || str === 'true' || str === '1' || str === 'v' || str === 'פעיל';
             };
 
             return {
@@ -435,6 +439,21 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 color: color !== 'bg-slate-500' ? color : (basePerson.color || 'bg-slate-500'),
                 customFields: (() => {
                     let cf = basePerson.customFields || {};
+
+                    // Add mapped custom fields
+                    mappings.forEach((map, colIndex) => {
+                        if (map.systemField === 'new_custom_field' || map.systemField.startsWith('cf_')) {
+                            const key = map.systemField === 'new_custom_field'
+                                ? map.excelColumn.toLowerCase().replace(/[^a-z0-9_]/g, '_')
+                                : map.systemField.replace('cf_', '');
+
+                            const val = row[colIndex];
+                            if (val !== undefined && val !== null && val !== "") {
+                                cf[key] = val;
+                            }
+                        }
+                    });
+
                     if (rowData.custom_fields) {
                         try {
                             const parsed = typeof rowData.custom_fields === 'string'
@@ -451,6 +470,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         }).filter(Boolean) as Person[];
 
         setPreviewData(newPeople);
+        setSelectedIndices(new Set(newPeople.map((_, i) => i)));
         setStep('preview');
     };
 
@@ -460,6 +480,56 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
         const teamsToCreate: Team[] = [];
         const rolesToCreate: Role[] = [];
+        const customFieldsToCreate: CustomFieldDefinition[] = [];
+
+        mappings.forEach((map, colIdx) => {
+            if (map.systemField === 'new_custom_field') {
+                const slug = map.excelColumn.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
+                const key = slug && /^[a-z]/.test(slug) ? `cf_${slug}` : `cf_${Math.random().toString(36).substr(2, 9)}`;
+                // Check if already exists in schema
+                if (!customFieldsSchema.some(f => f.key === key)) {
+                    // Analyze column data to guess type
+                    const columnValues = parsedData.rows.map(row => row[colIdx]).filter(v => v !== undefined && v !== null && v !== "");
+
+                    let detectedType: any = 'text';
+                    let options: string[] = [];
+
+                    if (columnValues.length > 0) {
+                        const booleanTerms = ['כן', 'לא', 'v', 'x', 'yes', 'no', 'true', 'false', 'פעיל', 'לא פעיל'];
+                        const isBoolean = columnValues.every(v => booleanTerms.includes(String(v).trim().toLowerCase()));
+
+                        if (isBoolean) {
+                            detectedType = 'boolean';
+                        } else {
+                            // Phone number check - avoid converting to 'number' type
+                            const looksLikePhone = columnValues.some(v => /^[0-9+()-\s]{7,15}$/.test(String(v).trim()) && String(v).trim().startsWith('0'));
+
+                            if (!looksLikePhone) {
+                                // Split values by comma for multi-select check
+                                const allTerms = columnValues.flatMap(v => String(v).split(',').map(s => s.trim()));
+                                const uniqueTerms = Array.from(new Set(allTerms)).filter(Boolean);
+
+                                // Threshold for select: low unique cardinarity
+                                if (uniqueTerms.length > 1 && uniqueTerms.length <= Math.min(12, columnValues.length * 0.3)) {
+                                    const hasCommas = columnValues.some(v => String(v).includes(','));
+                                    detectedType = hasCommas ? 'multiselect' : 'select';
+                                    options = uniqueTerms;
+                                }
+                            }
+                        }
+                    }
+
+                    customFieldsToCreate.push({
+                        id: `cf-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                        key,
+                        label: map.excelColumn,
+                        type: detectedType,
+                        options: options.length > 0 ? options : undefined,
+                        order: customFieldsSchema.length + customFieldsToCreate.length
+                    });
+                }
+            }
+        });
 
         resolutions.forEach(res => {
             if (res.action === 'create') {
@@ -478,7 +548,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         });
 
         // 2. Fix IDs in previewData
-        const finalPeople = previewData.map(p => {
+        const finalPeople = previewData.filter((_, i) => selectedIndices.has(i)).map(p => {
             let finalTeamId = p.teamId;
             // Check if teamId was temp
             if (p.teamId.startsWith('temp-team-')) {
@@ -509,10 +579,11 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         logger.info('IMPORT_DATA', 'Bulk Imported Excel Data', {
             peopleCount: finalPeople.length,
             newTeamsCount: teamsToCreate.length,
-            newRolesCount: rolesToCreate.length
+            newRolesCount: rolesToCreate.length,
+            newCustomFieldsCount: customFieldsToCreate.length
         });
 
-        await onImport(finalPeople, teamsToCreate, rolesToCreate);
+        await onImport(finalPeople, teamsToCreate, rolesToCreate, customFieldsToCreate);
         // onClose(); // Let parent handle navigation
     };
 
@@ -590,10 +661,10 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             {step === 'preview' && (
                 <Button
                     onClick={handleFinalImport}
-                    disabled={isSaving}
-                    className="flex-[2] h-12 font-black rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-green-200 shadow-xl active:scale-95 transition-all"
+                    disabled={isSaving || selectedIndices.size === 0}
+                    className="flex-[2] h-12 font-black rounded-xl bg-green-600 hover:bg-green-700 text-white shadow-green-200 shadow-xl active:scale-95 transition-all disabled:opacity-50"
                 >
-                    {isSaving ? 'מייבא נתונים...' : `אישור וייבוא ${previewData.length} רשומות`}
+                    {isSaving ? 'מייבא נתונים...' : `אישור וייבוא ${selectedIndices.size} רשומות`}
                     {!isSaving && <Check className="mr-2" weight="bold" />}
                 </Button>
             )}
@@ -667,36 +738,62 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                             </div>
                         </div>
 
-                        <div className="space-y-3 pb-8">
-                            {mappings.map((mapping, idx) => {
-                                const isMapped = mapping.systemField !== 'ignore';
-                                return (
-                                    <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all group">
-                                        <div className="flex items-center gap-4 mb-3">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                                                <div className="text-xs font-black">{idx + 1}</div>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-[10px] text-slate-400 font-black uppercase tracking-wider mb-0.5">עמודה בקובץ</div>
-                                                <div className="font-bold text-slate-800 truncate text-base" title={mapping.excelColumn}>
-                                                    {mapping.excelColumn}
-                                                </div>
-                                            </div>
-                                            <div className={`w-8 h-8 flex items-center justify-center rounded-full ${isMapped ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                {isMapped ? <Check size={16} weight="bold" /> : <X size={16} weight="bold" />}
-                                            </div>
-                                        </div>
+                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-right border-collapse">
+                                    <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                                        <tr>
+                                            <th className="p-3 w-10"></th>
+                                            <th className="p-3 w-12 text-center text-[10px] uppercase">ייבוא?</th>
+                                            <th className="p-3">עמודה באקסל</th>
+                                            <th className="p-3">שיוך לשדה מערכת</th>
+                                            <th className="p-3">דוגמאות מהקובץ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {mappings.map((mapping, idx) => {
+                                            const isIgnored = mapping.systemField === 'ignore';
+                                            const examples = parsedData.rows.slice(0, 3).map(r => r[idx]).filter(Boolean).join(', ');
 
-                                        <Select
-                                            value={mapping.systemField}
-                                            onChange={(val) => handleMappingChange(idx, val as any)}
-                                            options={systemFields}
-                                            className="w-full text-sm font-bold"
-                                            placeholder="בחר שדה..."
-                                        />
-                                    </div>
-                                );
-                            })}
+                                            return (
+                                                <tr key={idx} className={`hover:bg-slate-50/50 transition-colors ${isIgnored ? 'bg-slate-50/30' : ''}`}>
+                                                    <td className="p-3 text-[10px] font-black text-slate-300 text-center">{idx + 1}</td>
+                                                    <td className="p-3 text-center">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                handleMappingChange(idx, isIgnored ? (systemFields.find(f => f.value !== 'ignore')?.value || 'ignore') : 'ignore');
+                                                            }}
+                                                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${!isIgnored ? 'bg-green-100 text-green-700 shadow-sm border border-green-200' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}
+                                                        >
+                                                            {isIgnored ? <X size={14} weight="bold" /> : <Check size={14} weight="bold" />}
+                                                        </button>
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <div className={`font-bold transition-all ${isIgnored ? 'text-slate-400' : 'text-slate-800'}`}>
+                                                            {mapping.excelColumn}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-3 w-64">
+                                                        <Select
+                                                            value={mapping.systemField}
+                                                            onChange={(val) => handleMappingChange(idx, val as any)}
+                                                            options={systemFields}
+                                                            className={`w-full text-xs font-bold ${isIgnored ? 'opacity-50' : ''}`}
+                                                            placeholder="שייך ל..."
+                                                        />
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <div className="text-[11px] text-slate-400 truncate max-w-xs font-medium" title={examples}>
+                                                            {examples || <span className="text-slate-200 italic">ריק</span>}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -714,106 +811,77 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                             </div>
                         </div>
 
-                        <div className="space-y-4 pb-8">
-                            {resolutions.map((res, idx) => (
-                                <div key={idx} className="bg-white border-2 border-slate-100 rounded-2xl overflow-hidden shadow-sm hover:border-amber-200 transition-colors">
-                                    <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
-                                        <div>
-                                            <h3 className="font-black text-slate-800 text-base">{res.originalName}</h3>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-wide ${res.type === 'person' ? 'bg-blue-100 text-blue-700' :
-                                                    res.type === 'team' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'
-                                                    }`}>
-                                                    {res.type === 'person' ? 'כפילות' : (res.type === 'team' ? 'צוות חדש' : 'תפקיד חדש')}
-                                                </span>
-                                                {res.matchReason && <span className="text-[10px] text-slate-400 font-bold">({res.matchReason})</span>}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-4 space-y-3">
-                                        {res.type === 'person' ? (
-                                            <div className="grid grid-cols-1 gap-3">
-                                                <label className={`flex items-center gap-4 p-3 rounded-xl border-2 cursor-pointer transition-all ${res.action === 'merge' ? 'bg-blue-50/50 border-blue-500 shadow-sm' : 'border-slate-100 hover:bg-slate-50'}`}>
-                                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${res.action === 'merge' ? 'border-blue-600' : 'border-slate-300'}`}>
-                                                        {res.action === 'merge' && <div className="w-2.5 h-2.5 bg-blue-600 rounded-full" />}
-                                                    </div>
-                                                    <input
-                                                        type="radio"
-                                                        name={`res-${idx}`}
-                                                        checked={res.action === 'merge'}
-                                                        onChange={() => handleResolutionChange(idx, { action: 'merge' })}
-                                                        className="hidden"
-                                                    />
-                                                    <div>
-                                                        <div className="text-sm font-black text-slate-800 mb-0.5">עדכון קיים (מיזוג)</div>
-                                                        <div className="text-xs text-slate-500 font-medium">עדכון פרטים בלבד לחייל הקיים, שמירה על ההיסטוריה</div>
-                                                    </div>
-                                                </label>
-                                                <label className={`flex items-center gap-4 p-3 rounded-xl border-2 cursor-pointer transition-all ${res.action === 'create' ? 'bg-green-50/50 border-green-500 shadow-sm' : 'border-slate-100 hover:bg-slate-50'}`}>
-                                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${res.action === 'create' ? 'border-green-600' : 'border-slate-300'}`}>
-                                                        {res.action === 'create' && <div className="w-2.5 h-2.5 bg-green-600 rounded-full" />}
-                                                    </div>
-                                                    <input
-                                                        type="radio"
-                                                        name={`res-${idx}`}
-                                                        checked={res.action === 'create'}
-                                                        onChange={() => handleResolutionChange(idx, { action: 'create' })}
-                                                        className="hidden"
-                                                    />
-                                                    <div>
-                                                        <div className="text-sm font-black text-slate-800 mb-0.5">יצירה כחדש</div>
-                                                        <div className="text-xs text-slate-500 font-medium">יצירת חייל חדש במערכת (יתכן כפל נתונים)</div>
-                                                    </div>
-                                                </label>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-3">
-                                                <label className={`flex items-center gap-4 p-3 rounded-xl border-2 cursor-pointer transition-all ${res.action === 'create' ? 'bg-indigo-50/50 border-indigo-500 shadow-sm' : 'border-slate-100 hover:bg-slate-50'}`}>
-                                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${res.action === 'create' ? 'border-indigo-600' : 'border-slate-300'}`}>
-                                                        {res.action === 'create' && <div className="w-2.5 h-2.5 bg-indigo-600 rounded-full" />}
-                                                    </div>
-                                                    <input
-                                                        type="radio"
-                                                        name={`res-${idx}`}
-                                                        checked={res.action === 'create'}
-                                                        onChange={() => handleResolutionChange(idx, { action: 'create' })}
-                                                        className="hidden"
-                                                    />
-                                                    <span className="text-sm font-black text-slate-800">צור {res.type === 'team' ? 'צוות' : 'תפקיד'} חדש בשם זה</span>
-                                                </label>
-
-                                                <label className={`flex flex-col gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${res.action === 'map' ? 'bg-blue-50/50 border-blue-500 shadow-sm' : 'border-slate-100 hover:bg-slate-50'}`}>
-                                                    <div className="flex items-center gap-4">
-                                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${res.action === 'map' ? 'border-blue-600' : 'border-slate-300'}`}>
-                                                            {res.action === 'map' && <div className="w-2.5 h-2.5 bg-blue-600 rounded-full" />}
+                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                            <div className="overflow-x-auto max-h-[60vh] custom-scrollbar">
+                                <table className="w-full text-sm text-right border-collapse">
+                                    <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 sticky top-0 z-10">
+                                        <tr>
+                                            <th className="p-3">מידע מהאקסל (שם)</th>
+                                            <th className="p-3">סיווג</th>
+                                            <th className="p-3">פעולה</th>
+                                            <th className="p-3">בחירת יעד</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {resolutions.map((res, idx) => {
+                                            const isPerson = res.type === 'person';
+                                            return (
+                                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="p-3">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-black text-slate-800">{res.originalName}</span>
+                                                            {res.matchReason && <span className="text-[10px] text-slate-400 font-bold">{res.matchReason}</span>}
                                                         </div>
-                                                        <input
-                                                            type="radio"
-                                                            name={`res-${idx}`}
-                                                            checked={res.action === 'map'}
-                                                            onChange={() => handleResolutionChange(idx, { action: 'map', targetId: res.targetId || (res.type === 'team' ? teams[0]?.id : roles[0]?.id) })}
-                                                            className="hidden"
-                                                        />
-                                                        <span className="text-sm font-black text-slate-800">מפה לפריט קיים במערכת</span>
-                                                    </div>
-                                                    {res.action === 'map' && (
-                                                        <div className="pr-9 pl-1 animate-in slide-in-from-top-2 duration-200">
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-wide inline-block ${res.type === 'person' ? 'bg-blue-100 text-blue-700' :
+                                                            res.type === 'team' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'
+                                                            }`}>
+                                                            {res.type === 'person' ? 'קיים במערכת' : (res.type === 'team' ? 'צוות חדש' : 'תפקיד חדש')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <div className="flex bg-slate-100 p-0.5 rounded-lg w-fit">
+                                                            {(isPerson ? ['merge', 'create', 'ignore'] : ['create', 'map', 'ignore']).map(action => (
+                                                                <button
+                                                                    key={action}
+                                                                    onClick={() => handleResolutionChange(idx, { action: action as any })}
+                                                                    className={`px-3 py-1 rounded-md text-[10px] font-black transition-all ${res.action === action
+                                                                        ? 'bg-white text-slate-900 shadow-sm'
+                                                                        : 'text-slate-400 hover:text-slate-600'
+                                                                        }`}
+                                                                >
+                                                                    {action === 'merge' ? 'עדכן קיים' :
+                                                                        action === 'create' ? 'צור חדש' :
+                                                                            action === 'map' ? 'מפה לקיים' : 'התעלם'}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-3 w-64">
+                                                        {res.action === 'map' && (
                                                             <Select
                                                                 value={res.targetId || ''}
                                                                 onChange={(val) => handleResolutionChange(idx, { targetId: val })}
                                                                 options={res.type === 'team' ? teams.map(t => ({ value: t.id, label: t.name })) : roles.map(r => ({ value: r.id, label: r.name }))}
-                                                                className="w-full text-sm font-bold bg-white"
-                                                                placeholder="בחר..."
+                                                                className="w-full text-[11px] font-bold bg-white"
+                                                                placeholder="בחר צוות/תפקיד..."
                                                             />
-                                                        </div>
-                                                    )}
-                                                </label>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
+                                                        )}
+                                                        {res.action === 'merge' && (
+                                                            <div className="text-[11px] text-blue-600 font-bold bg-blue-50/50 px-2 py-1 rounded-lg border border-blue-100 truncate">
+                                                                מתמזג עם: {people.find(p => p.id === res.targetId)?.name || 'לא נמצא'}
+                                                            </div>
+                                                        )}
+                                                        {res.action === 'create' && <span className="text-[10px] text-slate-400 font-bold">ייווצר כפריט חדש</span>}
+                                                        {res.action === 'ignore' && <span className="text-[10px] text-red-400 font-bold italic">לא יופעל שינוי</span>}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -830,55 +898,121 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden ring-4 ring-slate-50">
+                        <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200 overflow-hidden">
                             <div className="overflow-x-auto max-h-[50vh] custom-scrollbar">
-                                <table className="w-full text-sm text-right whitespace-nowrap">
-                                    <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100 sticky top-0 z-10">
+                                <table className="w-full text-sm text-right whitespace-nowrap border-collapse">
+                                    <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 sticky top-0 z-20">
                                         <tr>
-                                            <th className="p-4 w-16">#</th>
-                                            <th className="p-4">שם מלא</th>
-                                            <th className="p-4">צוות</th>
-                                            <th className="p-4">תפקיד</th>
+                                            <th className="p-3 w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIndices.size === previewData.length}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) setSelectedIndices(new Set(previewData.map((_, i) => i)));
+                                                        else setSelectedIndices(new Set());
+                                                    }}
+                                                    className="w-4 h-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
+                                                />
+                                            </th>
+                                            <th className="p-3 text-xs">סטטוס</th>
+                                            <th className="p-3">חייל</th>
+                                            <th className="p-3">צוות</th>
+                                            <th className="p-3">תפקיד</th>
+                                            {/* Show mapped custom fields headers */}
+                                            {mappings.filter(m => m.systemField !== 'ignore' && ['name', 'team', 'role', 'first_name', 'last_name'].indexOf(m.systemField) === -1).map(m => (
+                                                <th key={m.excelColumn} className="p-3 text-slate-400 font-normal">{m.excelColumn}</th>
+                                            ))}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-slate-600">
-                                        {previewData.slice(0, 50).map((person, i) => {
+                                        {previewData.slice(0, 100).map((person, i) => {
+                                            const isSelected = selectedIndices.has(i);
+                                            const resolution = resolutions.find(r => r.type === 'person' && r.excelRowIndex === (parsedData?.rows.indexOf(parsedData?.rows[i]))); // Actually resolution index is better
+                                            // Find resolution by matching person ID if it's merge
+                                            const res = resolutions.find(r => r.type === 'person' && r.targetId === person.id);
+                                            const isUpdate = !!res && res.action === 'merge';
+
                                             const getTeamName = (id: string) => {
-                                                if (id.startsWith('temp-team-')) return id.replace('temp-team-', '') + ' (חדש)';
+                                                if (id.startsWith('temp-team-')) return id.replace('temp-team-', '');
                                                 return teams.find(t => t.id === id)?.name || '-';
                                             };
                                             const getRoleName = (id: string) => {
-                                                if (id.startsWith('temp-role-')) return id.replace('temp-role-', '') + ' (חדש)';
+                                                if (id.startsWith('temp-role-')) return id.replace('temp-role-', '');
                                                 return roles.find(r => r.id === id)?.name;
                                             };
 
                                             const teamName = getTeamName(person.teamId);
-                                            const roleNames = (person.roleIds || [])
-                                                .map(getRoleName)
-                                                .filter(Boolean)
-                                                .join(', ');
+                                            const roleNames = (person.roleIds || []).map(getRoleName).filter(Boolean).join(', ');
 
                                             return (
-                                                <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                                    <td className="p-4 text-slate-300 text-xs font-mono">{i + 1}</td>
-                                                    <td className="p-4 font-black text-slate-800">{person.name}</td>
-                                                    <td className="p-4 font-bold">{teamName}</td>
-                                                    <td className="p-4 max-w-[200px] truncate">{roleNames || '-'}</td>
+                                                <tr key={i} className={`hover:bg-slate-50 transition-colors ${!isSelected ? 'opacity-50 grayscale-[0.5]' : ''}`}>
+                                                    <td className="p-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() => {
+                                                                const newSet = new Set(selectedIndices);
+                                                                if (newSet.has(i)) newSet.delete(i);
+                                                                else newSet.add(i);
+                                                                setSelectedIndices(newSet);
+                                                            }}
+                                                            className="w-4 h-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
+                                                        />
+                                                    </td>
+                                                    <td className="p-3">
+                                                        {isUpdate ? (
+                                                            <div className="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-[10px] font-black w-fit">
+                                                                <ArrowUpRight size={12} />
+                                                                עדכון
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-full text-[10px] font-black w-fit">
+                                                                <Plus size={12} />
+                                                                חדש
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-black text-slate-800">{person.name}</span>
+                                                            {isUpdate && <span className="text-[10px] text-slate-400 font-bold">מתמזג עם חייל קיים</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <span className={`font-bold ${person.teamId.startsWith('temp-') ? 'text-indigo-600' : ''}`}>
+                                                            {teamName}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-3 max-w-[150px] truncate">
+                                                        <span className="text-slate-500">{roleNames || '-'}</span>
+                                                    </td>
+                                                    {/* Custom Data Cells */}
+                                                    {mappings.filter(m => m.systemField !== 'ignore' && ['name', 'team', 'role', 'first_name', 'last_name'].indexOf(m.systemField) === -1).map(m => {
+                                                        const key = m.systemField === 'new_custom_field'
+                                                            ? m.excelColumn.toLowerCase().replace(/[^a-z0-9_]/g, '_')
+                                                            : m.systemField.replace('cf_', '');
+                                                        const val = person.customFields?.[key];
+                                                        return (
+                                                            <td key={m.excelColumn} className="p-3 text-xs text-slate-400">
+                                                                {val ? String(val) : '-'}
+                                                            </td>
+                                                        );
+                                                    })}
                                                 </tr>
                                             );
                                         })}
                                     </tbody>
                                 </table>
                             </div>
-                            {previewData.length > 50 && (
-                                <div className="p-3 text-center text-xs text-slate-400 bg-slate-50 border-t border-slate-100 font-bold uppercase tracking-wider">
-                                    ועוד {previewData.length - 50} רשומות...
+                            {previewData.length > 100 && (
+                                <div className="p-3 text-center text-[10px] text-slate-400 bg-slate-50 border-t border-slate-100 font-black uppercase tracking-widest">
+                                    מציג 100 רשומות ראשונות מתוך {previewData.length}
                                 </div>
                             )}
                         </div>
                     </div>
                 )}
             </div>
-        </GenericModal>
+        </GenericModal >
     );
 };

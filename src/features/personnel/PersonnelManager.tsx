@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe, Tag } from '@phosphor-icons/react';
+import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe, Tag, CloudArrowUp } from '@phosphor-icons/react';
 import { Person, Team, Role, CustomFieldDefinition } from '../../types';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -21,7 +21,8 @@ import { ActionBar, ActionListItem } from '../../components/ui/ActionBar';
 import { Eye, EyeSlash } from '@phosphor-icons/react';
 import { getPersonInitials, formatPhoneNumber } from '../../utils/nameUtils';
 import { PersonnelTableView } from './PersonnelTableView';
-import { Table as TableIcon, SquaresFour as GridIcon } from '@phosphor-icons/react';
+import { Table as TableIcon, SquaresFour as GridIcon, GearSix } from '@phosphor-icons/react';
+import { CustomFieldsManager } from './CustomFieldsManager';
 
 interface PersonnelManagerProps {
     people: Person[];
@@ -96,6 +97,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     const [viewGroupBy, setViewGroupBy] = useState<'teams' | 'roles' | 'none'>('teams');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+    const [isManageFieldsOpen, setIsManageFieldsOpen] = useState(false);
+    const [isSearchExpanded, setIsSearchExpanded] = useState(false);
 
     // Form/Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -538,12 +541,28 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
         }
     };
 
-    const handleBulkImport = async (importedPeople: Person[], newTeams: Team[] = [], newRoles: Role[] = []) => {
+    const handleBulkImport = async (importedPeople: Person[], newTeams: Team[] = [], newRoles: Role[] = [], newCustomFields: CustomFieldDefinition[] = []) => {
         setIsSaving(true);
         try {
             // 1. Add new Teams/Roles first
             newTeams.forEach(t => onAddTeam(t));
             newRoles.forEach(r => onAddRole(r));
+
+            // 1.5. Add new Custom Fields if any
+            if (newCustomFields.length > 0 && activeOrgId) {
+                const updatedSchema = [...customFieldsSchema, ...newCustomFields];
+                setCustomFieldsSchema(updatedSchema);
+
+                // Persist to DB
+                try {
+                    await supabase
+                        .from('organization_settings')
+                        .update({ custom_fields_schema: updatedSchema })
+                        .eq('organization_id', activeOrgId);
+                } catch (error) {
+                    console.error('Error saving custom schema during import:', error);
+                }
+            }
 
             let added = 0;
             let updated = 0;
@@ -1321,6 +1340,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             <ActionBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
+                isSearchExpanded={isSearchExpanded}
+                onSearchExpandedChange={setIsSearchExpanded}
                 onExport={handleExport}
                 className="px-4 md:px-6 sticky top-0 bg-white"
                 leftActions={
@@ -1351,18 +1372,22 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 }
                 centerActions={
                     <div className="bg-slate-100/80 p-1 rounded-[15px] flex items-center gap-1 shadow-inner border border-slate-200/50">
-                        {(['people', 'teams', 'roles'] as const).map((tab) => (
+                        {[
+                            { id: 'people', label: 'חיילים', icon: User },
+                            { id: 'teams', label: 'צוותים', icon: Users },
+                            { id: 'roles', label: 'תפקידים', icon: Shield }
+                        ].map((tab) => (
                             <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 ${activeTab === tab
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as Tab)}
+                                className={`px-3 lg:px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 ${activeTab === tab.id
                                     ? 'bg-white text-indigo-600 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700'
                                     }`}
+                                title={tab.label}
                             >
-                                {tab === 'people' && 'חיילים'}
-                                {tab === 'teams' && 'צוותים'}
-                                {tab === 'roles' && 'תפקידים'}
+                                <tab.icon size={16} weight="duotone" />
+                                <span className={isSearchExpanded ? 'hidden' : 'inline'}>{tab.label}</span>
                             </button>
                         ))}
                     </div>
@@ -1415,26 +1440,43 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             </div>
                         )}
 
-                        {/* Sort Button - Desktop style */}
+                        {/* Sort Button */}
                         <button
                             onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                            className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600"
+                            className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
                             title={sortOrder === 'asc' ? 'מיין בסדר יורד' : 'מיין בסדר עולה'}
                         >
                             {sortOrder === 'asc' ? <SortAscending size={20} /> : <SortDescending size={20} />}
                         </button>
 
-                        {/* Show Inactive Toggle - Desktop */}
-                        <div className="hidden md:flex items-center gap-2 bg-slate-100/50 px-3 h-10 rounded-xl border border-slate-200 transition-all hover:bg-white group cursor-pointer"
-                            onClick={() => setShowInactive(!showInactive)}>
-                            <input
-                                type="checkbox"
-                                checked={showInactive}
-                                onChange={(e) => { }} // Controlled by div click for better UX
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                            />
-                            <span className="text-xs font-bold text-slate-600 whitespace-nowrap group-hover:text-indigo-600">הצג לא פעילים</span>
-                        </div>
+                        {/* Manage Fields Button */}
+                        <button
+                            onClick={() => setIsManageFieldsOpen(true)}
+                            className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
+                            title="ניהול שדות מותאמים"
+                        >
+                            <GearSix size={20} weight="duotone" />
+                        </button>
+
+                        {/* Show Inactive Toggle */}
+                        <button
+                            onClick={() => setShowInactive(!showInactive)}
+                            className={`hidden md:flex h-10 w-10 items-center justify-center rounded-xl transition-all border shadow-sm ${showInactive ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-indigo-600'}`}
+                            title={showInactive ? 'הסתר לא פעילים' : 'הצג לא פעילים'}
+                        >
+                            {showInactive ? <Eye size={20} weight="duotone" /> : <EyeSlash size={20} weight="duotone" />}
+                        </button>
+
+                        {/* Import Button */}
+                        {canEdit && activeTab === 'people' && (
+                            <button
+                                onClick={() => setIsImportWizardOpen(true)}
+                                className="hidden md:flex h-10 w-10 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl items-center justify-center hover:bg-emerald-100 transition-colors shadow-sm"
+                                title="ייבוא מאקסל"
+                            >
+                                <CloudArrowUp size={20} weight="duotone" />
+                            </button>
+                        )}
 
                         {/* Custom Filter Value Input (Desktop only) */}
                         {filterCustomField !== 'all' && (
@@ -1459,17 +1501,6 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 <span>מחק ({selectedItemIds.size})</span>
                             </button>
                         )}
-
-                        {/* Import Button - Desktop */}
-                        {canEdit && activeTab === 'people' && (
-                            <button
-                                onClick={() => setIsImportWizardOpen(true)}
-                                className="hidden md:flex h-11 px-4 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-2xl items-center gap-2 font-black text-sm hover:bg-emerald-100 transition-colors shadow-sm"
-                            >
-                                <FileSpreadsheet size={18} weight="duotone" />
-                                <span>ייבוא מאקסל</span>
-                            </button>
-                        )}
                     </div>
                 }
                 mobileMoreActions={
@@ -1487,7 +1518,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                         {activeTab === 'people' && canEdit && (
                             <ActionListItem
-                                icon={FileSpreadsheet}
+                                icon={CloudArrowUp}
                                 label="ייבוא מאקסל"
                                 description="הוספת כמות גדולה של אנשים בבת אחת"
                                 onClick={() => setIsImportWizardOpen(true)}
@@ -2198,6 +2229,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         teams={teams}
                         roles={roles}
                         people={people}
+                        customFieldsSchema={customFieldsSchema}
                         onAddTeam={onAddTeam}
                         onAddRole={onAddRole}
                         isSaving={isSaving}
@@ -2258,6 +2290,32 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
                         type={confirmModal.type}
                     />
+
+                    {/* Manage Custom Fields Modal */}
+                    <GenericModal
+                        isOpen={isManageFieldsOpen}
+                        onClose={() => setIsManageFieldsOpen(false)}
+                        title="ניהול שדות מותאמים אישית"
+                        size="lg"
+                    >
+                        <CustomFieldsManager
+                            fields={customFieldsSchema}
+                            onFieldsChange={async (newFields) => {
+                                setCustomFieldsSchema(newFields);
+                                if (!activeOrgId) return;
+                                try {
+                                    await supabase
+                                        .from('organization_settings')
+                                        .update({ custom_fields_schema: newFields })
+                                        .eq('organization_id', activeOrgId);
+                                    showToast('השדות עודכנו בהצלחה', 'success');
+                                } catch (error) {
+                                    console.error('Error saving custom schema:', error);
+                                    showToast('שגיאה בשמירת השדות', 'error');
+                                }
+                            }}
+                        />
+                    </GenericModal>
                 </div>
             </div>
         </div >

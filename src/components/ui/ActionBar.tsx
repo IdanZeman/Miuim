@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MagnifyingGlass as Search, X, Funnel as Filter, DotsThreeVertical as MoreVertical } from '@phosphor-icons/react';
+import { MagnifyingGlass as Search, X, Funnel as Filter, DotsThreeVertical as MoreVertical, CaretLeft, Sliders } from '@phosphor-icons/react';
 import { Select, SelectOption } from './Select';
 import { ExportButton } from './ExportButton';
 import { GenericModal } from './GenericModal';
@@ -129,7 +129,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                                 onClick={() => setIsMobileMenuOpen(true)}
                                 className={`w-10 h-10 flex items-center justify-center rounded-xl border relative transition-all ${activeFiltersCount > 0 ? 'bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm' : 'bg-white text-slate-500 border-slate-200 active:bg-slate-50'}`}
                             >
-                                <MoreVertical size={22} weight="bold" />
+                                <Sliders size={20} weight="bold" />
                                 {activeFiltersCount > 0 && <span className="absolute -top-1 -left-1 w-4 h-4 bg-rose-500 text-white rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white">{activeFiltersCount}</span>}
                             </button>
                         </div>
@@ -398,9 +398,11 @@ export const ActionListItem: React.FC<{
                 </div>
             </div>
             <div className="flex items-center gap-2">
-                {extra !== undefined ? extra : <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-300 group-hover:text-slate-400 transition-colors">
-                    <MoreVertical size={16} />
-                </div>}
+                {extra !== undefined ? extra : (
+                    <div className="text-slate-300 group-hover:text-indigo-500 transition-colors ml-1">
+                        <CaretLeft size={16} weight="bold" />
+                    </div>
+                )}
             </div>
         </button>
     );

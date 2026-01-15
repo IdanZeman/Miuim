@@ -236,12 +236,8 @@ const FieldEditorModal: React.FC<FieldEditorModalProps> = ({ field, isCreating, 
             newErrors.label = 'שם השדה הוא שדה חובה';
         }
 
-        if (!editedField.key.trim()) {
-            newErrors.key = 'מפתח השדה הוא שדה חובה';
-        } else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(editedField.key)) {
-            newErrors.key = 'מפתח השדה חייב להתחיל באות ולהכיל רק אותיות, מספרים וקו תחתון';
-        } else if (existingKeys.includes(editedField.key)) {
-            newErrors.key = 'מפתח זה כבר קיים';
+        if (!editedField.label.trim()) {
+            newErrors.label = 'שם השדה הוא שדה חובה';
         }
 
         if ((editedField.type === 'select' || editedField.type === 'multiselect') && !optionsText.trim()) {
@@ -259,8 +255,16 @@ const FieldEditorModal: React.FC<FieldEditorModalProps> = ({ field, isCreating, 
             ? optionsText.split('\n').map(opt => opt.trim()).filter(Boolean)
             : undefined;
 
+        let key = editedField.key;
+        if (!key) {
+            // Generate a technical key from the label (if English) or using a random ID
+            const slug = editedField.label.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
+            key = slug && /^[a-z]/.test(slug) ? `cf_${slug}` : `cf_${Math.random().toString(36).substr(2, 9)}`;
+        }
+
         onSave({
             ...editedField,
+            key,
             options,
             updated_at: new Date().toISOString(),
         });
@@ -305,16 +309,7 @@ const FieldEditorModal: React.FC<FieldEditorModalProps> = ({ field, isCreating, 
                     error={errors.label}
                 />
 
-                <div>
-                    <Input
-                        label="מפתח השדה * (באנגלית)"
-                        value={editedField.key}
-                        onChange={(e) => setEditedField({ ...editedField, key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })}
-                        placeholder="לדוגמה: personal_number"
-                        error={errors.key}
-                    />
-                    <p className="text-xs text-slate-500 mt-1">מזהה ייחודי לשדה (אותיות, מספרים וקו תחתון בלבד)</p>
-                </div>
+
 
                 <Select
                     label="סוג השדה *"
