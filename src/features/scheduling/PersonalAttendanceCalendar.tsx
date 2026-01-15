@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Person, TeamRotation, Absence } from '@/types';
-import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw } from '@phosphor-icons/react';
+import { Person, TeamRotation, Absence, HomeStatusType } from '@/types';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, CheckCircle as CheckCircle2, MapPin, Info, WarningCircle as AlertCircle } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
-import { Switch } from '@/components/ui/Switch';
-import { TimePicker } from '@/components/ui/DatePicker';
 import { PersonalRotationEditor } from './PersonalRotationEditor';
 import { logger } from '@/services/loggingService';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { getPersonInitials } from '@/utils/nameUtils';
+import { StatusEditModal } from './StatusEditModal';
+import ExcelJS from 'exceljs';
 
 interface PersonalAttendanceCalendarProps {
     person: Person;
     teamRotations: TeamRotation[];
-    absences?: Absence[]; // NEW
+    absences?: Absence[];
     onClose: () => void;
     onUpdatePerson: (p: Person) => void;
     isViewer?: boolean;
@@ -26,7 +26,6 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
     const [person, setPerson] = useState(initialPerson);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [editingDate, setEditingDate] = useState<Date | null>(null);
-    const [editState, setEditState] = useState({ isAvailable: false, start: '00:00', end: '23:59' });
     const [showRotationSettings, setShowRotationSettings] = useState(false);
 
     // Sync with prop updates
@@ -68,28 +67,39 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         return getEffectiveAvailability(person, date, teamRotations, absences);
     };
 
-    // Initialize edit state when opening modal
-    useEffect(() => {
-        if (editingDate) {
-            const data = getDisplayAvailability(editingDate);
-            setEditState({
-                isAvailable: data.isAvailable,
-                start: data.startHour === '00:00' ? '00:00' : data.startHour,
-                end: data.endHour === '00:00' ? '23:59' : data.endHour
-            });
-        }
-    }, [editingDate]);
-
-    const handleSaveDay = () => {
+    const handleSaveStatus = (
+        mainStatus: 'base' | 'home',
+        customTimes?: { start: string, end: string },
+        unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[],
+        homeStatusType?: HomeStatusType
+    ) => {
         if (!editingDate) return;
+
         const dateKey = editingDate.toLocaleDateString('en-CA');
 
-        const newData = {
-            isAvailable: editState.isAvailable,
-            startHour: editState.start,
-            endHour: editState.end,
-            source: 'manual'
+        let newData: any = {
+            source: 'manual',
+            unavailableBlocks // Save blocks
         };
+
+        if (mainStatus === 'home') {
+            newData.isAvailable = false;
+            newData.status = 'home';
+            newData.homeStatusType = homeStatusType;
+            // Clear times for home
+            newData.startHour = '00:00';
+            newData.endHour = '23:59';
+        } else {
+            newData.isAvailable = true;
+            // Handle times
+            if (customTimes) {
+                newData.startHour = customTimes.start;
+                newData.endHour = customTimes.end;
+            } else {
+                newData.startHour = '00:00';
+                newData.endHour = '23:59';
+            }
+        }
 
         const updatedPerson = {
             ...person,
@@ -99,112 +109,205 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             }
         };
 
-        setPerson(updatedPerson); // Optimistic update
+        setPerson(updatedPerson);
         onUpdatePerson(updatedPerson);
 
-        const isCheckIn = editState.isAvailable && editState.start === '00:00' && editState.end === '23:59';
-        logger.info(isCheckIn ? 'CHECK_IN' : 'UPDATE',
-            `${isCheckIn ? 'Reported presence' : 'Manually updated personal attendance'} for ${person.name}`,
-            {
-                personId: person.id,
-                date: dateKey,
-                isAvailable: editState.isAvailable,
-                start: editState.start,
-                end: editState.end,
-                category: 'attendance'
-            }
-        );
-        setEditingDate(null);
-    };
-
-    const handleClearDay = () => {
-        if (!editingDate) return;
-        const dateKey = editingDate.toLocaleDateString('en-CA');
-        const newDaily = { ...(person.dailyAvailability || {}) };
-        delete newDaily[dateKey];
-
-        const updatedPerson = { ...person, dailyAvailability: newDaily };
-        setPerson(updatedPerson); // Optimistic update
-        onUpdatePerson(updatedPerson);
-        logger.info('DELETE', `Cleared manual attendance update for ${person.name} on ${dateKey}`, {
+        logger.info('UPDATE', `Updated status for ${person.name} on ${dateKey}`, {
             personId: person.id,
             date: dateKey,
+            status: mainStatus,
+            ...newData,
             category: 'attendance'
         });
+
         setEditingDate(null);
     };
 
+    // Helper helper to avoid duplicating logic in render & export
+    const getVisualProps = (date: Date) => {
+        const avail = getDisplayAvailability(date);
+
+        // Fetch prev/next for logic
+        const prevDate = new Date(date); prevDate.setDate(date.getDate() - 1);
+        const nextDate = new Date(date); nextDate.setDate(date.getDate() + 1);
+        const prevAvail = getDisplayAvailability(prevDate);
+        const nextAvail = getDisplayAvailability(nextDate);
+
+        // Defaults
+        let statusConfig = {
+            label: '',
+            bg: 'bg-white',
+            text: 'text-slate-400',
+            fillColor: 'FFFFFFFF', // ARGB White
+            textColor: 'FF94A3B8' // ARGB Slate-400
+        };
+
+        if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+
+            const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') || (avail.startHour !== '00:00');
+            const isDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') || (avail.endHour !== '23:59');
+            const isSingleDay = isArrival && isDeparture;
+
+            statusConfig = {
+                label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
+                bg: isArrival || isSingleDay ? 'bg-emerald-50' : isDeparture ? 'bg-amber-50' : 'bg-emerald-50',
+                text: isArrival || isSingleDay ? 'text-emerald-700' : isDeparture ? 'text-amber-700' : 'text-emerald-700',
+                fillColor: isArrival || isSingleDay ? 'FFECFDF5' : isDeparture ? 'FFFFFBEB' : 'FFECFDF5',
+                textColor: isArrival || isSingleDay ? 'FF047857' : isDeparture ? 'FFB45309' : 'FF047857'
+            };
+
+            if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
+                if (isSingleDay || (!isArrival && !isDeparture)) {
+                    statusConfig.label += ` ${avail.startHour}-${avail.endHour}`;
+                } else if (isArrival && avail.startHour !== '00:00') {
+                    statusConfig.label += ` ${avail.startHour}`;
+                } else if (isDeparture && avail.endHour !== '23:59') {
+                    statusConfig.label += ` ${avail.endHour}`;
+                }
+            }
+        } else if (avail.status === 'home') {
+            // Get home status type label
+            const homeStatusLabels: Record<string, string> = {
+                'leave_shamp': 'חופשה בשמפ',
+                'gimel': 'ג\'',
+                'absent': 'נפקד',
+                'organization_days': 'ימי התארגנות',
+                'not_in_shamp': 'לא בשמ"פ'
+            };
+            const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : 'חופשה בשמפ';
+
+            statusConfig = {
+                label: homeTypeLabel,
+                bg: 'bg-red-50',
+                text: 'text-red-600',
+                fillColor: 'FFF5F5F5',
+                textColor: 'FFEF4444'
+            };
+        } else if (avail.status === 'unavailable') {
+            statusConfig = {
+                label: 'אילוץ',
+                bg: 'bg-amber-50',
+                text: 'text-amber-700',
+                fillColor: 'FFFFFBEB',
+                textColor: 'FFB45309'
+            };
+        }
+
+        return statusConfig;
+    };
+
+    const handleExportExcel = async () => {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet(`${monthName}`);
+
+        worksheet.views = [{ rightToLeft: true }];
+
+        // Headers
+        const headers = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+        const headerRow = worksheet.addRow(headers);
+        headerRow.font = { bold: true, size: 12, color: { argb: 'FF475569' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Grid Generation
+        let currentRow = worksheet.addRow([]);
+        currentRow.height = 80; // Taller rows for visual card effect
+
+        // Skip empty days at start
+        for (let i = 0; i < firstDay; i++) {
+            currentRow.getCell(i + 1).value = '';
+        }
+
+        let currentColumn = firstDay + 1;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month, d);
+            const currentProps = getVisualProps(date);
+
+            const cell = currentRow.getCell(currentColumn);
+
+            // Content: Day number + Status text
+            cell.value = `${d}\n${currentProps.label}`;
+            cell.alignment = { wrapText: true, horizontal: 'center', vertical: 'top' };
+
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: currentProps.fillColor } };
+            cell.font = { bold: true, color: { argb: currentProps.textColor } };
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+            if (currentColumn === 7) {
+                currentRow = worksheet.addRow([]);
+                currentRow.height = 80;
+                currentColumn = 1;
+            } else {
+                currentColumn++;
+            }
+        }
+
+        // Buffer & Download
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `attendance_${person.name}_${month + 1}_${year}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // --- UNIFIED RENDERING LOGIC ---
     const renderCalendarDays = () => {
         const days = [];
 
         // Empty slots for start of month
         for (let i = 0; i < firstDay; i++) {
-            days.push(<div key={`empty-${i}`} className="h-24 bg-slate-50 border border-slate-100"></div>);
+            days.push(<div key={`empty-${i}`} className="h-28 bg-slate-50 border border-slate-100"></div>);
         }
 
         // Days
         for (let d = 1; d <= daysInMonth; d++) {
             const date = new Date(year, month, d);
             const isToday = new Date().toDateString() === date.toDateString();
-
             const avail = getDisplayAvailability(date);
             const isManual = avail.source === 'manual';
-            const status = (avail as any).status; // Cast for now
+            const statusConfig = getVisualProps(date);
 
-            let bgClass = 'bg-white';
-            let content = null;
-
-            if (!avail.isAvailable) {
-                bgClass = 'bg-slate-100/50';
-                content = (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                        <Home size={16} weight="duotone" />
-                        <span className="text-[10px] font-bold mt-1">בבית</span>
-                    </div>
-                );
-            } else if (status === 'arrival') {
-                bgClass = 'bg-blue-50';
-                content = (
-                    <div className="flex flex-col items-center justify-center h-full text-blue-600">
-                        <ArrowLeft size={16} weight="bold" />
-                        <span className="text-[10px] font-bold mt-1">הגעה</span>
-                        <span className="text-[9px]">{formatTime(avail.startHour)}</span>
-                    </div>
-                );
-            } else if (status === 'departure') {
-                bgClass = 'bg-orange-50';
-                content = (
-                    <div className="flex flex-col items-center justify-center h-full text-orange-600">
-                        <ArrowRight size={16} weight="bold" />
-                        <span className="text-[10px] font-bold mt-1">יציאה</span>
-                        <span className="text-[9px]">{formatTime(avail.endHour)}</span>
-                    </div>
-                );
-            } else {
-                // Base - Full
-                bgClass = 'bg-green-50/50';
-                content = (
-                    <div className="flex flex-col items-center justify-center h-full text-green-600/50">
-                        <span className="text-[10px] font-bold">בבסיס</span>
-                    </div>
-                );
+            // Icon selection based on bg
+            let Icon = Info;
+            if (statusConfig.bg.includes('emerald')) Icon = CheckCircle2;
+            if (statusConfig.bg.includes('amber')) {
+                if (statusConfig.label === 'אילוץ') Icon = Clock;
+                else Icon = MapPin;
             }
+            if (statusConfig.bg.includes('red')) Icon = Home;
+            // Override specifcs
+            if (statusConfig.label === 'הגעה' || statusConfig.label === 'יציאה') Icon = MapPin;
+
 
             days.push(
                 <div
                     key={d}
                     onClick={() => !isViewer && setEditingDate(date)}
-                    className={`h-24 border border-slate-100 relative p-1 transition-all ${isViewer ? '' : 'hover:bg-opacity-70 cursor-pointer hover:shadow-inner'} ${bgClass} ${isToday ? 'ring-2 ring-inset ring-blue-400' : ''}`}
+                    className={`h-28 border border-slate-100 relative p-1.5 transition-all group ${isViewer ? '' : 'hover:brightness-95 cursor-pointer'} ${statusConfig.bg} ${isToday ? 'ring-2 ring-inset ring-blue-500 z-10' : ''}`}
                     title={isViewer ? "" : "לחץ לעריכת נוכחות"}
                 >
-                    <span className={`absolute top-1 right-2 text-xs font-bold ${isToday ? 'text-blue-600 bg-blue-100 px-1.5 rounded-full' : 'text-slate-400'}`}>
+                    <span className={`absolute top-1.5 right-2 text-xs font-black z-20 ${isToday ? 'text-blue-600 bg-white/80 px-1.5 rounded-full shadow-sm' : statusConfig.text.replace('text-', 'text-opacity-60 text-')}`}>
                         {d}
                     </span>
                     {isManual && (
-                        <span className="absolute top-1 left-1 w-2 h-2 bg-amber-400 rounded-full" title="שינוי ידני"></span>
+                        <span className="absolute top-2 left-2 w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse shadow-sm z-20" title="שינוי ידני"></span>
                     )}
-                    <div className="mt-4 h-full pointer-events-none">
-                        {content}
+
+                    <div className="mt-6 h-full pointer-events-none flex flex-col items-center justify-center gap-1">
+                        {statusConfig.label && (
+                            <div className={`
+                                flex flex-col items-center gap-1 text-center font-black leading-tight
+                                ${statusConfig.text}
+                            `}>
+                                <Icon size={20} weight={statusConfig.bg.includes('500') ? "fill" : "duotone"} className="mb-0.5 opacity-90" />
+                                <span className="text-[11px] px-1">{statusConfig.label}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
@@ -213,7 +316,6 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         return days;
     };
 
-    // --- UNIFIED MODAL UTILS ---
     const modalTitle = (
         <div className="flex items-center gap-3 pr-2 text-right">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ${person.color} text-sm shrink-0`}>
@@ -232,28 +334,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
     const modalHeaderActions = (
         <div className="flex items-center gap-2">
             <ExportButton
-                onExport={async () => {
-                    const csvHeader = 'תאריך,סטטוס,שעות\n';
-                    const rows = [];
-                    for (let d = 1; d <= daysInMonth; d++) {
-                        const date = new Date(year, month, d);
-                        const avail = getDisplayAvailability(date);
-                        const dateStr = date.toLocaleDateString('he-IL');
-                        const status = avail.isAvailable ? 'נמצא' : 'בבית';
-                        const hours = avail.isAvailable ? `${avail.startHour} - ${avail.endHour}` : '-';
-                        rows.push(`${dateStr},${status},${hours}`);
-                    }
-                    const csvContent = csvHeader + rows.join('\n');
-                    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `attendance_${person.name}_${month + 1}_${year}.csv`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    logger.info('EXPORT', `Exported attendance data for ${person.name}`, { month: month + 1, year });
-                }}
+                onExport={handleExportExcel}
                 iconOnly
                 className="w-10 h-10 rounded-full"
                 title="ייצוא נתוני נוכחות"
@@ -348,74 +429,19 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 )
             }
 
-            {/* Day Edit Modal */}
-            {
-                editingDate && (
-                    <GenericModal
-                        isOpen={true}
-                        onClose={() => setEditingDate(null)}
-                        title={`עריכה - ${editingDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })}`}
-                        size="sm"
-                    >
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                <span className="font-bold text-slate-700">סטטוס נוכחות</span>
-                                <div className="flex items-center gap-3">
-                                    <span className={`text-sm font-bold ${editState.isAvailable ? 'text-green-600' : 'text-slate-500'}`}>
-                                        {editState.isAvailable ? 'נוכח' : 'בבית'}
-                                    </span>
-                                    <button
-                                        onClick={() => setEditState(prev => {
-                                            const nextAvailable = !prev.isAvailable;
-                                            // Always default to 00:00-23:59 when turning ON
-                                            if (nextAvailable) {
-                                                return { ...prev, isAvailable: nextAvailable, start: '00:00', end: '23:59' };
-                                            }
-                                            return { ...prev, isAvailable: nextAvailable };
-                                        })}
-                                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${editState.isAvailable ? 'bg-green-500' : 'bg-slate-200'}`}
-                                        dir="ltr"
-                                    >
-                                        <span
-                                            className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transform transition-transform duration-200 ease-in-out ${editState.isAvailable ? 'translate-x-5' : 'translate-x-0'}`}
-                                        />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {editState.isAvailable && (
-                                <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                                    <div>
-                                        <TimePicker
-                                            label="התחלה"
-                                            value={editState.start}
-                                            onChange={val => setEditState(prev => ({ ...prev, start: val }))}
-                                        />
-                                    </div>
-                                    <div>
-                                        <TimePicker
-                                            label="סיום"
-                                            value={editState.end}
-                                            onChange={val => setEditState(prev => ({ ...prev, end: val }))}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex gap-3 pt-2">
-                                {getDisplayAvailability(editingDate).source === 'manual' && (
-                                    <Button onClick={handleClearDay} variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-600 px-3" title="נקה שינוי ידני">
-                                        <Trash2 size={18} weight="duotone" />
-                                    </Button>
-                                )}
-                                <Button onClick={handleSaveDay} variant="primary" className="flex-1">
-                                    שמור שינויים
-                                </Button>
-                            </div>
-                        </div>
-                    </GenericModal>
-                )
-            }
+            {/* Status Edit Modal - Unified */}
+            {editingDate && (
+                <StatusEditModal
+                    isOpen={true}
+                    onClose={() => setEditingDate(null)}
+                    onApply={handleSaveStatus}
+                    personName={person.name}
+                    date={editingDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    currentAvailability={getDisplayAvailability(editingDate)}
+                    defaultArrivalHour="10:00"
+                    defaultDepartureHour="14:00"
+                />
+            )}
         </GenericModal >
     );
 };

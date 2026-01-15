@@ -411,7 +411,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             tabIndex={0}
                                                         >
                                                             {/* Right: Person Info (Visually Right in RTL) */}
-                                                            <div className="flex items-center gap-3 md:gap-4 shrink-0 min-w-0 bg-inherit relative z-10">
+                                                            <div
+                                                                className="flex items-center gap-3 md:gap-4 shrink-0 min-w-0 bg-inherit relative z-10 cursor-pointer"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    onSelectPerson(person);
+                                                                }}
+                                                            >
                                                                 <div
                                                                     className="w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-xs md:text-sm font-black text-white shadow-lg group-hover:shadow-blue-500/10 group-active:scale-95 transition-all shrink-0"
                                                                     style={{
