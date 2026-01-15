@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import {
     X, Plus, MagnifyingGlass as Search, MagicWand as Wand2, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles,
-    CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle
+    CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle, ArrowLeft
 } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
@@ -682,6 +682,51 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     <div className="overflow-y-auto flex-1 p-3 md:p-2 space-y-3 md:space-y-1">
                         {availablePeople.map(p => {
                             const availability = getEffectiveAvailability(p, selectedDate, teamRotations);
+
+                            const badges = (() => {
+                                const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id) && !s.isCancelled && s.id !== selectedShift.id);
+                                const thisStart = new Date(selectedShift.startTime);
+                                const thisEnd = new Date(selectedShift.endTime);
+
+                                // Prev Shift Badge
+                                const lastShift = personShifts
+                                    .filter(s => new Date(s.endTime) <= thisStart)
+                                    .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0];
+
+                                if (lastShift) {
+                                    const gapHours = (thisStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60);
+                                    const requiredRest = lastShift.requirements?.minRest || 8;
+
+                                    if (gapHours < requiredRest) {
+                                        return (
+                                            <div className="flex items-center gap-1 bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-100" title={`מנוחה קצרה: סיים משמרת לפני ${Math.floor(gapHours)} שעות (נדרש: ${requiredRest})`}>
+                                                <AlertTriangle size={10} weight="fill" />
+                                                <span className="text-[10px] font-black whitespace-nowrap">סיום: לפני {Math.floor(gapHours)}ש</span>
+                                            </div>
+                                        );
+                                    }
+                                }
+
+                                // Next Shift Badge
+                                const nextShift = personShifts
+                                    .filter(s => new Date(s.startTime) >= thisEnd)
+                                    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
+
+                                if (nextShift) {
+                                    const gapHours = (new Date(nextShift.startTime).getTime() - thisEnd.getTime()) / (1000 * 60 * 60);
+                                    const isTight = gapHours < 8;
+                                    const nextStart = new Date(nextShift.startTime);
+
+                                    return (
+                                        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${isTight ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-blue-50 border-blue-100 text-blue-700'}`} title={`משמרת הבאה : ${nextStart.toLocaleDateString('he-IL', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`}>
+                                            <ArrowLeft size={10} weight="bold" />
+                                            <span className="text-[10px] font-black whitespace-nowrap">הבאה: עוד {Math.floor(gapHours)}ש</span>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })();
+
                             return (
                                 <div
                                     key={p.id}
@@ -692,45 +737,26 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                         <div className={`w-12 h-12 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white text-sm md:text-[10px] font-black shadow-md md:shadow-sm ${p.color} shrink-0`}>
                                             {getPersonInitials(p.name)}
                                         </div>
-                                        <div className="flex flex-col">
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="text-base md:text-sm font-black text-slate-800 tracking-tight">{p.name}</span>
-                                                {/* Rest Warning */}
-                                                {(() => {
-                                                    const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id) && !s.isCancelled && s.id !== selectedShift.id);
-                                                    const thisStart = new Date(selectedShift.startTime);
-                                                    const lastShift = personShifts
-                                                        .filter(s => new Date(s.endTime) <= thisStart)
-                                                        .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0];
-
-                                                    if (lastShift) {
-                                                        const lastEnd = new Date(lastShift.endTime);
-                                                        const gapMs = thisStart.getTime() - lastEnd.getTime();
-                                                        const gapHours = gapMs / (1000 * 60 * 60);
-                                                        const requiredRest = lastShift.requirements?.minRest || 8;
-
-                                                        if (gapHours < requiredRest) {
-                                                            return (
-                                                                <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100 group/warning" title={`מנוחה קצרה: ${Math.floor(gapHours)} שעות (נדרש: ${requiredRest})`}>
-                                                                    <div className="text-red-600 animate-pulse">
-                                                                        <AlertTriangle size={12} weight="fill" />
-                                                                    </div>
-                                                                    <span className="text-[10px] text-red-600 font-bold whitespace-nowrap">
-                                                                        סיים משמרת לפני {Math.floor(gapHours)} שעות
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        }
-                                                    }
-                                                    return null;
-                                                })()}
-                                                <div className="flex gap-1">
+                                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 min-w-0 w-full py-0.5">
+                                            {/* Person Details (Name, Team, Roles) */}
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="text-sm font-black text-slate-900 leading-none">{p.name}</span>
+                                                <span className="text-[10px] text-slate-500 font-bold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 whitespace-nowrap">
+                                                    {teams.find(t => t.id === p.teamId)?.name}
+                                                </span>
+                                                <div className="flex flex-wrap gap-1">
                                                     {roles.filter(r => (p.roleIds || [p.roleId]).includes(r.id)).map(r => (
-                                                        <span key={r.id} className="text-[10px] md:text-[9px] px-1.5 bg-slate-100 text-slate-500 rounded font-bold">{r.name}</span>
+                                                        <span key={r.id} className="text-[10px] px-1.5 py-0.5 text-slate-400 font-bold whitespace-nowrap relative before:content-['•'] before:mr-1 before:text-slate-300 pl-0">{r.name}</span>
                                                     ))}
                                                 </div>
                                             </div>
-                                            <div className="text-[11px] md:text-[10px] text-slate-400 font-bold">{teams.find(t => t.id === p.teamId)?.name}</div>
+
+                                            {/* Badge (Pushed to end) */}
+                                            {badges && (
+                                                <div className="shrink-0">
+                                                    {badges}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="md:opacity-0 md:group-hover:opacity-100"><Plus size={20} className="text-blue-600" weight="bold" /></div>
