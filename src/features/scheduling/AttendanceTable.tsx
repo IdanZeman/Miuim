@@ -454,10 +454,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         )}
                                                                     </span>
                                                                 ) : (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
-                                                                    <div className="flex -space-x-1 rtl:space-x-reverse h-3 items-center shrink-0">
-                                                                        {avail.unavailableBlocks.slice(0, 3).map((_, i) => (
-                                                                            <div key={i} className="w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white shadow-sm" />
-                                                                        ))}
+                                                                    <div className="flex items-center gap-1 bg-red-50 text-red-600 px-1.5 py-0.5 rounded border border-red-100 shrink-0">
+                                                                        <Clock size={10} weight="bold" />
+                                                                        <span className="text-[10px] font-black leading-none">
+                                                                            {avail.unavailableBlocks.length === 1
+                                                                                ? `${avail.unavailableBlocks[0].start}-${avail.unavailableBlocks[0].end}`
+                                                                                : `${avail.unavailableBlocks.length} חסימות`
+                                                                            }
+                                                                        </span>
                                                                     </div>
                                                                 )}
 
@@ -970,7 +974,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                     )}
                                                                                     <MapPin size={14} className={isUnapprovedExit && !hideAbsenceDetails ? "text-red-500" : "text-emerald-500/50"} weight="duotone" />
                                                                                     <span className={`text-[10px] font-black ${isUnapprovedExit && !hideAbsenceDetails ? "text-red-700" : ""}`}>בסיס</span>
-                                                                                    {constraintText}
+                                                                                    {(avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
+                                                                                        <span className="text-[9px] font-bold text-red-600/90 leading-tight block whitespace-nowrap scale-90 -mt-0.5">
+                                                                                            {avail.unavailableBlocks.length > 1
+                                                                                                ? `${avail.unavailableBlocks.length} חסימות`
+                                                                                                : `${avail.unavailableBlocks[0].start}-${avail.unavailableBlocks[0].end}`
+                                                                                            }
+                                                                                        </span>
+                                                                                    )}
                                                                                     {isUnapprovedExit && !hideAbsenceDetails && (
                                                                                         <span className="text-[8px] font-bold text-red-500/60 leading-tight">לא אושר</span>
                                                                                     )}
@@ -997,7 +1008,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                             {/* Unavailable Blocks Indicators - Red Dots (Hidden if Exit Request) */}
                                                                             {showRedDots && (
                                                                                 <div
-                                                                                    data-testid="red-dots-indicator"
+                                                                                    data-testid="hourly-blockage-indicator"
                                                                                     className="absolute top-1 right-1 z-10 flex gap-0.5"
                                                                                 >
                                                                                     {displayBlocks.slice(0, 3).map((_, i) => (

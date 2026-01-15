@@ -394,7 +394,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 ]);
 
                 // Manually update cache to reflect block changes immediately
-                queryClient.setQueriesData({ queryKey: ['organizationData'] }, (old: any) => {
+                const queryKey = ['organizationData', profile.organization_id, profile.id];
+                queryClient.setQueriesData({ queryKey }, (old: any) => {
                     if (!old || !old.hourlyBlockages) return old;
 
                     let newBlockages = [...old.hourlyBlockages];
