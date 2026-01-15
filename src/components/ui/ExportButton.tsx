@@ -78,13 +78,13 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
         <button
             onClick={handleExport}
             disabled={isExporting || disabled}
-            className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+            className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className} ${iconOnly ? 'rounded-full px-0' : ''}`}
             title={title}
         >
             {isExporting ? (
                 <Spinner className="animate-spin" size={size === 'sm' ? 18 : size === 'md' ? 24 : 30} weight="bold" />
             ) : (
-                <ExcelIcon size={iconSize} />
+                variant === 'ghost' ? <MicrosoftExcelLogo size={24} weight="duotone" className="text-emerald-600" /> : <ExcelIcon size={iconSize} />
             )}
 
             {!iconOnly && <span className="tracking-tight">{isExporting ? 'מייצא...' : label}</span>}

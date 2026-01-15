@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Person, TeamRotation, Absence, HomeStatusType, HourlyBlockage } from '@/types';
-import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, CheckCircle as CheckCircle2, MapPin, Info, WarningCircle as AlertCircle, Phone, Envelope } from '@phosphor-icons/react';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, CheckCircle as CheckCircle2, MapPin, Info, WarningCircle as AlertCircle, Phone, Envelope, WhatsappLogo, Copy } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
@@ -30,6 +31,15 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
     const [currentDate, setCurrentDate] = useState(new Date());
     const [editingDate, setEditingDate] = useState<Date | null>(null);
     const [showRotationSettings, setShowRotationSettings] = useState(false);
+    const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | null }>({
+        message: '',
+        type: null
+    });
+
+    const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification({ message: '', type: null }), 3000);
+    };
 
     // Sync with prop updates
     useEffect(() => {
@@ -197,6 +207,139 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         }
 
         return statusConfig;
+    };
+
+    const generateAttendanceSummary = () => {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        const daysInMonth = getDaysInMonth(year, month);
+        const monthName = currentDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+
+        let message = `*לו"ז נוכחות - ${person.name}* 🗓️\n`;
+        message += `*חודש:* ${monthName}\n\n`;
+        message += `*לו"ז יציאות:* \n`;
+
+        let currentBlock: any = null;
+        const blocks: any[] = [];
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month, d);
+            const avail = getDisplayAvailability(date);
+            const statusId = avail.status === 'home' ? `home-${avail.homeStatusType || 'default'}` : avail.status;
+
+            if (!currentBlock || currentBlock.statusId !== statusId) {
+                if (currentBlock) {
+                    currentBlock.endDate = new Date(year, month, d - 1);
+                    blocks.push(currentBlock);
+                }
+                currentBlock = {
+                    statusId,
+                    status: avail.status,
+                    startDate: new Date(year, month, d),
+                    startHour: avail.startHour,
+                    endHour: avail.endHour,
+                    homeType: avail.homeStatusType
+                };
+            }
+        }
+        if (currentBlock) {
+            currentBlock.endDate = new Date(year, month, daysInMonth);
+            blocks.push(currentBlock);
+        }
+
+        blocks.forEach(block => {
+            const startStr = `${block.startDate.getDate()}.${month + 1}`;
+            const endStr = `${block.endDate.getDate()}.${month + 1}`;
+            const range = startStr === endStr ? startStr : `${startStr} - ${endStr}`;
+
+            let statusText = '';
+            let emoji = '';
+
+            if (block.status === 'base' || block.status === 'full') {
+                statusText = 'בבסיס';
+                emoji = '✅';
+            } else if (block.status === 'home') {
+                const homeStatusLabels: Record<string, string> = {
+                    'leave_shamp': 'חופשה',
+                    'gimel': 'ג\'',
+                    'absent': 'נפקד',
+                    'organization_days': 'התארגנות',
+                    'not_in_shamp': 'לא בשמ"פ'
+                };
+                statusText = homeStatusLabels[block.homeType] || 'בית';
+                emoji = '🏠';
+            } else if (block.status === 'arrival') {
+                statusText = `הגעה (${block.startHour})`;
+                emoji = '➡️';
+            } else if (block.status === 'departure') {
+                statusText = `יציאה (${block.endHour})`;
+                emoji = '⬅️';
+            } else if (block.status === 'unavailable') {
+                statusText = 'אילוץ';
+                emoji = '❌';
+            }
+
+            message += `• ${range}: *${statusText}* ${emoji}\n`;
+        });
+
+        // Add Hourly Blockages section
+        const allBlockages: any[] = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month, d);
+            const avail = getDisplayAvailability(date);
+            if (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) {
+                allBlockages.push({ date, blocks: avail.unavailableBlocks });
+            }
+        }
+
+        if (allBlockages.length > 0) {
+            message += `\n*חסימות ואילוצים:* 📌\n`;
+            allBlockages.forEach(item => {
+                const dateStr = `${item.date.getDate()}.${month + 1}`;
+                item.blocks.forEach((b: any) => {
+                    const isFullDay = b.start?.slice(0, 5) === '00:00' && b.end?.slice(0, 5) === '23:59';
+                    const timeStr = isFullDay ? '' : ` (${b.start.slice(0, 5)}-${b.end.slice(0, 5)})`;
+
+                    let reasonText = b.reason;
+                    if (reasonText === 'Absence') reasonText = '';
+                    if (b.type === 'exit_request') reasonText = 'בקשת יציאה';
+
+                    if (reasonText || !isFullDay) {
+                        message += `• ${dateStr}:${timeStr}${reasonText ? ` *${reasonText}*` : ''}\n`;
+                    }
+                });
+            });
+        }
+
+        return message;
+    };
+
+    const handleCopyToClipboard = () => {
+        const message = generateAttendanceSummary();
+        navigator.clipboard.writeText(message).then(() => {
+            showNotification('הלו"ז הועתק לקליפבורד! ✅');
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            showNotification('שגיאה בהעתקה לקליפבורד', 'error');
+        });
+    };
+
+    const handleExportWhatsApp = () => {
+        if (!person.phone) {
+            alert('אין מספר טלפון מוזן ללוחם זה');
+            return;
+        }
+
+        const message = generateAttendanceSummary();
+        const encodedMessage = encodeURIComponent(message);
+
+        let cleanPhone = person.phone.replace(/\D/g, '');
+        if (cleanPhone.startsWith('0')) {
+            cleanPhone = '972' + cleanPhone.substring(1).replace(/^0+/, '');
+        }
+
+        const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMessage}`;
+        window.open(whatsappUrl, '_blank');
     };
 
     const handleExportExcel = async () => {
@@ -374,9 +517,26 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             <ExportButton
                 onExport={handleExportExcel}
                 iconOnly
+                variant="ghost"
                 className="w-10 h-10 rounded-full"
-                title="ייצוא נתוני נוכחות"
+                title="ייצוא לאקסל"
             />
+            <button
+                onClick={handleCopyToClipboard}
+                className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-50 rounded-full transition-colors"
+                title="העתק לו&quot;ז"
+            >
+                <Copy size={20} weight="duotone" />
+            </button>
+            {person.phone && (
+                <button
+                    onClick={handleExportWhatsApp}
+                    className="w-10 h-10 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"
+                    title="ייצוא לווטסאפ"
+                >
+                    <WhatsappLogo size={24} weight="duotone" />
+                </button>
+            )}
             {!isViewer && (
                 <button
                     onClick={() => setShowRotationSettings(true)}
@@ -446,6 +606,27 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             footer={modalFooter}
             size="2xl"
         >
+            {/* Custom Notification */}
+            <AnimatePresence>
+                {notification.type && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20, x: '-50%' }}
+                        animate={{ opacity: 1, y: 10, x: '-50%' }}
+                        exit={{ opacity: 0, scale: 0.95, x: '-50%' }}
+                        className={`
+                            fixed top-4 left-1/2 z-[100] px-4 py-2 rounded-full shadow-lg border font-bold text-sm
+                            flex items-center gap-2
+                            ${notification.type === 'success'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-emerald-100/50'
+                                : 'bg-red-50 text-red-700 border-red-100 shadow-red-100/50'
+                            }
+                        `}
+                    >
+                        {notification.type === 'success' ? <CheckCircle2 size={18} weight="fill" /> : <AlertCircle size={18} weight="fill" />}
+                        <span>{notification.message}</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             {/* Calendar Controls */}
             <div className="flex items-center justify-between mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
                 <Button onClick={handlePrevMonth} variant="ghost" size="icon" icon={ChevronRight} />

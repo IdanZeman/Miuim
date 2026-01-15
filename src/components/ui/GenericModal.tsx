@@ -128,7 +128,7 @@ export const GenericModal: React.FC<GenericModalProps> = ({
                             {closeIcon === 'close' && (
                                 <button
                                     onClick={onClose}
-                                    className="p-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-2xl transition-all active:scale-90 bg-slate-50"
+                                    className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all active:scale-95 bg-transparent"
                                     aria-label="Close"
                                 >
                                     <X size={22} weight="bold" />
