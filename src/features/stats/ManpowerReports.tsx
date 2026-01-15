@@ -197,19 +197,30 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                 const isAvailable = availability ? availability.isAvailable : true;
 
                 // Detailed status mapping
-                let statusLabel = isAvailable ? 'נוכח' : 'חופשה בשמ"פ';
+                let statusLabel = 'נוכח';
                 let detailLabel = '';
                 let reasonLabel = '';
 
-                if (!isAvailable && availability?.homeStatusType) {
-                    const statusMap: Record<string, string> = {
-                        'gimel': "ג'",
-                        'leave_shamp': 'חופשה בשמ"פ',
-                        'not_in_shamp': 'לא בשמ"פ',
-                        'absent': 'נפקד',
-                        'organization_days': 'התארגנות'
-                    };
-                    statusLabel = statusMap[availability.homeStatusType] || 'חופשה בשמ"פ';
+                if (isAvailable) {
+                    if (availability?.status === 'arrival' || (availability?.startHour && availability.startHour !== '00:00')) {
+                        statusLabel = `הגעה (${availability?.startHour || '00:00'})`;
+                    } else if (availability?.status === 'departure' || (availability?.endHour && availability.endHour !== '23:59')) {
+                        statusLabel = `יציאה (${availability?.endHour || '23:59'})`;
+                    } else {
+                        statusLabel = 'נוכח';
+                    }
+                } else {
+                    statusLabel = 'חופשה בשמ"פ';
+                    if (availability?.homeStatusType) {
+                        const statusMap: Record<string, string> = {
+                            'gimel': "ג'",
+                            'leave_shamp': 'חופשה בשמ"פ',
+                            'not_in_shamp': 'לא בשמ"פ',
+                            'absent': 'נפקד',
+                            'organization_days': 'התארגנות'
+                        };
+                        statusLabel = statusMap[availability.homeStatusType] || 'חופשה בשמ"פ';
+                    }
                 }
 
                 if (availability?.startHour || availability?.endHour) {
@@ -282,7 +293,10 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                 if (statusVal.includes('בית') || statusVal === "ג'" || statusVal === 'נפקד' || statusVal.includes('שמ"פ')) {
                     statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
                     statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
-                } else if (statusVal === 'נוכח') {
+                } else if (statusVal.startsWith('יציאה')) {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                    statusCell.font = { color: { argb: 'FF92400E' }, bold: true };
+                } else if (statusVal === 'נוכח' || statusVal.startsWith('הגעה')) {
                     statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
                     statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
                 }
