@@ -273,10 +273,41 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
                     queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
                 }
             )
+            // --- Expanded Subscriptions (Equipment, Shifts, Teams, etc.) ---
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment', filter: `organization_id=eq.${organizationId}` }, () => {
+                console.log('Realtime update detected: equipment');
+                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_daily_checks', filter: `organization_id=eq.${organizationId}` }, () => {
+                console.log('Realtime update detected: equipment_daily_checks');
+                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `organization_id=eq.${organizationId}` }, () => {
+                console.log('Realtime update detected: shifts');
+                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+            })
+            // For shifts, we also want to know if tasks change
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_templates', filter: `organization_id=eq.${organizationId}` }, () => {
+                console.log('Realtime update detected: task_templates');
+                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'mission_reports', filter: `organization_id=eq.${organizationId}` }, () => {
+                console.log('Realtime update detected: mission_reports');
+                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+            })
+            // Structural changes
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organizationId}` }, () => {
+                console.log('Realtime update detected: teams');
+                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organizationId}` }, () => {
+                console.log('Realtime update detected: roles');
+                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+            })
             .subscribe((status) => {
                 console.log(`Supabase Realtime Connection Status: ${status}`);
                 if (status === 'SUBSCRIBED') {
-                    console.log(`✅ Listening for changes on people/absences for org: ${organizationId}`);
+                    console.log(`✅ Listening for changes on ALL tables for org: ${organizationId}`);
                 }
                 if (status === 'CHANNEL_ERROR') {
                     console.error('❌ Realtime connection failed. Check your network or Supabase settings.');
