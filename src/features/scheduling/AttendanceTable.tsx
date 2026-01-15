@@ -356,8 +356,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
                                                         const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
 
-                                                        const isArrival = !prevAvail.isAvailable || prevAvail.status === 'home';
-                                                        const isDeparture = !nextAvail.isAvailable || nextAvail.status === 'home';
+                                                        const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') || (avail.startHour !== '00:00');
+                                                        const isDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') || (avail.endHour !== '23:59');
                                                         const isSingleDay = isArrival && isDeparture;
 
                                                         statusConfig = {
@@ -901,8 +901,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         const prevWasPartialReturn = prevAvail.status === 'home' && prevAvail.endHour && prevAvail.endHour !== '23:59' && prevAvail.endHour !== '00:00';
                                                                         const nextWasPartialDeparture = nextAvail.status === 'home' && nextAvail.startHour && nextAvail.startHour !== '00:00';
 
-                                                                        const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') && !prevWasPartialReturn;
-                                                                        const isDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') && !nextWasPartialDeparture;
+                                                                        const isArrival = ((!prevAvail.isAvailable || prevAvail.status === 'home') && !prevWasPartialReturn) || (avail.startHour !== '00:00');
+                                                                        const isDeparture = ((!nextAvail.isAvailable || nextAvail.status === 'home') && !nextWasPartialDeparture) || (avail.endHour !== '23:59');
 
                                                                         if (isArrival && isDeparture) {
                                                                             cellBg = "bg-emerald-50 text-emerald-800";
