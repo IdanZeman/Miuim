@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Person, Team, Role } from '../../types';
+import { Person, Team, Role, OrganizationSettings, Absence, HourlyBlockage } from '../../types';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, Label } from 'recharts';
 import { Users, Calendar, TrendUp as TrendingUp, WarningCircle as AlertCircle, CheckCircle as CheckCircle2, XCircle, SquaresFour as LayoutGrid, List, MagnifyingGlass as Search, DownloadSimple as Download } from '@phosphor-icons/react';
 import { DateNavigator } from '../../components/ui/DateNavigator';
@@ -15,9 +15,15 @@ interface ManpowerReportsProps {
     people: Person[];
     teams: Team[];
     roles: Role[];
+    absences?: Absence[];
+    hourlyBlockages?: HourlyBlockage[];
+    settings?: OrganizationSettings | null;
 }
 
-export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams, roles }) => {
+export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
+    people, teams, roles, settings,
+    absences = [], hourlyBlockages = []
+}) => {
     // State
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [viewMode, setViewMode] = useState<'daily' | 'trends'>('daily');
@@ -152,12 +158,17 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('דוח כוח אדם', { views: [{ rightToLeft: true }] });
 
+            const customFields = settings?.customFieldsSchema || [];
+
             const columns = [
                 { name: 'תאריך', filterButton: true },
                 { name: 'שם מלא', filterButton: true },
                 { name: 'צוות', filterButton: true },
-                ...roles.map(r => ({ name: r.name, filterButton: true })),
-                { name: 'סטטוס נוכחות', filterButton: true }
+                { name: 'תפקידים', filterButton: true },
+                ...customFields.map(cf => ({ name: cf.label, filterButton: true })),
+                { name: 'סטטוס נוכחות', filterButton: true },
+                { name: 'פירוט/שעות', filterButton: true },
+                { name: 'סיבה/הערות', filterButton: true }
             ];
 
             const filteredPeople = selectedTeamIds.includes('all')
@@ -166,12 +177,92 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
 
             const rows = filteredPeople.map(p => {
                 const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
-                const roleStatuses = roles.map(r => (p.roleIds || [p.roleId]).includes(r.id) ? 'V' : '');
+
+                // Get roles as a comma-separated string
+                const personRoleIds = p.roleIds || [p.roleId];
+                const personRolesStr = personRoleIds
+                    .map(id => roles.find(r => r.id === id)?.name)
+                    .filter(Boolean)
+                    .join(', ');
+
+                // Get custom fields values
+                const customFieldValues = customFields.map(cf => {
+                    const val = p.customFields?.[cf.key];
+                    if (cf.type === 'boolean') return val ? 'V' : '';
+                    if (Array.isArray(val)) return val.join(', ');
+                    return val || '';
+                });
+
                 const availability = p.dailyAvailability?.[dateKey];
                 const isAvailable = availability ? availability.isAvailable : true;
-                const statusLabel = isAvailable ? 'נוכח' : 'בבית';
 
-                return [selectedDate.toLocaleDateString('he-IL'), p.name, teamName, ...roleStatuses, statusLabel];
+                // Detailed status mapping
+                let statusLabel = isAvailable ? 'נוכח' : 'חופשה בשמ"פ';
+                let detailLabel = '';
+                let reasonLabel = '';
+
+                if (!isAvailable && availability?.homeStatusType) {
+                    const statusMap: Record<string, string> = {
+                        'gimel': "ג'",
+                        'leave_shamp': 'חופשה בשמ"פ',
+                        'not_in_shamp': 'לא בשמ"פ',
+                        'absent': 'נפקד',
+                        'organization_days': 'התארגנות'
+                    };
+                    statusLabel = statusMap[availability.homeStatusType] || 'חופשה בשמ"פ';
+                }
+
+                if (availability?.startHour || availability?.endHour) {
+                    const arrival = availability.startHour || '00:00';
+                    const departure = availability.endHour || '23:59';
+                    detailLabel = `${arrival} - ${departure}`;
+                }
+
+                // Find active absence or blockage for reasons and hours
+                const activeAbsence = absences.find(a =>
+                    a.person_id === p.id &&
+                    a.start_date <= dateKey &&
+                    a.end_date >= dateKey &&
+                    a.status === 'approved'
+                );
+
+                if (activeAbsence) {
+                    const absStart = activeAbsence.start_time || '00:00';
+                    const absEnd = activeAbsence.end_time || '23:59';
+                    const absHours = (absStart !== '00:00' || absEnd !== '23:59') ? ` (${absStart}-${absEnd})` : '';
+
+                    reasonLabel = activeAbsence.reason || 'היעדרות מאושרת';
+                    if (absHours) {
+                        if (detailLabel) detailLabel += ` | היעדרות: ${absStart}-${absEnd}`;
+                        else detailLabel = `${absStart}-${absEnd}`;
+                    }
+                } else {
+                    const personBlockages = hourlyBlockages.filter(b =>
+                        b.person_id === p.id &&
+                        b.date === dateKey
+                    );
+
+                    if (personBlockages.length > 0) {
+                        const blockTimes = personBlockages.map(b => `${b.start_time}-${b.end_time}`).join(', ');
+                        const blockReasons = personBlockages.map(b => b.reason).filter(Boolean).join(', ');
+
+                        if (detailLabel) detailLabel += ` | חסימות: ${blockTimes}`;
+                        else detailLabel = blockTimes;
+
+                        reasonLabel = blockReasons || 'חסימה שעתית';
+                    }
+                }
+
+                return [
+                    selectedDate.toLocaleDateString('he-IL'),
+                    p.name,
+                    teamName,
+                    personRolesStr,
+                    ...customFieldValues,
+                    statusLabel,
+                    detailLabel,
+                    reasonLabel
+                ];
             });
 
             worksheet.addTable({
@@ -186,9 +277,9 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
             // Status coloring
             worksheet.eachRow((row, rowNumber) => {
                 if (rowNumber === 1) return;
-                const statusCell = row.getCell(columns.length);
-                const statusVal = statusCell.value;
-                if (statusVal === 'בבית') {
+                const statusCell = row.getCell(columns.length - 2); // Status column index
+                const statusVal = statusCell.value?.toString() || '';
+                if (statusVal.includes('בית') || statusVal === "ג'" || statusVal === 'נפקד' || statusVal.includes('שמ"פ')) {
                     statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
                     statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
                 } else if (statusVal === 'נוכח') {
@@ -197,7 +288,9 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({ people, teams,
                 }
             });
 
-            worksheet.columns = [{ width: 15 }, { width: 25 }, { width: 20 }, ...roles.map(() => ({ width: 12 })), { width: 15 }];
+            // Column widths
+            const colWidths = [15, 25, 20, 25, ...customFields.map(() => 15), 15, 15, 30];
+            worksheet.columns = colWidths.map(w => ({ width: w }));
 
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

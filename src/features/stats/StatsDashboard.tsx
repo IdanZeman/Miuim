@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Person, Shift, TaskTemplate, Role, Team } from '../../types';
+import { Person, Shift, TaskTemplate, Role, Team, OrganizationSettings, Absence, HourlyBlockage } from '../../types';
 import { Users, ClipboardText as ClipboardList, MapPin, ChartBar as BarChart3, ListChecks } from '@phosphor-icons/react';
 import { LocationReport } from './LocationReport';
 import { TaskReports } from './TaskReports';
@@ -15,6 +15,9 @@ interface StatsDashboardProps {
    roles: Role[];
    teams: Team[];
    teamRotations?: any[];
+   absences?: Absence[];
+   hourlyBlockages?: HourlyBlockage[];
+   settings?: OrganizationSettings | null;
    isViewer?: boolean;
    currentUserEmail?: string;
    currentUserName?: string;
@@ -24,7 +27,8 @@ type ReportType = 'manpower' | 'tasks' | 'location' | 'customFields';
 
 export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    people, shifts, tasks, roles, teams, teamRotations = [],
-   isViewer = false, currentUserEmail, currentUserName
+   absences = [], hourlyBlockages = [],
+   settings = null, isViewer = false, currentUserEmail, currentUserName
 }) => {
    const activePeople = people.filter(p => p.isActive !== false);
    const [reportType, setReportType] = useState<ReportType>(isViewer ? 'tasks' : 'manpower');
@@ -129,6 +133,9 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   people={activePeople}
                   teams={teams}
                   roles={roles}
+                  settings={settings}
+                  absences={absences}
+                  hourlyBlockages={hourlyBlockages}
                />
             )}
 
