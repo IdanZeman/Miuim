@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Person, Shift, TaskTemplate, Team } from '../../types';
+import ExcelJS from 'exceljs';
+import { Person, Shift, TaskTemplate, Team, OrganizationSettings, Absence, HourlyBlockage, Role } from '../../types';
 import { MapPin, House as Home, Briefcase, Funnel as Filter, Copy, CaretDown as ChevronDown, Users, SquaresFour as LayoutGrid, ArrowsDownUp as ArrowUpDown, User, CaretRight as ChevronRight, CaretLeft as ChevronLeft, Clock, DotsThreeVertical as MoreVertical } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { useToast } from '../../contexts/ToastContext';
@@ -16,7 +17,11 @@ interface LocationReportProps {
     shifts: Shift[];
     taskTemplates: TaskTemplate[];
     teamRotations?: any[];
-    teams?: Team[]; // Added teams prop
+    teams?: Team[];
+    roles?: Role[];
+    settings?: OrganizationSettings | null;
+    absences?: Absence[];
+    hourlyBlockages?: HourlyBlockage[];
 }
 
 type LocationStatus = 'mission' | 'base' | 'home';
@@ -28,10 +33,16 @@ interface PersonLocation {
     time: string;
 }
 
-export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, taskTemplates, teamRotations = [], teams = [] }) => {
+export const LocationReport: React.FC<LocationReportProps> = ({
+    people, shifts, taskTemplates, teamRotations = [], teams = [],
+    roles = [], settings = null, absences = [], hourlyBlockages = []
+}) => {
     const { showToast } = useToast();
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-    const [selectedTime, setSelectedTime] = useState<string>('08:00'); // Default check time
+    const [selectedTime, setSelectedTime] = useState<string>(() => {
+        const now = new Date();
+        return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    });
     const [filterTeam, setFilterTeam] = useState<string>('all');
     const [groupBy, setGroupBy] = useState<'status' | 'team' | 'alpha'>('status');
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -357,25 +368,107 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
 
                         <ExportButton
                             onExport={async () => {
-                                let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
-                                reportData.forEach(r => {
-                                    const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
-                                    const team = r.person.teamId || '';
-                                    csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
-                                });
-                                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-                                const link = document.createElement('a');
-                                const url = URL.createObjectURL(blob);
-                                link.setAttribute('href', url);
-                                link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                logger.info('EXPORT', `Exported Location Report to CSV for ${selectedDate.toLocaleDateString('he-IL')}`, {
-                                    date: selectedDate.toISOString().split('T')[0],
-                                    itemCount: reportData.length,
-                                    category: 'data'
-                                });
+                                try {
+                                    const workbook = new ExcelJS.Workbook();
+                                    const worksheet = workbook.addWorksheet('דוח מיקום', { views: [{ rightToLeft: true }] });
+
+                                    const customFields = settings?.customFieldsSchema || [];
+                                    const dateKey = selectedDate.toLocaleDateString('en-CA');
+
+                                    const columns = [
+                                        { name: 'תאריך', filterButton: true },
+                                        { name: 'שעת בדיקה', filterButton: true },
+                                        { name: 'שם מלא', filterButton: true },
+                                        { name: 'צוות', filterButton: true },
+                                        { name: 'תפקידים', filterButton: true },
+                                        ...customFields.map(cf => ({ name: cf.label, filterButton: true })),
+                                        { name: 'סטטוס מיקום', filterButton: true },
+                                        { name: 'פירוט', filterButton: true },
+                                        { name: 'שעות', filterButton: true }
+                                    ];
+
+                                    const rows = reportData.map(r => {
+                                        const teamName = teams.find(t => t.id === r.person.teamId)?.name || 'כללי';
+
+                                        // Get roles as a comma-separated string
+                                        const personRoleIds = r.person.roleIds || [r.person.roleId];
+                                        const personRolesStr = personRoleIds
+                                            .map(id => roles.find(role => role.id === id)?.name)
+                                            .filter(Boolean)
+                                            .join(', ');
+
+                                        // Get custom fields values
+                                        const customFieldValues = customFields.map(cf => {
+                                            const val = r.person.customFields?.[cf.key];
+                                            if (cf.type === 'boolean') return val ? 'V' : '';
+                                            if (Array.isArray(val)) return val.join(', ');
+                                            return val || '';
+                                        });
+
+                                        const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
+
+                                        return [
+                                            selectedDate.toLocaleDateString('he-IL'),
+                                            selectedTime,
+                                            r.person.name,
+                                            teamName,
+                                            personRolesStr,
+                                            ...customFieldValues,
+                                            statusMap[r.status],
+                                            r.details,
+                                            r.time
+                                        ];
+                                    });
+
+                                    worksheet.addTable({
+                                        name: 'LocationReportTable',
+                                        ref: 'A1',
+                                        headerRow: true,
+                                        columns: columns,
+                                        rows: rows,
+                                        style: { theme: 'TableStyleMedium2', showRowStripes: true }
+                                    });
+
+                                    // Status coloring
+                                    worksheet.eachRow((row, rowNumber) => {
+                                        if (rowNumber === 1) return;
+                                        const statusCell = row.getCell(columns.length - 2); // Status column
+                                        const statusVal = statusCell.value?.toString() || '';
+                                        if (statusVal === 'בבית') {
+                                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                                            statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                                        } else if (statusVal === 'בבסיס') {
+                                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                                            statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                                        } else if (statusVal === 'במשימה') {
+                                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } };
+                                            statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                                        }
+                                    });
+
+                                    // Column widths
+                                    const colWidths = [15, 12, 25, 20, 25, ...customFields.map(() => 15), 15, 30, 15];
+                                    worksheet.columns = colWidths.map(w => ({ width: w }));
+
+                                    const buffer = await workbook.xlsx.writeBuffer();
+                                    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = `location_report_${dateKey}_${selectedTime.replace(':', '')}.xlsx`;
+                                    link.click();
+                                    URL.revokeObjectURL(url);
+                                    showToast('הדוח יוצא בהצלחה', 'success');
+                                    logger.info('EXPORT', `Exported Location Report to Excel for ${selectedDate.toLocaleDateString('he-IL')} at ${selectedTime}`, {
+                                        date: dateKey,
+                                        time: selectedTime,
+                                        itemCount: reportData.length,
+                                        category: 'data'
+                                    });
+                                } catch (error) {
+                                    console.error('Export failed:', error);
+                                    showToast('שגיאה בתהליך הייצוא', 'error');
+                                }
                             }}
                             iconOnly
                             variant="secondary"
@@ -473,21 +566,94 @@ export const LocationReport: React.FC<LocationReportProps> = ({ people, shifts, 
                 <div className="flex flex-col gap-2 p-2">
                     <button
                         onClick={async () => {
-                            let csv = 'שם,צוות,סטטוס,פירוט,שעות\n';
-                            reportData.forEach(r => {
-                                const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
-                                const team = r.person.teamId || '';
-                                csv += `${r.person.name},${team},${statusMap[r.status]},"${r.details.replace(/"/g, '""')}",${r.time}\n`;
-                            });
-                            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-                            const link = document.createElement('a');
-                            const url = URL.createObjectURL(blob);
-                            link.setAttribute('href', url);
-                            link.setAttribute('download', `location_report_${selectedDate.toISOString().split('T')[0]}.csv`);
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            setIsActionsMenuOpen(false);
+                            try {
+                                const workbook = new ExcelJS.Workbook();
+                                const worksheet = workbook.addWorksheet('דוח מיקום', { views: [{ rightToLeft: true }] });
+
+                                const customFields = settings?.customFieldsSchema || [];
+                                const dateKey = selectedDate.toLocaleDateString('en-CA');
+
+                                const columns = [
+                                    { name: 'תאריך', filterButton: true },
+                                    { name: 'שעת בדיקה', filterButton: true },
+                                    { name: 'שם מלא', filterButton: true },
+                                    { name: 'צוות', filterButton: true },
+                                    { name: 'תפקידים', filterButton: true },
+                                    ...customFields.map(cf => ({ name: cf.label, filterButton: true })),
+                                    { name: 'סטטוס מיקום', filterButton: true },
+                                    { name: 'פירוט', filterButton: true },
+                                    { name: 'שעות', filterButton: true }
+                                ];
+
+                                const rows = reportData.map(r => {
+                                    const teamName = teams.find(t => t.id === r.person.teamId)?.name || 'כללי';
+                                    const personRoleIds = r.person.roleIds || [r.person.roleId];
+                                    const personRolesStr = personRoleIds
+                                        .map(id => roles.find(role => role.id === id)?.name)
+                                        .filter(Boolean)
+                                        .join(', ');
+                                    const customFieldValues = customFields.map(cf => {
+                                        const val = r.person.customFields?.[cf.key];
+                                        if (cf.type === 'boolean') return val ? 'V' : '';
+                                        if (Array.isArray(val)) return val.join(', ');
+                                        return val || '';
+                                    });
+                                    const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
+                                    return [
+                                        selectedDate.toLocaleDateString('he-IL'),
+                                        selectedTime,
+                                        r.person.name,
+                                        teamName,
+                                        personRolesStr,
+                                        ...customFieldValues,
+                                        statusMap[r.status],
+                                        r.details,
+                                        r.time
+                                    ];
+                                });
+
+                                worksheet.addTable({
+                                    name: 'LocationReportTable',
+                                    ref: 'A1',
+                                    headerRow: true,
+                                    columns: columns,
+                                    rows: rows,
+                                    style: { theme: 'TableStyleMedium2', showRowStripes: true }
+                                });
+
+                                worksheet.eachRow((row, rowNumber) => {
+                                    if (rowNumber === 1) return;
+                                    const statusCell = row.getCell(columns.length - 2);
+                                    const statusVal = statusCell.value?.toString() || '';
+                                    if (statusVal === 'בבית') {
+                                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+                                        statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                                    } else if (statusVal === 'בבסיס') {
+                                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                                        statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                                    } else if (statusVal === 'במשימה') {
+                                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } };
+                                        statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                                    }
+                                });
+
+                                const colWidths = [15, 12, 25, 20, 25, ...customFields.map(() => 15), 15, 30, 15];
+                                worksheet.columns = colWidths.map(w => ({ width: w }));
+
+                                const buffer = await workbook.xlsx.writeBuffer();
+                                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                                const url = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `location_report_${dateKey}_${selectedTime.replace(':', '')}.xlsx`;
+                                link.click();
+                                URL.revokeObjectURL(url);
+                                setIsActionsMenuOpen(false);
+                                showToast('הדוח יוצא בהצלחה', 'success');
+                            } catch (error) {
+                                console.error('Export failed:', error);
+                                showToast('שגיאה בתהליך הייצוא', 'error');
+                            }
                         }}
                         className="flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors text-right"
                     >

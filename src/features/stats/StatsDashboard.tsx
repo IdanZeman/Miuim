@@ -158,6 +158,9 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   taskTemplates={tasks}
                   teamRotations={teamRotations}
                   teams={teams}
+                  settings={settings}
+                  absences={absences}
+                  hourlyBlockages={hourlyBlockages}
                />
             )}
 
