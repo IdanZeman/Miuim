@@ -347,6 +347,40 @@ const useMainAppState = () => {
         }
     };
 
+    const handleAddPeople = async (newPeople: Person[]) => {
+        if (!orgIdForActions) return;
+
+        // Map and ensure IDs
+        const mapped = newPeople.map(p => {
+            const personWithOrg = { ...p, organization_id: orgIdForActions };
+            const dbPayload = mapPersonToDB(personWithOrg);
+
+            if (dbPayload.id && (dbPayload.id.startsWith('person-') || dbPayload.id.startsWith('imported-') || dbPayload.id.startsWith('temp-'))) {
+                dbPayload.id = uuidv4();
+            }
+            return dbPayload;
+        });
+
+        try {
+            const { error } = await supabase.from('people').insert(mapped);
+            if (error) throw error;
+
+            await logger.log({
+                action: 'CREATE',
+                entityId: 'bulk',
+                category: 'data',
+                metadata: { details: `Imported ${newPeople.length} people` }
+            });
+
+            refreshData(); // Re-fetch in background
+            // showToast handled by caller usually, but adding success here is fine or we rely on PersonnelManager
+        } catch (e: any) {
+            console.error("Add People Error", e);
+            showToast(e.message || 'שגיאה בהוספת אנשים', 'error');
+            throw e;
+        }
+    };
+
     const handleUpdatePerson = async (p: Person) => {
         // Optimistic Update
         queryClient.setQueryData(['organizationData', activeOrgId, user?.id], (old: any) => {
@@ -1225,7 +1259,7 @@ const useMainAppState = () => {
             case 'battalion-personnel': return <BattalionPersonnelTable />;
             case 'battalion-attendance': return <BattalionAttendanceManager />;
             case 'battalion-settings': return <BattalionSettings />;
-            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} isViewer={!checkAccess('personnel', 'edit')} organizationId={orgIdForActions} />;
+            case 'personnel': return <PersonnelManager people={state.people} teams={state.teams} roles={state.roles} onAddPerson={handleAddPerson} onAddPeople={handleAddPeople} onDeletePerson={handleDeletePerson} onDeletePeople={handleDeletePeople} onUpdatePerson={handleUpdatePerson} onUpdatePeople={handleUpdatePeople} onAddTeam={handleAddTeam} onUpdateTeam={handleUpdateTeam} onDeleteTeam={handleDeleteTeam} onAddRole={handleAddRole} onDeleteRole={handleDeleteRole} onUpdateRole={handleUpdateRole} initialTab={personnelTab} isViewer={!checkAccess('personnel', 'edit')} organizationId={orgIdForActions} />;
             case 'tasks': return <TaskManager tasks={state.taskTemplates} roles={state.roles} teams={state.teams} onDeleteTask={handleDeleteTask} onAddTask={handleAddTask} onUpdateTask={handleUpdateTask} isViewer={!checkAccess('tasks', 'edit')} />;
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} absences={state.absences} hourlyBlockages={state.hourlyBlockages} settings={state.settings} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
             case 'settings': return checkAccess('settings', 'edit') ? <OrganizationSettingsComponent teams={state.teams} /> : <Navigate to="/" />;
@@ -1312,7 +1346,8 @@ const useMainAppState = () => {
         scheduleStartDate, isScheduling, handleClearDay, handleNavigate, handleAssign, handleUnassign,
         handleAddShift, handleUpdateShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
         autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
-        setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent
+        setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent,
+        handleAddPeople // Export this
     };
 };
 
@@ -1321,7 +1356,8 @@ const MainApp: React.FC = () => {
         view, setView, activeOrgId, setActiveOrgId, battalionCompanies, hasBattalion, isLinkedToPerson,
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal,
         scheduleStartDate, isScheduling, refetchOrgData, myPerson,
-        schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal, renderContent
+        schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal, renderContent,
+        handleAddPeople
     } = useMainAppState();
 
     const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';

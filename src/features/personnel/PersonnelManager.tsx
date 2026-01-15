@@ -29,6 +29,7 @@ interface PersonnelManagerProps {
     teams: Team[];
     roles: Role[];
     onAddPerson: (person: Person) => void;
+    onAddPeople?: (people: Person[]) => void;
     onDeletePerson: (id: string) => void;
     onDeletePeople: (ids: string[]) => void;
     onUpdatePerson: (person: Person) => void;
@@ -51,6 +52,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     teams,
     roles,
     onAddPerson,
+    onAddPeople,
     onDeletePerson,
     onDeletePeople,
     onUpdatePerson,
@@ -569,44 +571,59 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             let failed = 0;
             const detailedErrors: { name: string; error: string }[] = [];
 
+            // Partition into Add vs Update
+            const peopleToAdd: Person[] = [];
+            const peopleToUpdate: Person[] = [];
+
             for (const p of importedPeople) {
+                const existing = people.find(ex => ex.id === p.id);
+                if (existing) {
+                    // Safe Merge Logic (Prepare object but don't call update yet)
+                    peopleToUpdate.push({
+                        ...existing,
+                        name: p.name,
+                        teamId: p.teamId,
+                        roleIds: p.roleIds,
+                        email: p.email || existing.email,
+                        phone: p.phone || existing.phone,
+                        customFields: { ...existing.customFields, ...(p.customFields || {}) }
+                    });
+                } else {
+                    peopleToAdd.push(p);
+                }
+            }
+
+            // Batch Add
+            if (peopleToAdd.length > 0) {
                 try {
-                    const existing = people.find(ex => ex.id === p.id);
-                    if (existing) {
-                        // Safe Merge
-                        await onUpdatePerson({
-                            ...existing,
-                            name: p.name,
-                            teamId: p.teamId,
-                            roleIds: p.roleIds,
-                            email: p.email || existing.email,
-                            phone: p.phone || existing.phone
-                        });
-                        updated++;
+                    if (onAddPeople) {
+                        await onAddPeople(peopleToAdd);
+                        added += peopleToAdd.length;
                     } else {
-                        await onAddPerson(p);
-                        added++;
+                        // Fallback
+                        for (const p of peopleToAdd) {
+                            await onAddPerson(p);
+                            added++;
+                        }
                     }
                 } catch (e: any) {
-                    console.error("Import Error for", p.name, e);
-                    logger.error('CREATE', `Failed to import person ${p.name}`, e);
-                    failed++;
-                    // Use explicit message if available, otherwise generic
-                    let msg = e.message || 'שגיאה לא ידועה';
+                    console.error("Batch Add Error", e);
+                    failed += peopleToAdd.length;
+                    detailedErrors.push({ name: 'Bulk Add', error: e.message || 'Error occurred during batch add' });
+                }
+            }
 
-                    // Hebrew Translations for common DB errors
-                    if (msg.includes('people_team_id_fkey')) { // Foreign key violation for team
-                        msg = 'שגיאת שיוך לצוות: שם הצוות אינו קיים במערכת.';
-                    } else if (msg.includes('duplicate key value violates unique constraint') || msg.includes('23505')) {
-                        msg = 'נתונים כפולים: משתמש עם שם/טלפון זהה כבר קיים.';
-                    } else if (msg.includes('violates not-null constraint')) {
-                        const match = msg.match(/column "([^"]+)"/);
-                        const col = match ? match[1] : '';
-                        const colHebrew = col === 'id' ? 'מזהה' : col === 'name' ? 'שם מלא' : col === 'phone' ? 'טלפון' : col;
-                        msg = `חסר שדה חובה${colHebrew ? ': ' + colHebrew : ''}.`;
-                    }
-
-                    detailedErrors.push({ name: p.name, error: msg });
+            // Batch Update
+            if (peopleToUpdate.length > 0) {
+                try {
+                    await onUpdatePeople(peopleToUpdate);
+                    updated += peopleToUpdate.length;
+                } catch (e: any) {
+                    console.error("Batch Update Error", e);
+                    // Fallback to individual updates if batch fails? Or just mark all as failed.
+                    // The original logic logged errors per person. But batch is all or nothing usually unless handled.
+                    failed += peopleToUpdate.length;
+                    detailedErrors.push({ name: 'Bulk Update', error: e.message || 'Error occurred during batch update' });
                 }
             }
 

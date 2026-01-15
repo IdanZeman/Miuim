@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { logger } from '../../services/loggingService';
 import * as XLSX from 'xlsx';
-import { UploadSimple as Upload, FileXls as FileSpreadsheet, ArrowRight, ArrowLeft, Check, WarningCircle as AlertCircle, Plus, ArrowUpRight, X, Warning as AlertTriangle } from '@phosphor-icons/react';
+import { UploadSimple as Upload, FileXls as FileSpreadsheet, ArrowRight, ArrowLeft, Check, WarningCircle as AlertCircle, Plus, ArrowUpRight, X, Warning as AlertTriangle, ArrowDown, ArrowsLeftRight, Tag } from '@phosphor-icons/react';
 import { Person, Team, Role, CustomFieldDefinition } from '../../types';
 import { useToast } from '../../contexts/ToastContext';
 import { Select } from '../../components/ui/Select';
@@ -93,6 +93,59 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         { value: 'ignore', label: 'התעלם' }
     ];
 
+    // Helper function to get readable label for system field
+    const getSystemFieldLabel = (systemField: string): string => {
+        const fieldMap: Record<string, string> = {
+            'name': 'שם מלא',
+            'first_name': 'שם פרטי',
+            'last_name': 'שם משפחה',
+            'team': 'צוות',
+            'role': 'תפקיד',
+            'email': 'אימייל',
+            'mobile': 'טלפון',
+            'is_active': 'פעיל',
+            'is_commander': 'מפקד'
+        };
+
+        if (systemField.startsWith('cf_')) {
+            const customField = customFieldsSchema.find(f => `cf_${f.key}` === systemField);
+            return customField ? customField.label : 'שדה מותאם';
+        }
+
+        if (systemField === 'new_custom_field') {
+            return 'שדה חדש';
+        }
+
+        return fieldMap[systemField] || systemField;
+    };
+
+    // Fuzzy matching helper for custom fields
+    const fuzzyMatchCustomField = (excelHeader: string): string | null => {
+        const normalize = (s: string) => s.toLowerCase().trim().replace(/[^\u0590-\u05FFa-z0-9]/g, '');
+        const h = normalize(excelHeader);
+
+        if (!h) return null; // Empty after normalization
+
+        for (const field of customFieldsSchema) {
+            const label = normalize(field.label);
+
+            // Exact match
+            if (h === label) return field.key;
+
+            // Partial match (one contains the other)
+            if (h.includes(label) || label.includes(h)) {
+                const minLen = Math.min(h.length, label.length);
+                const maxLen = Math.max(h.length, label.length);
+                // Require 70% overlap
+                if (minLen / maxLen > 0.7) {
+                    return field.key;
+                }
+            }
+        }
+
+        return null;
+    };
+
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -118,8 +171,10 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
                 // Initialize mappings - try to auto-guess
                 const initialMappings = headers.map(header => {
-                    let field: any = 'ignore';
+                    let field: any = 'new_custom_field'; // Default to custom field instead of ignore
                     const h = header.toLowerCase().trim();
+
+                    // 1. Try system fields first
                     if (h === 'שם' || h === 'שם מלא' || h === 'name' || h === 'full name') field = 'name';
                     else if (h.includes('פרטי') || h === 'first name') field = 'first_name';
                     else if (h.includes('משפחה') || h === 'last name') field = 'last_name';
@@ -129,6 +184,15 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     else if (h.includes('מייל') || h.includes('דוא')) field = 'email';
                     else if (h.includes('פעיל') || h.includes('active')) field = 'is_active';
                     else if (h.includes('custom') || h.includes('מותאם') || h.includes('fields')) field = 'custom_fields';
+
+                    // 2. If not a system field, try fuzzy match against existing custom fields
+                    else {
+                        const matchedKey = fuzzyMatchCustomField(header);
+                        if (matchedKey) {
+                            field = `cf_${matchedKey}`; // Map to existing custom field
+                        }
+                        // else: stays as 'new_custom_field'
+                    }
 
                     return { excelColumn: header, systemField: field };
                 });
@@ -179,6 +243,72 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         const newMappings = [...mappings];
         newMappings[index].systemField = systemField;
         setMappings(newMappings);
+    };
+
+    // Fuzzy matching helpers - OPTIMIZED
+    const levenshteinDistance = (str1: string, str2: string, maxDistance: number = Infinity): number => {
+        // Early exit if length difference is too large
+        if (Math.abs(str1.length - str2.length) > maxDistance) {
+            return maxDistance + 1;
+        }
+
+        const matrix: number[][] = [];
+
+        for (let i = 0; i <= str2.length; i++) {
+            matrix[i] = [i];
+        }
+
+        for (let j = 0; j <= str1.length; j++) {
+            matrix[0][j] = j;
+        }
+
+        for (let i = 1; i <= str2.length; i++) {
+            let minInRow = Infinity;
+            for (let j = 1; j <= str1.length; j++) {
+                if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1,
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j] + 1
+                    );
+                }
+                minInRow = Math.min(minInRow, matrix[i][j]);
+            }
+            // Early termination if this row exceeds max distance
+            if (minInRow > maxDistance) {
+                return maxDistance + 1;
+            }
+        }
+
+        return matrix[str2.length][str1.length];
+    };
+
+    const calculateNameSimilarity = (name1: string, name2: string): number => {
+        const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
+        const n1 = normalize(name1);
+        const n2 = normalize(name2);
+
+        if (!n1 || !n2) return 0;
+        if (n1 === n2) return 1.0; // Exact match
+
+        // Quick length check - if too different, skip expensive calculation
+        const lengthDiff = Math.abs(n1.length - n2.length);
+        const maxLen = Math.max(n1.length, n2.length);
+        if (lengthDiff / maxLen > 0.5) return 0; // More than 50% length difference
+
+        // Check if one contains the other (partial match)
+        if (n1.includes(n2) || n2.includes(n1)) return 0.85;
+
+        // Levenshtein distance with early termination
+        const maxAllowedDistance = Math.ceil(maxLen * 0.25); // Allow 25% difference
+        const distance = levenshteinDistance(n1, n2, maxAllowedDistance);
+
+        if (distance > maxAllowedDistance) return 0;
+
+        const similarity = 1 - (distance / maxLen);
+        return similarity;
     };
 
     const analyzeConflicts = () => {
@@ -253,7 +383,8 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
             const normPhone = phone.replace(/\D/g, '');
 
             if (name || normPhone || email) {
-                const match = (people || []).find(p => {
+                // Try exact matches first
+                let match = (people || []).find(p => {
                     // Phone Match
                     if (normPhone && p.phone) {
                         const pPhone = p.phone.replace(/\D/g, '');
@@ -266,20 +397,38 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     return false;
                 });
 
+                let reason = '';
+                let similarity = 1.0;
+
                 if (match) {
-                    let reason = 'שם זהה';
+                    // Exact match found
                     if (email && match.email?.toLowerCase() === email) reason = 'אימייל זהה';
                     else if (normPhone && match.phone?.replace(/\D/g, '') === normPhone) reason = 'טלפון זהה';
+                    else reason = 'שם זהה';
+                } else if (name && people.length < 300) { // Only do fuzzy matching if dataset is reasonable
+                    // Try fuzzy name matching (expensive operation)
+                    const candidates = people.map(p => ({
+                        person: p,
+                        similarity: calculateNameSimilarity(name, p.name)
+                    })).filter(c => c.similarity >= 0.75) // 75% similarity threshold
+                        .sort((a, b) => b.similarity - a.similarity);
 
-                    personConflicts.push({
-                        originalName: name || email || 'ללא שם',
-                        type: 'person',
-                        action: 'merge',
-                        targetId: match.id,
-                        matchReason: reason,
-                        excelRowIndex: rowIndex
-                    });
+                    if (candidates.length > 0) {
+                        match = candidates[0].person;
+                        similarity = candidates[0].similarity;
+                        reason = similarity >= 0.95 ? 'שם כמעט זהה' : 'שם דומה';
+                    }
                 }
+
+                // Always add to personConflicts, even if no match found
+                personConflicts.push({
+                    originalName: name || email || 'ללא שם',
+                    type: 'person',
+                    action: match ? 'merge' : 'create', // Default to 'create' if no match
+                    targetId: match?.id,
+                    matchReason: match ? `${reason} (${Math.round(similarity * 100)}%)` : undefined,
+                    excelRowIndex: rowIndex
+                });
             }
         });
 
@@ -318,6 +467,16 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 })),
                 ...personConflicts
             ];
+
+            // Sort: new personnel (action='create') first, then merges
+            newResolutions.sort((a, b) => {
+                if (a.type === 'person' && b.type === 'person') {
+                    if (a.action === 'create' && b.action !== 'create') return -1;
+                    if (a.action !== 'create' && b.action === 'create') return 1;
+                }
+                return 0;
+            });
+
             setResolutions(newResolutions);
             setStep('resolution');
         }
@@ -438,13 +597,13 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 preferences: basePerson.preferences || { preferNight: false, avoidWeekends: false },
                 color: color !== 'bg-slate-500' ? color : (basePerson.color || 'bg-slate-500'),
                 customFields: (() => {
-                    let cf = basePerson.customFields || {};
+                    let cf = { ...(basePerson.customFields || {}) };
 
                     // Add mapped custom fields
                     mappings.forEach((map, colIndex) => {
                         if (map.systemField === 'new_custom_field' || map.systemField.startsWith('cf_')) {
                             const key = map.systemField === 'new_custom_field'
-                                ? map.excelColumn.toLowerCase().replace(/[^a-z0-9_]/g, '_')
+                                ? map.excelColumn.toLowerCase().replace(/\s+/g, '_').replace(/[^\u0590-\u05FFa-z0-9_]/g, '') || `field_${Date.now()}`
                                 : map.systemField.replace('cf_', '');
 
                             const val = row[colIndex];
@@ -484,8 +643,21 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
         mappings.forEach((map, colIdx) => {
             if (map.systemField === 'new_custom_field') {
-                const slug = map.excelColumn.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
-                const key = slug && /^[a-z]/.test(slug) ? `cf_${slug}` : `cf_${Math.random().toString(36).substr(2, 9)}`;
+                // Use original Excel column name as label
+                const label = map.excelColumn;
+
+                // Generate key from label (handle Hebrew properly)
+                let slug = label.toLowerCase()
+                    .replace(/\s+/g, '_')                          // spaces to underscores
+                    .replace(/[^\u0590-\u05FFa-z0-9_]/g, '');     // keep Hebrew, latin, numbers, underscores
+
+                // If no valid chars (e.g., only symbols), use timestamp
+                if (!slug || slug.length === 0) {
+                    slug = `field_${Date.now()}`;
+                }
+
+                const key = slug; // e.g., "מא" or "מספר_אישי"
+
                 // Check if already exists in schema
                 if (!customFieldsSchema.some(f => f.key === key)) {
                     // Analyze column data to guess type
@@ -522,7 +694,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     customFieldsToCreate.push({
                         id: `cf-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                         key,
-                        label: map.excelColumn,
+                        label,  // Use original Excel column name
                         type: detectedType,
                         options: options.length > 0 ? options : undefined,
                         order: customFieldsSchema.length + customFieldsToCreate.length
@@ -584,7 +756,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
         });
 
         await onImport(finalPeople, teamsToCreate, rolesToCreate, customFieldsToCreate);
-        // onClose(); // Let parent handle navigation
+        onClose();
     };
 
     if (!isOpen) return null;
@@ -834,10 +1006,18 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                                         </div>
                                                     </td>
                                                     <td className="p-3">
-                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-wide inline-block ${res.type === 'person' ? 'bg-blue-100 text-blue-700' :
+                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-wide inline-block ${res.type === 'person' ? (
+                                                            res.action === 'merge' && res.targetId ? 'bg-blue-100 text-blue-700' :
+                                                                res.action === 'create' ? 'bg-green-100 text-green-700' :
+                                                                    'bg-slate-100 text-slate-500'
+                                                        ) :
                                                             res.type === 'team' ? 'bg-indigo-100 text-indigo-700' : 'bg-purple-100 text-purple-700'
                                                             }`}>
-                                                            {res.type === 'person' ? 'קיים במערכת' : (res.type === 'team' ? 'צוות חדש' : 'תפקיד חדש')}
+                                                            {res.type === 'person' ? (
+                                                                res.action === 'merge' && res.targetId ? 'קיים במערכת' :
+                                                                    res.action === 'create' ? 'חדש' :
+                                                                        'חייל'
+                                                            ) : (res.type === 'team' ? 'צוות חדש' : 'תפקיד חדש')}
                                                         </span>
                                                     </td>
                                                     <td className="p-3">
@@ -868,11 +1048,34 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                                                 placeholder="בחר צוות/תפקיד..."
                                                             />
                                                         )}
-                                                        {res.action === 'merge' && (
-                                                            <div className="text-[11px] text-blue-600 font-bold bg-blue-50/50 px-2 py-1 rounded-lg border border-blue-100 truncate">
-                                                                מתמזג עם: {people.find(p => p.id === res.targetId)?.name || 'לא נמצא'}
-                                                            </div>
-                                                        )}
+                                                        {res.action === 'merge' && (() => {
+                                                            // Sort people: new ones (from resolutions with action='create') first
+                                                            const newPersonIds = new Set(
+                                                                resolutions
+                                                                    .filter(r => r.type === 'person' && r.action === 'create')
+                                                                    .map(r => r.targetId)
+                                                                    .filter(Boolean)
+                                                            );
+
+                                                            const sortedPeople = [...people].sort((a, b) => {
+                                                                const aIsNew = newPersonIds.has(a.id);
+                                                                const bIsNew = newPersonIds.has(b.id);
+                                                                if (aIsNew && !bIsNew) return -1;
+                                                                if (!aIsNew && bIsNew) return 1;
+                                                                return a.name.localeCompare(b.name, 'he');
+                                                            });
+
+                                                            return (
+                                                                <Select
+                                                                    value={res.targetId || ''}
+                                                                    onChange={(val) => handleResolutionChange(idx, { targetId: val })}
+                                                                    options={sortedPeople.map(p => ({ value: p.id, label: p.name }))}
+                                                                    className="w-full text-[11px] font-bold bg-white"
+                                                                    placeholder="בחר חייל מהמערכת..."
+                                                                    searchable={true}
+                                                                />
+                                                            );
+                                                        })()}
                                                         {res.action === 'create' && <span className="text-[10px] text-slate-400 font-bold">ייווצר כפריט חדש</span>}
                                                         {res.action === 'ignore' && <span className="text-[10px] text-red-400 font-bold italic">לא יופעל שינוי</span>}
                                                     </td>
@@ -888,15 +1091,47 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
 
                 {/* -- STEP 4: PREVIEW -- */}
                 {step === 'preview' && (
-                    <div className="space-y-6 animate-in zoom-in-95 duration-300">
-                        <div className="bg-green-50 border border-green-100 p-4 rounded-2xl flex gap-3 text-green-800 text-sm items-start">
-                            <div className="bg-green-100 p-1 rounded-lg shrink-0">
-                                <Check size={20} weight="bold" />
-                            </div>
-                            <div className="pt-0.5 font-bold text-lg">
-                                הכל מוכן! {previewData.length} רשומות יובאו למערכת.
-                            </div>
-                        </div>
+                    <div className="space-y-4 animate-in zoom-in-95 duration-300">
+                        {/* Warning Panel for Unmapped Fields */}
+                        {(() => {
+                            const unmappedFields = mappings.filter(m => m.systemField === 'new_custom_field');
+                            const hasConflicts = resolutions.length > 0;
+
+                            if (unmappedFields.length === 0 && !hasConflicts) return null;
+
+                            return (
+                                <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
+                                    <div className="flex items-start gap-3">
+                                        <div className="bg-amber-100 p-1.5 rounded-lg shrink-0">
+                                            <AlertTriangle size={20} weight="duotone" className="text-amber-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-black text-amber-900 mb-2">נדרשת תשומת לב</h4>
+                                            {unmappedFields.length > 0 && (
+                                                <div className="mb-2">
+                                                    <p className="text-xs font-bold text-amber-800 mb-2">
+                                                        שדות שלא זוהו אוטומטית ויוגדרו כשדות מותאמים אישית:
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {unmappedFields.map(m => (
+                                                            <span key={m.excelColumn} className="inline-flex items-center gap-1 px-2 py-1 bg-white/60 border border-amber-200 rounded-lg text-xs font-black text-amber-700">
+                                                                <Tag size={12} weight="duotone" />
+                                                                {m.excelColumn}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {hasConflicts && (
+                                                <p className="text-xs font-bold text-amber-800">
+                                                    {resolutions.filter(r => r.type === 'person').length} חיילים דורשים החלטה (מיזוג/יצירה חדשה)
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         <div className="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200 overflow-hidden">
                             <div className="overflow-x-auto max-h-[50vh] custom-scrollbar">
@@ -915,34 +1150,114 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                                 />
                                             </th>
                                             <th className="p-3 text-xs">סטטוס</th>
-                                            <th className="p-3">חייל</th>
-                                            <th className="p-3">צוות</th>
-                                            <th className="p-3">תפקיד</th>
-                                            {/* Show mapped custom fields headers */}
-                                            {mappings.filter(m => m.systemField !== 'ignore' && ['name', 'team', 'role', 'first_name', 'last_name'].indexOf(m.systemField) === -1).map(m => (
-                                                <th key={m.excelColumn} className="p-3 text-slate-400 font-normal">{m.excelColumn}</th>
+                                            {mappings.filter(m => m.systemField !== 'ignore').map(m => (
+                                                <th key={m.excelColumn} className="p-3 px-4">
+                                                    <div className="flex flex-col gap-0.5 items-center">
+                                                        <span className="text-slate-700 font-black text-sm">{m.excelColumn}</span>
+                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                                            {getSystemFieldLabel(m.systemField)}
+                                                        </span>
+                                                    </div>
+                                                </th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 text-slate-600">
                                         {previewData.slice(0, 100).map((person, i) => {
                                             const isSelected = selectedIndices.has(i);
-                                            const resolution = resolutions.find(r => r.type === 'person' && r.excelRowIndex === (parsedData?.rows.indexOf(parsedData?.rows[i]))); // Actually resolution index is better
-                                            // Find resolution by matching person ID if it's merge
                                             const res = resolutions.find(r => r.type === 'person' && r.targetId === person.id);
                                             const isUpdate = !!res && res.action === 'merge';
 
-                                            const getTeamName = (id: string) => {
-                                                if (id.startsWith('temp-team-')) return id.replace('temp-team-', '');
-                                                return teams.find(t => t.id === id)?.name || '-';
-                                            };
-                                            const getRoleName = (id: string) => {
-                                                if (id.startsWith('temp-role-')) return id.replace('temp-role-', '');
-                                                return roles.find(r => r.id === id)?.name;
+                                            // Helper to get value for a specific mapping
+                                            const getValueForMapping = (mapping: ColumnMapping, excelRow: any[]) => {
+                                                const colIdx = mappings.indexOf(mapping);
+                                                const { systemField } = mapping;
+
+                                                // Direct field mappings
+                                                if (systemField === 'name' || systemField === 'first_name' || systemField === 'last_name') return person.name;
+                                                if (systemField === 'team') return person.teamId;
+                                                if (systemField === 'role') return person.roleIds;
+                                                if (systemField === 'email') return person.email;
+                                                if (systemField === 'mobile') return person.phone;
+                                                if (systemField === 'is_active') return person.isActive;
+
+                                                // Custom fields
+                                                if (systemField.startsWith('cf_') || systemField === 'new_custom_field') {
+                                                    const key = systemField === 'new_custom_field'
+                                                        ? mapping.excelColumn.toLowerCase().replace(/[^a-z0-9_]/g, '_')
+                                                        : systemField.replace('cf_', '');
+                                                    return person.customFields?.[key];
+                                                }
+
+                                                // Fallback to raw Excel data
+                                                return excelRow[colIdx];
                                             };
 
-                                            const teamName = getTeamName(person.teamId);
-                                            const roleNames = (person.roleIds || []).map(getRoleName).filter(Boolean).join(', ');
+                                            // Helper to render cell value
+                                            const renderCellValue = (value: any, systemField: string) => {
+                                                if (value === null || value === undefined || value === '') {
+                                                    return <span className="text-slate-300 italic text-xs">-</span>;
+                                                }
+
+                                                // Team rendering
+                                                if (systemField === 'team') {
+                                                    const teamId = value as string;
+                                                    const teamName = teamId.startsWith('temp-team-')
+                                                        ? teamId.replace('temp-team-', '')
+                                                        : teams.find(t => t.id === teamId)?.name || '-';
+                                                    return (
+                                                        <span className={`font-bold ${teamId.startsWith('temp-') ? 'text-indigo-600' : 'text-slate-700'}`}>
+                                                            {teamName}
+                                                        </span>
+                                                    );
+                                                }
+
+                                                // Role rendering
+                                                if (systemField === 'role') {
+                                                    const roleIds = value as string[];
+                                                    const roleNames = roleIds.map(id => {
+                                                        if (id.startsWith('temp-role-')) return id.replace('temp-role-', '');
+                                                        return roles.find(r => r.id === id)?.name;
+                                                    }).filter(Boolean).join(', ');
+                                                    return <span className="text-slate-600">{roleNames || '-'}</span>;
+                                                }
+
+                                                // Name rendering with merge indicator
+                                                if (systemField === 'name' || systemField === 'first_name' || systemField === 'last_name') {
+                                                    // Extract the appropriate part of the name
+                                                    let displayValue = String(value);
+
+                                                    if (systemField === 'first_name' && value === person.name) {
+                                                        // If this is first_name column but we have full name, extract first part
+                                                        displayValue = person.name.split(' ')[0] || person.name;
+                                                    } else if (systemField === 'last_name' && value === person.name) {
+                                                        // If this is last_name column but we have full name, extract last part
+                                                        const parts = person.name.split(' ');
+                                                        displayValue = parts.length > 1 ? parts.slice(1).join(' ') : '';
+                                                    }
+
+                                                    return (
+                                                        <div className="flex flex-col">
+                                                            <span className="font-black text-slate-800">{displayValue}</span>
+                                                            {isUpdate && systemField === 'name' && <span className="text-[10px] text-slate-400 font-bold">מתמזג עם חייל קיים</span>}
+                                                        </div>
+                                                    );
+                                                }
+
+                                                // Boolean rendering
+                                                if (systemField === 'is_active' || systemField === 'is_commander') {
+                                                    return (
+                                                        <span className={`text-xs font-bold ${value ? 'text-green-600' : 'text-red-500'}`}>
+                                                            {value ? 'כן' : 'לא'}
+                                                        </span>
+                                                    );
+                                                }
+
+                                                // Default text rendering
+                                                return <span className="text-slate-700 font-medium text-sm">{String(value)}</span>;
+                                            };
+
+                                            const excelRow = parsedData?.rows[i] || [];
 
                                             return (
                                                 <tr key={i} className={`hover:bg-slate-50 transition-colors ${!isSelected ? 'opacity-50 grayscale-[0.5]' : ''}`}>
@@ -972,29 +1287,12 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                                             </div>
                                                         )}
                                                     </td>
-                                                    <td className="p-3">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-black text-slate-800">{person.name}</span>
-                                                            {isUpdate && <span className="text-[10px] text-slate-400 font-bold">מתמזג עם חייל קיים</span>}
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-3">
-                                                        <span className={`font-bold ${person.teamId.startsWith('temp-') ? 'text-indigo-600' : ''}`}>
-                                                            {teamName}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-3 max-w-[150px] truncate">
-                                                        <span className="text-slate-500">{roleNames || '-'}</span>
-                                                    </td>
-                                                    {/* Custom Data Cells */}
-                                                    {mappings.filter(m => m.systemField !== 'ignore' && ['name', 'team', 'role', 'first_name', 'last_name'].indexOf(m.systemField) === -1).map(m => {
-                                                        const key = m.systemField === 'new_custom_field'
-                                                            ? m.excelColumn.toLowerCase().replace(/[^a-z0-9_]/g, '_')
-                                                            : m.systemField.replace('cf_', '');
-                                                        const val = person.customFields?.[key];
+                                                    {/* Dynamic cells matching the mapped columns */}
+                                                    {mappings.filter(m => m.systemField !== 'ignore').map((m) => {
+                                                        const value = getValueForMapping(m, excelRow);
                                                         return (
-                                                            <td key={m.excelColumn} className="p-3 text-xs text-slate-400">
-                                                                {val ? String(val) : '-'}
+                                                            <td key={`${i}-${m.excelColumn}`} className="p-3 px-4">
+                                                                {renderCellValue(value, m.systemField)}
                                                             </td>
                                                         );
                                                     })}
@@ -1013,6 +1311,27 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* Loading Overlay */}
+            {isSaving && (
+                <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex items-center justify-center rounded-2xl">
+                    <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in-95 duration-300">
+                        {/* Spinner */}
+                        <div className="relative">
+                            <div className="w-20 h-20 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <FileSpreadsheet size={32} className="text-green-600" weight="duotone" />
+                            </div>
+                        </div>
+
+                        {/* Message */}
+                        <div className="text-center space-y-2">
+                            <h3 className="text-xl font-black text-slate-800">מייבא נתונים...</h3>
+                            <p className="text-sm text-slate-500 font-medium">אנא המתן, התהליך עשוי לקחת מספר שניות</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </GenericModal >
     );
 };
