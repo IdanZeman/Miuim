@@ -60,7 +60,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     const [suggestionIndex, setSuggestionIndex] = useState(0);
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
 
-    const [activeMobileTab, setActiveMobileTab] = useState<'available' | 'assigned'>('available');
+    const [activeMobileTab, setActiveMobileTab] = useState<'available' | 'assigned'>('assigned');
 
     // Time Editing State
     const [newStart, setNewStart] = useState('');
