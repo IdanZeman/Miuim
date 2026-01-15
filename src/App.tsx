@@ -424,12 +424,47 @@ const useMainAppState = () => {
     };
 
     const handleDeletePerson = async (id: string, forceSoft = false) => {
+        const person = state.people.find(p => p.id === id);
+
+        // First, preview what will be deleted
+        try {
+            const { data: preview, error: previewError } = await supabase
+                .rpc('preview_person_deletion', { p_person_id: id });
+
+            if (previewError) throw previewError;
+
+            // Build detailed message
+            const impactItems = preview
+                ?.filter((item: any) => item.count > 0)
+                .map((item: any) => `• ${item.description}: ${item.count}`)
+                .join('\n') || 'אין נתונים מקושרים';
+
+            const totalRecords = preview?.reduce((sum: number, item: any) => sum + item.count, 0) || 0;
+
+            const confirmed = window.confirm(
+                `⚠️ מחיקת ${person?.name || 'חייל זה'}\n\n` +
+                `פעולה זו תמחק לצמיתות:\n\n${impactItems}\n\n` +
+                `סה"כ ${totalRecords} רשומות ימחקו!\n\n` +
+                `האם אתה בטוח שברצונך להמשיך?`
+            );
+
+            if (!confirmed) return;
+
+        } catch (previewErr) {
+            console.warn("Preview failed, proceeding with standard confirmation:", previewErr);
+            const confirmed = window.confirm(`האם אתה בטוח שברצונך למחוק את ${person?.name || 'חייל זה'}?`);
+            if (!confirmed) return;
+        }
+
         try {
             if (forceSoft) throw { code: '23503' }; // Simulate constraint to force soft delete logic
-            const { error } = await supabase.from('people').delete().eq('id', id);
+
+            // Try cascade delete using RPC function
+            const { error } = await supabase.rpc('delete_person_cascade', { p_person_id: id });
             if (error) throw error;
 
-            await logger.logDelete('person', id, state.people.find(p => p.id === id)?.name || 'אדם', state.people.find(p => p.id === id));
+            await logger.logDelete('person', id, person?.name || 'אדם', person);
+            showToast('החייל נמחק לגמרי כולל כל הנתונים המקושרים', 'success');
             refreshData();
         } catch (e: any) {
             // Check for Foreign Key Violation (Postgres Code 23503) or 409 Conflict
@@ -451,10 +486,64 @@ const useMainAppState = () => {
     };
 
     const handleDeletePeople = async (ids: string[]) => {
+        // Preview deletion impact for all selected people
         try {
-            const { error } = await supabase.from('people').delete().in('id', ids);
+            const previewPromises = ids.map(id =>
+                supabase.rpc('preview_person_deletion', { p_person_id: id })
+            );
+
+            const results = await Promise.all(previewPromises);
+
+            // Aggregate counts across all people
+            const aggregated: Record<string, { count: number; description: string }> = {};
+
+            results.forEach(result => {
+                if (result.data) {
+                    result.data.forEach((item: any) => {
+                        if (!aggregated[item.category]) {
+                            aggregated[item.category] = { count: 0, description: item.description };
+                        }
+                        aggregated[item.category].count += item.count;
+                    });
+                }
+            });
+
+            // Build detailed message
+            const impactItems = Object.values(aggregated)
+                .filter(item => item.count > 0)
+                .map(item => `• ${item.description}: ${item.count}`)
+                .join('\n') || 'אין נתונים מקושרים';
+
+            const totalRecords = Object.values(aggregated).reduce((sum, item) => sum + item.count, 0);
+
+            const confirmed = window.confirm(
+                `⚠️ מחיקת ${ids.length} חיילים\n\n` +
+                `פעולה זו תמחק לצמיתות:\n\n${impactItems}\n\n` +
+                `סה"כ ${totalRecords} רשומות ימחקו!\n\n` +
+                `האם אתה בטוח שברצונך להמשיך?`
+            );
+
+            if (!confirmed) return;
+
+        } catch (previewErr) {
+            console.warn("Preview failed, proceeding with standard confirmation:", previewErr);
+            const confirmed = window.confirm(`האם אתה בטוח שברצונך למחוק ${ids.length} חיילים?`);
+            if (!confirmed) return;
+        }
+
+        try {
+            // Use cascade delete RPC function for batch deletion
+            const { error } = await supabase.rpc('delete_people_cascade', { p_person_ids: ids });
             if (error) throw error;
 
+            await logger.log({
+                action: 'DELETE',
+                entityId: 'bulk',
+                category: 'data',
+                metadata: { details: `Bulk deleted ${ids.length} people` }
+            });
+
+            showToast(`${ids.length} חיילים נמחקו לגמרי כולל כל הנתונים המקושרים`, 'success');
             refreshData();
         } catch (e: any) {
             // Check for Foreign Key Violation
@@ -1591,7 +1680,7 @@ const AppContent: React.FC = () => {
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-slate-600 font-medium">
-                        {isProcessingInvite ? 'מצטרף לארגון...' : 'טוען נתונים...'}
+                        {isProcessingInvite ? 'מצטרף לפלוגה...' : 'טוען נתונים...'}
                     </p>
                 </div>
             </div>

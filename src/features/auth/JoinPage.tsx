@@ -171,7 +171,7 @@ const JoinPage: React.FC = () => {
                                 {joining ? (
                                     <>
                                         <LoaderIcon className="w-5 h-5 animate-spin" />
-                                        <span>מצטרף לארגון...</span>
+                                        <span>מצטרף לפלוגה...</span>
                                     </>
                                 ) : (
                                     <>

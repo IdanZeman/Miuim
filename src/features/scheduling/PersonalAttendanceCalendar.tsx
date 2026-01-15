@@ -314,7 +314,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         return message;
     };
 
-    const handleCopyToClipboard = () => {
+    function handleCopyToClipboard() {
         const message = generateAttendanceSummary();
         navigator.clipboard.writeText(message).then(() => {
             showNotification('הלו"ז הועתק לקליפבורד! ✅');
@@ -322,9 +322,9 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             console.error('Failed to copy: ', err);
             showNotification('שגיאה בהעתקה לקליפבורד', 'error');
         });
-    };
+    }
 
-    const handleExportWhatsApp = () => {
+    function handleExportWhatsApp() {
         if (!person.phone) {
             alert('אין מספר טלפון מוזן ללוחם זה');
             return;
@@ -340,9 +340,9 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
         const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMessage}`;
         window.open(whatsappUrl, '_blank');
-    };
+    }
 
-    const handleExportExcel = async () => {
+    async function handleExportExcel() {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet(`${monthName}`);
 
@@ -399,7 +399,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    };
+    }
 
     // --- UNIFIED RENDERING LOGIC ---
     const renderCalendarDays = () => {
