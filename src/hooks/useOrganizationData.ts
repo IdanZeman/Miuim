@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import {
     mapPersonFromDB,
@@ -224,6 +225,68 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
         enabled: !!organizationId,
         staleTime: 1000 * 30, // 30 Seconds - Reduced for better responsiveness
     });
+
+    const queryClient = useQueryClient();
+
+    // --- Real-time Subscription ---
+    useEffect(() => {
+        if (!organizationId) return;
+
+        const channel = supabase.channel(`org-updates-${organizationId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'people',
+                    filter: `organization_id=eq.${organizationId}`
+                },
+                () => {
+                    // Invalidate query to refetch fresh data
+                    console.log('Realtime update detected: people');
+                    queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'absences',
+                    filter: `organization_id=eq.${organizationId}`
+                },
+                () => {
+                    console.log('Realtime update detected: absences');
+                    queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'hourly_blockages',
+                    filter: `organization_id=eq.${organizationId}`
+                },
+                () => {
+                    console.log('Realtime update detected: hourly_blockages');
+                    queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                }
+            )
+            .subscribe((status) => {
+                console.log(`Supabase Realtime Connection Status: ${status}`);
+                if (status === 'SUBSCRIBED') {
+                    console.log(`✅ Listening for changes on people/absences for org: ${organizationId}`);
+                }
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('❌ Realtime connection failed. Check your network or Supabase settings.');
+                }
+            });
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [organizationId, userId, queryClient]);
 
     return {
         ...result,
