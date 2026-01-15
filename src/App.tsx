@@ -423,19 +423,57 @@ const useMainAppState = () => {
         }
     };
 
-    const handleDeletePerson = async (id: string) => {
+    const handleDeletePerson = async (id: string, forceSoft = false) => {
         try {
-            await supabase.from('people').delete().eq('id', id);
+            if (forceSoft) throw { code: '23503' }; // Simulate constraint to force soft delete logic
+            const { error } = await supabase.from('people').delete().eq('id', id);
+            if (error) throw error;
+
             await logger.logDelete('person', id, state.people.find(p => p.id === id)?.name || 'אדם', state.people.find(p => p.id === id));
             refreshData();
-        } catch (e) { console.warn("DB Delete Failed", e); }
+        } catch (e: any) {
+            // Check for Foreign Key Violation (Postgres Code 23503) or 409 Conflict
+            if (e.code === '23503' || e.code === '409' || e.message?.includes('violates foreign key constraint') || e.status === 409) {
+                console.warn("Soft Deleting due to constraints:", id);
+                try {
+                    await supabase.from('people').update({ is_active: false }).eq('id', id);
+                    showToast('החייל הועבר לארכיון (כי קיימים נתונים מקושרים)', 'info');
+                    refreshData();
+                } catch (softErr) {
+                    console.error("Soft Delete Failed:", softErr);
+                    showToast("שגיאה במחיקת/ארכוב חייל", 'error');
+                }
+            } else {
+                console.warn("DB Delete Failed", e);
+                showToast("שגיאה במחיקת חייל", 'error');
+            }
+        }
     };
 
     const handleDeletePeople = async (ids: string[]) => {
         try {
-            await supabase.from('people').delete().in('id', ids);
+            const { error } = await supabase.from('people').delete().in('id', ids);
+            if (error) throw error;
+
             refreshData();
-        } catch (e) { console.warn("Bulk DB Delete Failed", e); }
+        } catch (e: any) {
+            // Check for Foreign Key Violation
+            if (e.code === '23503' || e.code === '409' || e.message?.includes('violates foreign key constraint') || e.status === 409) {
+                console.warn("Soft Deleting Batch due to constraints");
+                try {
+                    // Fallback: Archive all selected
+                    await supabase.from('people').update({ is_active: false }).in('id', ids);
+                    showToast(`החיילים הועברו לארכיון (${ids.length}) כי קיימים להם נתונים`, 'info');
+                    refreshData();
+                } catch (softErr) {
+                    console.error("Batch Soft Delete Failed:", softErr);
+                    showToast("שגיאה במחיקת/ארכוב חיילים", 'error');
+                }
+            } else {
+                console.warn("Bulk DB Delete Failed", e);
+                showToast("שגיאה במחיקה קבוצתית", 'error');
+            }
+        }
     };
 
     const handleAddTeam = async (t: Team) => {
