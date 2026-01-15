@@ -12,6 +12,8 @@ import { getPersonInitials } from '../../utils/nameUtils';
 import { TimePicker } from '../../components/ui/DatePicker';
 import { useToast } from '../../contexts/ToastContext';
 import { logger } from '../../services/loggingService';
+import { PersonInfoModal } from './PersonInfoModal';
+import { OrganizationSettings } from '../../types';
 
 interface AssignmentModalProps {
     selectedShift: Shift;
@@ -30,6 +32,7 @@ interface AssignmentModalProps {
     onToggleCancelShift: (shiftId: string) => void;
     constraints: SchedulingConstraint[];
     interPersonConstraints?: InterPersonConstraint[];
+    settings?: OrganizationSettings | null;
 }
 
 export const AssignmentModal: React.FC<AssignmentModalProps> = ({
@@ -48,7 +51,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     onUpdateShift,
     onToggleCancelShift,
     constraints,
-    interPersonConstraints = []
+    interPersonConstraints = [],
+    settings
 }) => {
     // -------------------------------------------------------------------------
     // 1. STATE & HOOKS (Preserved Logic)
@@ -61,6 +65,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
 
     const [activeMobileTab, setActiveMobileTab] = useState<'available' | 'assigned'>('assigned');
+    const [selectedPersonForInfo, setSelectedPersonForInfo] = useState<Person | null>(null);
 
     // Time Editing State
     const [newStart, setNewStart] = useState('');
@@ -740,7 +745,15 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 min-w-0 w-full py-0.5">
                                             {/* Person Details (Name, Team, Roles) */}
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <span className="text-sm font-black text-slate-900 leading-none">{p.name}</span>
+                                                <span
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedPersonForInfo(p);
+                                                    }}
+                                                    className="text-sm font-black text-slate-900 leading-none hover:text-blue-600 hover:underline cursor-pointer"
+                                                >
+                                                    {p.name}
+                                                </span>
                                                 <span className="text-[10px] text-slate-500 font-bold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 whitespace-nowrap">
                                                     {teams.find(t => t.id === p.teamId)?.name}
                                                 </span>
@@ -779,7 +792,15 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                         {getPersonInitials(p.name)}
                                     </div>
                                     <div className="flex flex-col leading-tight">
-                                        <span className="text-sm font-black text-slate-800">{p.name}</span>
+                                        <span
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedPersonForInfo(p);
+                                            }}
+                                            className="text-sm font-black text-slate-800 hover:text-blue-600 hover:underline cursor-pointer"
+                                        >
+                                            {p.name}
+                                        </span>
                                         <span className="text-[10px] text-slate-400 font-bold">{roles.find(r => (p.roleIds || [p.roleId]).includes(r.id))?.name}</span>
                                     </div>
                                 </div>
@@ -791,6 +812,17 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     </div>
                 </div>
             </div>
+
+            {selectedPersonForInfo && (
+                <PersonInfoModal
+                    isOpen={!!selectedPersonForInfo}
+                    onClose={() => setSelectedPersonForInfo(null)}
+                    person={selectedPersonForInfo}
+                    roles={roles}
+                    teams={teams}
+                    settings={settings}
+                />
+            )}
         </GenericModal >
     );
 };

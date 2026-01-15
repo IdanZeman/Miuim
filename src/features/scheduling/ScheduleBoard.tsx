@@ -10,7 +10,7 @@ import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import { ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText } from '@phosphor-icons/react';
-import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2 } from '@phosphor-icons/react';
+import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon } from '@phosphor-icons/react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
 import { MultiSelect } from '../../components/ui/MultiSelect';
@@ -1050,11 +1050,26 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     </div>
 
                     {visibleTasks.length === 0 && (
-                        <div className="absolute inset-0 col-span-full flex items-center justify-center text-slate-400 p-10">
-                            אין משימות להצגה
+                        <div className="absolute inset-0 col-span-full flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in duration-500">
+                            <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6 shadow-sm border border-slate-100/50">
+                                <ClipboardIcon size={48} className="text-slate-300" weight="duotone" />
+                            </div>
+                            <h3 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">אין עדיין משימות להצגה</h3>
+                            <p className="text-slate-500 max-w-sm mb-8 font-medium leading-relaxed">
+                                כדי להתחיל לשבץ, עליך להגדיר את משימות הפלוגה (שמירות, סיורים, תורנויות וכו').
+                            </p>
+                            {!isViewer && (
+                                <Button
+                                    onClick={() => onNavigate('tasks')}
+                                    variant="primary"
+                                    className="px-8 py-6 rounded-2xl shadow-xl shadow-blue-200 font-black text-lg group active:scale-95 transition-all"
+                                >
+                                    <Plus size={20} weight="bold" className="ml-2 group-hover:rotate-90 transition-transform" />
+                                    צור משימה ראשונה
+                                </Button>
+                            )}
                         </div>
                     )}
-
                 </div>
             </div>
             {selectedShift && (
@@ -1069,6 +1084,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     teamRotations={teamRotations}
                     constraints={constraints}
                     interPersonConstraints={settings?.interPersonConstraints || []}
+                    settings={settings}
                     isViewer={isViewer}
                     onClose={() => setSelectedShiftId(null)}
                     onAssign={onAssign}
