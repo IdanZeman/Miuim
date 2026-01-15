@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Person, Shift, TaskTemplate } from '../../types';
-import { Moon, Sun, Clock, Medal as Award } from '@phosphor-icons/react';
+import { Clock, CalendarBlank, ChartBar, Sparkle } from '@phosphor-icons/react';
+import { getPersonInitials } from '../../utils/nameUtils';
 
 interface PersonalStatsProps {
     person: Person;
@@ -11,7 +12,14 @@ interface PersonalStatsProps {
     nightShiftEnd?: string;
 }
 
-export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, tasks, onClick, nightShiftStart = '22:00', nightShiftEnd = '06:00' }) => {
+export const PersonalStats: React.FC<PersonalStatsProps> = ({
+    person,
+    shifts,
+    tasks,
+    onClick,
+    nightShiftStart = '22:00',
+    nightShiftEnd = '06:00'
+}) => {
 
     const stats = useMemo(() => {
         const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id))
@@ -20,9 +28,8 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, ta
         let totalHours = 0;
         let nightHours = 0;
         let totalLoad = 0;
-        let restTimes: number[] = [];
 
-        personShifts.forEach((shift, index) => {
+        personShifts.forEach((shift) => {
             const task = tasks.find(t => t.id === shift.taskId);
             if (!task) return;
 
@@ -33,10 +40,7 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, ta
             // Night Hours Calculation
             const start = new Date(shift.startTime);
             const end = new Date(shift.endTime);
-
-            // Check each hour of the shift
             let current = new Date(start);
-            let shiftNightHours = 0;
 
             const startHour = parseInt(nightShiftStart.split(':')[0]);
             const endHour = parseInt(nightShiftEnd.split(':')[0]);
@@ -48,135 +52,79 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({ person, shifts, ta
                     : (h >= startHour && h < endHour);
 
                 if (isNight) {
-                    shiftNightHours += 1; // Count full hours for simplicity
+                    nightHours += 1;
                 }
                 current.setHours(current.getHours() + 1);
             }
-            nightHours += shiftNightHours;
-
-            // Rest Time
-            if (index < personShifts.length - 1) {
-                const nextShift = personShifts[index + 1];
-                const nextStart = new Date(nextShift.startTime);
-                const diffMs = nextStart.getTime() - end.getTime();
-                const diffHours = diffMs / (1000 * 60 * 60);
-                if (diffHours > 0) restTimes.push(diffHours);
-            }
         });
-
-        const minRest = restTimes.length > 0 ? Math.min(...restTimes) : 0;
-        const maxRest = restTimes.length > 0 ? Math.max(...restTimes) : 0;
-        const avgRest = restTimes.length > 0 ? restTimes.reduce((a, b) => a + b, 0) / restTimes.length : 0;
 
         return {
             totalHours,
             nightHours,
             dayHours: totalHours - nightHours,
             totalLoad,
-            shiftCount: personShifts.length,
-            minRest,
-            maxRest,
-            avgRest
+            shiftCount: personShifts.length
         };
     }, [person, shifts, tasks, nightShiftStart, nightShiftEnd]);
 
-    const [isOpen, setIsOpen] = React.useState(false);
-
-    // Derived colors
-    const loadColor = stats.totalLoad > 15 ? 'text-red-600' : stats.totalLoad < 5 ? 'text-green-600' : 'text-slate-700';
-    const dayRatio = (stats.dayHours / (stats.totalHours || 1)) * 100;
-    const nightRatio = (stats.nightHours / (stats.totalHours || 1)) * 100;
+    const { totalHours, shiftCount, totalLoad } = stats;
 
     return (
         <div
-            onClick={() => setIsOpen(!isOpen)}
-            className="group bg-white hover:bg-slate-50 transition-all border-b border-slate-100 last:border-0 cursor-pointer select-none"
+            onClick={onClick}
+            className="group relative bg-white rounded-2xl p-3 border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-md hover:border-blue-200 cursor-pointer overflow-hidden"
         >
-            {/* Summary Row - Compact ~80px */}
-            <div className="relative p-4 flex items-center justify-between">
-                {/* Left: Avatar + Name */}
-                <div className="flex items-center gap-3">
-                    <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ring-2 ring-white"
-                        style={{ backgroundColor: person.color }}
-                    >
-                        {person.name.charAt(0)}
+            <div className="relative flex items-center justify-between gap-4">
+                {/* Right Area: Identity */}
+                <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="relative shrink-0">
+                        <div
+                            className="w-12 h-12 rounded-xl flex items-center justify-center text-slate-800 text-lg font-black shadow-sm transition-all duration-300 group-hover:scale-105 border-2 border-white ring-1 ring-slate-100"
+                            style={{
+                                backgroundColor: person.color || '#F1F5F9',
+                                backgroundImage: person.color
+                                    ? `linear-gradient(135deg, ${person.color}, ${person.color}dd)`
+                                    : 'none',
+                                color: '#1e293b' // slate-800
+                            }}
+                        >
+                            {getPersonInitials(person.name)}
+                        </div>
                     </div>
-                    <div>
-                        <h4 className="font-bold text-slate-800 text-base">{person.name}</h4>
-                        <span className="text-xs text-slate-400">{stats.shiftCount} משמרות</span>
+
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <h3 className="text-base font-black text-slate-800 truncate group-hover:text-blue-700 transition-colors tracking-tight">{person.name}</h3>
+                            <Sparkle size={12} weight="fill" className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-colors border border-slate-100/50">
+                                <Clock size={12} className="text-slate-400 group-hover:text-blue-500" />
+                                <span className="text-[11px] font-black text-slate-600 group-hover:text-blue-700">{totalHours.toFixed(1)} <span className="text-[9px] opacity-40">ש'</span></span>
+                            </div>
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 rounded-lg group-hover:bg-emerald-50 transition-colors border border-slate-100/50">
+                                <CalendarBlank size={12} className="text-slate-400 group-hover:text-emerald-500" />
+                                <span className="text-[11px] font-black text-slate-600 group-hover:text-emerald-700">{shiftCount} <span className="text-[9px] opacity-40">מש'</span></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Right: Load Score */}
-                <div className="text-right">
-                    <div className={`text-2xl font-black ${loadColor} leading-none`}>
-                        {stats.totalLoad.toFixed(0)}
+                {/* Left Area: Load Points */}
+                <div className="flex items-center gap-4 shrink-0 px-4">
+                    <div className="w-px h-8 bg-slate-100" />
+                    <div className="text-left">
+                        <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mb-1">ניקוד עומס</div>
+                        <div className="text-xl font-black text-slate-400 group-hover:text-blue-600 transition-colors flex items-baseline gap-1">
+                            {totalLoad.toFixed(0)}<span className="text-[10px] opacity-40">PT</span>
+                        </div>
                     </div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">ניקוד עומס</span>
-                </div>
-
-                {/* Bottom Slim Bar - Day/Night Ratio with Icons */}
-                <div className="absolute bottom-2 right-4 opacity-50">
-                    <Sun size={10} className="text-amber-500 fill-amber-500" weight="fill" />
-                </div>
-                <div className="absolute bottom-2 left-4 opacity-50">
-                    <Moon size={10} className="text-indigo-500 fill-indigo-500" weight="fill" />
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 h-1.5 flex opacity-90">
-                    <div style={{ width: `${dayRatio}%` }} className="bg-amber-400 h-full transition-all duration-500" />
-                    <div style={{ width: `${nightRatio}%` }} className="bg-indigo-500 h-full transition-all duration-500" />
                 </div>
             </div>
 
-            {/* Expanded Details */}
-            {isOpen && (
-                <div className="px-4 pb-4 pt-0 animate-in slide-in-from-top-2 duration-200">
-                    <div className="bg-slate-50 rounded-xl p-4 grid grid-cols-3 gap-y-4 gap-x-2 text-center relative mt-2">
-                        {/* Decorative Arrow */}
-                        <div className="absolute -top-1.5 right-6 w-3 h-3 bg-slate-50 rotate-45 transform" />
-
-                        {/* Rest Times */}
-                        <div className="col-span-3 text-xs font-bold text-slate-400 text-right mb-1">
-                            זמני מנוחה (שעות)
-                        </div>
-
-                        <div>
-                            <span className="text-[10px] text-slate-400 block mb-0.5">מינימום</span>
-                            <span className="font-bold text-slate-700">{stats.minRest.toFixed(1)}</span>
-                        </div>
-                        <div className="border-x border-slate-200/60">
-                            <span className="text-[10px] text-slate-400 block mb-0.5">ממוצע</span>
-                            <span className="font-bold text-slate-800 text-lg leading-none">{stats.avgRest.toFixed(1)}</span>
-                        </div>
-                        <div>
-                            <span className="text-[10px] text-slate-400 block mb-0.5">מקסימום</span>
-                            <span className="font-bold text-slate-700">{stats.maxRest.toFixed(1)}</span>
-                        </div>
-
-                        {/* Divider */}
-                        <div className="col-span-3 h-px bg-slate-200/60 my-1" />
-
-                        {/* Hours Breakdown */}
-                        <div className="col-span-3 grid grid-cols-2 gap-4 pt-1">
-                            <div className="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-slate-100">
-                                <div className="flex items-center gap-2">
-                                    <Clock size={14} className="text-blue-500" weight="duotone" />
-                                    <span className="text-xs font-bold text-slate-600">סה"כ שעות</span>
-                                </div>
-                                <span className="font-black text-slate-800">{stats.totalHours.toFixed(0)}</span>
-                            </div>
-                            <div className="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm border border-slate-100">
-                                <div className="flex items-center gap-2">
-                                    <Moon size={14} className="text-indigo-500" weight="duotone" />
-                                    <span className="text-xs font-bold text-slate-600">שעות לילה</span>
-                                </div>
-                                <span className="font-black text-slate-800">{stats.nightHours}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <div className="absolute top-0 left-0 px-2 py-1 bg-blue-600 text-white text-[8px] font-black rounded-br-lg opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
+                פרטים מלאים
+            </div>
         </div>
     );
 };

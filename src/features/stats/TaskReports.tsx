@@ -7,6 +7,7 @@ import { PersonalStats } from './PersonalStats';
 import { DetailedUserStats } from './DetailedUserStats';
 import { supabase } from '../../services/supabaseClient';
 import { Input } from '../../components/ui/Input';
+import { ShiftHistoryModal } from './ShiftHistoryModal';
 
 interface TaskReportsProps {
     people: Person[];
@@ -24,6 +25,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
     const [nightShiftStart, setNightShiftStart] = useState('22:00');
     const [nightShiftEnd, setNightShiftEnd] = useState('06:00');
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedPersonForHistory, setSelectedPersonForHistory] = useState<Person | null>(null);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -64,6 +66,51 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
             hours: totalHours,
         };
     });
+
+    // Calculate team averages for comparison
+    const teamAverages = React.useMemo(() => {
+        const activePeople = people.filter(p => p.isActive !== false);
+        if (activePeople.length === 0) {
+            return { avgHoursPerPerson: 0, avgShiftsPerPerson: 0, avgNightHoursPerPerson: 0, avgLoadPerPerson: 0 };
+        }
+
+        let totalHours = 0;
+        let totalNightHours = 0;
+        let totalLoad = 0;
+
+        activePeople.forEach(person => {
+            const personShifts = shifts.filter(s => s.assignedPersonIds.includes(person.id));
+            personShifts.forEach(shift => {
+                const task = tasks.find(t => t.id === shift.taskId);
+                if (!task) return;
+
+                const duration = (new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / (1000 * 60 * 60);
+                totalHours += duration;
+                totalLoad += duration * task.difficulty;
+
+                // Night hours
+                const start = new Date(shift.startTime);
+                const end = new Date(shift.endTime);
+                let current = new Date(start);
+                const startHour = parseInt(nightShiftStart.split(':')[0]);
+                const endHour = parseInt(nightShiftEnd.split(':')[0]);
+
+                while (current < end) {
+                    const h = current.getHours();
+                    const isNight = startHour > endHour ? (h >= startHour || h < endHour) : (h >= startHour && h < endHour);
+                    if (isNight) totalNightHours++;
+                    current.setHours(current.getHours() + 1);
+                }
+            });
+        });
+
+        return {
+            avgHoursPerPerson: totalHours / activePeople.length,
+            avgShiftsPerPerson: shifts.length / activePeople.length,
+            avgNightHoursPerPerson: totalNightHours / activePeople.length,
+            avgLoadPerPerson: totalLoad / activePeople.length
+        };
+    }, [people, shifts, tasks, nightShiftStart, nightShiftEnd]);
 
     const totalSlots = shifts.reduce((acc, s) => {
         // Use snapshot if available
@@ -126,11 +173,54 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
             </div>
 
             {/* Content Area */}
-            <div className="py-6 space-y-6">
+            <div className="py-4 space-y-4">
+                {/* Team Analytics Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-4 text-white shadow-lg shadow-blue-500/10 relative overflow-hidden group">
+                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform" />
+                        <div className="relative z-10">
+                            <div className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-0.5">סה"כ שעות מאוישות</div>
+                            <div className="text-2xl font-black">{loadData.reduce((acc, d) => acc + d.hours, 0).toFixed(0)}<span className="text-xs opacity-60 ml-1 font-bold">ש'</span></div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm relative overflow-hidden group">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                <Users size={16} weight="duotone" />
+                            </div>
+                            <div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5 leading-none">סד"כ פעיל</div>
+                                <div className="text-lg font-black text-slate-800 leading-tight">{people.filter(p => p.isActive !== false).length} <span className="text-[9px] text-slate-300">אנשים</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm relative overflow-hidden group">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                                <Moon size={16} weight="duotone" />
+                            </div>
+                            <div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5 leading-none">שעות לילה בצוות</div>
+                                <div className="text-lg font-black text-slate-800 leading-tight">{teamAverages.avgNightHoursPerPerson.toFixed(1)} <span className="text-[9px] text-slate-300">ממוצע</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-sm relative overflow-hidden group">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                <Activity size={16} weight="duotone" />
+                            </div>
+                            <div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5 leading-none">ניקוד עומס ממוצע</div>
+                                <div className="text-lg font-black text-slate-800 leading-tight">{teamAverages.avgLoadPerPerson.toFixed(0)} <span className="text-[9px] text-slate-300">PT</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 {viewMode === 'overview' ? (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                         {/* Horizontal Bar Chart */}
-                        <div className="bg-white p-6 rounded-2xl border border-slate-100">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100">
                             <h3 className="text-lg font-bold text-slate-800 mb-4">עומס שעות מצטבר</h3>
                             <div className="overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
                                 <div className="space-y-3 pt-2">
@@ -259,7 +349,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                                         person={person}
                                         shifts={shifts}
                                         tasks={tasks}
-                                        onClick={() => { }} // Removed full page navigation
+                                        onClick={() => setSelectedPersonForHistory(person)}
                                         nightShiftStart={nightShiftStart}
                                         nightShiftEnd={nightShiftEnd}
                                     />
@@ -273,6 +363,21 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                     </div>
                 )}
             </div>
+
+            {/* Shift History Modal */}
+            {selectedPersonForHistory && ( // 5. Render ShiftHistoryModal
+                <ShiftHistoryModal
+                    isOpen={!!selectedPersonForHistory}
+                    onClose={() => setSelectedPersonForHistory(null)}
+                    person={selectedPersonForHistory}
+                    shifts={shifts}
+                    tasks={tasks}
+                    roles={roles}
+                    teamAverages={teamAverages}
+                    nightShiftStart={nightShiftStart}
+                    nightShiftEnd={nightShiftEnd}
+                />
+            )}
         </div>
     );
 };
