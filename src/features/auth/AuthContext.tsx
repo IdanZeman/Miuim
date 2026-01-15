@@ -36,8 +36,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!profile) return false;
 
     // Map battalion views to 'battalion' permission
-    const permissionKey = screen === 'battalion-home' || screen === 'battalion-personnel' || screen === 'battalion-attendance' || screen === 'battalion-settings' ? 'battalion' :
-      screen;
+    let permissionKey: any = screen;
+
+    if (screen === 'battalion-home' || screen === 'battalion-personnel' || screen === 'battalion-attendance' || screen === 'battalion-settings') {
+      permissionKey = 'battalion';
+    } else if (screen === 'org-logs') {
+      permissionKey = 'logs'; // Legacy support: map org-logs screen to 'logs' permission
+    }
 
 
     // Super Admin has access to everything
