@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Plus, Trash, CalendarBlank as CalendarIcon, House, Buildings, Clock, Info, Check } from '@phosphor-icons/react';
+import { ArrowRight, Plus, Trash, CalendarBlank as CalendarIcon, House, Buildings, Clock, Info, Check, Warning as AlertTriangle } from '@phosphor-icons/react';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
 import { logger } from '@/services/loggingService';
@@ -7,6 +7,7 @@ import { AvailabilitySlot, HomeStatusType } from '@/types';
 import { TimePicker } from '@/components/ui/DatePicker';
 import { Input } from '@/components/ui/Input';
 import { HomeStatusSelector } from '@/components/ui/HomeStatusSelector';
+import { useToast } from '@/contexts/ToastContext';
 
 interface StatusEditModalProps {
     isOpen: boolean;
@@ -48,6 +49,8 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     const [newBlockEnd, setNewBlockEnd] = useState('11:00');
     const [newBlockReason, setNewBlockReason] = useState('');
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+    const [validationError, setValidationError] = useState<string | null>(null);
+    const { showToast } = useToast();
 
     // Sync from props
     useEffect(() => {
@@ -128,11 +131,23 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             }
         );
 
+        if (mainStatus === 'base' && customType === 'custom') {
+            if (customStart >= customEnd) {
+                showToast('שעת ההתחלה חייבת להיות לפני שעת הסיום', 'error');
+                return;
+            }
+        }
+
         onApply(mainStatus, { start: finalStart, end: finalEnd }, unavailableBlocks, mainStatus === 'home' ? homeStatusType : undefined);
     };
 
     const addOrUpdateBlock = () => {
-        if (newBlockStart >= newBlockEnd) return; // Simple validation
+        if (newBlockStart >= newBlockEnd) {
+            setValidationError('שעת ההתחלה חייבת להיות לפני שעת הסיום');
+            showToast('שעת ההתחלה חייבת להיות לפני שעת הסיום', 'error');
+            return;
+        }
+        setValidationError(null);
 
         if (editingBlockId) {
             setUnavailableBlocks(prev => prev.map(b => b.id === editingBlockId ? {
@@ -188,6 +203,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                 setNewBlockStart('10:00');
                                 setNewBlockEnd('11:00');
                                 setNewBlockReason('');
+                                setValidationError(null);
                             }}
                             className="text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 px-3 py-1.5 rounded-full font-bold transition-colors flex items-center gap-1.5"
                         >
@@ -209,8 +225,15 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                             placeholder="סיבת חסימה (אופציונלי)"
                             value={newBlockReason}
                             onChange={e => setNewBlockReason(e.target.value)}
-                            className="text-xs font-medium mb-3 h-10 border-slate-200"
+                            className={`text-xs font-medium mb-3 h-10 ${validationError ? 'border-rose-300 ring-rose-50' : 'border-slate-200'}`}
                         />
+
+                        {validationError && (
+                            <div className="flex items-center gap-1.5 mb-3 px-1 animate-in slide-in-from-right-2">
+                                <AlertTriangle size={14} className="text-rose-500" weight="fill" />
+                                <span className="text-[11px] font-bold text-rose-600">{validationError}</span>
+                            </div>
+                        )}
                         <div className="flex gap-2 justify-end">
                             <Button
                                 variant="ghost"
