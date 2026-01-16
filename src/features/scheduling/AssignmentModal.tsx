@@ -150,6 +150,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             if (selectedShift.assignedPersonIds.includes(p.id)) return false;
 
             const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
+
+            // 1. Basic Availability Check (Full day or general status)
             if (availability.status === 'home') return false;
 
             if (availability.source === 'manual' && availability.isAvailable) {
@@ -158,11 +160,47 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 return false;
             }
 
-            // Check for hourly blockages that overlap with this shift
-            if (availability.unavailableBlocks && availability.unavailableBlocks.length > 0) {
-                const shiftStart = new Date(selectedShift.startTime);
-                const shiftEnd = new Date(selectedShift.endTime);
+            // 2. Strict Time Window Check (for Arrivals/Departures)
+            // Ensure the shift falls ENTIRELY within the person's available window
+            const shiftStart = new Date(selectedShift.startTime);
+            const shiftEnd = new Date(selectedShift.endTime);
 
+            if (availability.startHour || availability.endHour) {
+                const [startH, startM] = (availability.startHour || '00:00').split(':').map(Number);
+                const [endH, endM] = (availability.endHour || '23:59').split(':').map(Number);
+
+                const availStart = new Date(shiftStart);
+                availStart.setHours(startH, startM, 0, 0);
+
+                const availEnd = new Date(shiftStart);
+                availEnd.setHours(endH, endM, 0, 0);
+
+                // If end hour is '00:00' but it's a departure, it usually means midnight (next day start)
+                if (endH === 0 && endM === 0) {
+                    availEnd.setDate(availEnd.getDate() + 1);
+                } else if (availEnd < availStart) {
+                    // Safe guard for crossing midnight within same day logic (rare for this system but possible)
+                    availEnd.setDate(availEnd.getDate() + 1);
+                }
+
+                // FIX: Single strict check can fail on boundaries like 23:59 vs 00:00 next day
+                // We add a small buffer (1 minute) or use inclusive comparison where appropriate
+
+                // 1. Shift starts BEFORE availability starts? (e.g. shift 06:00, avail 08:00)
+                if (shiftStart < availStart) return false;
+
+                // 2. Shift ends AFTER availability ends?
+                // FIX: If availEnd is essentially "end of day" (23:59), we ignore the upper bound check
+                // because the system defaults present people to 23:59.
+                // We ONLY enforce end time if it's NOT 23:59.
+                const isEndOfDay = endH === 23 && endM === 59;
+                if (!isEndOfDay) {
+                    if (shiftEnd > availEnd) return false;
+                }
+            }
+
+            // 3. Hourly Blockages (Intermittent gaps)
+            if (availability.unavailableBlocks && availability.unavailableBlocks.length > 0) {
                 const hasBlockageOverlap = availability.unavailableBlocks.some(block => {
                     const [blockStartHour, blockStartMin] = block.start.split(':').map(Number);
                     const [blockEndHour, blockEndMin] = block.end.split(':').map(Number);
@@ -170,6 +208,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     blockStart.setHours(blockStartHour, blockStartMin, 0, 0);
                     const blockEnd = new Date(shiftStart);
                     blockEnd.setHours(blockEndHour, blockEndMin, 0, 0);
+
+                    if (blockEnd < blockStart) blockEnd.setDate(blockEnd.getDate() + 1);
                     return blockStart < shiftEnd && blockEnd > shiftStart;
                 });
                 if (hasBlockageOverlap) return false;
@@ -225,7 +265,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     dailyLoad,
                     hasOverlap,
                     hoursSinceLast: lastShift ? (thisStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
-                    hoursUntilNext: nextShift ? (new Date(nextShift.startTime).getTime() - thisEnd.getTime()) / (1000 * 60 * 60) : Infinity
+                    hoursUntilNext: nextShift ? (new Date(nextShift.startTime).getTime() - thisEnd.getTime()) / (1000 * 60 * 60) : Infinity,
+                    requiredRest: lastShift?.requirements?.minRest || 8,
+                    isRestSufficient: lastShift
+                        ? ((thisStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60)) >= (lastShift.requirements?.minRest || 8)
+                        : true
                 }
             };
         });
@@ -307,6 +351,65 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
             if (p.isActive === false) score -= 20000;
             if (selectedShift.assignedPersonIds.includes(p.id)) score -= 10000;
+
+            // Strict Availability Check (Same as list)
+            const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
+            if (availability.status === 'home') score -= 20000;
+            if (availability.source === 'manual' && availability.isAvailable) {
+                if (!availability.isAvailable) score -= 20000;
+            } else if (!availability.isAvailable) {
+                score -= 20000;
+            }
+
+            // Strict Time Window Check
+            const shiftStart = new Date(selectedShift.startTime);
+            const shiftEnd = new Date(selectedShift.endTime);
+
+            if (availability.startHour || availability.endHour) {
+                const [startH, startM] = (availability.startHour || '00:00').split(':').map(Number);
+                const [endH, endM] = (availability.endHour || '23:59').split(':').map(Number);
+
+                const availStart = new Date(shiftStart);
+                availStart.setHours(startH, startM, 0, 0);
+
+                const availEnd = new Date(shiftStart);
+                availEnd.setHours(endH, endM, 0, 0);
+
+                if (endH === 0 && endM === 0) {
+                    availEnd.setDate(availEnd.getDate() + 1);
+                } else if (availEnd < availStart) {
+                    availEnd.setDate(availEnd.getDate() + 1);
+                }
+
+                const isEndOfDay = endH === 23 && endM === 59;
+
+                if (shiftStart < availStart) {
+                    score -= 20000;
+                    reasons.push('מחוץ לשעות זמינות');
+                } else if (!isEndOfDay && shiftEnd > availEnd) {
+                    score -= 20000;
+                    reasons.push('מחוץ לשעות זמינות');
+                }
+            }
+
+            // Hourly Blockages
+            if (availability.unavailableBlocks && availability.unavailableBlocks.length > 0) {
+                const hasBlockageOverlap = availability.unavailableBlocks.some(block => {
+                    const [blockStartHour, blockStartMin] = block.start.split(':').map(Number);
+                    const [blockEndHour, blockEndMin] = block.end.split(':').map(Number);
+                    const blockStart = new Date(shiftStart);
+                    blockStart.setHours(blockStartHour, blockStartMin, 0, 0);
+                    const blockEnd = new Date(shiftStart);
+                    blockEnd.setHours(blockEndHour, blockEndMin, 0, 0);
+
+                    if (blockEnd < blockStart) blockEnd.setDate(blockEnd.getDate() + 1);
+                    return blockStart < shiftEnd && blockEnd > shiftStart;
+                });
+                if (hasBlockageOverlap) {
+                    score -= 20000;
+                    reasons.push('חסימה');
+                }
+            }
 
             const personShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id) && !s.isCancelled);
             const thisStart = new Date(selectedShift.startTime);
@@ -821,7 +924,15 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                 {metrics.lastShift ? (
                                                     <div className="text-[9px] font-black text-slate-600 truncate flex items-center gap-1">
                                                         <span className="truncate">{taskTemplates?.find(t => t.id === metrics.lastShift?.taskId)?.name || 'משימה'}</span>
-                                                        <span className="text-slate-400 font-bold bg-slate-50 px-1 rounded shrink-0">{metrics.hoursSinceLast < 1 ? 'ממש עכשיו' : `לפני ${Math.floor(metrics.hoursSinceLast)}ש`}</span>
+                                                        <span className={`font-bold px-1.5 rounded-full shrink-0 border ${metrics.isRestSufficient
+                                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                                            : 'bg-orange-50 text-orange-600 border-orange-100'
+                                                            }`}>
+                                                            {metrics.hoursSinceLast < 1
+                                                                ? 'ממש עכשיו'
+                                                                : `${Math.floor(metrics.hoursSinceLast)} ש׳ (${metrics.isRestSufficient ? 'תקין' : 'לא מספיק'})`
+                                                            }
+                                                        </span>
                                                     </div>
                                                 ) : (
                                                     <span className="text-[9px] font-bold text-slate-300 italic">אין מידע</span>
