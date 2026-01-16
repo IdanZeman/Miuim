@@ -77,6 +77,15 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
     let mappedReports = (reports || []).map(mapMissionReportFromDB);
     let mappedChecks = (checks || []).map(mapEquipmentDailyCheckFromDB);
 
+    const taskTemplateList = (tasks || []).map(mapTaskFromDB);
+    const allMappedPeople = (people || []).map(mapPersonFromDB);
+    const allMappedShifts = (shifts || []).map(mapShiftFromDB);
+    const allMappedAbsences = (absences || []).map(mapAbsenceFromDB);
+    const allMappedBlockages = (hourlyBlockages || []).map(mapHourlyBlockageFromDB);
+    const allMappedTasks = (tasks || []).map(mapTaskFromDB);
+    const allMappedTeams = (teams || []).map(mapTeamFromDB);
+    const allMappedRoles = (roles || []).map(mapRoleFromDB);
+
     const scope = permissions?.dataScope;
     const isRestrictedScope = scope && scope !== 'organization';
 
@@ -85,132 +94,74 @@ export const fetchOrganizationData = async (organizationId: string, permissions?
         let targetPersonId: string | null = null;
 
         if (scope === 'my_team' && userId) {
-            const myPerson = mappedPeople.find(p => p.userId === userId || p.id === userId);
+            const myPerson = allMappedPeople.find(p => p.userId === userId || p.id === userId);
             if (myPerson?.teamId) targetTeamIds = [myPerson.teamId];
         } else if (scope === 'team') {
             targetTeamIds = permissions.allowedTeamIds || [];
         } else if (scope === 'personal' && userId) {
-            const myPerson = mappedPeople.find(p => p.userId === userId || p.id === userId);
-            if (myPerson) {
-                targetPersonId = myPerson.id;
-                // For personal scope, we still want to see the team's tasks on the board
-                if (myPerson.teamId) targetTeamIds = [myPerson.teamId];
-            }
+            const myPerson = allMappedPeople.find(p => p.userId === userId || p.id === userId);
+            if (myPerson) targetPersonId = myPerson.id;
         }
 
-        const taskTemplateList = (tasks || []).map(mapTaskFromDB);
-        const filteredTasks = taskTemplateList.filter(t => {
-            if (!t.assignedTeamId) return true; // Everyone
-            if (targetTeamIds.length > 0) return targetTeamIds.includes(t.assignedTeamId);
-            return false;
-        });
+        // Identify current user's direct context for restricted data filtering
+        const teamPersonIds = targetTeamIds.length > 0 
+            ? new Set(allMappedPeople.filter(p => p.teamId && targetTeamIds.includes(p.teamId)).map(p => p.id))
+            : new Set(targetPersonId ? [targetPersonId] : []);
+            
+        const teamProfileIds = targetTeamIds.length > 0
+            ? new Set(allMappedPeople.filter(p => p.teamId && targetTeamIds.includes(p.teamId)).map(p => p.userId).filter(Boolean) as string[])
+            : new Set(userId ? [userId] : []);
 
-        if (targetTeamIds.length > 0) {
-            // Filter People by Team
-            mappedPeople = mappedPeople.filter(p => p.teamId && targetTeamIds.includes(p.teamId));
+        // BOARD ENTITIES (Always FULL Visibility)
+        const boardData = {
+            people: allMappedPeople,
+            allPeople: allMappedPeople,
+            teams: allMappedTeams,
+            rotations: (rotations || []).map(mapRotationFromDB).filter(r => {
+                if (!isRestrictedScope) return true;
+                if (targetTeamIds.length > 0) return targetTeamIds.includes(r.team_id);
+                return true; // For personal scope, show all rotations on board
+            }),
+            absences: allMappedAbsences,
+            hourlyBlockages: allMappedBlockages,
+            roles: allMappedRoles,
+            shifts: allMappedShifts,
+            taskTemplates: allMappedTasks,
+            constraints: (constraints || []).map(mapConstraintFromDB),
+            settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
+        };
 
-            // Filter Data by Team Members
-            const teamPersonIds = new Set(mappedPeople.map(p => p.id));
-            const teamProfileIds = new Set(mappedPeople.map(p => p.userId).filter(Boolean) as string[]);
+        // RESTRICTED ENTITIES (Scoped Visibility)
+        const teamShiftIds = new Set(allMappedShifts.filter(s => s.assignedPersonIds.some(pid => teamPersonIds.has(pid))).map(s => s.id));
+        
+        const filteredReports = mappedReports.filter(r => 
+            (r.submitted_by && teamProfileIds.has(r.submitted_by)) || 
+            teamShiftIds.has(r.shift_id)
+        );
 
-            mappedAbsences = mappedAbsences.filter(a => teamPersonIds.has(a.person_id));
-            mappedBlockages = mappedBlockages.filter(b => teamPersonIds.has(b.person_id));
-            mappedConstraints = mappedConstraints.filter(c => c.personId && teamPersonIds.has(c.personId));
-            mappedShifts = mappedShifts.filter(s => s.assignedPersonIds.some(pid => teamPersonIds.has(pid)));
-            mappedEquipment = mappedEquipment.filter(e => e.assigned_to_id && teamPersonIds.has(e.assigned_to_id));
+        const filteredEquipment = mappedEquipment.filter(e => e.assigned_to_id && teamPersonIds.has(e.assigned_to_id));
+        const teamEquipmentIds = new Set(filteredEquipment.map(e => e.id));
+        const filteredChecks = mappedChecks.filter(c => teamEquipmentIds.has(c.equipment_id));
 
-            const teamShiftIds = new Set(mappedShifts.map(s => s.id));
-            mappedReports = mappedReports.filter(r =>
-                (r.submitted_by && teamProfileIds.has(r.submitted_by)) ||
-                teamShiftIds.has(r.shift_id)
-            );
-
-            const teamEquipmentIds = new Set(mappedEquipment.map(e => e.id));
-            mappedChecks = mappedChecks.filter(c => teamEquipmentIds.has(c.equipment_id));
-
-            return {
-                people: mappedPeople,
-                allPeople: (people || []).map(mapPersonFromDB), // Unscoped for lottery
-                teams: (teams || []).map(mapTeamFromDB).filter(t => targetTeamIds.includes(t.id)),
-                rotations: (rotations || []).map(mapRotationFromDB).filter(r => targetTeamIds.includes(r.team_id)),
-                absences: mappedAbsences,
-                hourlyBlockages: mappedBlockages,
-                roles: (roles || []).map(mapRoleFromDB), // Roles are generally organization-wide but entries are scoped
-                shifts: mappedShifts,
-                taskTemplates: filteredTasks,
-                constraints: mappedConstraints,
-                settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
-                missionReports: mappedReports,
-                equipment: mappedEquipment,
-                equipmentDailyChecks: mappedChecks
-            };
-        } else if (targetPersonId) {
-            // Filter People to just me
-            mappedPeople = mappedPeople.filter(p => p.id === targetPersonId);
-
-            // Filter Data to just me
-            mappedAbsences = mappedAbsences.filter(a => a.person_id === targetPersonId);
-            mappedBlockages = mappedBlockages.filter(b => b.person_id === targetPersonId);
-            mappedConstraints = mappedConstraints.filter(c => c.personId === targetPersonId);
-            mappedShifts = mappedShifts.filter(s => s.assignedPersonIds.includes(targetPersonId));
-            mappedEquipment = mappedEquipment.filter(e => e.assigned_to_id === targetPersonId);
-
-            const myShiftIds = new Set(mappedShifts.map(s => s.id));
-            mappedReports = mappedReports.filter(r =>
-                (userId && r.submitted_by === userId) ||
-                myShiftIds.has(r.shift_id)
-            );
-
-            const myEquipmentIds = new Set(mappedEquipment.map(e => e.id));
-            mappedChecks = mappedChecks.filter(c => myEquipmentIds.has(c.equipment_id));
-
-            return {
-                people: mappedPeople,
-                allPeople: (people || []).map(mapPersonFromDB), // Unscoped for lottery
-                teams: (teams || []).map(mapTeamFromDB).filter(t => mappedPeople.some(p => p.teamId === t.id)),
-                rotations: (rotations || []).map(mapRotationFromDB).filter(r => mappedPeople.some(p => p.teamId === r.team_id)),
-                absences: mappedAbsences,
-                hourlyBlockages: mappedBlockages,
-                roles: (roles || []).map(mapRoleFromDB),
-                shifts: mappedShifts,
-                taskTemplates: filteredTasks,
-                constraints: mappedConstraints,
-                settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
-                missionReports: mappedReports,
-                equipment: mappedEquipment,
-                equipmentDailyChecks: mappedChecks
-            };
-        } else {
-            return {
-                people: [],
-                allPeople: (people || []).map(mapPersonFromDB),
-                teams: [],
-                rotations: [],
-                absences: [],
-                hourlyBlockages: [],
-                roles: [],
-                shifts: [],
-                taskTemplates: [],
-                constraints: [],
-                settings: null,
-                missionReports: [],
-                equipment: [],
-                equipmentDailyChecks: []
-            };
-        }
+        return {
+            ...boardData,
+            missionReports: filteredReports,
+            equipment: filteredEquipment,
+            equipmentDailyChecks: filteredChecks
+        };
     }
 
     return {
-        people: mappedPeople,
-        allPeople: (people || []).map(mapPersonFromDB),
-        teams: (teams || []).map(mapTeamFromDB),
+        people: allMappedPeople,
+        allPeople: allMappedPeople,
+        teams: allMappedTeams,
         rotations: (rotations || []).map(mapRotationFromDB),
-        absences: mappedAbsences,
-        hourlyBlockages: mappedBlockages,
-        roles: (roles || []).map(mapRoleFromDB),
-        shifts: mappedShifts,
-        taskTemplates: (tasks || []).map(mapTaskFromDB),
-        constraints: mappedConstraints,
+        absences: allMappedAbsences,
+        hourlyBlockages: allMappedBlockages,
+        roles: allMappedRoles,
+        shifts: allMappedShifts,
+        taskTemplates: allMappedTasks,
+        constraints: (constraints || []).map(mapConstraintFromDB),
         settings: settings ? mapOrganizationSettingsFromDB(settings) : null,
         missionReports: mappedReports,
         equipment: mappedEquipment,
