@@ -440,14 +440,25 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             let fileName = '';
 
             if (activeTab === 'people') {
+                // 1. Static Columns
                 const columns = [
-                    { name: 'שם מלא', filterButton: true },
-                    { name: 'צוות', filterButton: true },
-                    { name: 'תפקידים', filterButton: true },
-                    { name: 'טלפון', filterButton: true },
-                    { name: 'אימייל', filterButton: true },
-                    { name: 'סטטוס', filterButton: true }
+                    { name: 'שם מלא', filterButton: true, width: 25 },
+                    { name: 'צוות', filterButton: true, width: 15 },
+                    { name: 'תפקידים', filterButton: true, width: 30 },
+                    { name: 'טלפון', filterButton: true, width: 15 },
+                    { name: 'אימייל', filterButton: true, width: 25 },
+                    { name: 'סטטוס', filterButton: true, width: 12 }
                 ];
+
+                // 2. Add Custom Fields Columns
+                const sortedSchema = [...customFieldsSchema].sort((a, b) => (a.order || 0) - (b.order || 0));
+                sortedSchema.forEach(field => {
+                    columns.push({
+                        name: field.label,
+                        filterButton: true,
+                        width: 20
+                    } as any);
+                });
 
                 const rows = people.map(p => {
                     const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
@@ -456,7 +467,27 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         .filter(Boolean)
                         .join(' | ');
                     const status = p.isActive === false ? 'לא פעיל' : 'פעיל';
-                    return [p.name, teamName, roleNames, p.phone || '', p.email || '', status];
+
+                    // Base Data
+                    const rowData = [p.name, teamName, roleNames, p.phone || '', p.email || '', status];
+
+                    // Custom Fields Data
+                    sortedSchema.forEach(field => {
+                        let value = p.customFields?.[field.key];
+
+                        // Format based on type
+                        if (value === undefined || value === null) {
+                            value = '';
+                        } else if (field.type === 'boolean') {
+                            value = value ? 'כן' : 'לא';
+                        } else if (Array.isArray(value)) {
+                            value = value.join(', ');
+                        }
+
+                        rowData.push(value);
+                    });
+
+                    return rowData;
                 });
 
                 worksheet.addTable({
@@ -465,13 +496,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     headerRow: true,
                     totalsRow: false,
                     style: { theme: 'TableStyleMedium2', showRowStripes: true },
-                    columns: columns,
+                    columns: columns.map(c => ({ name: c.name, filterButton: c.filterButton })),
                     rows: rows,
                 });
 
-                worksheet.columns = [
-                    { width: 25 }, { width: 15 }, { width: 30 }, { width: 15 }, { width: 25 }, { width: 12 }
-                ];
+                // Set column widths
+                worksheet.columns = columns.map(c => ({ width: c.width }));
+
                 fileName = `people_export_${new Date().toLocaleDateString('en-CA')}.xlsx`;
             } else if (activeTab === 'teams') {
                 const columns = [
