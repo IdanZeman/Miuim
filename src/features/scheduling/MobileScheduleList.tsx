@@ -123,9 +123,11 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                             <div className="flex items-center justify-between mb-3">
                                                 <div className="flex items-center gap-2">
                                                     <div className={`text-lg font-bold font-mono tracking-tight ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                                                        {start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                        <span className="mx-1 text-slate-300">-</span>
-                                                        {end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                        <span dir="ltr">
+                                                            {start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                            <span className="mx-1 text-slate-300">-</span>
+                                                            {end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
                                                     </div>
                                                 </div>
 

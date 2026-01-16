@@ -1076,7 +1076,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                                             : `${new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })} - ${new Date(absence.end_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}`}
                                                                     </span>
                                                                     {formatTimeRange(absence.start_time, absence.end_time, absence.start_date !== absence.end_date) && (
-                                                                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/50 mr-1">
+                                                                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100/50 mr-1" dir="ltr">
                                                                             {formatTimeRange(absence.start_time, absence.end_time, absence.start_date !== absence.end_date)}
                                                                         </span>
                                                                     )}

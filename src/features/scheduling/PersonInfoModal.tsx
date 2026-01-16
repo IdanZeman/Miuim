@@ -1,10 +1,11 @@
 import React from 'react';
-import { Person, Role, Team, OrganizationSettings } from '../../types';
+import { Person, Role, Team, OrganizationSettings, Shift, TaskTemplate } from '../../types';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
 import {
     X, Phone, Envelope, Shield, Users, Info,
-    ArrowSquareOut, Browsers, IdentificationCard
+    ArrowSquareOut, Browsers, IdentificationCard,
+    CalendarBlank, Clock
 } from '@phosphor-icons/react';
 import { getPersonInitials } from '../../utils/nameUtils';
 
@@ -15,6 +16,9 @@ interface PersonInfoModalProps {
     roles: Role[];
     teams: Team[];
     settings?: OrganizationSettings | null;
+    shifts?: Shift[];
+    selectedDate?: Date;
+    taskTemplates?: TaskTemplate[];
 }
 
 export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
@@ -23,7 +27,10 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
     person,
     roles,
     teams,
-    settings
+    settings,
+    shifts = [],
+    selectedDate = new Date(),
+    taskTemplates = []
 }) => {
     const personRoles = roles.filter(r => (person.roleIds || [person.roleId]).includes(r.id));
     const personTeam = teams.find(t => t.id === person.teamId);
@@ -123,6 +130,140 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                     </div>
                 </div>
 
+                {/* Schedule Summary Section */}
+                {(() => {
+                    const dateKey = selectedDate.toLocaleDateString('en-CA');
+
+                    // Past history (before today)
+                    const historyShifts = shifts.filter(s =>
+                        s.assignedPersonIds.includes(person.id) &&
+                        !s.isCancelled &&
+                        new Date(s.startTime).toLocaleDateString('en-CA') < dateKey
+                    ).sort((a, b) => b.endTime.localeCompare(a.endTime))
+                        .slice(0, 3);
+
+                    const todayShifts = shifts.filter(s =>
+                        s.assignedPersonIds.includes(person.id) &&
+                        !s.isCancelled &&
+                        new Date(s.startTime).toLocaleDateString('en-CA') === dateKey
+                    ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+                    const upcomingShifts = shifts.filter(s =>
+                        s.assignedPersonIds.includes(person.id) &&
+                        !s.isCancelled &&
+                        new Date(s.startTime).toLocaleDateString('en-CA') > dateKey
+                    ).sort((a, b) => a.startTime.localeCompare(b.startTime))
+                        .slice(0, 3);
+
+                    if (historyShifts.length === 0 && upcomingShifts.length === 0 && todayShifts.length === 0) {
+                        return (
+                            <div className="p-8 bg-slate-50/50 rounded-2xl border border-slate-100/50 text-center">
+                                <span className="text-xs font-bold text-slate-400">אין היסטוריה או שיבוצים עתידיים</span>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <div className="space-y-8">
+                            {/* Today's Shifts (Conflict Context) */}
+                            {todayShifts.length > 0 && (
+                                <div className="space-y-3">
+                                    <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] px-1">שיבוצים ליום זה</h3>
+                                    <div className="space-y-2">
+                                        {todayShifts.map(shift => {
+                                            const taskTemplate = taskTemplates.find(t => t.id === shift.taskId);
+                                            const startTime = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                                            const endTime = new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+                                            return (
+                                                <div key={shift.id} className="flex items-center justify-between p-3 bg-blue-50/30 border border-blue-200/50 rounded-xl shadow-sm">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                                                            <CalendarBlank size={14} className="text-blue-500" weight="duotone" />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-black text-slate-700">{taskTemplate?.name || 'משימה'}</span>
+                                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600/70">
+                                                                <Clock size={12} weight="duotone" />
+                                                                <span dir="ltr">{startTime} - {endTime}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="px-2 py-0.5 bg-blue-100/50 text-blue-700 text-[8px] font-black uppercase rounded-full">היום</div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Future Scale Section */}
+                            {upcomingShifts.length > 0 && (
+                                <div className={`space-y-3 ${todayShifts.length > 0 ? 'pt-4 border-t border-slate-50' : ''}`}>
+                                    <h3 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] px-1">שיבוצים קדימה (לו״ז עתידי)</h3>
+                                    <div className="space-y-2">
+                                        {upcomingShifts.map(shift => {
+                                            const taskTemplate = taskTemplates.find(t => t.id === shift.taskId);
+                                            const date = new Date(shift.startTime).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+                                            const startTime = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                                            const endTime = new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+                                            return (
+                                                <div key={shift.id} className="flex items-center justify-between p-3 bg-emerald-50/30 border border-emerald-100/50 rounded-xl">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                                                            <CalendarBlank size={14} className="text-emerald-500" weight="duotone" />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-black text-slate-700">{taskTemplate?.name || 'משימה'}</span>
+                                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600/70">
+                                                                <Clock size={12} weight="duotone" />
+                                                                <span>{date} • <span dir="ltr">{startTime} - {endTime}</span></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Recent History Section */}
+                            {historyShifts.length > 0 && (
+                                <div className="space-y-3 pt-4 border-t border-slate-50">
+                                    <h3 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] px-1">שיבוצי עבר (היסטוריה)</h3>
+                                    <div className="space-y-2">
+                                        {historyShifts.map(shift => {
+                                            const taskTemplate = taskTemplates.find(t => t.id === shift.taskId);
+                                            const date = new Date(shift.startTime).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
+                                            const startTime = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                                            const endTime = new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+                                            return (
+                                                <div key={shift.id} className="flex items-center justify-between p-3 bg-slate-50/30 border border-slate-100/50 rounded-xl opacity-80">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-1.5 bg-white rounded-lg">
+                                                            <CalendarBlank size={14} className="text-red-400" />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-bold text-slate-600">{taskTemplate?.name || 'משימה'}</span>
+                                                            <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                                                                <Clock size={12} weight="duotone" />
+                                                                <span>{date} • <span dir="ltr">{startTime} - {endTime}</span></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
+
                 {/* Custom Fields Section */}
                 {customFieldsSchema.length > 0 && (
                     <div className="space-y-3">
@@ -146,15 +287,6 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                         </div>
                     </div>
                 )}
-
-                {/* Footer Info */}
-                <div className="pt-4 border-t border-slate-50 flex justify-between items-center text-[10px] font-bold text-slate-300">
-                    <div className="flex items-center gap-1.5">
-                        <Info size={12} weight="duotone" />
-                        <span>נוסף למערכת ב-{new Date().toLocaleDateString('he-IL')}</span>
-                    </div>
-                    <span>ID: {person.id.slice(0, 8)}</span>
-                </div>
 
                 <div className="flex gap-3 pt-2">
                     <Button

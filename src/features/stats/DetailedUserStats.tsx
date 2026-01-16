@@ -401,7 +401,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                                     <div className="min-w-0 flex-1">
                                         <p className="font-bold text-slate-800 text-sm md:text-base truncate">{task?.name}</p>
                                         <p className="text-xs text-slate-500">
-                                            {start.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })} • {start.getHours()}:{start.getMinutes().toString().padStart(2, '0')}-{end.getHours()}:{end.getMinutes().toString().padStart(2, '0')}
+                                            {start.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })} • <span dir="ltr">{start.getHours()}:{start.getMinutes().toString().padStart(2, '0')} - {end.getHours()}:{end.getMinutes().toString().padStart(2, '0')}</span>
                                         </p>
                                     </div>
                                 </div>

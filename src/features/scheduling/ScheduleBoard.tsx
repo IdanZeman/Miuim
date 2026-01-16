@@ -526,7 +526,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         const sStart = new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
                         const sEnd = new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
 
-                        text += `• ${sStart}-${sEnd}: ${personnelNames || 'לא שובץ'}\n`;
+                        text += `• ${sStart} - ${sEnd}: ${personnelNames || 'לא שובץ'}\n`;
                     });
                     text += '\n';
                 }
@@ -1203,6 +1203,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     settings={settings}
                     absences={absences}
                     hourlyBlockages={hourlyBlockages}
+                    taskTemplates={taskTemplates}
                     isViewer={isViewer}
                     onClose={() => setSelectedShiftId(null)}
                     onAssign={onAssign}

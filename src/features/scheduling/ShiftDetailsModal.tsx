@@ -55,7 +55,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
       <h3 className="text-xl font-black text-slate-800 leading-tight">{task.name}</h3>
       <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
         <Users size={12} className="text-blue-500" weight="duotone" />
-        <span>{dateStr} • {startTimeStr} - {endTimeStr}</span>
+        <span>{dateStr} • <span dir="ltr">{startTimeStr} - {endTimeStr}</span></span>
       </div>
     </div>
   );

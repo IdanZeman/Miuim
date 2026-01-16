@@ -437,7 +437,7 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
                                 <div className="flex items-center gap-4 shrink-0">
                                     <div className="text-right">
                                         <div className="text-[10px] font-black text-slate-500 leading-none">
-                                            {shiftStart.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                            <span dir="ltr">{shiftStart.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
                                         </div>
                                         <div className="text-[7px] font-black text-slate-300 uppercase tracking-widest mt-0.5">שעות פעילות</div>
                                     </div>
