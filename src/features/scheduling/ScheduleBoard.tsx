@@ -4,6 +4,7 @@ import { GenericModal } from '../../components/ui/GenericModal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
+import { DatePicker } from '../../components/ui/DatePicker';
 import { Shift, Person, TaskTemplate, Role, Team, TeamRotation, MissionReport, Absence, DailyPresence } from '../../types';
 import { generateShiftsForTask } from '../../utils/shiftUtils';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
@@ -42,7 +43,7 @@ export interface ScheduleBoardProps {
     onDelete: (shiftId: string) => void;
     isViewer: boolean;
     acknowledgedWarnings?: Set<string>;
-    onClearDay: () => void;
+    onClearDay: (params: { startDate: Date; endDate: Date; taskIds?: string[] }) => void;
     onNavigate: (view: 'personnel' | 'tasks', tab?: 'people' | 'teams' | 'roles') => void;
     onAssign: (shiftId: string, personId: string) => void;
     onUnassign: (shiftId: string, personId: string) => void;
@@ -279,6 +280,128 @@ const ShiftCard: React.FC<{
     );
 };
 
+interface ClearScheduleModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onClear: (params: { startDate: Date; endDate: Date; taskIds?: string[] }) => void;
+    tasks: TaskTemplate[];
+    initialDate: Date;
+}
+
+const ClearScheduleModal: React.FC<ClearScheduleModalProps> = ({ isOpen, onClose, onClear, tasks, initialDate }) => {
+    const [mode, setMode] = useState<'single' | 'range'>('single');
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
+    const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        if (isOpen) {
+            const dateStr = initialDate.toISOString().split('T')[0];
+            setStartDate(dateStr);
+            setEndDate(dateStr);
+            setSelectedTaskIds(new Set(tasks.map(t => t.id)));
+        }
+    }, [isOpen, initialDate, tasks]);
+
+    const handleClear = () => {
+        const start = new Date(startDate);
+        const end = mode === 'single' ? new Date(startDate) : new Date(endDate);
+        onClear({
+            startDate: start,
+            endDate: end,
+            taskIds: Array.from(selectedTaskIds)
+        });
+        onClose();
+    };
+
+    return (
+        <GenericModal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={
+                <div className="flex flex-col gap-0.5">
+                    <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight flex items-center gap-2">
+                        <Trash2 className="text-red-500" size={20} weight="duotone" />
+                        <span>ניקוי לוח</span>
+                    </h2>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                        <span>הסרת שיבוצים בטווח תאריכים</span>
+                    </div>
+                </div>
+            }
+            size="md"
+            footer={
+                <div className="flex gap-3 w-full">
+                    <Button variant="ghost" onClick={onClose} className="flex-1">ביטול</Button>
+                    <Button
+                        onClick={handleClear}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-200"
+                        disabled={!startDate || (mode === 'range' && !endDate) || selectedTaskIds.size === 0}
+                    >
+                        נקה שיבוצים
+                    </Button>
+                </div>
+            }
+        >
+            <div className="flex flex-col gap-4">
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                    <button
+                        onClick={() => setMode('single')}
+                        className={`flex-1 py-2 px-4 rounded-lg text-xs font-black transition-all ${mode === 'single' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                    >
+                        יום בודד
+                    </button>
+                    <button
+                        onClick={() => setMode('range')}
+                        className={`flex-1 py-2 px-4 rounded-lg text-xs font-black transition-all ${mode === 'range' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                    >
+                        טווח תאריכים
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <DatePicker label={mode === 'single' ? 'תאריך' : 'מתאריך'} value={startDate} onChange={setStartDate} />
+                    {mode === 'range' && <DatePicker label="עד תאריך" value={endDate} onChange={setEndDate} />}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-black text-slate-500 uppercase">בחירת משימות לניקוי ({selectedTaskIds.size})</span>
+                        <button
+                            onClick={() => setSelectedTaskIds(selectedTaskIds.size === tasks.length ? new Set() : new Set(tasks.map(t => t.id)))}
+                            className="text-xs font-bold text-blue-600 hover:underline"
+                        >
+                            {selectedTaskIds.size === tasks.length ? 'נקה הכל' : 'בחר הכל'}
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+                        {tasks.slice().sort((a, b) => a.name.localeCompare(b.name, 'he')).map(task => (
+                            <label
+                                key={task.id}
+                                className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${selectedTaskIds.has(task.id) ? 'bg-white border-blue-200' : 'bg-slate-50 border-slate-100 opacity-60'}`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    checked={selectedTaskIds.has(task.id)}
+                                    onChange={() => {
+                                        const next = new Set(selectedTaskIds);
+                                        if (next.has(task.id)) next.delete(task.id);
+                                        else next.add(task.id);
+                                        setSelectedTaskIds(next);
+                                    }}
+                                />
+                                <span className="font-bold text-slate-700 text-sm">{task.name}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </GenericModal>
+    );
+};
+
 export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     shifts, missionReports, people, taskTemplates, roles, teams, constraints,
     selectedDate, onDateChange, onSelect, onDelete, isViewer,
@@ -369,6 +492,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New state for mobile action menu
     const [showRotaWizard, setShowRotaWizard] = useState(false);
+    const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 
     // For now assuming local handling to match previous logic found in file.
 
@@ -562,23 +686,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const handleClearDayClick = () => {
         analytics.trackButtonClick('clear_day', 'schedule_board');
         logger.log({ action: 'CLICK', entityType: 'button', entityName: 'clear_day', category: 'scheduling' });
-        setConfirmationState({
-            isOpen: true,
-            title: 'ניקוי יום',
-            message: 'האם אתה בטוח שברצונך למחוק את כל המשמרות של היום? פעולה זו אינה הפיכה.',
-            confirmText: 'נקה יום',
-            type: 'danger',
-            onConfirm: () => {
-                onClearDay();
-                logger.info('DELETE', `Cleared all shifts for ${selectedDate.toLocaleDateString('he-IL')}`, {
-                    date: selectedDate.toISOString().split('T')[0],
-                    category: 'scheduling',
-                    action: 'CLEAR_DAY'
-                });
-                showToast('היום נוקה בהצלחה', 'success');
-                setConfirmationState(prev => ({ ...prev, isOpen: false }));
-            }
-        });
+        setIsClearModalOpen(true);
     };
 
     useEffect(() => {
@@ -647,6 +755,14 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     shifts={shifts}
                     people={activePeople}
                     tasks={visibleTasks}
+                />
+
+                <ClearScheduleModal
+                    isOpen={isClearModalOpen}
+                    onClose={() => setIsClearModalOpen(false)}
+                    onClear={onClearDay}
+                    tasks={taskTemplates}
+                    initialDate={selectedDate}
                 />
 
                 {/* Controls Header - Sticky - SINGLE ROW LAYOUT */}

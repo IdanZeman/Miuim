@@ -1162,20 +1162,54 @@ const useMainAppState = () => {
         }
     };
 
-    const handleClearDay = async () => {
+    const handleClearDay = async ({ startDate, endDate, taskIds }: { startDate: Date; endDate: Date; taskIds?: string[] }) => {
         if (!orgIdForActions) return;
         if (!checkAccess('dashboard', 'edit')) {
             showToast('אין לך הרשאה לבצע פעולה זו', 'error');
             return;
         }
-        const selectedDateKey = selectedDate.toLocaleDateString('en-CA');
-        const targetShifts = state.shifts.filter(s => new Date(s.startTime).toLocaleDateString('en-CA') === selectedDateKey);
-        if (targetShifts.length === 0) return;
-        const ids = targetShifts.map(s => s.id);
+
         try {
-            await supabase.from('shifts').update({ assigned_person_ids: [] }).in('id', ids).eq('organization_id', orgIdForActions);
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+
+            let query = supabase
+                .from('shifts')
+                .update({ assigned_person_ids: [] })
+                .gte('start_time', start.toISOString())
+                .lte('start_time', end.toISOString())
+                .eq('organization_id', orgIdForActions);
+
+            if (taskIds && taskIds.length > 0) {
+                query = query.in('task_id', taskIds);
+            }
+
+            const { data, error } = await query.select();
+
+            if (error) throw error;
+
+            const clearedCount = data?.length || 0;
             await refreshData();
-        } catch (e) { console.warn(e); }
+
+            if (clearedCount > 0) {
+                showToast(`נוקו ${clearedCount} שיבוצים בהצלחה`, 'success');
+            } else {
+                showToast('לא נמצאו שיבוצים לניקוי בטווח שנבחר', 'info');
+            }
+
+            logger.info('DELETE', `Cleared assignments for range ${start.toLocaleDateString('he-IL')} - ${end.toLocaleDateString('he-IL')}`, {
+                startDate: start.toISOString(),
+                endDate: end.toISOString(),
+                taskCount: taskIds?.length,
+                category: 'scheduling',
+                action: 'CLEAR_RANGE'
+            });
+        } catch (e: any) {
+            console.warn(e);
+            showToast('שגיאה בניקוי השיבוצים', 'error');
+        }
     };
 
     const handleNavigate = (newView: 'personnel' | 'tasks', tab?: 'people' | 'teams' | 'roles') => {
