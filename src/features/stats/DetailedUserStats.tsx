@@ -119,6 +119,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
         };
     }, [person, shifts, tasks, nightShiftStart, nightShiftEnd, viewerDaysLimit]); // NEW: Add viewerDaysLimit
 
+
     const dayNightData = [
         { name: 'יום', value: stats.dayHours, color: '#fbbf24' },
         { name: 'לילה', value: stats.nightHours, color: '#6366f1' },
@@ -157,15 +158,17 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                     </div>
 
                     {/* Stats Section - Stacked on mobile */}
-                    <div className="flex gap-4 justify-start md:justify-end border-t md:border-t-0 pt-4 md:pt-0">
-                        <div className="text-right">
-                            <p className="text-xs md:text-sm text-slate-500">סה"כ שעות</p>
-                            <p className="text-xl md:text-2xl font-bold text-slate-800">{stats.totalHours}</p>
-                        </div>
-                        <div className="w-px bg-slate-200"></div>
-                        <div className="text-right">
-                            <p className="text-xs md:text-sm text-slate-500">עומס מצטבר</p>
-                            <p className="text-xl md:text-2xl font-bold text-indigo-600">{stats.totalLoad}</p>
+                    <div className="flex flex-wrap items-center gap-4 md:gap-6 justify-start md:justify-end border-t md:border-t-0 pt-4 md:pt-0">
+                        <div className="flex gap-4 items-center">
+                            <div className="text-right">
+                                <p className="text-xs md:text-sm text-slate-500">סה"כ שעות</p>
+                                <p className="text-xl md:text-2xl font-bold text-slate-800">{stats.totalHours}</p>
+                            </div>
+                            <div className="w-px h-8 bg-slate-200"></div>
+                            <div className="text-right">
+                                <p className="text-xs md:text-sm text-slate-500">עומס מצטבר</p>
+                                <p className="text-xl md:text-2xl font-bold text-indigo-600">{stats.totalLoad}</p>
+                            </div>
                         </div>
                     </div>
                 </div>

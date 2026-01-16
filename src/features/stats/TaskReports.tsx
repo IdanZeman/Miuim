@@ -2,12 +2,15 @@
 import React, { useEffect, useState } from 'react';
 import { Person, Shift, TaskTemplate, Role } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Pulse as Activity, Users, CalendarCheck, UserCircle, ChartBar as BarChart2, Moon, MagnifyingGlass as Search, ClipboardText as ClipboardList } from '@phosphor-icons/react';
+import ExcelJS from 'exceljs';
+import { useToast } from '../../contexts/ToastContext';
+import { Pulse as Activity, Users, CalendarCheck, UserCircle, ChartBar as BarChart2, Moon, MagnifyingGlass as Search, ClipboardText as ClipboardList, DownloadSimple } from '@phosphor-icons/react';
 import { PersonalStats } from './PersonalStats';
 import { DetailedUserStats } from './DetailedUserStats';
 import { supabase } from '../../services/supabaseClient';
 import { Input } from '../../components/ui/Input';
 import { ShiftHistoryModal } from './ShiftHistoryModal';
+import { ExportButton } from '../../components/ui/ExportButton';
 
 interface TaskReportsProps {
     people: Person[];
@@ -20,6 +23,7 @@ interface TaskReportsProps {
 }
 
 export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks, roles, isViewer = false, currentUserEmail, currentUserName }) => {
+    const { showToast } = useToast();
     const [viewMode, setViewMode] = useState<'overview' | 'personal'>('overview');
     const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
     const [nightShiftStart, setNightShiftStart] = useState('22:00');
@@ -131,6 +135,59 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
     }, 0);
     const filledSlots = shifts.reduce((acc, s) => acc + s.assignedPersonIds.length, 0);
 
+    const handleExportAllFutureTasks = async () => {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('שיבוץ עתידי - כללי', { views: [{ rightToLeft: true }] });
+
+        worksheet.columns = [
+            { header: 'שם חייל', key: 'personName', width: 20 },
+            { header: 'תאריך', key: 'date', width: 15 },
+            { header: 'יום', key: 'day', width: 10 },
+            { header: 'שעות', key: 'time', width: 15 },
+            { header: 'משימה', key: 'task', width: 25 },
+        ];
+
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+
+        const now = new Date();
+        const activePeople = people.filter(p => p.isActive !== false);
+
+        activePeople.forEach(person => {
+            const personFutureShifts = shifts
+                .filter(s => s.assignedPersonIds.includes(person.id) && new Date(s.startTime) >= now)
+                .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+            personFutureShifts.forEach(shift => {
+                const task = tasks.find(t => t.id === shift.taskId);
+                const start = new Date(shift.startTime);
+                const end = new Date(shift.endTime);
+
+                worksheet.addRow({
+                    personName: person.name,
+                    date: start.toLocaleDateString('he-IL'),
+                    day: start.toLocaleDateString('he-IL', { weekday: 'long' }),
+                    time: `${start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`,
+                    task: task?.name || 'משימה',
+                });
+            });
+
+            if (personFutureShifts.length > 0) {
+                worksheet.addRow({}); // Add empty row between people
+            }
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `דוח_שיבוץ_עתידי_מרוכז_${new Date().toLocaleDateString('he-IL').replace(/\./g, '_')}.xlsx`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast('דוח מרוכז נוצר וירד בהצלחה', 'success');
+    };
+
     const coverageData = [
         { name: 'מאויש', value: filledSlots, color: '#34d399' },
         { name: 'חסר', value: Math.max(0, totalSlots - filledSlots), color: '#fcd34d' },
@@ -157,15 +214,25 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                         </button>
                     </div>
 
-                    {/* Right: Search (Only in Personal Mode) */}
+                    {/* Right: Search & Export (Only in Personal Mode) */}
                     {viewMode === 'personal' && !isViewer && (
-                        <div className="bg-slate-50 rounded-xl px-2 h-9 border border-slate-200 flex items-center flex-1 max-w-xs">
-                            <Input
-                                placeholder="חפש חייל..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                icon={Search}
-                                className="bg-transparent border-none text-slate-800 placeholder-slate-400 focus:ring-0 h-full py-0 text-sm"
+                        <div className="flex items-center gap-2 flex-1 max-w-md">
+                            <div className="bg-slate-50 rounded-xl px-2 h-9 border border-slate-200 flex items-center flex-1">
+                                <Input
+                                    placeholder="חפש חייל..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    icon={Search}
+                                    className="bg-transparent border-none text-slate-800 placeholder-slate-400 focus:ring-0 h-full py-0 text-sm"
+                                />
+                            </div>
+                            <ExportButton
+                                onExport={handleExportAllFutureTasks}
+                                iconOnly
+                                variant="secondary"
+                                size="sm"
+                                className="w-9 h-9 rounded-xl"
+                                title="ייצוא ריכוז משימות עתידי לכלל הלוחמים"
                             />
                         </div>
                     )}

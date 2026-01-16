@@ -63,7 +63,8 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({
             nightHours,
             dayHours: totalHours - nightHours,
             totalLoad,
-            shiftCount: personShifts.length
+            shiftCount: personShifts.length,
+            futureShifts: personShifts.filter(s => new Date(s.startTime) >= new Date())
         };
     }, [person, shifts, tasks, nightShiftStart, nightShiftEnd]);
 

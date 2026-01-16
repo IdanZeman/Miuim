@@ -2,10 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { Person, Shift, TaskTemplate, Role } from '../../types';
 import { GenericModal } from '../../components/ui/GenericModal';
 import { Button } from '../../components/ui/Button';
+import ExcelJS from 'exceljs';
+import { useToast } from '../../contexts/ToastContext';
 import {
     X, Clock, Moon, Sun, TrendUp, TrendDown, Minus,
     ChartBar, CalendarBlank, Sparkle, CheckCircle, Warning,
-    Medal, Fire, ClipboardText as ClipboardList
+    Medal, Fire, ClipboardText as ClipboardList,
+    DownloadSimple, WhatsappLogo, Copy
 } from '@phosphor-icons/react';
 import { getPersonInitials } from '../../utils/nameUtils';
 
@@ -39,6 +42,7 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
     nightShiftStart = '22:00',
     nightShiftEnd = '06:00'
 }) => {
+    const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<TabType>('overview');
 
     // Calculate all metrics
@@ -133,6 +137,84 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
         };
     }, [person, shifts, tasks, teamAverages, nightShiftStart, nightShiftEnd]);
 
+    const handleExportToExcel = async () => {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('משימות עתידיות', { views: [{ rightToLeft: true }] });
+
+        worksheet.columns = [
+            { header: 'תאריך', key: 'date', width: 15 },
+            { header: 'יום', key: 'day', width: 10 },
+            { header: 'שעות', key: 'time', width: 15 },
+            { header: 'משימה', key: 'task', width: 25 },
+            { header: 'משך (שעות)', key: 'duration', width: 12 },
+        ];
+
+        // Style header row
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+        headerRow.alignment = { horizontal: 'center' };
+
+        metrics.futureShifts.forEach(shift => {
+            const task = tasks.find(t => t.id === shift.taskId);
+            const start = new Date(shift.startTime);
+            const end = new Date(shift.endTime);
+            const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+
+            worksheet.addRow({
+                date: start.toLocaleDateString('he-IL'),
+                day: start.toLocaleDateString('he-IL', { weekday: 'long' }),
+                time: `${start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`,
+                task: task?.name || 'משימה',
+                duration: duration.toFixed(1)
+            });
+        });
+
+        // Center all rows
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber > 1) {
+                row.alignment = { horizontal: 'center' };
+            }
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `משימות_עתידיות_${person.name}_${new Date().toLocaleDateString('he-IL').replace(/\./g, '_')}.xlsx`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast('הקובץ נוצר וירד בהצלחה', 'success');
+    };
+
+    const handleCopyToWhatsapp = () => {
+        if (metrics.futureShifts.length === 0) {
+            showToast('אין משימות עתידיות להעתקה', 'warning');
+            return;
+        }
+
+        let message = `*משימות עתידיות עבור ${person.name}:*\n\n`;
+
+        metrics.futureShifts.forEach(shift => {
+            const task = tasks.find(t => t.id === shift.taskId);
+            const start = new Date(shift.startTime);
+            const end = new Date(shift.endTime);
+            const dateStr = start.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'numeric' });
+            const timeStr = `${start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
+
+            message += `📅 *${dateStr}* | 🕒 ${timeStr}\n📌 *${task?.name || 'משימה'}*\n\n`;
+        });
+
+        message += `_הופק באמצעות מערכת סידור המשימות_`;
+
+        navigator.clipboard.writeText(message).then(() => {
+            showToast('הטקסט הועתק ללוח בפורמט וואטסאפ!', 'success');
+            // Optionally open WhatsApp
+            // window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+        });
+    };
+
     const renderOverview = () => {
         return (
             <div className="space-y-4 pt-1">
@@ -147,7 +229,7 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
                             </div>
                             <div className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[9px] font-bold border border-white/20 backdrop-blur-md ${metrics.hoursVsAvg >= 0 ? 'bg-white/10 text-white' : 'bg-red-500/20 text-red-100'}`}>
                                 {metrics.hoursVsAvg >= 0 ? <TrendUp size={8} weight="bold" /> : <TrendDown size={8} weight="bold" />}
-                                {Math.abs(metrics.hoursVsAvg).toFixed(0)}% מהממוצע
+                                {Math.abs(metrics.hoursVsAvg).toFixed(1)}% {metrics.hoursVsAvg >= 0 ? 'מעל' : 'מתחת'} הממוצע
                             </div>
                         </div>
                     </div>
@@ -161,7 +243,7 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
                             </div>
                             <div className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[9px] font-bold border border-white/20 backdrop-blur-md ${metrics.loadVsAvg >= 0 ? 'bg-white/10 text-white' : 'bg-red-500/20 text-red-100'}`}>
                                 {metrics.loadVsAvg >= 0 ? <TrendUp size={8} weight="bold" /> : <TrendDown size={8} weight="bold" />}
-                                {Math.abs(metrics.loadVsAvg).toFixed(0)}% מהממוצע
+                                {Math.abs(metrics.loadVsAvg).toFixed(1)}% {metrics.loadVsAvg >= 0 ? 'מעל' : 'מתחת'} הממוצע
                             </div>
                         </div>
                     </div>
@@ -292,7 +374,25 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
         const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
         return (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-3 pt-1">
+                {/* Actions Row */}
+                <div className="flex gap-2 mb-2">
+                    <button
+                        onClick={handleExportToExcel}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors font-black text-xs"
+                    >
+                        <DownloadSimple size={16} weight="bold" />
+                        ייצוא לאקסל
+                    </button>
+                    <button
+                        onClick={handleCopyToWhatsapp}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors font-black text-xs shadow-sm shadow-green-200"
+                    >
+                        <WhatsappLogo size={16} weight="bold" />
+                        העתק לוואטסאפ
+                    </button>
+                </div>
+
                 {metrics.futureShifts.map(shift => {
                     const task = tasks.find(t => t.id === shift.taskId);
                     const shiftStart = new Date(shift.startTime);
@@ -357,59 +457,71 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
         );
     };
 
+    const modalTitle = (
+        <div className="flex items-center gap-4 min-w-0 pr-2">
+            <div className="relative shrink-0">
+                <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center text-slate-800 text-2xl font-black shadow-md border-[3px] border-white ring-1 ring-slate-100"
+                    style={{
+                        backgroundColor: person.color || '#F1F5F9',
+                        backgroundImage: person.color
+                            ? `linear-gradient(135deg, ${person.color}, ${person.color}dd)`
+                            : 'none',
+                        color: '#1e293b' // slate-800
+                    }}
+                >
+                    {getPersonInitials(person.name)}
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 bg-green-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                </div>
+            </div>
+
+            <div className="min-w-0">
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1.5 truncate">
+                    {person.name}
+                </h2>
+                <div className="flex items-center gap-2">
+                    <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-blue-100/50">
+                        פרופיל חייל
+                    </span>
+                    <div className="flex items-center gap-3 text-xs font-bold text-slate-400">
+                        <span className="flex items-center gap-1.5"><Medal size={14} weight="duotone" className="text-amber-500" /> {metrics.totalShifts} משמרות</span>
+                        <span className="flex items-center gap-1.5"><Clock size={14} weight="duotone" className="text-blue-500" /> {metrics.totalHours.toFixed(0)} שעות</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const modalHeaderActions = (
+        <div className="flex items-center gap-2">
+            <button
+                onClick={handleExportToExcel}
+                className="w-10 h-10 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors border border-transparent hover:border-emerald-100"
+                title="ייצוא משימות עתידיות לאקסל"
+            >
+                <DownloadSimple size={20} weight="bold" />
+            </button>
+            <button
+                onClick={handleCopyToWhatsapp}
+                className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-50 rounded-full transition-colors border border-transparent hover:border-slate-200"
+                title="העתק משימות ללוח"
+            >
+                <Copy size={20} weight="bold" />
+            </button>
+        </div>
+    );
+
     return (
         <GenericModal
             isOpen={isOpen}
             onClose={onClose}
             size="xl"
-            title=""
-            hideDefaultHeader={true}
+            title={modalTitle}
+            headerActions={modalHeaderActions}
         >
             <div className="flex flex-col h-full -mt-2">
-                {/* Custom Header - Reorganized for better spacing and RTL flow */}
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100/60">
-                    <div className="flex items-center gap-4 min-w-0">
-                        <div className="relative shrink-0">
-                            <div
-                                className="w-14 h-14 rounded-2xl flex items-center justify-center text-slate-800 text-2xl font-black shadow-md border-[3px] border-white ring-1 ring-slate-100"
-                                style={{
-                                    backgroundColor: person.color || '#F1F5F9',
-                                    backgroundImage: person.color
-                                        ? `linear-gradient(135deg, ${person.color}, ${person.color}dd)`
-                                        : 'none',
-                                    color: '#1e293b' // slate-800
-                                }}
-                            >
-                                {getPersonInitials(person.name)}
-                            </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 bg-green-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                            </div>
-                        </div>
-
-                        <div className="min-w-0">
-                            <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1.5 truncate">
-                                {person.name}
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-blue-100/50">
-                                    פרופיל חייל
-                                </span>
-                                <div className="flex items-center gap-3 text-xs font-bold text-slate-400">
-                                    <span className="flex items-center gap-1.5"><Medal size={14} weight="duotone" className="text-amber-500" /> {metrics.totalShifts} משמרות</span>
-                                    <span className="flex items-center gap-1.5"><Clock size={14} weight="duotone" className="text-blue-500" /> {metrics.totalHours.toFixed(0)} שעות</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={onClose}
-                        className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all text-slate-400 group/close"
-                    >
-                        <X size={20} weight="bold" className="group-hover/close:text-slate-600 transition-colors" />
-                    </button>
-                </div>
 
                 {/* Compact Tabs */}
                 <div className="flex gap-1 mb-4 bg-slate-50 p-1 rounded-xl border border-slate-100">
