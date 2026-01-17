@@ -1309,6 +1309,7 @@ const useMainAppState = () => {
                 constraints={state.constraints}
                 absences={state.absences}
                 hourlyBlockages={state.hourlyBlockages}
+                shifts={state.shifts}
                 settings={state.settings}
                 onUpdatePerson={handleUpdatePerson}
                 onUpdatePeople={handleUpdatePeople}

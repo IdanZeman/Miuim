@@ -6,8 +6,9 @@ import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import {
     X, Plus, MagnifyingGlass as Search, MagicWand as Wand2, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, WarningCircle,
     CalendarBlank as CalendarIcon, CheckCircle, Users, PencilSimple as Pencil, Warning as AlertTriangle, ArrowLeft,
-    ClockAfternoon, ClockCounterClockwise, Info
+    ClockAfternoon, ClockCounterClockwise, Info, IdentificationCard
 } from '@phosphor-icons/react';
+import { Tooltip } from '../../components/ui/Tooltip';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { TimePicker } from '../../components/ui/DatePicker';
@@ -885,20 +886,33 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                 >
                                     <div className="flex items-center justify-between gap-4 md:gap-2">
                                         <div className="flex items-center gap-3 md:gap-2 min-w-0">
-                                            <div className={`w-10 h-10 md:w-7 md:h-7 rounded-full flex items-center justify-center text-white text-xs md:text-[9px] font-black shadow-sm ${p.color} shrink-0`}>
-                                                {getPersonInitials(p.name)}
-                                            </div>
+                                            <Tooltip content="צפה בפרטי חייל וסטטיסטיקה">
+                                                <div
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedPersonForInfo(p);
+                                                    }}
+                                                    className={`w-10 h-10 md:w-7 md:h-7 rounded-full flex items-center justify-center text-white text-xs md:text-[9px] font-black shadow-sm ${p.color} shrink-0 cursor-help hover:scale-110 active:scale-95 transition-all`}
+                                                >
+                                                    {getPersonInitials(p.name)}
+                                                </div>
+                                            </Tooltip>
                                             <div className="flex flex-col min-w-0">
                                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                                    <span
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setSelectedPersonForInfo(p);
-                                                        }}
-                                                        className="text-sm md:text-xs font-black text-slate-900 leading-tight hover:text-blue-600 hover:underline cursor-pointer truncate"
-                                                    >
-                                                        {p.name}
-                                                    </span>
+                                                    <Tooltip content="לחץ לצפייה בדוח חייל מפורט">
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedPersonForInfo(p);
+                                                            }}
+                                                            className="flex items-center gap-1 group/info cursor-pointer"
+                                                        >
+                                                            <span className="text-sm md:text-xs font-black text-slate-900 leading-tight group-hover/info:text-blue-600 group-hover/info:underline truncate transition-colors">
+                                                                {p.name}
+                                                            </span>
+                                                            <IdentificationCard size={12} weight="duotone" className="text-slate-300 group-hover/info:text-blue-500 transition-colors shrink-0" />
+                                                        </div>
+                                                    </Tooltip>
                                                     <span className="text-[9px] text-slate-500 font-bold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 whitespace-nowrap">
                                                         {teams.find(t => t.id === p.teamId)?.name}
                                                     </span>
@@ -971,19 +985,32 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                         {assignedPeople.map(p => (
                             <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 shadow-sm">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black ${p.color}`}>
-                                        {getPersonInitials(p.name)}
-                                    </div>
-                                    <div className="flex flex-col leading-tight">
-                                        <span
+                                    <Tooltip content="צפה בפרטי חייל">
+                                        <div
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setSelectedPersonForInfo(p);
                                             }}
-                                            className="text-sm font-black text-slate-800 hover:text-blue-600 hover:underline cursor-pointer"
+                                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black ${p.color} cursor-help hover:scale-110 transition-all`}
                                         >
-                                            {p.name}
-                                        </span>
+                                            {getPersonInitials(p.name)}
+                                        </div>
+                                    </Tooltip>
+                                    <div className="flex flex-col leading-tight">
+                                        <Tooltip content="לחץ לצפייה בדוח חייל">
+                                            <div
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedPersonForInfo(p);
+                                                }}
+                                                className="flex items-center gap-1 group/info cursor-pointer"
+                                            >
+                                                <span className="text-sm font-black text-slate-800 group-hover/info:text-blue-600 group-hover/info:underline transition-colors">
+                                                    {p.name}
+                                                </span>
+                                                <IdentificationCard size={12} weight="duotone" className="text-slate-300 group-hover/info:text-blue-500 transition-colors shrink-0" />
+                                            </div>
+                                        </Tooltip>
                                         <span className="text-[10px] text-slate-400 font-bold">{roles.find(r => (p.roleIds || [p.roleId]).includes(r.id))?.name}</span>
                                     </div>
                                 </div>

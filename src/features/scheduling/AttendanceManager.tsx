@@ -16,6 +16,7 @@ import { BulkAttendanceModal } from './BulkAttendanceModal';
 import { useToast } from '@/contexts/ToastContext';
 import { RotaWizardModal } from './RotaWizardModal';
 import { AttendanceStatsModal } from './AttendanceStatsModal';
+import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { useAuth } from '@/features/auth/AuthContext';
 import { addHourlyBlockage, updateHourlyBlockage, deleteHourlyBlockage, updateAbsence } from '@/services/api';
@@ -39,6 +40,7 @@ interface AttendanceManagerProps {
     onUpdateRotation?: (r: TeamRotation) => void;
     onDeleteRotation?: (id: string) => void;
     onAddShifts?: (shifts: Shift[]) => void; // NEW
+    shifts?: Shift[]; // NEW
     isViewer?: boolean;
     initialOpenRotaWizard?: boolean;
     onDidConsumeInitialAction?: () => void;
@@ -48,6 +50,7 @@ interface AttendanceManagerProps {
 export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     people, teams, roles, teamRotations = [],
     tasks = [], constraints = [], absences = [], hourlyBlockages = [], settings = null,
+    shifts = [],
     onUpdatePerson, onUpdatePeople,
     onAddRotation, onUpdateRotation, onDeleteRotation, onAddShifts,
     isViewer = false, initialOpenRotaWizard = false, onDidConsumeInitialAction, onRefresh
@@ -77,6 +80,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
     const [statsEntity, setStatsEntity] = useState<{ person?: Person, team?: Team } | null>(null);
     const [isSearchExpanded, setIsSearchExpanded] = useState(false);
     const [showMoreActions, setShowMoreActions] = useState(false);
+    const [confirmationState, setConfirmationState] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        confirmText?: string;
+        type?: 'warning' | 'danger' | 'info';
+    }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
     const queryClient = useQueryClient();
 
@@ -257,13 +268,54 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הגדרות סבב אישי עודכנו', 'success');
     };
 
-    const handleUpdateAvailability = async (personId: string, dateOrDates: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType) => {
+    const handleUpdateAvailability = async (personId: string, dateOrDates: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType, forceConfirm = false) => {
         if (isViewer) return;
 
         const person = people.find(p => p.id === personId);
         if (!person) return;
 
         const dates = Array.isArray(dateOrDates) ? dateOrDates : [dateOrDates];
+
+        // NEW: Check for conflicts if changing to home/unavailable
+        if (!forceConfirm && (status === 'home' || status === 'unavailable')) {
+            const conflictingShifts = shifts.filter(s => {
+                if (!s.assignedPersonIds.includes(personId) || s.isCancelled) return false;
+
+                const shiftStart = new Date(s.startTime);
+                const shiftEnd = new Date(s.endTime);
+
+                return dates.some(dateStr => {
+                    const dayStart = new Date(dateStr);
+                    dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(dateStr);
+                    dayEnd.setHours(24, 0, 0, 0);
+
+                    return shiftStart < dayEnd && shiftEnd > dayStart;
+                });
+            });
+
+            if (conflictingShifts.length > 0) {
+                const shiftDescriptions = conflictingShifts.map(s => {
+                    const task = tasks.find(t => t.id === s.taskId);
+                    const time = `${s.startTime.split('T')[1].slice(0, 5)} - ${s.endTime.split('T')[1].slice(0, 5)}`;
+                    return `${task?.name || 'משימה'} (${time}) בתאריך ${s.startTime.split('T')[0]}`;
+                }).join('\n');
+
+                setConfirmationState({
+                    isOpen: true,
+                    title: 'נמצאו שיבוצים פעילים',
+                    message: `שים לב, לחייל ${person.name} ישנם שיבוצים פעילים בתאריכים שנבחרו:\n\n${shiftDescriptions}\n\nהאם אתה בטוח שברצונך לשנות את הסטטוס ל"בית"? (יהיה עלייך להחליף אותו ידנית בלוח השיבוצים)`,
+                    confirmText: 'כן, שנה סטטוס',
+                    type: 'warning',
+                    onConfirm: () => {
+                        setConfirmationState(prev => ({ ...prev, isOpen: false }));
+                        handleUpdateAvailability(personId, dateOrDates, status, customTimes, newUnavailableBlocks, homeStatusType, true);
+                    }
+                });
+                return;
+            }
+        }
+
         let updatedAvailability = { ...person.dailyAvailability };
 
         const blockAddPromises: Promise<any>[] = [];
@@ -1120,6 +1172,18 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     />
                 )
             }
+
+            {/* Confirmation Modal for Availability Conflicts */}
+            <ConfirmationModal
+                isOpen={confirmationState.isOpen}
+                title={confirmationState.title}
+                message={confirmationState.message}
+                onConfirm={confirmationState.onConfirm}
+                onCancel={() => setConfirmationState(prev => ({ ...prev, isOpen: false }))}
+                confirmText={confirmationState.confirmText}
+                cancelText="ביטול"
+                type={confirmationState.type}
+            />
         </div>
     );
 };

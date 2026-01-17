@@ -16,6 +16,9 @@ interface MobileScheduleListProps {
     onAddShift?: (task: TaskTemplate) => void;
     missionReports: MissionReport[];
     onReportClick: (shift: Shift) => void;
+    conflicts?: { shiftId: string, personId: string, type: string }[];
+    filterPersonIds?: string[]; // NEW
+    filterTeamIds?: string[]; // NEW
 }
 
 const hexToRgba = (hex: string, alpha: number) => {
@@ -30,7 +33,8 @@ const hexToRgba = (hex: string, alpha: number) => {
 
 export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
     shifts, people, taskTemplates, roles, teams, selectedDate, isViewer,
-    onSelectShift, onToggleCancelShift, onAddShift, missionReports, onReportClick
+    onSelectShift, onToggleCancelShift, onAddShift, missionReports, onReportClick,
+    conflicts = [], filterPersonIds = [], filterTeamIds = []
 }) => {
     // 1. Filter shifts for the selected date
     const dayStart = new Date(selectedDate);
@@ -38,17 +42,38 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
     const dayEnd = new Date(selectedDate);
     dayEnd.setHours(24, 0, 0, 0);
 
-    const activeShifts = shifts.filter(s => {
+    const activeShifts = (shifts || []).filter(s => {
         const start = new Date(s.startTime);
         const end = new Date(s.endTime);
-        return start < dayEnd && end > dayStart;
+        const isDayShift = start < dayEnd && end > dayStart;
+        if (!isDayShift) return false;
+
+        // Apply refined filtering logic
+        if (filterPersonIds.length === 0 && filterTeamIds.length === 0) return true;
+
+        if (filterPersonIds.length > 0) {
+            if (s.assignedPersonIds.some(pid => filterPersonIds.includes(pid))) return true;
+        }
+
+        if (filterTeamIds.length > 0) {
+            const hasTeamMatch = s.assignedPersonIds.some(pid => {
+                const person = people.find(p => p.id === pid);
+                return person?.teamId && filterTeamIds.includes(person.teamId);
+            });
+            if (hasTeamMatch) return true;
+        }
+
+        return false;
     });
 
     // 2. Sort tasks by logic (e.g. orderIndex later, or just name for now) - assuming templates have order
     const sortedTasks = [...taskTemplates].sort((a, b) => a.name.localeCompare(b.name));
 
-    // State for collapsed tasks (default empty = all expanded)
-    const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
+    // Local state for collapsed sections (grouped by task)
+    // Default to ALL collapsed
+    const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(() => {
+        return new Set(taskTemplates.map(t => t.id));
+    });
 
     const toggleCollapse = (taskId: string) => {
         setCollapsedTasks(prev => {
@@ -143,6 +168,13 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                 ) : (
                                                     <span className="px-2 py-1.5 rounded-md bg-green-50 text-green-600 text-sm font-bold border border-green-100 flex items-center gap-1">
                                                         <CheckCircle size={14} weight="duotone" /> מאויש
+                                                    </span>
+                                                )}
+
+                                                {/* Conflict Warning */}
+                                                {!isCancelled && conflicts.some(c => c.shiftId === shift.id && c.type === 'absence') && (
+                                                    <span className="px-2 py-1.5 rounded-md bg-red-50 text-red-600 text-sm font-bold border border-red-100 flex items-center gap-1 animate-pulse" title="חייל בבית / לא זמין">
+                                                        <Ban size={14} weight="bold" /> התרעת נוכחות
                                                     </span>
                                                 )}
                                             </div>

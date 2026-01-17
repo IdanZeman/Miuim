@@ -11,10 +11,11 @@ import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import { ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText } from '@phosphor-icons/react';
-import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon } from '@phosphor-icons/react';
+import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel } from '@phosphor-icons/react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
 import { MultiSelect } from '../../components/ui/MultiSelect';
+import { Tooltip } from '../../components/ui/Tooltip';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { analytics } from '../../services/analytics';
@@ -103,7 +104,8 @@ const ShiftCard: React.FC<{
     isContinuedFromPrev?: boolean;
     isContinuedToNext?: boolean;
     isCompact?: boolean;
-}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext, isCompact }) => {
+    hasAbsenceConflict?: boolean; // NEW
+}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext, isCompact, hasAbsenceConflict }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const assigned = shift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
@@ -196,6 +198,11 @@ const ShiftCard: React.FC<{
                     {hasTeamMismatch && (
                         <span title="ישנם משובצים שאינם מהצוות המוגדר!">
                             <AlertTriangle size={12} className="text-orange-500 shrink-0" weight="duotone" />
+                        </span>
+                    )}
+                    {hasAbsenceConflict && (
+                        <span title="חייל בבית / לא זמין במערכת הנוכחות">
+                            <Ban size={12} className="text-red-500 shrink-0 animate-pulse" weight="bold" />
                         </span>
                     )}
 
@@ -413,59 +420,41 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const { profile } = useAuth();
     // Scroll Synchronization Refs
     const verticalScrollRef = useRef<HTMLDivElement>(null);
-    const [isCompact, setIsCompact] = useState(false);
+    const [isCompact, setIsCompact] = useState(true); // Default to compact view
     const pixelsPerHour = isCompact ? 26 : 60;
     const headerHeight = isCompact ? 34 : 40;
 
-    // Simplified layout avoids fixed height containers
-
+    /**
+     * DEEP ANALYSIS: GRID & LAYOUT ARCHITECTURE (FINAL REFINE)
+     * -------------------------------------------------------
+     * 1. THE VIEWPORT LOCK (FLEXBOX STRATEGY):
+     *    Problem: Locking the *internal* grid height caused overflow when padding changed (Normal View).
+     *    Solution: Lock the **PARENT CONTAINER** (White Box) and let the grid fill remaining space.
+     *    
+     *    Height Calculation (Desktop):
+     *    100vh - (Navbar 64px + Layout Padding 48px + Margins 8px) ≈ 120px offset.
+     * 
+     * 2. COMPONENT HIERARCHY:
+     *    - Board Container: `h-[calc(100vh-120px)] flex flex-col overflow-hidden`.
+     *      This strictly bounds the entire white card to the screen.
+     *    - Action Bar: `flex-shrink-0`. Fixed at top.
+     *    - Grid Scroll Area: `flex-1 overflow-auto`. 
+     *      Automatically shrinks/grows to fit the remaining space inside the White Box.
+     * 
+     * 3. RESULT:
+     *    - Compact View: Grid gets more space.
+     *    - Normal View: Grid gets slightly less space (due to larger padding), 
+     *      but the CONTAINER stays screen-sized, keeping the scrollbar visible.
+     */
     // Auto-scroll to current time on mount or date change (if Today)
-    // Auto-scroll to current time on mount or date change (if Today)
-    useEffect(() => {
-        if (verticalScrollRef.current) {
-            const now = new Date();
-            const isToday = selectedDate.getDate() === now.getDate() &&
-                selectedDate.getMonth() === now.getMonth() &&
-                selectedDate.getFullYear() === now.getFullYear();
 
-            if (isToday) {
-                // Scroll to 1 hour before now for context
-                const currentHour = now.getHours();
-                const targetHour = Math.max(0, currentHour - 1);
-                // Dynamic pixelsPerHour
-                const scrollPosition = targetHour * pixelsPerHour;
-
-                // Use requestAnimationFrame to ensure layout is ready
-                requestAnimationFrame(() => {
-                    if (verticalScrollRef.current) {
-                        // Skip auto-scroll on mobile (width < 768px)
-                        if (window.innerWidth < 768) return;
-
-                        verticalScrollRef.current.scrollTo({ top: scrollPosition, behavior: 'smooth' });
-
-                        // Fallback check - ensures we scroll even if smooth scroll is interrupted or fails
-                        setTimeout(() => {
-                            if (verticalScrollRef.current) {
-                                const { scrollHeight, clientHeight, scrollTop } = verticalScrollRef.current;
-                                const diff = Math.abs(scrollTop - scrollPosition);
-
-                                // Only force scroll if we're significantly off and it's possible to scroll that far
-                                if (diff > 20 && (scrollHeight - clientHeight >= scrollPosition)) {
-                                    verticalScrollRef.current.scrollTop = scrollPosition;
-                                }
-                            }
-                        }, 500);
-                    }
-                });
-            } else {
-                verticalScrollRef.current.scrollTop = 0;
-            }
-        }
-    }, [selectedDate]);
 
     const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
     const [selectedReportShiftId, setSelectedReportShiftId] = useState<string | null>(null);
-    const [filterTaskIds, setFilterTaskIds] = useState<string[]>([]); // NEW: Task Filter State
+    const [filterTaskIds, setFilterTaskIds] = useState<string[]>([]);
+    const [filterPersonIds, setFilterPersonIds] = useState<string[]>([]);
+    const [filterTeamIds, setFilterTeamIds] = useState<string[]>([]);
+    const [isFilterModalOpen, setIsFilterModalOpen] = useState(false); // NEW
     const selectedShift = useMemo(() => shifts.find(s => s.id === selectedShiftId), [shifts, selectedShiftId]);
     const selectedReportShift = useMemo(() => shifts.find(s => s.id === selectedReportShiftId), [shifts, selectedReportShiftId]);
     const [isLoadingWarnings, setIsLoadingWarnings] = useState(false);
@@ -483,7 +472,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const now = new Date();
     // Local state for warnings
     const [localAcknowledgedWarnings, setLocalAcknowledgedWarnings] = useState<Set<string>>(new Set());
-    const acknowledgedWarnings = propAcknowledgedWarnings || localAcknowledgedWarnings;
+    const acknowledgedWarnings = (propAcknowledgedWarnings instanceof Set) ? propAcknowledgedWarnings : localAcknowledgedWarnings;
 
 
     const setAcknowledgedWarnings = setLocalAcknowledgedWarnings;
@@ -495,6 +484,53 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 
     // For now assuming local handling to match previous logic found in file.
+
+    // Auto-scroll to current time on mount or date change (if Today)
+    useEffect(() => {
+        const now = new Date();
+        const isToday = selectedDate.getDate() === now.getDate() &&
+            selectedDate.getMonth() === now.getMonth() &&
+            selectedDate.getFullYear() === now.getFullYear();
+
+        // 1. Mobile Optimization: Default to ALL teams collapsed
+        // We check if teams are loaded and if we haven't manually modified it yet (or just force it on load)
+        if (typeof window !== 'undefined' && window.innerWidth < 768 && teams.length > 0) {
+            // Only set if we haven't already set it (to avoid over-writing user interaction if this effect re-runs)
+            // But since 'teams' dependency triggers this, we need to be careful.
+            // Best approach for "default": just set it once when teams become available.
+            // We'll trust that if this component mounts, we want to start collapsed.
+            setCollapsedTeams((prev) => {
+                if (prev.size === 0) {
+                    return new Set(teams.map(t => t.id));
+                }
+                return prev;
+            });
+        }
+
+        // 2. Auto-scroll logic (Desktop only mainly)
+        if (verticalScrollRef.current && isToday) {
+            const currentHour = now.getHours();
+            const targetHour = Math.max(0, currentHour - 1);
+            const scrollPosition = targetHour * pixelsPerHour;
+
+            requestAnimationFrame(() => {
+                if (verticalScrollRef.current) {
+                    if (window.innerWidth < 768) return;
+                    verticalScrollRef.current.scrollTo({ top: scrollPosition, behavior: 'smooth' });
+
+                    setTimeout(() => {
+                        if (verticalScrollRef.current) {
+                            const { scrollHeight, clientHeight, scrollTop } = verticalScrollRef.current;
+                            const diff = Math.abs(scrollTop - scrollPosition);
+                            if (diff > 20 && (scrollHeight - clientHeight >= scrollPosition)) {
+                                verticalScrollRef.current.scrollTop = scrollPosition;
+                            }
+                        }
+                    }, 500);
+                }
+            });
+        }
+    }, [selectedDate, pixelsPerHour, teams]); // Added teams dependency
 
     const renderFeaturedCard = () => null; // Placeholder to fix build error
 
@@ -589,23 +625,45 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
 
 
+    const isShiftMatchingFilters = (shift: Shift) => {
+        const hasPersonFilter = filterPersonIds.length > 0;
+        const hasTeamFilter = filterTeamIds.length > 0;
+
+        // If no person/team filters, everything matches
+        if (!hasPersonFilter && !hasTeamFilter) return true;
+
+        const assignedIds = shift.assignedPersonIds || [];
+
+        // If filtering by person/team, but shift is unassigned, it doesn't match
+        if (assignedIds.length === 0) return false;
+
+        if (hasPersonFilter) {
+            if (assignedIds.some(pid => filterPersonIds.includes(pid))) return true;
+        }
+
+        if (hasTeamFilter) {
+            const hasTeamMatch = assignedIds.some(pid => {
+                const person = people.find(p => p.id === pid);
+                return person?.teamId && filterTeamIds.includes(person.teamId);
+            });
+            if (hasTeamMatch) return true;
+        }
+
+        return false;
+    };
+
     const visibleTasks = useMemo(() => {
         const dateKey = selectedDate.toLocaleDateString('en-CA');
         const dayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
 
-        return taskTemplates.filter(task => {
+        // Ensure we use the same date format as shiftUtils
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(selectedDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
+        const baseFiltered = taskTemplates.filter(task => {
             // 1. Check Global Task Validity (Start/End Date)
-            // Ensure we use the same date format as shiftUtils
-            const year = selectedDate.getFullYear();
-            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-            const day = String(selectedDate.getDate()).padStart(2, '0');
-            const dateStr = `${year}-${month}-${day}`;
-
-            // 2. Filter by User Selection
-            if (filterTaskIds.length > 0 && !filterTaskIds.includes(task.id)) {
-                return false;
-            }
-
             if (task.startDate && dateStr < task.startDate) return false;
             if (task.endDate && dateStr > task.endDate) return false;
 
@@ -621,8 +679,37 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 }
                 return false;
             });
+        });
+
+        // 2. Apply Custom Filters
+        return baseFiltered.filter(task => {
+            // A. Task Filter
+            if (filterTaskIds.length > 0 && !filterTaskIds.includes(task.id)) {
+                return false;
+            }
+
+            // B. Person/Team Filter
+            if (filterPersonIds.length > 0 || filterTeamIds.length > 0) {
+                const dayShifts = shifts.filter(s => {
+                    if (s.taskId !== task.id || s.isCancelled) return false;
+
+                    const shiftStart = new Date(s.startTime);
+                    const shiftEnd = new Date(s.endTime);
+                    const dayStart = new Date(selectedDate);
+                    dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(selectedDate);
+                    dayEnd.setHours(24, 0, 0, 0);
+
+                    return shiftStart < dayEnd && shiftEnd > dayStart;
+                });
+
+                const hasMatch = dayShifts.some(isShiftMatchingFilters);
+                if (!hasMatch) return false;
+            }
+
+            return true;
         }).sort((a, b) => a.name.localeCompare(b.name, 'he'));
-    }, [taskTemplates, selectedDate, filterTaskIds]);
+    }, [taskTemplates, selectedDate, filterTaskIds, filterPersonIds, filterTeamIds, shifts, people]);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -697,9 +784,11 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     // Calculate conflicts
     const conflicts = useMemo(() => {
         return (shifts || []).flatMap(shift => {
-            const shiftStart = new Date(`${selectedDate.toISOString().split('T')[0]}T${shift.startTime}`);
-            const shiftEnd = new Date(`${selectedDate.toISOString().split('T')[0]}T${shift.endTime}`);
-            if (shiftEnd < shiftStart) shiftEnd.setDate(shiftEnd.getDate() + 1);
+            const shiftStart = new Date(shift.startTime);
+            const shiftEnd = new Date(shift.endTime);
+
+            // Note: If shifts are full ISO strings, they already have the correct dates.
+            // If they were just "HH:mm", we'd need to append dates, but they aren't.
 
             // Ensure assignedPersonIds is an array before filtering
             const assignedIds = shift.assignedPersonIds || [];
@@ -709,7 +798,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 if (!person) return false;
 
                 // Check availability
-                const availability = getEffectiveAvailability(person, selectedDate, teamRotations);
+                const availability = getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);
                 if (!availability.isAvailable) return true;
 
                 // Check double booking
@@ -719,15 +808,22 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 );
 
                 return otherShifts.some(s => {
-                    const sStart = new Date(`${selectedDate.toISOString().split('T')[0]}T${s.startTime}`);
-                    const sEnd = new Date(`${selectedDate.toISOString().split('T')[0]}T${s.endTime}`);
-                    if (sEnd < sStart) sEnd.setDate(sEnd.getDate() + 1);
+                    const sStart = new Date(s.startTime);
+                    const sEnd = new Date(s.endTime);
 
                     return (shiftStart < sEnd && shiftEnd > sStart);
                 });
-            }).map(personId => ({ shiftId: shift.id, personId }));
+            }).map(personId => {
+                const person = people.find(p => p.id === personId);
+                const availability = person ? getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages) : { isAvailable: true };
+                return {
+                    shiftId: shift.id,
+                    personId,
+                    type: !availability.isAvailable ? 'absence' : 'overlap'
+                };
+            });
         });
-    }, [shifts, activePeople, selectedDate, teamRotations]);
+    }, [shifts, activePeople, selectedDate, teamRotations, absences, hourlyBlockages]);
 
     const getShiftConflicts = (shiftId: string) => {
         const shift = shifts.find(s => s.id === shiftId);
@@ -740,14 +836,18 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
         return conflicts.filter(c => c.shiftId === shiftId);
     };
 
+    const isShiftConflictDueToAbsence = (shiftId: string) => {
+        return getShiftConflicts(shiftId).some(c => c.type === 'absence');
+    };
+
     return (
-        <div className={`flex flex-col gap-2`}>
+        <div className="flex flex-col gap-2 relative">
             {isViewer && renderFeaturedCard()}
 
 
 
-            {/* Time Grid Board Container */}
-            <div className={`bg-white rounded-[2rem] border border-slate-100 ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col flex-1 relative overflow-hidden h-[calc(100vh-120px)] md:h-[calc(100vh-160px)] min-h-[500px]`}>
+            {/* Time Grid Board Container - FLEX LOCK STRATEGY */}
+            <div className={`bg-white rounded-[2rem] border border-slate-100 ${isCompact ? 'p-2 md:p-3' : 'p-4 md:p-6'} flex flex-col relative overflow-hidden h-[calc(100vh-190px)] md:h-[calc(100vh-140px)] shadow-sm`}>
 
                 <ExportScheduleModal
                     isOpen={isExportModalOpen}
@@ -768,202 +868,219 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 {/* Controls Header - Sticky - SINGLE ROW LAYOUT */}
                 <div className={`flex flex-col md:flex-row items-center justify-between gap-2 ${isCompact ? 'mb-1' : 'mb-2'} flex-shrink-0 sticky top-0 z-50 bg-white pb-2 border-b border-transparent`}>
 
-                    {/* Right Side: Title, Info, Stats */}
-                    <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-                        <div className="flex items-center gap-2">
-                            <h3 className="text-xl font-black text-slate-800 tracking-tight">לוח שיבוצים</h3>
-                            <PageInfo
-                                title="על לוח השיבוצים"
-                                description={
-                                    <>
-                                        <p className="mb-2">כאן תוכלו לראות את סידור השיבוצים למשימות של הפלוגה.</p>
-                                        <ul className="list-disc list-inside space-y-1 mb-2 text-right">
-                                            <li>ניתן לגרור משמרות כדי לשנות שיבוץ (במחשב).</li>
-                                            <li>לחיצה על משמרת פותחת פרטים נוספים ואפשרויות עריכה.</li>
-                                        </ul>
-                                        <p className="font-bold mb-1">שיבוץ אוטומטי:</p>
-                                        <p className="mb-2">
-                                            המערכת יודעת לשבץ את הלוחמים בצורה חכמה תוך התחשבות בזמינות, אילוצים, והיסטוריית שיבוצים כדי לשמור על הוגנות.
-                                        </p>
-                                    </>
-                                }
-                            />
+                    {/* Right Side: Title, Info, Stats & Mobile Menu */}
+                    <div className="flex items-center justify-between w-full md:w-auto gap-3">
+                        {/* Title Group */}
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-xl font-black text-slate-800 tracking-tight">לוח שיבוצים</h3>
+                                <PageInfo
+                                    title="על לוח השיבוצים"
+                                    description={
+                                        <>
+                                            <p className="mb-2">כאן תוכלו לראות את סידור השיבוצים למשימות של הפלוגה.</p>
+                                            <ul className="list-disc list-inside space-y-1 mb-2 text-right">
+                                                <li>ניתן לגרור משמרות כדי לשנות שיבוץ (במחשב).</li>
+                                                <li>לחיצה על משמרת פותחת פרטים נוספים ואפשרויות עריכה.</li>
+                                            </ul>
+                                            <p className="font-bold mb-1">שיבוץ אוטומטי:</p>
+                                            <p className="mb-2">
+                                                המערכת יודעת לשבץ את הלוחמים בצורה חכמה תוך התחשבות בזמינות, אילוצים, והיסטוריית שיבוצים כדי לשמור על הוגנות.
+                                            </p>
+                                        </>
+                                    }
+                                />
+                            </div>
+
+                            {/* Availability Badge */}
+                            {!isViewer && (() => {
+                                const dateKey = selectedDate.toLocaleDateString('en-CA');
+                                const unavailableCount = activePeople.filter(p => {
+                                    if (p.dailyAvailability?.[dateKey]?.isAvailable === false) return true;
+                                    return false;
+                                }).length;
+                                const availableCount = activePeople.length - unavailableCount;
+
+                                return (
+                                    <div className="hidden xs:flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                                        <User size={14} className="text-emerald-600" weight="duotone" />
+                                        <span className="text-xs font-bold text-emerald-700">
+                                            זמינים: {availableCount}/{activePeople.length}
+                                        </span>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
-                        {/* Availability Badge (Hidden on very small screens if crowded, but useful) */}
-                        {!isViewer && (() => {
-                            const dateKey = selectedDate.toLocaleDateString('en-CA');
-                            const unavailableCount = activePeople.filter(p => {
-                                // if (p.unavailableDates?.includes(dateKey)) return true; // Removed invalid property
-                                if (p.dailyAvailability?.[dateKey]?.isAvailable === false) return true;
-                                return false;
-                            }).length;
-                            const availableCount = activePeople.length - unavailableCount;
-
-                            return (
-                                <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                                    <User size={14} className="text-emerald-600" weight="duotone" />
-                                    <span className="text-xs font-bold text-emerald-700">
-                                        זמינים: {availableCount}/{activePeople.length}
-                                    </span>
-                                </div>
-                            );
-                        })()}
                     </div>
 
-                    {/* Center/Left: Date Navigation & Actions */}
-                    <div className="flex flex-row items-center gap-2 w-full md:w-auto">
+                    {/* Center: Date Navigation & Mobile Menu */}
+                    <div className="flex flex-row items-center justify-center flex-1 z-50 gap-2">
 
-                        {/* Task Filter (Desktop) */}
-                        <div className="hidden xl:block w-64 z-50">
-                            <MultiSelect
-                                options={taskTemplates.map(t => ({ value: t.id, label: t.name }))}
-                                value={filterTaskIds}
-                                onChange={setFilterTaskIds}
-                                placeholder="סנן לפי משימות..."
-                                className="bg-white"
-                            />
-                        </div>
-
-                        {/* Date Navigation */}
                         <DateNavigator
                             date={selectedDate}
                             onDateChange={handleDateChange}
                             canGoPrev={canGoPrev}
                             canGoNext={canGoNext}
                             maxDate={isViewer ? maxViewerDate : undefined}
-                            className="flex-1 md:w-auto"
+                            className="bg-white/50 backdrop-blur-sm shadow-sm rounded-2xl border border-slate-100 p-1"
                         />
 
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 w-auto relative">
-                            {/* Desktop Actions */}
-                            <div className="hidden md:flex gap-2">
-
-                                <ExportButton
-                                    onExport={async () => { setIsExportModalOpen(true); }}
-                                    label="ייצוא"
-                                    variant="secondary"
-                                    size="sm"
-                                    className="h-9 px-4"
-                                />
-
-                                <button onClick={handleExportClick} className="flex items-center justify-center gap-2 text-slate-700 hover:text-indigo-700 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 h-9 px-4 rounded-xl text-xs font-bold transition-all shadow-sm">
-                                    <Copy size={14} weight="duotone" />
-                                    <span>העתק</span>
-                                </button>
-
-                                {!isViewer && (
-                                    <button onClick={handleClearDayClick} className="flex items-center justify-center gap-2 text-slate-700 hover:text-red-700 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-300 h-9 px-4 rounded-xl text-xs font-bold transition-all shadow-sm">
-                                        <Trash2 size={14} weight="duotone" />
-                                        <span>נקה</span>
-                                    </button>
-                                )}
-
-                                <button
-                                    onClick={() => setIsCompact(!isCompact)}
-                                    className={`flex items-center justify-center gap-2 h-9 px-4 rounded-xl text-xs font-bold transition-all shadow-sm border ${isCompact
-                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
-                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300'
-                                        }`}
-                                    title={isCompact ? "הרחב" : "כווץ"}
-                                >
-                                    {isCompact ? <ArrowsOutSimple size={14} weight="bold" /> : <ArrowsInSimple size={14} weight="bold" />}
-                                    <span>{isCompact ? "הרחב" : "כווץ"}</span>
-                                </button>
-                            </div>
-
-                            {/* Mobile Actions Dropdown */}
-                            <div className="md:hidden">
-                                <button
-                                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                    className="w-12 h-12 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 active:bg-slate-50 transition-colors !shadow-none" // Rule 1: 48px touch target
-                                    aria-label="More actions"
-                                >
-                                    <MoreVertical size={24} weight="bold" /> {/* Rule 2: Larger icon for readability */}
-                                </button>
-
-                                <GenericModal
-                                    isOpen={isMobileMenuOpen}
-                                    onClose={() => setIsMobileMenuOpen(false)}
-                                    title="פעולות נוספות"
-                                    size="sm"
-                                >
-                                    <div className="flex flex-col gap-2">
-                                        <div className="mb-2">
-                                            <span className="text-xs font-bold text-slate-500 mb-1 block">סינון משימות</span>
-                                            <MultiSelect
-                                                options={taskTemplates.map(t => ({ value: t.id, label: t.name }))}
-                                                value={filterTaskIds}
-                                                onChange={setFilterTaskIds}
-                                                placeholder="סנן משימות..."
-                                                className="bg-slate-50 w-full"
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
-                                            className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
-                                        >
-                                            <div className="p-2 bg-emerald-50 rounded-lg flex items-center justify-center">
-                                                <img src="/images/excel.svg" alt="Excel" width={22} height={22} className="object-contain" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-base text-slate-800">ייצוא נתונים</span>
-                                                <span className="text-xs text-slate-500">הורדת סידור העבודה כקובץ</span>
-                                            </div>
-                                        </button>
-
-                                        <button
-                                            onClick={() => { handleExportClick(); setIsMobileMenuOpen(false); }}
-                                            className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
-                                        >
-                                            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-                                                <Copy size={22} weight="duotone" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-base text-slate-800">העתק לוח</span>
-                                                <span className="text-xs text-slate-500">העתקת תמונת מצב לווצאפ</span>
-                                            </div>
-                                        </button>
-
-                                        <button
-                                            onClick={() => { setIsCompact(!isCompact); setIsMobileMenuOpen(false); }}
-                                            className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
-                                        >
-                                            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-                                                {isCompact ? <ArrowsOutSimple size={22} weight="duotone" /> : <ArrowsInSimple size={22} weight="duotone" />}
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-base text-slate-800">{isCompact ? "הרחב" : "כווץ"}</span>
-                                                <span className="text-xs text-slate-500">{isCompact ? "חזרה לתצוגה מרווחת" : "כיווץ הלוח למסך אחד"}</span>
-                                            </div>
-                                        </button>
-
-                                        {!isViewer && (
-                                            <button
-                                                onClick={() => { handleClearDayClick(); setIsMobileMenuOpen(false); }}
-                                                className="flex items-center gap-4 px-4 py-3.5 bg-red-50 text-red-700 hover:bg-red-100 active:bg-red-200 rounded-xl transition-colors text-right w-full mt-2"
-                                            >
-                                                <div className="p-2 bg-red-100 text-red-600 rounded-lg">
-                                                    <Trash2 size={22} weight="duotone" />
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-base text-red-700">נקה יום</span>
-                                                    <span className="text-xs text-red-500/80">מחיקת כל השיבוצים ליום זה</span>
-                                                </div>
-                                            </button>
-                                        )}
-                                    </div>
-                                </GenericModal>
-                            </div>
+                        {/* Mobile Menu Button - Moved to LEFT of Date (After in DOM for RTL? No, checking visual) */}
+                        {/* User said "Left of the Date". In RTL, "Left" is the end. So let's place it AFTER. */}
+                        <div className="md:hidden">
+                            <button
+                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                                className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 active:bg-slate-50 transition-colors shadow-sm"
+                                aria-label="More actions"
+                            >
+                                <MoreVertical size={20} weight="bold" />
+                            </button>
                         </div>
+                    </div>
+
+                    {/* Left: Desktop Actions (Icon Only) */}
+                    <div className="hidden md:flex items-center gap-1.5 bg-slate-50/50 p-1 rounded-2xl border border-slate-100">
+                        <Tooltip content="מסננים">
+                            <Button
+                                variant={filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0 ? 'primary' : 'secondary'}
+                                size="sm"
+                                onClick={() => setIsFilterModalOpen(true)}
+                                className="w-9 h-9 rounded-xl p-0 flex items-center justify-center relative"
+                            >
+                                <Funnel size={18} weight={(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) ? "fill" : "regular"} />
+                                {(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) && (
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold border-2 border-white">
+                                        {(filterTaskIds.length > 0 ? 1 : 0) + (filterPersonIds.length > 0 ? 1 : 0) + (filterTeamIds.length > 0 ? 1 : 0)}
+                                    </span>
+                                )}
+                            </Button>
+                        </Tooltip>
+
+                        <Tooltip content="ייצוא לאקסל">
+                            <ExportButton
+                                onExport={async () => { setIsExportModalOpen(true); }}
+                                variant="secondary"
+                                size="sm"
+                                iconOnly
+                                className="w-9 h-9 rounded-xl border-slate-200"
+                            />
+                        </Tooltip>
+
+                        <Tooltip content="העתק ללוח">
+                            <button
+                                onClick={handleExportClick}
+                                className="flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm"
+                            >
+                                <Copy size={18} weight="duotone" />
+                            </button>
+                        </Tooltip>
+
+                        {!isViewer && (
+                            <Tooltip content="נקה הכל">
+                                <button
+                                    onClick={handleClearDayClick}
+                                    className="flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-all shadow-sm"
+                                >
+                                    <Trash2 size={18} weight="duotone" />
+                                </button>
+                            </Tooltip>
+                        )}
+
+                        <Tooltip content={isCompact ? "תצוגה רגילה" : "תצוגה קומפקטית"}>
+                            <button
+                                onClick={() => setIsCompact(!isCompact)}
+                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${isCompact
+                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
+                                    }`}
+                            >
+                                {isCompact ? <ArrowsOutSimple size={18} weight="bold" /> : <ArrowsInSimple size={18} weight="bold" />}
+                            </button>
+                        </Tooltip>
                     </div>
                 </div>
 
-                {/* Scrollable Grid Area */}
+                {/* Mobile Actions Dropdown - Just the Content */}
+                <div className="md:hidden">
+                    <GenericModal
+                        isOpen={isMobileMenuOpen}
+                        onClose={() => setIsMobileMenuOpen(false)}
+                        title="פעולות נוספות"
+                        size="sm"
+                    >
+                        <div className="flex flex-col gap-2">
+                            {/* ... actions ... */}
+                            {/* Content preserved, wrapping structure simplified */}
+                            <button
+                                onClick={() => { setIsFilterModalOpen(true); setIsMobileMenuOpen(false); }}
+                                className="flex items-center gap-4 px-4 py-3.5 bg-blue-50 text-blue-700 hover:bg-blue-100 active:bg-blue-200 rounded-xl transition-colors text-right w-full"
+                            >
+                                <div className="p-2 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                    <Funnel size={22} weight={(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) ? "fill" : "regular"} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-base">מסננים</span>
+                                        {(filterTaskIds.length > 0 || filterPersonIds.length > 0 || filterTeamIds.length > 0) && (
+                                            <span className="bg-blue-600 text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold px-1">
+                                                {(filterTaskIds.length > 0 ? 1 : 0) + (filterPersonIds.length > 0 ? 1 : 0) + (filterTeamIds.length > 0 ? 1 : 0)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="text-xs opacity-80">סינון לפי משימה, חייל או צוות</span>
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
+                                className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
+                            >
+                                <div className="p-2 bg-emerald-50 rounded-lg flex items-center justify-center">
+                                    <img src="/images/excel.svg" alt="Excel" width={22} height={22} className="object-contain" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-base text-slate-800">ייצוא נתונים</span>
+                                    <span className="text-xs text-slate-500">הורדת סידור העבודה כקובץ</span>
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => { handleExportClick(); setIsMobileMenuOpen(false); }}
+                                className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
+                            >
+                                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                    <Copy size={22} weight="duotone" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-base text-slate-800">העתק לוח</span>
+                                    <span className="text-xs text-slate-500">העתקת תמונת מצב לווצאפ</span>
+                                </div>
+                            </button>
+
+                            {/* Mobile Compact Toggle Removed as requested */}
+
+                            {!isViewer && (
+                                <button
+                                    onClick={() => { handleClearDayClick(); setIsMobileMenuOpen(false); }}
+                                    className="flex items-center gap-4 px-4 py-3.5 bg-red-50 text-red-700 hover:bg-red-100 active:bg-red-200 rounded-xl transition-colors text-right w-full mt-2"
+                                >
+                                    <div className="p-2 bg-red-100 text-red-600 rounded-lg">
+                                        <Trash2 size={22} weight="duotone" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-base text-red-700">נקה יום</span>
+                                        <span className="text-xs text-red-500/80">מחיקת כל השיבוצים ליום זה</span>
+                                    </div>
+                                </button>
+                            )}
+                        </div>
+                    </GenericModal>
+                </div>
+
+                {/* Scrollable Grid Area - FLEX FILL STRATEGY (Auto-resize) */}
                 <div
                     ref={verticalScrollRef}
-                    className="flex-1 overflow-auto relative border-t border-slate-200"
+                    className="flex-1 overflow-auto relative border-t border-slate-200 min-h-0"
                 >
 
                     {/* MOBILE VIEW - Removed internal scroll to let parent handle it */}
@@ -980,6 +1097,9 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             onSelectShift={handleShiftSelect}
                             onToggleCancelShift={onToggleCancelShift}
                             onReportClick={(shift) => setSelectedReportShiftId(shift.id)}
+                            conflicts={conflicts}
+                            filterPersonIds={filterPersonIds}
+                            filterTeamIds={filterTeamIds}
                         />
                     </div>
 
@@ -1053,17 +1173,26 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                                 {visibleTasks.map(task => {
                                     const dateKey = selectedDate.toLocaleDateString('en-CA');
-                                    const taskShifts = shifts.filter(s => {
+                                    // Corrected shift overlap check for desktop grid
+                                    const dayStart = new Date(selectedDate);
+                                    dayStart.setHours(0, 0, 0, 0);
+                                    const dayEnd = new Date(selectedDate);
+                                    dayEnd.setHours(24, 0, 0, 0);
+
+                                    const taskShifts = (shifts || []).filter(s => {
                                         if (s.taskId !== task.id) return false;
-                                        const shiftStart = new Date(s.startTime);
-                                        const shiftEnd = new Date(s.endTime);
 
-                                        const dayStart = new Date(selectedDate);
-                                        dayStart.setHours(0, 0, 0, 0);
-                                        const dayEnd = new Date(selectedDate);
-                                        dayEnd.setHours(24, 0, 0, 0);
+                                        const sStart = new Date(s.startTime);
+                                        const sEnd = new Date(s.endTime);
+                                        const overlaps = sStart < dayEnd && sEnd > dayStart;
+                                        if (!overlaps) return false;
 
-                                        return shiftStart < dayEnd && shiftEnd > dayStart;
+                                        // If filters are active, only show the shifts that match the filters
+                                        if (filterPersonIds.length > 0 || filterTeamIds.length > 0) {
+                                            return isShiftMatchingFilters(s);
+                                        }
+
+                                        return true;
                                     });
 
                                     return (
@@ -1113,6 +1242,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                         isContinuedFromPrev={isContinuedFromPrev}
                                                         isContinuedToNext={isContinuedToNext}
                                                         isCompact={isCompact}
+                                                        hasAbsenceConflict={isShiftConflictDueToAbsence(shift.id)}
                                                         style={{
                                                             top: `${top}px`,
                                                             height: `${Math.max(height, isCompact ? 18 : 30)}px`,
@@ -1165,29 +1295,31 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                     </div>
 
-                    {visibleTasks.length === 0 && (
-                        <div className="absolute inset-0 col-span-full flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in duration-500">
-                            <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6 shadow-sm border border-slate-100/50">
-                                <ClipboardIcon size={48} className="text-slate-300" weight="duotone" />
+                    {
+                        visibleTasks.length === 0 && (
+                            <div className="absolute inset-0 col-span-full flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in duration-500">
+                                <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6 shadow-sm border border-slate-100/50">
+                                    <ClipboardIcon size={48} className="text-slate-300" weight="duotone" />
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">אין עדיין משימות להצגה</h3>
+                                <p className="text-slate-500 max-w-sm mb-8 font-medium leading-relaxed">
+                                    כדי להתחיל לשבץ, עליך להגדיר את משימות הפלוגה (שמירות, סיורים, תורנויות וכו').
+                                </p>
+                                {!isViewer && (
+                                    <Button
+                                        onClick={() => onNavigate('tasks')}
+                                        variant="primary"
+                                        className="px-8 py-6 rounded-2xl shadow-xl shadow-blue-200 font-black text-lg group active:scale-95 transition-all"
+                                    >
+                                        <Plus size={20} weight="bold" className="ml-2 group-hover:rotate-90 transition-transform" />
+                                        צור משימה ראשונה
+                                    </Button>
+                                )}
                             </div>
-                            <h3 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">אין עדיין משימות להצגה</h3>
-                            <p className="text-slate-500 max-w-sm mb-8 font-medium leading-relaxed">
-                                כדי להתחיל לשבץ, עליך להגדיר את משימות הפלוגה (שמירות, סיורים, תורנויות וכו').
-                            </p>
-                            {!isViewer && (
-                                <Button
-                                    onClick={() => onNavigate('tasks')}
-                                    variant="primary"
-                                    className="px-8 py-6 rounded-2xl shadow-xl shadow-blue-200 font-black text-lg group active:scale-95 transition-all"
-                                >
-                                    <Plus size={20} weight="bold" className="ml-2 group-hover:rotate-90 transition-transform" />
-                                    צור משימה ראשונה
-                                </Button>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
+                        )
+                    }
+                </div >
+            </div >
             {selectedShift && (
                 <AssignmentModal
                     selectedShift={selectedShift}
@@ -1213,21 +1345,23 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 />
             )}
 
-            {selectedReportShift && (() => {
-                const task = taskTemplates.find(t => t.id === selectedReportShift.taskId);
-                if (!task) return null;
-                return (
-                    <MissionReportModal
-                        shift={selectedReportShift}
-                        task={task}
-                        people={activePeople}
-                        roles={roles}
-                        isViewer={isViewer}
-                        onClose={() => setSelectedReportShiftId(null)}
-                        onRefreshData={onRefreshData}
-                    />
-                );
-            })()}
+            {
+                selectedReportShift && (() => {
+                    const task = taskTemplates.find(t => t.id === selectedReportShift.taskId);
+                    if (!task) return null;
+                    return (
+                        <MissionReportModal
+                            shift={selectedReportShift}
+                            task={task}
+                            people={activePeople}
+                            roles={roles}
+                            isViewer={isViewer}
+                            onClose={() => setSelectedReportShiftId(null)}
+                            onRefreshData={onRefreshData}
+                        />
+                    );
+                })()
+            }
 
             {/* Confirmation Modal */}
             <ConfirmationModal
@@ -1241,22 +1375,24 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 type={confirmationState.type || "warning"}
             />
 
-            {showRotaWizard && (
-                <RotaWizardModal
-                    isOpen={showRotaWizard}
-                    onClose={() => setShowRotaWizard(false)}
-                    people={activePeople}
-                    teams={teams}
-                    roles={roles}
-                    tasks={taskTemplates}
-                    constraints={constraints}
-                    absences={absences}
-                    settings={settings}
-                    teamRotations={teamRotations}
-                    hourlyBlockages={hourlyBlockages}
-                    onSaveRoster={(roster: DailyPresence[]) => { }}
-                />
-            )}
+            {
+                showRotaWizard && (
+                    <RotaWizardModal
+                        isOpen={showRotaWizard}
+                        onClose={() => setShowRotaWizard(false)}
+                        people={activePeople}
+                        teams={teams}
+                        roles={roles}
+                        tasks={taskTemplates}
+                        constraints={constraints}
+                        absences={absences}
+                        settings={settings}
+                        teamRotations={teamRotations}
+                        hourlyBlockages={hourlyBlockages}
+                        onSaveRoster={(roster: DailyPresence[]) => { }}
+                    />
+                )
+            }
 
             <FloatingActionButton
                 icon={Wand2}
@@ -1265,6 +1401,63 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 show={!isViewer && !!onAutoSchedule}
                 variant="action"
             />
+            <GenericModal
+                isOpen={isFilterModalOpen}
+                onClose={() => setIsFilterModalOpen(false)}
+                title="סינון לוח שיבוצים"
+                size="md"
+            >
+                <div className="space-y-6 py-4">
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700">סינון לפי משימות</label>
+                        <MultiSelect
+                            options={taskTemplates.map(t => ({ value: t.id, label: t.name }))}
+                            value={filterTaskIds}
+                            onChange={setFilterTaskIds}
+                            placeholder="בחר משימות..."
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700">סינון לפי חייל</label>
+                        <MultiSelect
+                            options={activePeople.map(p => ({ value: p.id, label: p.name }))}
+                            value={filterPersonIds}
+                            onChange={setFilterPersonIds}
+                            placeholder="בחר חיילים..."
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700">סינון לפי מחלקה/צוות</label>
+                        <MultiSelect
+                            options={teams.map(t => ({ value: t.id, label: t.name }))}
+                            value={filterTeamIds}
+                            onChange={setFilterTeamIds}
+                            placeholder="בחר צוותים..."
+                        />
+                    </div>
+
+                    <div className="flex justify-between pt-4 border-t border-slate-100">
+                        <Button
+                            variant="secondary"
+                            onClick={() => {
+                                setFilterTaskIds([]);
+                                setFilterPersonIds([]);
+                                setFilterTeamIds([]);
+                            }}
+                        >
+                            איפוס מסננים
+                        </Button>
+                        <Button
+                            variant="primary"
+                            onClick={() => setIsFilterModalOpen(false)}
+                        >
+                            החל סינונים
+                        </Button>
+                    </div>
+                </div>
+            </GenericModal>
         </div>
     );
 };
