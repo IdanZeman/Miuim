@@ -102,7 +102,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             // If rotating, delete the oldest first
             if (snapshots.length >= MAX_SNAPSHOTS) {
                 const oldest = snapshots[snapshots.length - 1];
-                await snapshotService.deleteSnapshot(oldest.id);
+                await snapshotService.deleteSnapshot(oldest.id, organizationId, user?.id || '');
             }
 
             await snapshotService.createSnapshot(organizationId, newName, newDescription, user?.id || '');
@@ -127,7 +127,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             type: 'danger',
             onConfirm: async () => {
                 try {
-                    await snapshotService.deleteSnapshot(snapshotId);
+                    await snapshotService.deleteSnapshot(snapshotId, organizationId, user?.id || '');
                     showToast('הגרסה נמחקה', 'success');
                     loadSnapshots();
                 } catch (error) {
@@ -221,7 +221,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                 <div className="grid grid-cols-1 gap-4">
                     <div className="flex items-center gap-2 mb-2">
                         <div className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${snapshots.length >= 5 ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                            {snapshots.length} / 5 גרסאות בשימוש
+                            5 / {snapshots.length} גרסאות בשימוש
                         </div>
                     </div>
                     {snapshots.map((snapshot) => (
@@ -239,7 +239,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                                         </div>
                                         <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
                                             <User size={14} />
-                                            {snapshot.created_by_name}
+                                            {snapshot.created_by_name || 'המערכת'}
                                         </div>
                                     </div>
                                     {snapshot.description && (
@@ -350,8 +350,13 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                     isOpen={true}
                     title="אישור שחזור מערכת"
                     type="danger"
-                    confirmText="שחזר כעת"
-                    onConfirm={confirmRestore}
+                    confirmText={creating ? "⏳ מבצע שחזור..." : "שחזר כעת"}
+                    disabled={creating}
+                    onConfirm={() => {
+                        if (!creating) {
+                            confirmRestore();
+                        }
+                    }}
                     onCancel={() => {
                         if (!creating) {
                             setRestoringSnapshot(null);

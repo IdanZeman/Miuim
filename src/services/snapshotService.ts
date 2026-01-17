@@ -22,7 +22,7 @@ const TABLES_TO_SNAPSHOT = [
   'shifts',
   'absences',
   'daily_presence',
-  'unified_presence',
+  // 'unified_presence', // Removed - not in use, causes duplicate key issues with triggers
   'hourly_blockages',
   'equipment',
   'equipment_daily_checks',
@@ -101,63 +101,93 @@ export const snapshotService = {
   },
 
   async createSnapshot(organizationId: string, name: string, description: string, userId: string) {
-    // 1. Fetch data from all tables
-    const tableData: Record<string, any[]> = {};
-    const recordCounts: Record<string, number> = {};
+    // Start telemetry logging
+    const { data: logData } = await supabase.rpc('log_snapshot_operation_start', {
+      p_organization_id: organizationId,
+      p_operation_type: 'create',
+      p_snapshot_id: null,
+      p_snapshot_name: name,
+      p_user_id: userId
+    });
+    const logId = logData;
 
-    for (const tableName of TABLES_TO_SNAPSHOT) {
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('*')
-        .eq(tableName === 'equipment' ? 'organization_id' : (tableName === 'organizations' ? 'id' : 'organization_id'), organizationId);
+    try {
+      // 1. Fetch data from all tables
+      const tableData: Record<string, any[]> = {};
+      const recordCounts: Record<string, number> = {};
 
-      // Handle table-specific organization_id column names if necessary
-      // Based on schema, most have organization_id. Equipment has organization_id as text.
-      
-      if (error) {
-        console.error(`Error fetching data for table ${tableName}:`, error);
-        throw error;
+      for (const tableName of TABLES_TO_SNAPSHOT) {
+        const { data, error } = await supabase
+          .from(tableName)
+          .select('*')
+          .eq(tableName === 'equipment' ? 'organization_id' : (tableName === 'organizations' ? 'id' : 'organization_id'), organizationId);
+
+        if (error) {
+          console.error(`Error fetching data for table ${tableName}:`, error);
+          throw error;
+        }
+
+        tableData[tableName] = data || [];
+        recordCounts[tableName] = data?.length || 0;
       }
 
-      tableData[tableName] = data || [];
-      recordCounts[tableName] = data?.length || 0;
+      // 2. Create snapshot record
+      const { data: snapshot, error: snapshotError } = await supabase
+        .from('organization_snapshots')
+        .insert({
+          organization_id: organizationId,
+          name,
+          description,
+          created_by: userId,
+          tables_included: TABLES_TO_SNAPSHOT,
+          record_counts: recordCounts
+        })
+        .select()
+        .single();
+
+      if (snapshotError) throw new Error(mapSupabaseError(snapshotError));
+
+      // 3. Save table data
+      const snapshotTableData = TABLES_TO_SNAPSHOT.map(tableName => ({
+        snapshot_id: snapshot.id,
+        table_name: tableName,
+        data: tableData[tableName],
+        row_count: recordCounts[tableName]
+      }));
+
+      const { error: dataError } = await supabase
+        .from('snapshot_table_data')
+        .insert(snapshotTableData);
+
+      if (dataError) {
+        // Rollback snapshot record if data fails
+        await supabase.from('organization_snapshots').delete().eq('id', snapshot.id);
+        throw new Error(mapSupabaseError(dataError));
+      }
+
+      // Log success
+      const totalRecords = Object.values(recordCounts).reduce((sum, count) => sum + count, 0);
+      if (logId) {
+        await supabase.rpc('log_snapshot_operation_complete', {
+          p_log_id: logId,
+          p_status: 'success',
+          p_records_affected: totalRecords
+        });
+      }
+
+      return snapshot;
+    } catch (error: any) {
+      // Log failure
+      if (logId) {
+        await supabase.rpc('log_snapshot_operation_complete', {
+          p_log_id: logId,
+          p_status: 'failed',
+          p_error_message: error.message,
+          p_error_code: error.code
+        });
+      }
+      throw error;
     }
-
-    // 2. Create snapshot record
-    const { data: snapshot, error: snapshotError } = await supabase
-      .from('organization_snapshots')
-      .insert({
-        organization_id: organizationId,
-        name,
-        description,
-        created_by: userId,
-        tables_included: TABLES_TO_SNAPSHOT,
-        record_counts: recordCounts
-      })
-      .select()
-      .single();
-
-    if (snapshotError) throw new Error(mapSupabaseError(snapshotError));
-
-    // 3. Save table data
-    const snapshotTableData = TABLES_TO_SNAPSHOT.map(tableName => ({
-      snapshot_id: snapshot.id,
-      table_name: tableName,
-      data: tableData[tableName],
-      row_count: recordCounts[tableName]
-    }));
-
-    const { error: dataError } = await supabase
-      .from('snapshot_table_data')
-      .insert(snapshotTableData);
-
-    if (dataError) {
-      // Rollback snapshot record if data fails
-      await supabase.from('organization_snapshots').delete().eq('id', snapshot.id);
-      throw new Error(mapSupabaseError(dataError));
-    }
-
-    return snapshot;
   },
 
   async getSnapshotPreview(snapshotId: string) {
@@ -176,6 +206,23 @@ export const snapshotService = {
     userId: string,
     onProgress?: (message: string) => void
   ) {
+    // Get snapshot name for logging
+    const { data: snapshotData } = await supabase
+      .from('organization_snapshots')
+      .select('name')
+      .eq('id', snapshotId)
+      .single();
+
+    // Start telemetry logging
+    const { data: logData } = await supabase.rpc('log_snapshot_operation_start', {
+      p_organization_id: organizationId,
+      p_operation_type: 'restore',
+      p_snapshot_id: snapshotId,
+      p_snapshot_name: snapshotData?.name || 'Unknown',
+      p_user_id: userId
+    });
+    const logId = logData;
+
     // CRITICAL: Create automatic pre-restore backup for safety
     const timestamp = new Date().toLocaleString('he-IL', { 
       year: 'numeric', 
@@ -228,23 +275,84 @@ export const snapshotService = {
         p_organization_id: organizationId
       });
 
-      if (error) throw new Error(mapSupabaseError(error));
+      if (error) {
+        console.error('Restore RPC error:', error);
+        throw new Error(mapSupabaseError(error));
+      }
+      
+      // Log success
+      if (logId) {
+        await supabase.rpc('log_snapshot_operation_complete', {
+          p_log_id: logId,
+          p_status: 'success',
+          p_pre_restore_backup_id: preRestoreSnapshotId
+        });
+      }
       
       return { preRestoreSnapshotId };
-    } catch (error) {
+    } catch (error: any) {
+      // Log failure
+      if (logId) {
+        await supabase.rpc('log_snapshot_operation_complete', {
+          p_log_id: logId,
+          p_status: 'failed',
+          p_error_message: error.message,
+          p_error_code: error.code,
+          p_pre_restore_backup_id: preRestoreSnapshotId
+        });
+      }
+      
       // If restore failed, we still have the pre-restore backup
       console.error('Restoration failed. Pre-restore backup preserved:', preRestoreSnapshotId);
       throw error;
     }
   },
 
-  async deleteSnapshot(snapshotId: string) {
-    const { error } = await supabase
+  async deleteSnapshot(snapshotId: string, organizationId: string, userId: string) {
+    // Get snapshot name for logging
+    const { data: snapshotData } = await supabase
       .from('organization_snapshots')
-      .delete()
-      .eq('id', snapshotId);
+      .select('name')
+      .eq('id', snapshotId)
+      .single();
 
-    if (error) throw new Error(mapSupabaseError(error));
+    // Start telemetry logging
+    const { data: logData } = await supabase.rpc('log_snapshot_operation_start', {
+      p_organization_id: organizationId,
+      p_operation_type: 'delete',
+      p_snapshot_id: snapshotId,
+      p_snapshot_name: snapshotData?.name || 'Unknown',
+      p_user_id: userId
+    });
+    const logId = logData;
+
+    try {
+      const { error } = await supabase
+        .from('organization_snapshots')
+        .delete()
+        .eq('id', snapshotId);
+
+      if (error) throw new Error(mapSupabaseError(error));
+
+      // Log success
+      if (logId) {
+        await supabase.rpc('log_snapshot_operation_complete', {
+          p_log_id: logId,
+          p_status: 'success'
+        });
+      }
+    } catch (error: any) {
+      // Log failure
+      if (logId) {
+        await supabase.rpc('log_snapshot_operation_complete', {
+          p_log_id: logId,
+          p_status: 'failed',
+          p_error_message: error.message,
+          p_error_code: error.code
+        });
+      }
+      throw error;
+    }
   },
 
   async fetchSnapshotTableData(snapshotId: string, tableName: string) {

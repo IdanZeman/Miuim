@@ -13,6 +13,7 @@ interface ConfirmationModalProps {
     onConfirm: () => void;
     onCancel: () => void;
     children?: React.ReactNode;
+    disabled?: boolean;
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -24,7 +25,8 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     type = 'warning',
     onConfirm,
     onCancel,
-    children
+    children,
+    disabled = false
 }) => {
     // Colors and Icons mapping
     const getConfig = () => {
@@ -72,6 +74,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     <Button
                         variant="ghost"
                         onClick={onCancel}
+                        disabled={disabled}
                         className="flex-1 font-bold text-slate-500 hover:text-slate-700 h-12 rounded-xl"
                     >
                         {cancelText}
@@ -79,6 +82,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     <Button
                         variant={config.buttonVariant}
                         onClick={onConfirm}
+                        disabled={disabled}
                         className="flex-1 h-12 rounded-xl text-base font-bold shadow-lg"
                     >
                         {confirmText}

@@ -21,8 +21,9 @@ import {
     ChartBarIcon as BarChart3,
     FileTextIcon,
     AnchorIcon,
-    ActivityIcon,
-    DiceFiveIcon as Dices
+    ActivityIcon as Pulse,
+    DiceFiveIcon as Dices,
+    ShieldCheckIcon as Shield
 } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ViewMode, Profile } from '../../types';
@@ -116,12 +117,12 @@ const TABS: NavItem[] = [
     {
         id: 'admin',
         label: 'דוחות וניהול',
-        icon: ActivityIcon,
+        icon: Pulse,
         primaryView: 'stats',
-        views: ['stats', 'settings', 'system', 'org-logs'],
+        views: ['stats', 'settings', 'system', 'org-logs', 'admin-analytics', 'admin-center'],
         subItems: [
+            { label: 'מרכז ניהול ובקרה', view: 'admin-center', icon: Shield, description: 'אנליטיקה, בריאות המערכת ויומני פעילות' },
             { label: 'דוחות ונתונים', view: 'stats', icon: BarChart3, description: 'ניתוח עומסים וסטטיסטיקות' },
-            { label: 'יומן פעילות', view: 'org-logs', icon: ActivityIcon, description: 'מעקב אחר שינויים במערכת' }
         ]
     },
 ];
@@ -396,6 +397,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                                             <span>הגדרות ארגון</span>
                                                         </button>
                                                     )}
+                                                    {checkAccess('settings') && (
+                                                        <button
+                                                            onClick={() => { handleNav('admin-center'); setIsProfileDropdownOpen(false); }}
+                                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all text-right"
+                                                        >
+                                                            <Pulse className="w-4 h-4" />
+                                                            <span>ניהול ואנליטיקה</span>
+                                                        </button>
+                                                    )}
                                                     {organization?.battalion_id && organization?.is_hq && checkAccess('battalion-settings') && (
                                                         <button
                                                             onClick={() => { handleNav('battalion-settings'); setIsProfileDropdownOpen(false); }}
@@ -410,7 +420,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                                             onClick={() => { handleNav('system'); setIsProfileDropdownOpen(false); }}
                                                             className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all text-right"
                                                         >
-                                                            <ShieldCheckIcon className="w-4 h-4" />
+                                                            <Shield className="w-4 h-4" />
                                                             <span>ניהול מערכת</span>
                                                         </button>
                                                     )}

@@ -19,7 +19,11 @@ interface DashboardStats {
     activityGraph: { date_bucket: string; count: number }[];
 }
 
-export const UserActivityStats: React.FC = () => {
+interface UserActivityStatsProps {
+    isEmbedded?: boolean;
+}
+
+export const UserActivityStats: React.FC<UserActivityStatsProps> = ({ isEmbedded = false }) => {
     const [timeRange, setTimeRange] = useState<TimeRange>('week');
     const [stats, setStats] = useState<DashboardStats>({
         topUsers: [],
@@ -132,34 +136,36 @@ export const UserActivityStats: React.FC = () => {
     const maxGraphValue = Math.max(...stats.activityGraph.map(d => Number(d.count)), 10);
 
     return (
-        <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative z-20">
-            {/* Premium Header */}
-            <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm shadow-indigo-100">
-                        <ActivityIcon size={24} weight="duotone" />
+        <div className={isEmbedded ? "" : "bg-white rounded-[2rem] md:rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative z-20"}>
+            {/* Premium Header - Only show if not embedded */}
+            {!isEmbedded && (
+                <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm shadow-indigo-100">
+                            <ActivityIcon size={24} weight="duotone" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">ניתוח פעילות משתמשים</h2>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">User Activity Analytics</p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">ניתוח פעילות משתמשים</h2>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">User Activity Analytics</p>
+
+                    <div className="flex bg-slate-50 border border-slate-200/60 p-1 rounded-xl text-xs font-bold shadow-none w-full md:w-auto overflow-x-auto">
+                        {(['today', 'week', 'month'] as const).map((t) => (
+                            <button
+                                key={t}
+                                onClick={() => setTimeRange(t)}
+                                className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap flex-1 md:flex-none ${timeRange === t ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                {t === 'today' ? 'היום' : t === 'week' ? '7 ימים' : '30 יום'}
+                            </button>
+                        ))}
                     </div>
                 </div>
+            )}
 
-                <div className="flex bg-slate-50 border border-slate-200/60 p-1 rounded-xl text-xs font-bold shadow-none w-full md:w-auto overflow-x-auto">
-                    {(['today', 'week', 'month'] as const).map((t) => (
-                        <button
-                            key={t}
-                            onClick={() => setTimeRange(t)}
-                            className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap flex-1 md:flex-none ${timeRange === t ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            {t === 'today' ? 'היום' : t === 'week' ? '7 ימים' : '30 יום'}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+            {/* Content Area */}
+            <div className={`flex-1 overflow-y-auto custom-scrollbar ${isEmbedded ? "" : "p-6 md:p-8"}`}>
                 {loading ? (
                     <DashboardSkeleton />
                 ) : (
