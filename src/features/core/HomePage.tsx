@@ -40,9 +40,8 @@ export const HomePage: React.FC<HomePageProps> = ({
         return () => clearInterval(timer);
     }, []);
 
-    const myPerson = people.find(p => p.userId === user?.id) ||
-        people.find(p => (p as any).email === user?.email) ||
-        people.find(p => profile?.email && (p as any).email === profile.email);
+    // Debugging Unlink Persistence - Removed to reduce noise
+    const myPerson = people.find(p => p.userId === user?.id);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -120,12 +119,12 @@ export const HomePage: React.FC<HomePageProps> = ({
     return (
         <div className="bg-white rounded-[2rem] shadow-xl p-6 md:p-8 min-h-[80vh] border border-slate-100 animate-in fade-in zoom-in-95 duration-500">
             {/* A. Header Section (Greeting & Date) */}
-            <header className="mb-8 flex flex-col gap-2">
-                <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+            <header className="mb-6 md:mb-8 flex flex-col gap-2">
+                <h1 className="text-2xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
                     {getGreeting()}, <span className="text-blue-600">{myPerson.name.split(' ')[0]}</span>
                 </h1>
-                <div className="flex items-center gap-3 text-slate-500 text-sm font-bold opacity-80">
-                    <div className="w-8 h-8 rounded-full bg-slate-50 shadow-sm flex items-center justify-center border border-slate-100">
+                <div className="flex items-center gap-3 text-slate-500 text-xs md:text-sm font-bold opacity-80">
+                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-50 shadow-sm flex items-center justify-center border border-slate-100">
                         <Calendar size={14} className="text-blue-500" weight="bold" />
                     </div>
                     <span>{now.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
@@ -147,7 +146,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                                 logger.logClick('active_shift_card', 'HomePage');
                                 onNavigate('dashboard', activeShift.start);
                             }}
-                            className="relative rounded-[2rem] p-6 md:p-10 cursor-pointer overflow-hidden shadow-2xl shadow-blue-900/5 ring-1 ring-slate-100 group transition-all bg-white hover:scale-[1.01] active:scale-[0.99] active:duration-100"
+                            className="relative rounded-[1.5rem] md:rounded-[2rem] p-5 md:p-10 cursor-pointer overflow-hidden shadow-2xl shadow-blue-900/5 ring-1 ring-slate-100 group transition-all bg-white hover:scale-[1.01] active:scale-[0.99] active:duration-100"
                             role="button"
                             tabIndex={0}
                             aria-label={`משימה פעילה: ${activeShift.task?.name}`}
@@ -157,9 +156,12 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                                 <div className="flex items-center gap-6 w-full">
-                                    <div className="w-20 h-20 bg-blue-600 rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-blue-600/20 text-white shrink-0 rotate-3 group-hover:rotate-0 transition-transform">
+                                    <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600 rounded-2xl md:rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-blue-600/20 text-white shrink-0 md:rotate-3 group-hover:rotate-0 transition-transform">
                                         {activeShift.task?.icon && (AllIcons as any)[activeShift.task.icon] ?
-                                            React.createElement((AllIcons as any)[activeShift.task.icon], { size: 36, weight: "duotone" }) : <Clock size={36} weight="bold" />
+                                            React.createElement((AllIcons as any)[activeShift.task.icon], { size: 28, weight: "duotone", className: "md:hidden" }) : <Clock size={28} weight="bold" className="md:hidden" />
+                                        }
+                                        {activeShift.task?.icon && (AllIcons as any)[activeShift.task.icon] ?
+                                            React.createElement((AllIcons as any)[activeShift.task.icon], { size: 36, weight: "duotone", className: "hidden md:block" }) : <Clock size={36} weight="bold" className="hidden md:block" />
                                         }
                                     </div>
                                     <div className="min-w-0">
@@ -169,8 +171,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                                                 פעיל כעת
                                             </span>
                                         </div>
-                                        <h3 className="text-3xl font-black truncate text-slate-900 tracking-tight leading-none mb-1">{activeShift.task?.name}</h3>
-                                        <div className="flex items-center gap-2 text-slate-500 text-base font-bold">
+                                        <h3 className="text-xl md:text-3xl font-black truncate text-slate-900 tracking-tight leading-none mb-1">{activeShift.task?.name}</h3>
+                                        <div className="flex items-center gap-2 text-slate-500 text-sm md:text-base font-bold">
                                             <Clock size={16} weight="duotone" />
                                             {activeShift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {activeShift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                         </div>
@@ -193,14 +195,15 @@ export const HomePage: React.FC<HomePageProps> = ({
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-slate-50 rounded-[2rem] border border-slate-100 p-8 flex items-center gap-6 relative overflow-hidden">
+                        <div className="bg-slate-50 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 p-5 md:p-8 flex items-center gap-4 md:gap-6 relative overflow-hidden">
                             <div className="absolute right-0 top-0 w-32 h-32 bg-slate-100 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-400 shadow-sm relative z-10">
-                                <Moon size={32} weight="bold" />
+                            <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-xl md:rounded-2xl flex items-center justify-center text-slate-400 shadow-sm relative z-10">
+                                <Moon size={24} weight="bold" className="md:hidden" />
+                                <Moon size={32} weight="bold" className="hidden md:block" />
                             </div>
-                            <div className="space-y-1 relative z-10">
-                                <h3 className="text-xl font-black text-slate-800">אין משמרת פעילה</h3>
-                                <p className="text-slate-500 font-medium">זמן מעולה למילוי מצברים לקראת המשימה הבאה.</p>
+                            <div className="space-y-0.5 md:space-y-1 relative z-10">
+                                <h3 className="text-lg md:text-xl font-black text-slate-800">אין משמרת פעילה</h3>
+                                <p className="text-slate-500 text-xs md:text-base font-medium">זמן מעולה למילוי מצברים לקראת המשימה הבאה.</p>
                             </div>
                         </div>
                     )}
@@ -226,7 +229,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     {/* Upcoming Schedule */}
                     <div className="space-y-6">
                         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                            <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+                            <h2 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-3">
                                 הלו"ז הקרוב
                             </h2>
                             <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full">
@@ -285,18 +288,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <div className="lg:col-span-1 space-y-6">
                     <AnnouncementsWidget myPerson={myPerson} />
 
-                    <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 relative overflow-hidden">
-                        <h3 className="font-black text-slate-900 mb-6 text-center text-lg">סיכום שבועי</h3>
+                    <div className="bg-slate-50 rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-8 border border-slate-100 relative overflow-hidden">
+                        <h3 className="font-black text-slate-900 mb-4 md:mb-6 text-center text-base md:text-lg">סיכום שבועי</h3>
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-white p-4 rounded-2xl text-center shadow-sm border border-slate-100">
-                                <span className="block text-3xl font-black text-blue-600">{myShifts.length}</span>
-                                <span className="text-[10px] text-slate-400 font-bold uppercase">משימות</span>
+                            <div className="bg-white p-3 md:p-4 rounded-xl md:rounded-2xl text-center shadow-sm border border-slate-100">
+                                <span className="block text-2xl md:text-3xl font-black text-blue-600">{myShifts.length}</span>
+                                <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase">משימות</span>
                             </div>
-                            <div className="bg-white p-4 rounded-2xl text-center shadow-sm border border-slate-100">
-                                <span className="block text-3xl font-black text-blue-600">
+                            <div className="bg-white p-3 md:p-4 rounded-xl md:rounded-2xl text-center shadow-sm border border-slate-100">
+                                <span className="block text-2xl md:text-3xl font-black text-blue-600">
                                     {myShifts.reduce((acc, curr) => acc + differenceInHours(curr.end, curr.start), 0)}
                                 </span>
-                                <span className="text-[10px] text-slate-400 font-bold uppercase">שעות</span>
+                                <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase">שעות</span>
                             </div>
                         </div>
                         <button

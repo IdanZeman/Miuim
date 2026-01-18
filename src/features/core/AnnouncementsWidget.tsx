@@ -65,12 +65,12 @@ export const AnnouncementsWidget: React.FC<Props> = ({ myPerson }) => {
     return (
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 mb-6 overflow-hidden flex flex-col max-h-[500px]">
             {/* Minimal Header */}
-            <div className="bg-slate-50/50 px-5 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div className="bg-slate-50/50 px-4 md:px-5 py-2.5 md:py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                     <MegaphoneIcon size={16} className="text-indigo-600" weight="duotone" />
-                    <h2 className="text-base font-bold text-slate-800">עדכונים</h2>
+                    <h2 className="text-sm md:text-base font-bold text-slate-800">עדכונים</h2>
                 </div>
-                <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-100">
+                <span className="text-[9px] md:text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-100">
                     {messages.length} חדשים
                 </span>
             </div>

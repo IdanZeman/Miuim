@@ -62,7 +62,7 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
             const dateKey = format(date, 'yyyy-MM-dd');
             const avail = availMap.get(dateKey);
 
-            const isHome = avail.status === 'home' || !avail.isAvailable;
+            const isHome = avail.isAvailable === false || avail.status === 'home' || avail.status === 'departure' || avail.status === 'leave';
             const recordType = isHome ? 'home' : 'base';
 
             if (!currentPeriod) {
@@ -194,19 +194,20 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
     }
 
     return (
-        <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-6 md:p-8 overflow-hidden relative">
+        <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-slate-100 p-4 md:p-8 overflow-hidden relative">
             <div className="absolute top-0 left-0 w-48 h-48 bg-emerald-50 rounded-full blur-3xl opacity-40 -translate-y-1/2 -translate-x-1/2" aria-hidden="true"></div>
 
             <div className="relative z-10">
                 {/* Header */}
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
-                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                        <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                            <HouseIcon size={20} className="text-emerald-600" weight="duotone" />
+                <div className="flex items-center justify-between pb-2 md:pb-4 border-b border-slate-100 mb-3 md:mb-6">
+                    <h2 className="text-lg md:text-2xl font-black text-slate-900 flex items-center gap-2 md:gap-3">
+                        <div className="w-7 h-7 md:w-10 md:h-10 bg-emerald-100 rounded-lg md:rounded-xl flex items-center justify-center">
+                            <HouseIcon size={16} className="text-emerald-600 md:hidden" weight="duotone" />
+                            <HouseIcon size={20} className="text-emerald-600 hidden md:block" weight="duotone" />
                         </div>
                         צפי יציאות
                     </h2>
-                    <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full">
+                    <span className="text-[9px] md:text-[11px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 md:px-3 md:py-1.5 rounded-full">
                         {forecastDays} ימים קדימה
                     </span>
                 </div>
@@ -251,7 +252,7 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                                             logger.logClick('timeline_period_card', 'LeaveForecastWidget');
                                             onNavigate('attendance', period.startDate);
                                         }}
-                                        className={`relative bg-gradient-to-br ${bgColor} rounded-2xl p-5 border ${borderColor} hover:shadow-lg transition-all cursor-pointer group`}
+                                        className={`relative bg-gradient-to-br ${bgColor} rounded-lg md:rounded-2xl p-3 md:p-5 border ${borderColor} hover:shadow-lg transition-all cursor-pointer group`}
                                     >
                                         {/* Timeline dot */}
                                         <div className={`absolute right-[18px] top-6 w-4 h-4 ${dotColor} rounded-full border-4 border-white shadow-sm z-10`}></div>
@@ -259,19 +260,24 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                                         <div className="mr-8">
                                             {/* Header with icon and date range */}
                                             <div className="flex items-start justify-between mb-3">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center shrink-0`}>
+                                                <div className="flex items-center gap-2 md:gap-3">
+                                                    <div className={`w-8 h-8 md:w-12 md:h-12 ${iconBg} rounded-lg md:rounded-xl flex items-center justify-center shrink-0`}>
                                                         {isHome ? (
-                                                            <House size={24} className={iconColor} weight="duotone" />
+                                                            <House size={16} className={`${iconColor} md:hidden`} weight="duotone" />
                                                         ) : (
-                                                            <Buildings size={24} className={iconColor} weight="duotone" />
+                                                            <Buildings size={16} className={`${iconColor} md:hidden`} weight="duotone" />
+                                                        )}
+                                                        {isHome ? (
+                                                            <House size={24} className={`${iconColor} hidden md:block`} weight="duotone" />
+                                                        ) : (
+                                                            <Buildings size={24} className={`${iconColor} hidden md:block`} weight="duotone" />
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <h3 className="font-black text-slate-900 text-lg">
+                                                        <h3 className="font-black text-slate-900 text-sm md:text-lg">
                                                             {formatDateRange(period.startDate, period.endDate)}
                                                         </h3>
-                                                        <p className="text-sm font-bold text-slate-600">
+                                                        <p className="text-[10px] md:text-sm font-bold text-slate-600 leading-none">
                                                             {period.durationDays} {period.durationDays === 1 ? 'יום' : 'ימים'} {isHome ? 'בבית' : 'בבסיס'}
                                                         </p>
                                                     </div>
@@ -287,23 +293,23 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                                             {isHome && (
                                                 <div className="grid grid-cols-2 gap-3 mt-3">
                                                     {period.departureTime && (
-                                                        <div className="bg-white/60 rounded-lg p-3 border border-emerald-100">
+                                                        <div className="bg-white/60 rounded-lg p-2 md:p-3 border border-emerald-100">
                                                             <div className={`flex items-center gap-2 ${isHome ? 'text-rose-700' : 'text-emerald-700'} mb-1`}>
-                                                                <Clock size={14} weight="duotone" />
-                                                                <span className="text-xs font-black uppercase">יציאה</span>
+                                                                <Clock size={12} weight="duotone" />
+                                                                <span className="text-[10px] md:text-xs font-black uppercase">יציאה</span>
                                                             </div>
-                                                            <p className="text-sm font-bold text-slate-900">
+                                                            <p className="text-xs md:text-sm font-bold text-slate-900">
                                                                 {format(period.departureDate || period.startDate, 'd/M')} {formatTime(period.departureTime)}
                                                             </p>
                                                         </div>
                                                     )}
                                                     {period.returnTime && (
-                                                        <div className="bg-white/60 rounded-lg p-3 border border-emerald-100">
+                                                        <div className="bg-white/60 rounded-lg p-2 md:p-3 border border-emerald-100">
                                                             <div className={`flex items-center gap-2 ${isHome ? 'text-rose-700' : 'text-emerald-700'} mb-1`}>
-                                                                <Clock size={14} weight="duotone" />
-                                                                <span className="text-xs font-black uppercase">חזרה</span>
+                                                                <Clock size={12} weight="duotone" />
+                                                                <span className="text-[10px] md:text-xs font-black uppercase">חזרה</span>
                                                             </div>
-                                                            <p className="text-sm font-bold text-slate-900">
+                                                            <p className="text-xs md:text-sm font-bold text-slate-900">
                                                                 {format(period.returnDate || getReturnDate(period.endDate), 'd/M')} {formatTime(period.returnTime)}
                                                             </p>
                                                         </div>

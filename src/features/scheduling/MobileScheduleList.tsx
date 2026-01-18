@@ -109,7 +109,7 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                             style={{ borderLeftColor: task.color, borderLeftWidth: 4 }}
                         >
                             <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-slate-800 text-lg sticky left-0">
+                                <h3 className="font-bold text-slate-800 text-sm sticky left-0">
                                     # {task.name}
                                 </h3>
                                 <span className="text-xs font-medium text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
@@ -142,12 +142,12 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                         <div
                                             key={shift.id}
                                             onClick={() => onSelectShift(shift)}
-                                            className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-3 mx-4 active:scale-[0.98] transition-all cursor-pointer"
+                                            className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 mb-2 mx-4 active:scale-[0.98] transition-all cursor-pointer"
                                         >
                                             {/* Header: Time & Status */}
                                             <div className="flex items-center justify-between mb-3">
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`text-lg font-bold font-mono tracking-tight ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                                                    <div className={`text-base font-bold font-mono tracking-tight ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
                                                         <span dir="ltr">
                                                             {start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                             <span className="mx-1 text-slate-300">-</span>
@@ -197,15 +197,15 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                         </div>
                                                     ) : (
                                                         /* Detailed View: Avatar + Name */
-                                                        <div className="flex items-center gap-3 overflow-x-auto pb-1 no-scrollbar">
+                                                        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
                                                             {assigned.map(person => (
-                                                                <div key={person.id} className="flex items-center gap-3 min-w-fit bg-slate-50 pr-3 pl-1 py-1 rounded-full border border-slate-100 shrink-0 flex-row-reverse">
-                                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm text-white font-bold ring-2 ring-white ${person.color} shadow-sm shrink-0`}>
+                                                                <div key={person.id} className="flex items-center gap-2 min-w-fit bg-slate-50 pr-2 pl-1 py-1 rounded-full border border-slate-100 shrink-0 flex-row-reverse">
+                                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-white font-bold ring-2 ring-white ${person.color} shadow-sm shrink-0`}>
                                                                         {getPersonInitials(person.name)}
                                                                     </div>
                                                                     <div className="flex flex-col text-right">
-                                                                        <span className="text-base font-bold text-slate-800 whitespace-nowrap">{person.name}</span> {/* Rule 2: 16px body font */}
-                                                                        <span className="text-sm text-slate-500">לוחם</span> {/* Rule 2: 14px metadata */}
+                                                                        <span className="text-xs font-bold text-slate-800 whitespace-nowrap">{person.name}</span>
+                                                                        <span className="text-[9px] text-slate-500 leading-none">לוחם</span>
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -228,18 +228,18 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                 )}
                                             </div>
 
-                                            <div className="pt-3 border-t border-slate-50">
+                                            <div className="pt-2 border-t border-slate-50">
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         onReportClick(shift);
                                                     }}
-                                                    className={`w-full h-12 rounded-xl flex items-center justify-center gap-2 font-bold text-base transition-colors ${hasReport // Rule 1: 48px height, Rule 2: 16px text
+                                                    className={`w-full h-10 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-colors ${hasReport
                                                         ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                                                         : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                                                         }`}
                                                 >
-                                                    <FileText size={20} className={hasReport ? "fill-blue-700" : ""} weight="duotone" />
+                                                    <FileText size={18} className={hasReport ? "fill-blue-700" : ""} weight="duotone" />
                                                     {hasReport ? "צפה בדוח משימה" : "מלא דוח משימה"}
                                                 </button>
                                             </div>

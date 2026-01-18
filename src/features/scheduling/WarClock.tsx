@@ -365,18 +365,18 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
     };
 
     const getTargetIcon = (type: string, targetId?: string | null) => {
-        if (type === 'all') return <Globe size={14} weight="duotone" />;
-        if (type === 'team') return <Users size={14} weight="duotone" />;
+        if (type === 'all') return <Globe size={14} weight="bold" />;
+        if (type === 'team') return <Users size={14} weight="bold" />;
         if (type === 'role' && targetId) {
             const role = roles.find(r => r.id === targetId);
             // @ts-ignore
             if (role?.icon && AllIcons[role.icon]) {
                 // @ts-ignore
                 const IconComp = AllIcons[role.icon];
-                return <IconComp size={14} weight="duotone" />;
+                return <IconComp size={14} weight="bold" />;
             }
         }
-        return <Shield size={14} weight="duotone" />;
+        return <Shield size={14} weight="bold" />;
     };
 
 
@@ -389,12 +389,12 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                     className="flex items-center justify-between px-2 cursor-pointer hover:bg-slate-50/50 p-2 rounded-xl transition-colors select-none"
                     onClick={() => setIsOpen(!isOpen)}
                 >
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <div className={`p-1.5 rounded-lg transition-colors ${isOpen ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <Clock size={20} weight="duotone" />
+                    <h3 className="text-sm md:text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <div className={`p-1 md:p-1.5 rounded-lg transition-colors ${isOpen ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                            <Clock size={16} className="md:w-5 md:h-5" weight="duotone" />
                         </div>
                         סדר יום
-                        {!isOpen && <span className="text-xs font-normal text-slate-400 px-2 py-0.5 bg-slate-100 rounded-full">{timelineData.items.length} אירועים</span>}
+                        {!isOpen && <span className="text-[9px] md:text-xs font-normal text-slate-400 px-2 py-0.5 bg-slate-100 rounded-full">{timelineData.items.length} אירועים</span>}
                     </h3>
                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                         {isOpen && (
@@ -403,7 +403,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                 className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"
                                 title={isFullScreen ? "מזער" : "מסך מלא"}
                             >
-                                {isFullScreen ? <ArrowsIn size={18} weight="duotone" /> : <ArrowsOut size={18} weight="duotone" />}
+                                {isFullScreen ? <ArrowsIn size={18} weight="bold" /> : <ArrowsOut size={18} weight="bold" />}
                             </button>
                         )}
                         {isOpen && (
@@ -411,7 +411,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                 onClick={() => setShowFilters(true)}
                                 className={`p-2 rounded-full transition-colors ${filters.mode !== 'all' || filters.teams.length > 0 || filters.roles.length > 0 ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100'}`}
                             >
-                                <Filter size={18} weight="duotone" />
+                                <Filter size={18} weight="bold" />
                             </button>
                         )}
                         {canEdit && isOpen && (
@@ -431,7 +431,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                             </button>
                         )}
                         <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-slate-400 hover:text-slate-600">
-                            {isOpen ? <ChevronUp size={20} weight="duotone" /> : <ChevronDown size={20} weight="duotone" />}
+                            {isOpen ? <ChevronUp size={20} weight="bold" /> : <ChevronDown size={20} weight="bold" />}
                         </button>
                     </div>
                 </div>
@@ -499,8 +499,8 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                         {clusters.map((cluster, clusterIndex) => (
                                             <div key={clusterIndex} className="flex gap-2">
                                                 {/* Time Anchor for the Cluster */}
-                                                <div className="flex flex-col items-center justify-start min-w-[3.5rem] pt-2">
-                                                    <span className="text-xs font-mono font-bold text-slate-500">{cluster[0].startTime}</span>
+                                                <div className="flex flex-col items-center justify-start min-w-[3rem] md:min-w-[3.5rem] pt-2">
+                                                    <span className="text-[10px] md:text-xs font-mono font-bold text-slate-500">{cluster[0].startTime}</span>
                                                     <div className="w-px h-full bg-slate-200 my-1 dashed"></div>
                                                 </div>
 
@@ -590,10 +590,10 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                                                                 }
                                                                             }}
                                                                         >
-                                                                            <div className="p-3 flex flex-col h-full justify-between gap-2">
+                                                                            <div className="p-2 md:p-3 flex flex-col h-full justify-between gap-1.5 md:gap-2">
                                                                                 <div>
-                                                                                    <div className="flex justify-between items-start mb-1.5">
-                                                                                        <div className="flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 w-fit max-w-full">
+                                                                                    <div className="flex justify-between items-start mb-1 md:mb-1.5">
+                                                                                        <div className="flex items-center gap-1.5 text-[9px] md:text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-700 w-fit max-w-full">
                                                                                             <span style={{ color: itemColor }} className="shrink-0 drop-shadow-sm">
                                                                                                 {getTargetIcon(item.targetType, item.targetId)}
                                                                                             </span>
@@ -601,12 +601,12 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                                                                         </div>
                                                                                         {canEdit && (
                                                                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600">
-                                                                                                <Edit2 size={12} weight="duotone" />
+                                                                                                <Edit2 size={12} weight="bold" />
                                                                                             </div>
                                                                                         )}
                                                                                     </div>
 
-                                                                                    <h4 className={`font-black text-slate-900 leading-tight break-words ${item.isNow ? 'text-base' : (columnCount > 3 ? 'text-xs' : 'text-sm')}`}>{item.description}</h4>
+                                                                                    <h4 className={`font-black text-slate-800 leading-tight break-words ${item.isNow ? 'text-sm md:text-base' : (columnCount > 3 ? 'text-[10px] md:text-xs' : 'text-xs md:text-sm')}`}>{item.description}</h4>
                                                                                 </div>
 
                                                                                 <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-100">
@@ -635,7 +635,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                     ) : (
                         <div className="flex flex-col items-center justify-center p-12 bg-slate-50 rounded-2xl border border-slate-100 border-dashed text-center">
                             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm text-slate-300">
-                                <Clock size={32} weight="duotone" />
+                                <Clock size={32} weight="bold" />
                             </div>
                             <h3 className="text-lg font-bold text-slate-700 mb-1">היומן פנוי</h3>
                             <p className="text-slate-500 text-sm">אין לו"ז כרגע להיום.</p>
@@ -903,7 +903,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                     <div className="bg-white/80 backdrop-blur-md text-slate-900 px-4 py-3 md:px-6 md:py-4 flex flex-col md:flex-row items-center justify-between shadow-sm border-b border-slate-200/60 gap-4">
                         <div className="flex items-center gap-4 w-full md:w-auto">
                             <div className="p-2.5 bg-blue-50 rounded-2xl border border-blue-100 shadow-sm">
-                                <Clock size={28} weight="duotone" className="text-blue-600" />
+                                <Clock size={28} weight="bold" className="text-blue-600" />
                             </div>
                             <div className="flex flex-col">
                                 <h2 className="text-lg md:text-xl font-black tracking-tight leading-none mb-1 text-slate-900">לוח מלחמה</h2>
@@ -984,7 +984,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                                     if (clusters.length === 0) {
                                         return (
                                             <div className="h-full flex flex-col items-center justify-center opacity-30 text-slate-400 py-20">
-                                                <Clock size={64} weight="duotone" className="mb-4" />
+                                                <Clock size={64} weight="bold" className="mb-4" />
                                                 <p className="text-xl font-bold">אין אירועים להצגה</p>
                                             </div>
                                         );

@@ -3,12 +3,13 @@ import { supabase } from '../../services/supabaseClient';
 import { Profile, Person, UserPermissions, Team, PermissionTemplate } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Users, MagnifyingGlass, PencilSimple, CircleNotch, Link as LinkIcon, LinkBreak } from '@phosphor-icons/react';
+import { Users, MagnifyingGlass, PencilSimple, Link as LinkIcon, LinkBreak, Trash, CircleNotch } from '@phosphor-icons/react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { PermissionEditor } from './PermissionEditor';
 import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface OrganizationUserManagementProps {
     teams: Team[];
@@ -17,12 +18,14 @@ interface OrganizationUserManagementProps {
 export const OrganizationUserManagement: React.FC<OrganizationUserManagementProps> = ({ teams }) => {
     const { profile: myProfile, organization } = useAuth();
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [people, setPeople] = useState<Person[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingUser, setEditingUser] = useState<Profile | null>(null);
     const [linkingUser, setLinkingUser] = useState<Profile | null>(null);
+    const [userToRemove, setUserToRemove] = useState<Profile | null>(null);
     const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
 
     useEffect(() => {
@@ -77,6 +80,44 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
         }
     };
 
+    const handleRemoveUserFromOrg = async (userId: string) => {
+        try {
+            setLoading(true);
+
+            // 1. Unlink any person linked to this user
+            const { error: unlinkError } = await supabase
+                .from('people')
+                .update({ user_id: null })
+                .eq('user_id', userId);
+
+            if (unlinkError) throw unlinkError;
+
+            // 2. Remove user from organization (set organization_id to null)
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ organization_id: null })
+                .eq('id', userId);
+
+            if (profileError) throw profileError;
+
+            showToast('המשתמש הוסר מהארגון בהצלחה', 'success');
+
+            // Update local state
+            setProfiles(prev => prev.filter(p => p.id !== userId));
+            setPeople(prev => prev.map(p => p.userId === userId ? { ...p, userId: undefined } : p));
+
+            // Invalidate global cache
+            queryClient.invalidateQueries({ queryKey: ['organizationData'] });
+
+        } catch (error: any) {
+            console.error('Error removing user:', error);
+            showToast('שגיאה בהסרת המשתמש', 'error');
+        } finally {
+            setLoading(false);
+            setUserToRemove(null);
+        }
+    };
+
     const handleLinkToPerson = async (profileId: string, personId: string | null) => {
         try {
             if (personId) {
@@ -100,20 +141,65 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                 setPeople(prev => prev.map(p =>
                     p.id === personId ? { ...p, userId: profileId } : p
                 ));
+
+                // Invalidate global cache
+                queryClient.invalidateQueries({ queryKey: ['organizationData'] });
+
+                // If linking self, reload to update App state
+                if (profileId === myProfile?.id) {
+                    window.location.reload();
+                }
+
             } else {
                 // Unlink - find the person linked to this profile and remove the link
-                const { error } = await supabase
-                    .from('people')
-                    .update({ user_id: null })
-                    .eq('user_id', profileId);
+                const personToUnlink = people.find(p => p.userId === profileId);
+
+                const targetId = personToUnlink?.id;
+
+                let query = supabase.from('people').update({ user_id: null });
+
+                if (targetId) {
+                    query = query.eq('id', targetId);
+                } else {
+                    query = query.eq('user_id', profileId);
+                }
+
+                const { error } = await query;
 
                 if (error) throw error;
-                showToast('הקישור הוסר בהצלחה', 'success');
+
+                // Also reset the profile name to remove stale 'Abraham' data
+                const userProfile = profiles.find(p => p.id === profileId);
+                const defaultName = userProfile?.email?.split('@')[0] || 'משתמש';
+
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .update({ full_name: defaultName })
+                    .eq('id', profileId);
+
+                if (profileError) {
+                    console.error('Error resetting profile name:', profileError);
+                } else {
+                    // Update local profiles state
+                    setProfiles(prev => prev.map(p =>
+                        p.id === profileId ? { ...p, full_name: defaultName } : p
+                    ));
+                }
+
+                showToast('הקישור הוסר בהצלחה והפרופיל אופס', 'success');
 
                 // Update local state immediately
                 setPeople(prev => prev.map(p =>
                     p.userId === profileId ? { ...p, userId: undefined } : p
                 ));
+
+                // Invalidate global cache to force App.tsx to see the unlink
+                queryClient.invalidateQueries({ queryKey: ['organizationData'] });
+
+                // If unlinking self, reload to force "Claim Profile" screen
+                if (profileId === myProfile?.id) {
+                    window.location.reload();
+                }
             }
 
 
@@ -151,9 +237,11 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                             <Users size={24} className="text-purple-500" weight="duotone" />
                             משתמשי הארגון
                         </h2>
-                        <p className="text-sm text-slate-500 mt-1">
-                            ניהול משתמשים, הרשאות וקישור לאנשי הצוות
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <p className="text-sm text-slate-500">
+                                ניהול משתמשים, הרשאות וקישור לאנשי הצוות
+                            </p>
+                        </div>
                     </div>
 
                     <div className="relative w-full">
@@ -242,15 +330,26 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                                                     <LinkIcon size={18} weight="bold" />
                                                 </Button>
                                                 {user.id !== myProfile?.id && (
-                                                    <Button
-                                                        onClick={() => setEditingUser(user)}
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-slate-600 hover:text-blue-600 hover:bg-blue-50"
-                                                        title="ערוך הרשאות"
-                                                    >
-                                                        <PencilSimple size={18} weight="bold" />
-                                                    </Button>
+                                                    <>
+                                                        <Button
+                                                            onClick={() => setEditingUser(user)}
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+                                                            title="ערוך הרשאות"
+                                                        >
+                                                            <PencilSimple size={18} weight="bold" />
+                                                        </Button>
+                                                        <Button
+                                                            onClick={() => setUserToRemove(user)}
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                            title="הסר מהארגון"
+                                                        >
+                                                            <Trash size={18} weight="bold" />
+                                                        </Button>
+                                                    </>
                                                 )}
                                             </div>
                                         </td>
@@ -278,6 +377,16 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                                         </div>
                                         <div className="text-xs text-slate-400 truncate">{user.email}</div>
                                     </div>
+                                    {user.id !== myProfile?.id && (
+                                        <Button
+                                            onClick={() => setUserToRemove(user)}
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-slate-400 hover:text-red-500 p-1"
+                                        >
+                                            <Trash size={20} />
+                                        </Button>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2 text-sm">
@@ -371,6 +480,50 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                     templates={templates}
                 />
             )}
+
+            {/* Remove User Confirmation Modal */}
+            {userToRemove && (
+                <Modal
+                    isOpen={true}
+                    onClose={() => setUserToRemove(null)}
+                    title={
+                        <div className="flex items-center gap-3 text-red-600">
+                            <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                                <Trash size={24} weight="duotone" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black">הסרת משתמש מהארגון</h2>
+                                <p className="text-sm font-medium text-slate-500">
+                                    פעולה זו תנתק את המשתמש מהארגון
+                                </p>
+                            </div>
+                        </div>
+                    }
+                    footer={
+                        <div className="flex justify-end gap-3 w-full">
+                            <Button variant="ghost" onClick={() => setUserToRemove(null)} className="font-bold">
+                                ביטול
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={() => handleRemoveUserFromOrg(userToRemove.id)}
+                                className="bg-red-600 hover:bg-red-700 text-white font-bold shadow-red-200"
+                                icon={Trash}
+                            >
+                                אשר ומחק
+                            </Button>
+                        </div>
+                    }
+                >
+                    <div className="space-y-4">
+                        <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-red-800 text-sm">
+                            האם אתה בטוח שברצונך להסיר את המשתמש <strong>{userToRemove.full_name}</strong> ({userToRemove.email}) מהארגון?
+                            <br /><br />
+                            משתמש זה לא יוכל לגשת יותר לנתוני הארגון, וכל הקישורים שלו לאנשי צוות יבוטלו.
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div>
     );
 };
@@ -416,7 +569,9 @@ const LinkPersonModal: React.FC<{
                     {currentLinkedPerson && (
                         <Button
                             variant="secondary"
-                            onClick={() => onSave(user.id, null)}
+                            onClick={() => {
+                                onSave(user.id, null);
+                            }}
                             icon={LinkBreak}
                             className="font-bold"
                         >
@@ -462,3 +617,4 @@ const LinkPersonModal: React.FC<{
         </Modal>
     );
 };
+// End of OrganizationUserManagement component
