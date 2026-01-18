@@ -224,8 +224,9 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
         for (let d = 1; d <= daysInMonth; d++) {
             const date = new Date(year, month, d);
-            const avail = getDisplayAvailability(date);
-            const statusId = avail.status === 'home' ? `home-${avail.homeStatusType || 'default'}` : avail.status;
+            // Use visual props to ensure text matches "what the user sees"
+            const props = getVisualProps(date);
+            const statusId = props.label; // Group by the exact visual label
 
             if (!currentBlock || currentBlock.statusId !== statusId) {
                 if (currentBlock) {
@@ -234,11 +235,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 }
                 currentBlock = {
                     statusId,
-                    status: avail.status,
+                    label: props.label,
                     startDate: new Date(year, month, d),
-                    startHour: avail.startHour,
-                    endHour: avail.endHour,
-                    homeType: avail.homeStatusType
                 };
             }
         }
@@ -252,34 +250,17 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             const endStr = `${block.endDate.getDate()}.${month + 1}`;
             const range = startStr === endStr ? startStr : `${startStr} - ${endStr}`;
 
-            let statusText = '';
-            let emoji = '';
+            let emoji = '🏠'; // Default to home
+            const l = block.label;
 
-            if (block.status === 'base' || block.status === 'full') {
-                statusText = 'בבסיס';
-                emoji = '✅';
-            } else if (block.status === 'home') {
-                const homeStatusLabels: Record<string, string> = {
-                    'leave_shamp': 'חופשה',
-                    'gimel': 'ג\'',
-                    'absent': 'נפקד',
-                    'organization_days': 'התארגנות',
-                    'not_in_shamp': 'לא בשמ"פ'
-                };
-                statusText = homeStatusLabels[block.homeType] || 'בית';
-                emoji = '🏠';
-            } else if (block.status === 'arrival') {
-                statusText = `הגעה (${block.startHour})`;
-                emoji = '➡️';
-            } else if (block.status === 'departure') {
-                statusText = `יציאה (${block.endHour})`;
-                emoji = '⬅️';
-            } else if (block.status === 'unavailable') {
-                statusText = 'אילוץ';
-                emoji = '❌';
-            }
+            if (l.includes('בבסיס')) emoji = '✅';
+            else if (l.includes('הגעה')) emoji = '➡️';
+            else if (l.includes('יציאה')) emoji = '⬅️';
+            else if (l.includes('יום בודד')) emoji = '✅';
+            else if (l.includes('אילוץ')) emoji = '❌';
 
-            message += `• ${range}: *${statusText}* ${emoji}\n`;
+            // Bold the status text
+            message += `• ${range}: *${block.label}* ${emoji}\n`;
         });
 
         // Add Hourly Blockages section
