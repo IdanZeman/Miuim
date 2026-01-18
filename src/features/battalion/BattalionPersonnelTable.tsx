@@ -111,7 +111,7 @@ export const BattalionPersonnelTable: React.FC = () => {
             });
 
             // Data
-            filteredPeople.forEach(p => {
+            filteredPeople.filter(p => p.isActive !== false).forEach(p => {
                 const org = companies.find(c => c.id === p.organization_id);
                 const team = teams.find(t => t.id === p.teamId);
                 const personRoles = getPersonRoles(p).join(', ');

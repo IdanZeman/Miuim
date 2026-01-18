@@ -460,7 +460,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     } as any);
                 });
 
-                const rows = people.map(p => {
+                const activePeople = people.filter(p => p.isActive !== false);
+                const rows = activePeople.map(p => {
                     const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
                     const roleNames = (p.roleIds || [])
                         .map(id => roles.find(r => r.id === id)?.name)
@@ -512,7 +513,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 ];
 
                 const rows = sortedTeamsAsc.map(t => {
-                    const memberCount = people.filter(p => p.teamId === t.id).length;
+                    const memberCount = people.filter(p => p.isActive !== false && p.teamId === t.id).length;
                     return [t.name, memberCount, t.color];
                 });
 
@@ -535,7 +536,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 ];
 
                 const rows = sortedRolesAsc.map(r => {
-                    const count = people.filter(p => (p.roleIds || []).includes(r.id)).length;
+                    const count = people.filter(p => p.isActive !== false && (p.roleIds || []).includes(r.id)).length;
                     return [r.name, count, r.color];
                 });
 

@@ -171,9 +171,10 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                 { name: 'סיבה/הערות', filterButton: true }
             ];
 
-            const filteredPeople = selectedTeamIds.includes('all')
+            const filteredPeople = (selectedTeamIds.includes('all')
                 ? people
-                : people.filter(p => selectedTeamIds.includes(p.teamId));
+                : people.filter(p => selectedTeamIds.includes(p.teamId))
+            ).filter(p => p.isActive !== false);
 
             const rows = filteredPeople.map(p => {
                 const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';

@@ -124,7 +124,9 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
         const groups = new Map<any, Person[]>();
         let numericValues: number[] = [];
 
-        people.forEach(person => {
+        const activePeople = people.filter(p => p.isActive !== false);
+
+        activePeople.forEach(person => {
             let value;
             if (fieldKey === '_role') {
                 value = person.roleIds || (person.roleId ? [person.roleId] : []);
@@ -693,21 +695,22 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
                                     };
 
                                     // Prepare detailed data
-                                    const excelData = analysis.valueGroups.flatMap(group =>
-                                        group.people.map(person => ({
-                                            'שם': person.name,
-                                            [analysis.fieldLabel]: group.displayValue,
-                                            'צוות': getTeamName(person.teamId || ''),
-                                            'תפקידים': getAllRoleNames(person.roleIds),
-                                            'טלפון': person.phone || '',
-                                            'אימייל': person.email || '',
-                                            'סטטוס': person.isActive ? 'פעיל' : 'לא פעיל'
-                                        }))
+                                    const activePeople = analysis.valueGroups.flatMap(group =>
+                                        group.people.filter(p => p.isActive !== false)
+                                            .map(person => ({
+                                                'שם': person.name,
+                                                [analysis.fieldLabel]: group.displayValue,
+                                                'צוות': getTeamName(person.teamId || ''),
+                                                'תפקידים': getAllRoleNames(person.roleIds),
+                                                'טלפון': person.phone || '',
+                                                'אימייל': person.email || '',
+                                                'סטטוס': 'פעיל'
+                                            }))
                                     );
 
                                     // Create workbook
                                     const wb = XLSX.utils.book_new();
-                                    const ws = XLSX.utils.json_to_sheet(excelData);
+                                    const ws = XLSX.utils.json_to_sheet(activePeople);
 
                                     // Set column widths
                                     ws['!cols'] = [

@@ -826,7 +826,7 @@ const useMainAppState = () => {
 
     const handleAddEquipment = async (e: Equipment) => {
         if (!orgIdForActions) return;
-        const dbPayload = mapEquipmentToDB({ ...e, organization_id: orgIdForActions });
+        const dbPayload = mapEquipmentToDB({ ...e, organization_id: orgIdForActions, created_by: profile?.id });
 
         // Handle non-UUID temp IDs from frontend
         if (dbPayload.id && !dbPayload.id.includes('-') && dbPayload.id.length < 32) {

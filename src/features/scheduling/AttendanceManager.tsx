@@ -17,6 +17,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { RotaWizardModal } from './RotaWizardModal';
 import { AttendanceStatsModal } from './AttendanceStatsModal';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
+import { GenericModal } from '../../components/ui/GenericModal';
+import { Button } from '../../components/ui/Button';
 import { PageInfo } from '@/components/ui/PageInfo';
 import { useAuth } from '@/features/auth/AuthContext';
 import { addHourlyBlockage, updateHourlyBlockage, deleteHourlyBlockage, updateAbsence } from '@/services/api';
@@ -88,6 +90,11 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         confirmText?: string;
         type?: 'warning' | 'danger' | 'info';
     }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
+
+    // Export Modal State
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [exportStartDate, setExportStartDate] = useState('');
+    const [exportEndDate, setExportEndDate] = useState('');
 
     const queryClient = useQueryClient();
 
@@ -496,9 +503,43 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast(dates.length > 1 ? `${dates.length} ימים עודכנו בהצלחה` : 'הסטטוס עודכן בהצלחה', 'success');
     };
 
-    const handleExport = async () => {
+    const handleOpenExportModal = () => {
         if (isViewer) {
             showToast('אין לך הרשאה לייצא נתונים', 'error');
+            return;
+        }
+
+        // Default dates based on view mode
+        if (viewMode === 'day_detail') {
+            const dateStr = selectedDate.toLocaleDateString('en-CA');
+            setExportStartDate(dateStr);
+            setExportEndDate(dateStr);
+        } else {
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+
+            setExportStartDate(firstDay.toLocaleDateString('en-CA'));
+            setExportEndDate(lastDay.toLocaleDateString('en-CA'));
+        }
+        setShowExportModal(true);
+    };
+
+    const handleExport = async () => {
+        if (isViewer) return; // Should be blocked by UI but double check
+
+        // Ensure dates are valid
+        if (!exportStartDate || !exportEndDate) {
+            showToast('נא לבחור טווח תאריכים תקין', 'error');
+            return;
+        }
+
+        const start = new Date(exportStartDate);
+        const end = new Date(exportEndDate);
+
+        if (start > end) {
+            showToast('תאריך התחלה לא יכול להיות אחרי תאריך סיום', 'error');
             return;
         }
 
@@ -506,11 +547,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             const workbook = new ExcelJS.Workbook();
             let fileName = '';
 
+            // Calculate days difference
+            const diffTime = Math.abs(end.getTime() - start.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
             if (viewMode === 'calendar' || viewMode === 'table') {
-                const worksheet = workbook.addWorksheet('דוח חודשי', { views: [{ rightToLeft: true }] });
-                const year = viewDate.getFullYear();
-                const month = viewDate.getMonth();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const worksheet = workbook.addWorksheet('דוח נוכחות', { views: [{ rightToLeft: true }] });
+
 
                 // Home status type labels
                 const homeStatusLabels: Record<string, string> = {
@@ -523,10 +566,11 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
                 // Build headers: Name, Team, then all dates
                 const headers = ['שם מלא', 'צוות'];
-                for (let d = 1; d <= daysInMonth; d++) {
-                    const date = new Date(year, month, d);
+                for (let i = 0; i < diffDays; i++) {
+                    const date = new Date(start);
+                    date.setDate(start.getDate() + i);
                     const dayName = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'][date.getDay()];
-                    headers.push(`${d}.${month + 1}\n${dayName}`);
+                    headers.push(`${date.getDate()}.${date.getMonth() + 1}\n${dayName}`);
                 }
 
                 const headerRow = worksheet.addRow(headers);
@@ -544,13 +588,15 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 });
 
                 // Add rows for each person
-                people.forEach(person => {
+                const activePeople = people.filter(p => p.isActive !== false);
+                activePeople.forEach(person => {
                     const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
                     const rowData: any[] = [person.name, teamName];
 
                     // Add cell for each day
-                    for (let d = 1; d <= daysInMonth; d++) {
-                        const date = new Date(year, month, d);
+                    for (let i = 0; i < diffDays; i++) {
+                        const date = new Date(start);
+                        date.setDate(start.getDate() + i);
                         const dateKey = date.toLocaleDateString('en-CA');
                         const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
 
@@ -588,10 +634,11 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     row.height = 40;
 
                     // Style cells
-                    for (let d = 1; d <= daysInMonth; d++) {
-                        const date = new Date(year, month, d);
+                    for (let i = 0; i < diffDays; i++) {
+                        const date = new Date(start);
+                        date.setDate(start.getDate() + i);
+                        const cell = row.getCell(i + 3); // +1 index, +2 for name/team
                         const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
-                        const cell = row.getCell(d + 2);
 
                         cell.border = {
                             top: { style: 'thin' },
@@ -619,15 +666,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 // Set column widths
                 worksheet.getColumn(1).width = 20;
                 worksheet.getColumn(2).width = 15;
-                for (let d = 3; d <= daysInMonth + 2; d++) {
-                    worksheet.getColumn(d).width = 12;
+                for (let i = 0; i < diffDays; i++) {
+                    worksheet.getColumn(i + 3).width = 12;
                 }
-                fileName = `attendance_month_${month + 1}_${year}.xlsx`;
+                fileName = `attendance_report_${exportStartDate}_to_${exportEndDate}.xlsx`;
             } else {
                 const worksheet = workbook.addWorksheet('דוח יומי', { views: [{ rightToLeft: true }] });
                 const customFields = settings?.customFieldsSchema || [];
-                const dateKey = selectedDate.toLocaleDateString('en-CA');
-
                 const columns = [
                     { name: 'תאריך', filterButton: true },
                     { name: 'שם מלא', filterButton: true },
@@ -639,106 +684,119 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     { name: 'סיבה/הערות', filterButton: true }
                 ];
 
-                const rows = people.filter(p => p.name.includes(searchTerm)).map(p => {
-                    const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
+                const allRows: any[] = [];
 
-                    // Get roles as a comma-separated string
-                    const personRoleIds = p.roleIds || [p.roleId];
-                    const personRolesStr = personRoleIds
-                        .map(id => roles.find(r => r.id === id)?.name)
-                        .filter(Boolean)
-                        .join(', ');
+                for (let i = 0; i < diffDays; i++) {
+                    const currentDate = new Date(start);
+                    currentDate.setDate(start.getDate() + i);
+                    const dateKey = currentDate.toLocaleDateString('en-CA');
+                    const displayDate = currentDate.toLocaleDateString('he-IL');
 
-                    // Get custom fields values
-                    const customFieldValues = customFields.map(cf => {
-                        const val = p.customFields?.[cf.key];
-                        if (cf.type === 'boolean') return val ? 'V' : '';
-                        if (Array.isArray(val)) return val.join(', ');
-                        return val || '';
-                    });
+                    const dailyRows = people.filter(p => p.isActive !== false && p.name.includes(searchTerm)).map(p => {
+                        const teamName = teams.find(t => t.id === p.teamId)?.name || 'ללא צוות';
 
-                    const avail = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
-                    const isAvailable = avail.isAvailable;
+                        // Get roles as a comma-separated string
+                        const personRoleIds = p.roleIds || [p.roleId];
+                        const personRolesStr = personRoleIds
+                            .map(id => roles.find(r => r.id === id)?.name)
+                            .filter(Boolean)
+                            .join(', ');
 
-                    // Detailed status mapping
-                    let statusLabel = 'נוכח';
-                    let detailLabel = '';
-                    let reasonLabel = '';
+                        // Get custom fields values
+                        const customFieldValues = customFields.map(cf => {
+                            const val = p.customFields?.[cf.key];
+                            if (cf.type === 'boolean') return val ? 'V' : '';
+                            if (Array.isArray(val)) return val.join(', ');
+                            return val || '';
+                        });
 
-                    if (isAvailable) {
-                        if (avail.status === 'arrival' || (avail.startHour && avail.startHour !== '00:00')) {
-                            statusLabel = `הגעה (${avail.startHour || '00:00'})`;
-                        } else if (avail.status === 'departure' || (avail.endHour && avail.endHour !== '23:59')) {
-                            statusLabel = `יציאה (${avail.endHour || '23:59'})`;
+                        // USE currentDate instead of selectedDate
+                        const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages);
+                        const isAvailable = avail.isAvailable;
+
+                        // Detailed status mapping
+                        let statusLabel = 'נוכח';
+                        let detailLabel = '';
+                        let reasonLabel = '';
+
+                        if (isAvailable) {
+                            if (avail.status === 'arrival' || (avail.startHour && avail.startHour !== '00:00')) {
+                                statusLabel = `הגעה (${avail.startHour || '00:00'})`;
+                            } else if (avail.status === 'departure' || (avail.endHour && avail.endHour !== '23:59')) {
+                                statusLabel = `יציאה (${avail.endHour || '23:59'})`;
+                            } else {
+                                statusLabel = 'נוכח';
+                            }
                         } else {
-                            statusLabel = 'נוכח';
+                            statusLabel = 'חופשה בשמ"פ';
+                            if (avail.homeStatusType) {
+                                const statusMap: Record<string, string> = {
+                                    'gimel': "ג'",
+                                    'leave_shamp': 'חופשה בשמ"פ',
+                                    'not_in_shamp': 'לא בשמ"פ',
+                                    'absent': 'נפקד',
+                                    'organization_days': 'התארגנות'
+                                };
+                                statusLabel = statusMap[avail.homeStatusType] || 'חופשה בשמ"פ';
+                            }
                         }
-                    } else {
-                        statusLabel = 'חופשה בשמ"פ';
-                        if (avail.homeStatusType) {
-                            const statusMap: Record<string, string> = {
-                                'gimel': "ג'",
-                                'leave_shamp': 'חופשה בשמ"פ',
-                                'not_in_shamp': 'לא בשמ"פ',
-                                'absent': 'נפקד',
-                                'organization_days': 'התארגנות'
-                            };
-                            statusLabel = statusMap[avail.homeStatusType] || 'חופשה בשמ"פ';
+
+                        if (avail.startHour || avail.endHour) {
+                            const arrival = avail.startHour || '00:00';
+                            const departure = avail.endHour || '23:59';
+                            detailLabel = `${arrival} - ${departure}`;
                         }
-                    }
 
-                    if (avail.startHour || avail.endHour) {
-                        const arrival = avail.startHour || '00:00';
-                        const departure = avail.endHour || '23:59';
-                        detailLabel = `${arrival} - ${departure}`;
-                    }
-
-                    // Find active absence or blockage for reasons and hours
-                    const activeAbsence = absences.find(a =>
-                        a.person_id === p.id &&
-                        a.start_date <= dateKey &&
-                        a.end_date >= dateKey &&
-                        a.status === 'approved'
-                    );
-
-                    if (activeAbsence) {
-                        const absStart = activeAbsence.start_time || '00:00';
-                        const absEnd = activeAbsence.end_time || '23:59';
-                        const absHours = (absStart !== '00:00' || absEnd !== '23:59') ? ` (${absStart}-${absEnd})` : '';
-
-                        reasonLabel = activeAbsence.reason || 'היעדרות מאושרת';
-                        if (absHours) {
-                            if (detailLabel) detailLabel += ` | היעדרות: ${absStart}-${absEnd}`;
-                            else detailLabel = `${absStart}-${absEnd}`;
-                        }
-                    } else {
-                        const personBlockages = (hourlyBlockages || []).filter(b =>
-                            b.person_id === p.id &&
-                            b.date === dateKey
+                        // Find active absence or blockage for reasons and hours
+                        const activeAbsence = absences.find(a =>
+                            a.person_id === p.id &&
+                            a.start_date <= dateKey &&
+                            a.end_date >= dateKey &&
+                            a.status === 'approved'
                         );
 
-                        if (personBlockages.length > 0) {
-                            const blockTimes = personBlockages.map(b => `${b.start_time}-${b.end_time}`).join(', ');
-                            const blockReasons = personBlockages.map(b => b.reason).filter(Boolean).join(', ');
+                        if (activeAbsence) {
+                            const absStart = activeAbsence.start_time || '00:00';
+                            const absEnd = activeAbsence.end_time || '23:59';
+                            const absHours = (absStart !== '00:00' || absEnd !== '23:59') ? ` (${absStart}-${absEnd})` : '';
 
-                            if (detailLabel) detailLabel += ` | חסימות: ${blockTimes}`;
-                            else detailLabel = blockTimes;
+                            reasonLabel = activeAbsence.reason || 'היעדרות מאושרת';
+                            if (absHours) {
+                                if (detailLabel) detailLabel += ` | היעדרות: ${absStart}-${absEnd}`;
+                                else detailLabel = `${absStart}-${absEnd}`;
+                            }
+                        } else {
+                            const personBlockages = (hourlyBlockages || []).filter(b =>
+                                b.person_id === p.id &&
+                                b.date === dateKey
+                            );
 
-                            reasonLabel = blockReasons || 'חסימה שעתית';
+                            if (personBlockages.length > 0) {
+                                const blockTimes = personBlockages.map(b => `${b.start_time}-${b.end_time}`).join(', ');
+                                const blockReasons = personBlockages.map(b => b.reason).filter(Boolean).join(', ');
+
+                                if (detailLabel) detailLabel += ` | חסימות: ${blockTimes}`;
+                                else detailLabel = blockTimes;
+
+                                reasonLabel = blockReasons || 'חסימה שעתית';
+                            }
                         }
-                    }
 
-                    return [
-                        selectedDate.toLocaleDateString('he-IL'),
-                        p.name,
-                        teamName,
-                        personRolesStr,
-                        ...customFieldValues,
-                        statusLabel,
-                        detailLabel,
-                        reasonLabel
-                    ];
-                });
+                        return [
+                            displayDate, // Use loop date
+                            p.name,
+                            teamName,
+                            personRolesStr,
+                            ...customFieldValues,
+                            statusLabel,
+                            detailLabel,
+                            reasonLabel
+                        ];
+                    });
+                    allRows.push(...dailyRows);
+                }
+
+                const rows = allRows; // Use aggregated rows
 
                 worksheet.addTable({
                     name: 'DailyAttendanceTable',
@@ -769,7 +827,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 // Column widths
                 const colWidths = [15, 25, 20, 25, ...customFields.map(() => 15), 15, 15, 30];
                 worksheet.columns = colWidths.map(w => ({ width: w }));
-                fileName = `attendance_${selectedDate.toLocaleDateString('en-CA')}.xlsx`;
+                fileName = `attendance_report_${exportStartDate}_to_${exportEndDate}.xlsx`;
             }
 
             const buffer = await workbook.xlsx.writeBuffer();
@@ -828,7 +886,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             </button>
                         )}
                         <ExportButton
-                            onExport={async () => { await handleExport(); }}
+                            onExport={async () => handleOpenExportModal()}
                             iconOnly
                             variant="secondary"
                             size="sm"
@@ -924,7 +982,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     isSearchHidden={viewMode === 'calendar'}
                     isSearchExpanded={isSearchExpanded}
                     onSearchExpandedChange={setIsSearchExpanded}
-                    onExport={handleExport}
+                    onExport={async () => handleOpenExportModal()}
                     className="p-4"
                     leftActions={
                         <div className="flex items-center gap-4">
@@ -1184,6 +1242,60 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 cancelText="ביטול"
                 type={confirmationState.type}
             />
+
+            {/* Export Date Range Modal */}
+            <GenericModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                title="ייצוא נתוני נוכחות"
+                size="sm"
+                footer={
+                    <div className="flex gap-2 justify-end">
+                        <Button
+                            variant="secondary"
+                            onClick={() => setShowExportModal(false)}
+                        >
+                            ביטול
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                handleExport();
+                                setShowExportModal(false);
+                            }}
+                            disabled={!exportStartDate || !exportEndDate}
+                        >
+                            <Download className="ml-2" />
+                            ייצוא לאקסל
+                        </Button>
+                    </div>
+                }
+            >
+                <div className="space-y-4">
+                    <p className="text-slate-600">
+                        אנא בחר את טווח התאריכים עבורו תרצה להפיק את הדוח.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-bold text-slate-700">מתאריך</label>
+                            <input
+                                type="date"
+                                className="w-full h-10 px-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                value={exportStartDate}
+                                onChange={(e) => setExportStartDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-bold text-slate-700">עד תאריך</label>
+                            <input
+                                type="date"
+                                className="w-full h-10 px-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                                value={exportEndDate}
+                                onChange={(e) => setExportEndDate(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </GenericModal>
         </div>
     );
 };

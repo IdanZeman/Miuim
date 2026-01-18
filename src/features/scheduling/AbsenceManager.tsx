@@ -119,7 +119,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
             { header: 'סטטוס', key: 'status', width: 15 }
         ];
 
-        absences.forEach(absence => {
+        activeAbsences.forEach(absence => {
             const person = people.find(p => p.id === absence.person_id);
             const times = absence.start_time && absence.end_time ? `${absence.start_time} - ${absence.end_time}` : 'יום מלא';
             worksheet.addRow({

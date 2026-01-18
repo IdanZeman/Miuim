@@ -63,8 +63,10 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
                 const eDate = new Date(s.endTime);
 
                 const taskName = tasks.find(t => t.id === s.taskId)?.name || 'לא ידוע';
+                const now = new Date();
+                const activePeople = people.filter(p => p.isActive !== false);
                 const assigneeNames = s.assignedPersonIds
-                    .map(id => people.find(p => p.id === id)?.name)
+                    .map(id => activePeople.find(p => p.id === id)?.name)
                     .filter(Boolean)
                     .join(', ');
 

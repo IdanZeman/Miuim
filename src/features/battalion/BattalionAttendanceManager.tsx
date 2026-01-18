@@ -89,7 +89,8 @@ export const BattalionAttendanceManager: React.FC = () => {
                     return a.name.localeCompare(b.name);
                 });
 
-                sortedPeople.forEach(person => {
+                const activePeople = sortedPeople.filter(p => p.isActive !== false);
+                activePeople.forEach(person => {
                     const companyName = companies.find(c => c.id === person.organization_id)?.name || '-';
                     const teamName = teams.find(t => t.id === person.teamId)?.name || 'ללא צוות';
 
@@ -187,7 +188,8 @@ export const BattalionAttendanceManager: React.FC = () => {
                     return a.name.localeCompare(b.name);
                 });
 
-                sortedPeople.forEach(person => {
+                const activePeople = sortedPeople.filter(p => p.isActive !== false);
+                activePeople.forEach(person => {
                     const companyName = companies.find(c => c.id === person.organization_id)?.name || '-';
                     const teamName = teams.find(t => t.id === person.teamId)?.name || '-';
                     const avail = getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);

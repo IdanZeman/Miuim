@@ -357,6 +357,7 @@ export interface Equipment {
   last_verified_at: string | null; // ISO Date
   status: EquipmentStatus;
   notes?: string;
+  created_by?: string; // Profile ID
 }
 
 

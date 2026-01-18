@@ -38,6 +38,7 @@ import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
 import { useToast } from '@/contexts/ToastContext';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { PersonSearchSelect } from '@/components/ui/PersonSearchSelect';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 
 interface EquipmentManagerProps {
     people: Person[];
@@ -73,6 +74,11 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
 
     // Optimistic UI State
     const [optimisticIds, setOptimisticIds] = useState<Record<string, Equipment>>({});
+    const [newCustomFields, setNewCustomFields] = useState<Record<string, any>>({});
+
+    // Delete Confirmation State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<Equipment | null>(null);
 
     // Reset optimistic state when real data arrives
     React.useEffect(() => {
@@ -253,7 +259,8 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
             itemsToExport.forEach(item => {
                 let row;
                 if (viewMode === 'list') {
-                    const person = people.find(p => p.id === item.assigned_to_id)?.name || '-';
+                    const assignedPerson = people.find(p => p.id === item.assigned_to_id);
+                    const person = (assignedPerson && assignedPerson.isActive !== false) ? assignedPerson.name : '-';
                     const statusLabel = getStatusLabel(item.status);
                     row = worksheet.addRow([item.serial_number, item.type, person, statusLabel, item.notes || '']);
                 } else {
@@ -508,10 +515,8 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                         </button>
                                                         <button
                                                             onClick={() => {
-                                                                if (confirm('האם אתה בטוח שברצונך למחוק פריט זה?')) {
-                                                                    onDeleteEquipment(item.id);
-                                                                    showToast('הפריט נמחק', 'info');
-                                                                }
+                                                                setItemToDelete(item);
+                                                                setIsDeleteModalOpen(true);
                                                             }}
                                                             className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-white hover:shadow-sm rounded-xl transition-all border border-transparent hover:border-slate-100"
                                                             title="מחיקה"
@@ -863,6 +868,23 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                     )}
                 </div>
             </GenericModal>
+            {/* Delete Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                title="מחיקת ציוד"
+                message={`האם אתה בטוח שברצונך למחוק את ${itemToDelete?.type} ${itemToDelete?.serial_number}? הפעולה לא ניתנת לביטול.`}
+                confirmText="מחק שורה"
+                cancelText="ביטול"
+                type="danger"
+                onConfirm={() => {
+                    if (itemToDelete) {
+                        onDeleteEquipment(itemToDelete.id);
+                        showToast('הפריט נמחק בהצלחה', 'info');
+                    }
+                    setIsDeleteModalOpen(false);
+                }}
+                onCancel={() => setIsDeleteModalOpen(false)}
+            />
         </div>
     );
 };

@@ -236,7 +236,8 @@ export const mapEquipmentFromDB = (e: any): Equipment => ({
     signed_at: e.signed_at,
     last_verified_at: e.last_verified_at,
     status: e.status,
-    notes: e.notes
+    notes: e.notes,
+    created_by: e.created_by
 });
 
 export const mapEquipmentToDB = (e: Equipment) => ({
@@ -248,7 +249,8 @@ export const mapEquipmentToDB = (e: Equipment) => ({
     signed_at: e.signed_at,
     last_verified_at: e.last_verified_at,
     status: e.status,
-    notes: e.notes
+    notes: e.notes,
+    created_by: e.created_by
 });
 
 // Equipment Daily Checks Mappers
