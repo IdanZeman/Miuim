@@ -33,19 +33,22 @@ const MetricTooltip = ({ text }: { text: string }) => (
     </div>
 );
 
+import { Skeleton } from '@/components/ui/Skeleton';
+
 const AnalyticsSkeleton = () => (
-    <div className="space-y-8 animate-pulse">
+    <div className="space-y-8">
         {/* Main Stats Row Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map(i => (
-                <div key={i} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm h-32">
+                <div key={i} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm h-32 flex flex-col justify-between">
                     <div className="flex justify-between items-start">
                         <div className="space-y-3">
-                            <div className="w-20 h-3 bg-slate-100 rounded" />
-                            <div className="w-12 h-8 bg-slate-100 rounded" />
+                            <Skeleton className="w-20 h-3" />
+                            <Skeleton className="w-12 h-8 rounded-lg" />
                         </div>
-                        <div className="w-12 h-12 bg-slate-100 rounded-2xl" />
+                        <Skeleton className="w-12 h-12 rounded-2xl" />
                     </div>
+                    <Skeleton className="w-16 h-2 rounded-full self-end" />
                 </div>
             ))}
         </div>
@@ -53,23 +56,37 @@ const AnalyticsSkeleton = () => (
         {/* System Performance & Nightly Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 bg-white border border-slate-100 rounded-[2.5rem] p-8 h-64 flex items-center gap-8">
-                <div className="w-32 h-32 bg-slate-100 rounded-full shrink-0" />
+                <Skeleton className="w-32 h-32 rounded-full shrink-0" />
                 <div className="flex-1 space-y-6">
                     <div className="space-y-2">
-                        <div className="w-48 h-6 bg-slate-100 rounded" />
-                        <div className="w-64 h-4 bg-slate-100 rounded" />
+                        <Skeleton className="w-48 h-6" />
+                        <Skeleton className="w-64 h-4" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="h-20 bg-slate-50 rounded-2xl border border-slate-100" />
-                        <div className="h-20 bg-slate-50 rounded-2xl border border-slate-100" />
+                        <Skeleton className="h-20 rounded-2xl" />
+                        <Skeleton className="h-20 rounded-2xl" />
                     </div>
                 </div>
             </div>
-            <div className="bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 h-64" />
+            <Skeleton className="bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 h-64 w-full" />
         </div>
 
         {/* Activity Feed Skeleton */}
-        <div className="bg-white rounded-[2.5rem] border border-slate-100 h-[400px]" />
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 h-[400px] p-6 space-y-4">
+            <div className="flex justify-between items-center mb-6">
+                <Skeleton className="w-40 h-6" />
+                <Skeleton className="w-24 h-6 rounded-lg" />
+            </div>
+            {[1, 2, 3, 4].map(i => (
+                <div key={i} className="flex gap-4 items-center">
+                    <Skeleton className="w-12 h-12 rounded-2xl shrink-0" />
+                    <div className="space-y-2 flex-1">
+                        <Skeleton className="w-32 h-4" />
+                        <Skeleton className="w-48 h-3" />
+                    </div>
+                </div>
+            ))}
+        </div>
     </div>
 );
 

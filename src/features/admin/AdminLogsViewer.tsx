@@ -5,6 +5,7 @@ import { Shield as ShieldIcon, MagnifyingGlass as SearchIcon, ArrowsClockwise as
 import type { LogLevel } from '../../services/loggingService';
 import { Select } from '../../components/ui/Select';
 import { ExportButton } from '../../components/ui/ExportButton';
+import { AdminLogsSkeleton } from './AdminLogsSkeleton';
 
 interface LogEntry {
     id: string;
@@ -294,243 +295,249 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
 
             {/* Content Area - Scrollable */}
             <div className="flex-1 overflow-hidden relative flex flex-col">
-                {/* Desktop Table */}
-                <div className="hidden md:block flex-1 overflow-y-auto custom-scrollbar">
-                    <table className="w-full text-sm text-right">
-                        <thead className="bg-slate-50/90 backdrop-blur sticky top-0 z-10 text-slate-500 font-bold border-b border-slate-100 uppercase text-[10px] tracking-wider shadow-sm">
-                            <tr>
-                                <th className="px-6 py-4 w-40">זמן</th>
-                                <th className="px-4 py-4 w-24">רמה</th>
-                                <th className="px-4 py-4 w-40">סוג אירוע</th>
-                                <th className="px-4 py-4">תיאור</th>
-                                <th className="px-4 py-4 w-48">משתמש</th>
-                                <th className="px-4 py-4 w-32">ארגון</th>
-                                <th className="px-4 py-4 w-32">קומפוננטה</th>
-                                <th className="px-4 py-4 w-24 text-center">⏱️</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {filteredLogs.map((log) => (
-                                <React.Fragment key={log.id}>
-                                    <tr
-                                        className={`hover:bg-blue-50/40 transition-all duration-200 group cursor-pointer ${expandedRow === log.id ? 'bg-blue-50/60' : ''}`}
-                                        onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
-                                    >
-                                        <td className="px-6 py-4 text-slate-500" dir="ltr">
-                                            <div className="flex flex-col items-end">
-                                                <span className="font-bold text-slate-700 text-xs tabular-nums">
-                                                    {new Date(log.created_at).toLocaleDateString('he-IL')}
-                                                </span>
-                                                <span className="text-[10px] text-slate-400 font-mono tabular-nums">
-                                                    {new Date(log.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border shadow-sm ${getLevelColor(log.log_level)}`}>
-                                                {log.log_level}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-4 font-bold text-slate-800 text-xs">
-                                            {log.event_type}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <p className="text-slate-600 text-xs leading-relaxed line-clamp-2 max-w-[400px]" title={log.action_description}>
-                                                {log.action_description}
-                                            </p>
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-200 shrink-0">
-                                                    {(log.user_name || log.user_email || 'S').charAt(0).toUpperCase()}
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-slate-800 font-bold text-xs truncate max-w-[150px]" title={log.user_email}>
-                                                        {log.user_name || log.user_email || 'System'}
-                                                    </span>
-                                                    <span className="text-[10px] text-slate-400 font-mono truncate max-w-[150px]">
-                                                        {log.user_email}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <div className="text-slate-700 text-xs font-medium truncate max-w-[120px] bg-slate-50 px-2 py-1 rounded-lg border border-slate-100" title={log.org_name}>
-                                                {log.org_name}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded-lg uppercase tracking-wider">
-                                                {log.component_name || '-'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-4 text-center">
-                                            {log.performance_ms && (
-                                                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${log.performance_ms > 1000 ? 'bg-red-50 text-red-600' : log.performance_ms > 500 ? 'bg-yellow-50 text-yellow-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                                    {log.performance_ms}ms
-                                                </span>
-                                            )}
-                                        </td>
+                {loading ? (
+                    <AdminLogsSkeleton />
+                ) : (
+                    <>
+                        {/* Desktop Table */}
+                        <div className="hidden md:block flex-1 overflow-y-auto custom-scrollbar">
+                            <table className="w-full text-sm text-right">
+                                <thead className="bg-slate-50/90 backdrop-blur sticky top-0 z-10 text-slate-500 font-bold border-b border-slate-100 uppercase text-[10px] tracking-wider shadow-sm">
+                                    <tr>
+                                        <th className="px-6 py-4 w-40">זמן</th>
+                                        <th className="px-4 py-4 w-24">רמה</th>
+                                        <th className="px-4 py-4 w-40">סוג אירוע</th>
+                                        <th className="px-4 py-4">תיאור</th>
+                                        <th className="px-4 py-4 w-48">משתמש</th>
+                                        <th className="px-4 py-4 w-32">ארגון</th>
+                                        <th className="px-4 py-4 w-32">קומפוננטה</th>
+                                        <th className="px-4 py-4 w-24 text-center">⏱️</th>
                                     </tr>
-                                    {expandedRow === log.id && (
-                                        <tr className="bg-slate-50/50 shadow-inner">
-                                            <td colSpan={8} className="px-8 py-6">
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                    <div className="space-y-3">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Client Environment
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {filteredLogs.map((log) => (
+                                        <React.Fragment key={log.id}>
+                                            <tr
+                                                className={`hover:bg-blue-50/40 transition-all duration-200 group cursor-pointer ${expandedRow === log.id ? 'bg-blue-50/60' : ''}`}
+                                                onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
+                                            >
+                                                <td className="px-6 py-4 text-slate-500" dir="ltr">
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="font-bold text-slate-700 text-xs tabular-nums">
+                                                            {new Date(log.created_at).toLocaleDateString('he-IL')}
                                                         </span>
-                                                        <div className="p-4 bg-white rounded-2xl border border-slate-200/60 shadow-sm space-y-3 text-xs">
-                                                            <div className="flex justify-between items-center pb-2 border-b border-slate-50">
-                                                                <span className="text-slate-500 font-medium">Device</span>
-                                                                <span className="font-bold text-slate-700">
-                                                                    {(log as any).device_type || (log as any).metadata?.device_type || 'Desktop'}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center pb-2 border-b border-slate-50">
-                                                                <span className="text-slate-500 font-medium">Location</span>
-                                                                <span className="font-bold text-slate-700">
-                                                                    {(log as any).city || (log as any).metadata?.city || 'Unknown'}, {(log as any).country || (log as any).metadata?.country || 'Unknown'}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-slate-500 font-medium">IP Address</span>
-                                                                <span className="font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                                                                    {(log as any).ip_address || (log as any).metadata?.ip || '0.0.0.0'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-3">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Target Entity
+                                                        <span className="text-[10px] text-slate-400 font-mono tabular-nums">
+                                                            {new Date(log.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                                         </span>
-                                                        <div className="p-4 bg-white rounded-2xl border border-slate-200/60 shadow-sm space-y-3 text-xs">
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-slate-500 font-medium">Type</span>
-                                                                <span className="bg-slate-100 px-2 py-1 rounded-lg font-bold text-slate-700 border border-slate-200">{log.entity_type || 'N/A'}</span>
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <span className="text-slate-500 font-medium">ID</span>
-                                                                <div className="font-mono text-[10px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 break-all select-all">{log.entity_id || 'N/A'}</div>
-                                                            </div>
-                                                        </div>
                                                     </div>
-
-                                                    {(log.before_data || log.after_data) && (
-                                                        <div className="space-y-3">
-                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Payload
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border shadow-sm ${getLevelColor(log.log_level)}`}>
+                                                        {log.log_level}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-4 font-bold text-slate-800 text-xs">
+                                                    {log.event_type}
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <p className="text-slate-600 text-xs leading-relaxed line-clamp-2 max-w-[400px]" title={log.action_description}>
+                                                        {log.action_description}
+                                                    </p>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-200 shrink-0">
+                                                            {(log.user_name || log.user_email || 'S').charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-slate-800 font-bold text-xs truncate max-w-[150px]" title={log.user_email}>
+                                                                {log.user_name || log.user_email || 'System'}
                                                             </span>
-                                                            <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 shadow-inner max-h-48 overflow-auto custom-scrollbar-dark">
-                                                                <pre className="text-[10px] font-mono text-emerald-400 leading-relaxed">{JSON.stringify({ before: log.before_data, after: log.after_data }, null, 2)}</pre>
-                                                            </div>
+                                                            <span className="text-[10px] text-slate-400 font-mono truncate max-w-[150px]">
+                                                                {log.user_email}
+                                                            </span>
                                                         </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <div className="text-slate-700 text-xs font-medium truncate max-w-[120px] bg-slate-50 px-2 py-1 rounded-lg border border-slate-100" title={log.org_name}>
+                                                        {log.org_name}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded-lg uppercase tracking-wider">
+                                                        {log.component_name || '-'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-4 text-center">
+                                                    {log.performance_ms && (
+                                                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${log.performance_ms > 1000 ? 'bg-red-50 text-red-600' : log.performance_ms > 500 ? 'bg-yellow-50 text-yellow-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                            {log.performance_ms}ms
+                                                        </span>
                                                     )}
+                                                </td>
+                                            </tr>
+                                            {expandedRow === log.id && (
+                                                <tr className="bg-slate-50/50 shadow-inner">
+                                                    <td colSpan={8} className="px-8 py-6">
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                            <div className="space-y-3">
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Client Environment
+                                                                </span>
+                                                                <div className="p-4 bg-white rounded-2xl border border-slate-200/60 shadow-sm space-y-3 text-xs">
+                                                                    <div className="flex justify-between items-center pb-2 border-b border-slate-50">
+                                                                        <span className="text-slate-500 font-medium">Device</span>
+                                                                        <span className="font-bold text-slate-700">
+                                                                            {(log as any).device_type || (log as any).metadata?.device_type || 'Desktop'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center pb-2 border-b border-slate-50">
+                                                                        <span className="text-slate-500 font-medium">Location</span>
+                                                                        <span className="font-bold text-slate-700">
+                                                                            {(log as any).city || (log as any).metadata?.city || 'Unknown'}, {(log as any).country || (log as any).metadata?.country || 'Unknown'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-slate-500 font-medium">IP Address</span>
+                                                                        <span className="font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                                                                            {(log as any).ip_address || (log as any).metadata?.ip || '0.0.0.0'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-3">
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Target Entity
+                                                                </span>
+                                                                <div className="p-4 bg-white rounded-2xl border border-slate-200/60 shadow-sm space-y-3 text-xs">
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-slate-500 font-medium">Type</span>
+                                                                        <span className="bg-slate-100 px-2 py-1 rounded-lg font-bold text-slate-700 border border-slate-200">{log.entity_type || 'N/A'}</span>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <span className="text-slate-500 font-medium">ID</span>
+                                                                        <div className="font-mono text-[10px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 break-all select-all">{log.entity_id || 'N/A'}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {(log.before_data || log.after_data) && (
+                                                                <div className="space-y-3">
+                                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Payload
+                                                                    </span>
+                                                                    <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 shadow-inner max-h-48 overflow-auto custom-scrollbar-dark">
+                                                                        <pre className="text-[10px] font-mono text-emerald-400 leading-relaxed">{JSON.stringify({ before: log.before_data, after: log.after_data }, null, 2)}</pre>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                    {filteredLogs.length === 0 && (
+                                        <tr>
+                                            <td colSpan={8} className="px-4 py-24 text-center text-slate-400">
+                                                <div className="flex flex-col items-center gap-4">
+                                                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
+                                                        <SearchIcon size={32} className="opacity-40" weight="duotone" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-bold text-lg text-slate-600">לא נמצאו תוצאות</h3>
+                                                        <p className="text-slate-400 text-sm">נסה לשנות את סינוני החיפוש או לנקות אותם</p>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
                                     )}
-                                </React.Fragment>
-                            ))}
-                            {filteredLogs.length === 0 && (
-                                <tr>
-                                    <td colSpan={8} className="px-4 py-24 text-center text-slate-400">
-                                        <div className="flex flex-col items-center gap-4">
-                                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
-                                                <SearchIcon size={32} className="opacity-40" weight="duotone" />
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile List View - Improved */}
+                        <div className="md:hidden flex-1 overflow-y-auto bg-slate-50/50 p-4 space-y-3">
+                            {filteredLogs.map((log) => (
+                                <div
+                                    key={log.id}
+                                    onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)} // Make whole card clickable for better UX
+                                    className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden active:scale-[0.99] transition-transform duration-200"
+                                >
+                                    <div className="p-4">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border shadow-sm ${getLevelColor(log.log_level)}`}>
+                                                {log.log_level}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-slate-400 tabular-nums">
+                                                {new Date(log.created_at).toLocaleString('he-IL')}
+                                            </span>
+                                        </div>
+
+                                        <div className="mb-3 space-y-1">
+                                            <div className="text-sm font-black text-slate-800">{log.event_type}</div>
+                                            <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{log.action_description}</p>
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                                            <div className="flex items-center gap-2 text-xs">
+                                                <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                                                    {(log.user_name || log.user_email || 'S').charAt(0).toUpperCase()}
+                                                </div>
+                                                <span className="font-bold text-slate-700 truncate max-w-[120px]">{log.user_name || 'System'}</span>
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-lg text-slate-600">לא נמצאו תוצאות</h3>
-                                                <p className="text-slate-400 text-sm">נסה לשנות את סינוני החיפוש או לנקות אותם</p>
+                                            <div className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
+                                                {expandedRow === log.id ? 'סגור' : 'פרטים'}
                                             </div>
                                         </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Mobile List View - Improved */}
-                <div className="md:hidden flex-1 overflow-y-auto bg-slate-50/50 p-4 space-y-3">
-                    {filteredLogs.map((log) => (
-                        <div
-                            key={log.id}
-                            onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)} // Make whole card clickable for better UX
-                            className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden active:scale-[0.99] transition-transform duration-200"
-                        >
-                            <div className="p-4">
-                                <div className="flex justify-between items-start mb-3">
-                                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border shadow-sm ${getLevelColor(log.log_level)}`}>
-                                        {log.log_level}
-                                    </span>
-                                    <span className="text-[10px] font-bold text-slate-400 tabular-nums">
-                                        {new Date(log.created_at).toLocaleString('he-IL')}
-                                    </span>
-                                </div>
-
-                                <div className="mb-3 space-y-1">
-                                    <div className="text-sm font-black text-slate-800">{log.event_type}</div>
-                                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{log.action_description}</p>
-                                </div>
-
-                                <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                                    <div className="flex items-center gap-2 text-xs">
-                                        <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                                            {(log.user_name || log.user_email || 'S').charAt(0).toUpperCase()}
-                                        </div>
-                                        <span className="font-bold text-slate-700 truncate max-w-[120px]">{log.user_name || 'System'}</span>
                                     </div>
-                                    <div className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
-                                        {expandedRow === log.id ? 'סגור' : 'פרטים'}
-                                    </div>
-                                </div>
-                            </div>
 
-                            {/* Mobile Expanded Details */}
-                            {expandedRow === log.id && (
-                                <div className="bg-slate-50 border-t border-slate-100 p-4 space-y-4 animate-in slide-in-from-top-2">
-                                    <div className="grid grid-cols-2 gap-3 text-xs">
-                                        <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 shadow-sm">
-                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Component</div>
-                                            <div className="font-medium text-slate-700">{log.component_name || '-'}</div>
-                                        </div>
-                                        <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 shadow-sm">
-                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Entity</div>
-                                            <div className="font-medium text-slate-700">{log.entity_type}</div>
-                                        </div>
-                                    </div>
-                                    <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm text-xs">
-                                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Location Data</div>
-                                        <div className="flex items-center gap-2 text-slate-600">
-                                            <span>{(log as any).city || 'Unknown City'}</span>
-                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                            <span className="font-mono text-[10px]">{(log as any).ip_address}</span>
-                                        </div>
-                                    </div>
-                                    {(log.before_data || log.after_data) && (
-                                        <div className="rounded-xl border border-slate-200/60 overflow-hidden shadow-sm">
-                                            <div className="bg-slate-900 px-3 py-1.5 text-[9px] font-black text-slate-400 tracking-wider">RAW DATA</div>
-                                            <div className="bg-slate-800 p-3 max-h-40 overflow-auto">
-                                                <pre className="text-[10px] font-mono text-emerald-400 leading-relaxed whitespace-pre-wrap break-all">
-                                                    {JSON.stringify({ before: log.before_data, after: log.after_data }, null, 2)}
-                                                </pre>
+                                    {/* Mobile Expanded Details */}
+                                    {expandedRow === log.id && (
+                                        <div className="bg-slate-50 border-t border-slate-100 p-4 space-y-4 animate-in slide-in-from-top-2">
+                                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                                <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 shadow-sm">
+                                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Component</div>
+                                                    <div className="font-medium text-slate-700">{log.component_name || '-'}</div>
+                                                </div>
+                                                <div className="bg-white p-2.5 rounded-xl border border-slate-200/60 shadow-sm">
+                                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Entity</div>
+                                                    <div className="font-medium text-slate-700">{log.entity_type}</div>
+                                                </div>
                                             </div>
+                                            <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm text-xs">
+                                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Location Data</div>
+                                                <div className="flex items-center gap-2 text-slate-600">
+                                                    <span>{(log as any).city || 'Unknown City'}</span>
+                                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                    <span className="font-mono text-[10px]">{(log as any).ip_address}</span>
+                                                </div>
+                                            </div>
+                                            {(log.before_data || log.after_data) && (
+                                                <div className="rounded-xl border border-slate-200/60 overflow-hidden shadow-sm">
+                                                    <div className="bg-slate-900 px-3 py-1.5 text-[9px] font-black text-slate-400 tracking-wider">RAW DATA</div>
+                                                    <div className="bg-slate-800 p-3 max-h-40 overflow-auto">
+                                                        <pre className="text-[10px] font-mono text-emerald-400 leading-relaxed whitespace-pre-wrap break-all">
+                                                            {JSON.stringify({ before: log.before_data, after: log.after_data }, null, 2)}
+                                                        </pre>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
+                            ))}
+                            {filteredLogs.length === 0 && (
+                                <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-3">
+                                    <SearchIcon size={40} className="opacity-20" weight="bold" />
+                                    <p className="font-medium text-sm">לא נמצאו לוגים</p>
+                                </div>
                             )}
                         </div>
-                    ))}
-                    {filteredLogs.length === 0 && (
-                        <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-3">
-                            <SearchIcon size={40} className="opacity-20" weight="bold" />
-                            <p className="font-medium text-sm">לא נמצאו לוגים</p>
-                        </div>
-                    )}
-                </div>
+                    </>
+                )}
             </div>
         </div>
     );

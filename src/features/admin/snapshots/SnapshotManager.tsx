@@ -20,6 +20,7 @@ import {
 } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { SnapshotPreviewModal } from './components/SnapshotPreviewModal';
+import { SnapshotListSkeleton } from './SnapshotListSkeleton';
 
 const MAX_SNAPSHOTS = 5;
 const RESTORE_VERIFICATION_TEXT = 'שחזור';
@@ -181,8 +182,10 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
         }
     };
 
+
+
     if (loading && snapshots.length === 0) {
-        return <div className="text-slate-500 text-sm animate-pulse">טוען גרסאות...</div>;
+        return <SnapshotListSkeleton />;
     }
 
     return (
