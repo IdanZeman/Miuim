@@ -488,7 +488,12 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
         const updatedPerson = {
             ...person,
-            dailyAvailability: updatedAvailability
+            dailyAvailability: updatedAvailability,
+            lastManualStatus: {
+                status: status === 'unavailable' ? 'home' : status,
+                homeStatusType: status === 'home' ? homeStatusType : undefined,
+                date: dates[dates.length - 1] // Last date in range
+            }
         };
 
         const logDate = dates.length > 1 ? `${dates[0]} - ${dates[dates.length - 1]} (${dates.length} days)` : dates[0];

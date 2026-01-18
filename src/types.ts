@@ -167,6 +167,11 @@ export interface Person {
     avoidWeekends: boolean;
   };
   customFields?: Record<string, any>; // NEW
+  lastManualStatus?: { // NEW: Remember last manually-set status
+    status: 'base' | 'home' | 'unavailable';
+    homeStatusType?: HomeStatusType;
+    date: string; // Last date this was set
+  };
 }
 
 export type SchedulingType = 'continuous' | 'one-time';

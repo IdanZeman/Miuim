@@ -1,4 +1,4 @@
-import { Person, TeamRotation, Absence } from '../types';
+import { Person, TeamRotation, Absence } from '@/types';
 
 export const getRotationStatusForDate = (date: Date, rotation: TeamRotation) => {
     const start = new Date(rotation.start_date);
@@ -104,7 +104,7 @@ export const getEffectiveAvailability = (
     }
 
     // Default return structure
-    // If we have full-day absence blocks, status should be 'home' or 'unavailable'
+    // Use last manual status if available, otherwise default to 'full'
     let derivedStatus = 'full' as any;
     let isAvailable = true;
 
@@ -119,14 +119,25 @@ export const getEffectiveAvailability = (
         isAvailable = false;
     }
 
+    // Apply last manual status if no absence overrides
+    if (!fullDayAbsence && person.lastManualStatus) {
+        if (person.lastManualStatus.status === 'home' || person.lastManualStatus.status === 'unavailable') {
+            derivedStatus = 'home';
+            isAvailable = false;
+        } else if (person.lastManualStatus.status === 'base') {
+            derivedStatus = 'full';
+            isAvailable = true;
+        }
+    }
+
     let result = {
         isAvailable,
         startHour: '00:00',
         endHour: '23:59',
         status: derivedStatus,
-        source: fullDayAbsence ? 'absence' : 'default',
+        source: fullDayAbsence ? 'absence' : (person.lastManualStatus ? 'last_manual' : 'default'),
         unavailableBlocks,
-        homeStatusType: undefined as import('@/types').HomeStatusType | undefined
+        homeStatusType: (person.lastManualStatus?.homeStatusType || undefined) as import('@/types').HomeStatusType | undefined
     };
 
     // 2. Personal Rotation

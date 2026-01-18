@@ -214,10 +214,18 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
         return people.find(p => p.userId === profileId);
     };
 
-    const filteredProfiles = profiles.filter(p =>
-        (p.full_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (p.email.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredProfiles = profiles
+        .filter(p => {
+            // Hide Super Admins from non-Super Admins
+            if (p.is_super_admin && !myProfile?.is_super_admin) {
+                return false;
+            }
+            return true;
+        })
+        .filter(p =>
+            (p.full_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (p.email.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
 
     if (loading) {
         return (
