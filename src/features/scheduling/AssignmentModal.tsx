@@ -162,7 +162,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             }
 
             // 2. Strict Time Window Check (for Arrivals/Departures)
-            // Ensure the shift falls ENTIRELY within the person's available window
+            // Ensure the shift falls ENTIRELY within the person's available window relative to the SELECTED DAY
             const shiftStart = new Date(selectedShift.startTime);
             const shiftEnd = new Date(selectedShift.endTime);
 
@@ -170,33 +170,44 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 const [startH, startM] = (availability.startHour || '00:00').split(':').map(Number);
                 const [endH, endM] = (availability.endHour || '23:59').split(':').map(Number);
 
-                const availStart = new Date(shiftStart);
+                // Construct avail times RELATIVE TO THE SELECTED DATE (View Context)
+                const dayStart = new Date(selectedDate);
+                dayStart.setHours(0, 0, 0, 0);
+
+                const dayEnd = new Date(dayStart);
+                dayEnd.setHours(23, 59, 59, 999);
+
+                const availStart = new Date(dayStart);
                 availStart.setHours(startH, startM, 0, 0);
 
-                const availEnd = new Date(shiftStart);
+                const availEnd = new Date(dayStart);
                 availEnd.setHours(endH, endM, 0, 0);
 
-                // If end hour is '00:00' but it's a departure, it usually means midnight (next day start)
+                // Handle basic wrapping logic for availability (rare for single day status but safe to have)
                 if (endH === 0 && endM === 0) {
                     availEnd.setDate(availEnd.getDate() + 1);
                 } else if (availEnd < availStart) {
-                    // Safe guard for crossing midnight within same day logic (rare for this system but possible)
                     availEnd.setDate(availEnd.getDate() + 1);
                 }
 
-                // FIX: Single strict check can fail on boundaries like 23:59 vs 00:00 next day
-                // We add a small buffer (1 minute) or use inclusive comparison where appropriate
+                // Calculate the "Relevant Shift Window" for THIS DAY
+                // This is critical for cross-day shifts
+                const relevantShiftStart = new Date(Math.max(shiftStart.getTime(), dayStart.getTime()));
+                const relevantShiftEnd = new Date(Math.min(shiftEnd.getTime(), dayEnd.getTime()));
 
-                // 1. Shift starts BEFORE availability starts? (e.g. shift 06:00, avail 08:00)
-                if (shiftStart < availStart) return false;
+                // If the shift doesn't overlap with this day at all (shouldn't happen given context), skip strict check
+                if (relevantShiftStart >= relevantShiftEnd) {
+                    // Logic fallthrough, technically available for "0 minutes" on this day
+                } else {
+                    const isEndOfDay = (endH === 23 && endM === 59) || (endH === 0 && endM === 0); // 00:00 next day is effectively end of day
 
-                // 2. Shift ends AFTER availability ends?
-                // FIX: If availEnd is essentially "end of day" (23:59), we ignore the upper bound check
-                // because the system defaults present people to 23:59.
-                // We ONLY enforce end time if it's NOT 23:59.
-                const isEndOfDay = endH === 23 && endM === 59;
-                if (!isEndOfDay) {
-                    if (shiftEnd > availEnd) return false;
+                    // 1. Does the relevant part of the shift start BEFORE availability?
+                    if (relevantShiftStart < availStart) return false;
+
+                    // 2. Does the relevant part of the shift end AFTER availability?
+                    if (!isEndOfDay) {
+                        if (relevantShiftEnd > availEnd) return false;
+                    }
                 }
             }
 
@@ -370,10 +381,17 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 const [startH, startM] = (availability.startHour || '00:00').split(':').map(Number);
                 const [endH, endM] = (availability.endHour || '23:59').split(':').map(Number);
 
-                const availStart = new Date(shiftStart);
+                // Construct avail times RELATIVE TO THE SELECTED DATE (View Context)
+                const dayStart = new Date(selectedDate);
+                dayStart.setHours(0, 0, 0, 0);
+
+                const dayEnd = new Date(dayStart);
+                dayEnd.setHours(23, 59, 59, 999);
+
+                const availStart = new Date(dayStart);
                 availStart.setHours(startH, startM, 0, 0);
 
-                const availEnd = new Date(shiftStart);
+                const availEnd = new Date(dayStart);
                 availEnd.setHours(endH, endM, 0, 0);
 
                 if (endH === 0 && endM === 0) {
@@ -382,14 +400,21 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     availEnd.setDate(availEnd.getDate() + 1);
                 }
 
-                const isEndOfDay = endH === 23 && endM === 59;
+                const isEndOfDay = (endH === 23 && endM === 59) || (endH === 0 && endM === 0);
 
-                if (shiftStart < availStart) {
-                    score -= 20000;
-                    reasons.push('מחוץ לשעות זמינות');
-                } else if (!isEndOfDay && shiftEnd > availEnd) {
-                    score -= 20000;
-                    reasons.push('מחוץ לשעות זמינות');
+                // Calculate the "Relevant Shift Window" for THIS DAY
+                const relevantShiftStart = new Date(Math.max(shiftStart.getTime(), dayStart.getTime()));
+                const relevantShiftEnd = new Date(Math.min(shiftEnd.getTime(), dayEnd.getTime()));
+
+                // If shift is entirely outside this day, skip strict check
+                if (relevantShiftStart < relevantShiftEnd) {
+                    if (relevantShiftStart < availStart) {
+                        score -= 20000;
+                        reasons.push('מחוץ לשעות זמינות');
+                    } else if (!isEndOfDay && relevantShiftEnd > availEnd) {
+                        score -= 20000;
+                        reasons.push('מחוץ לשעות זמינות');
+                    }
                 }
             }
 
