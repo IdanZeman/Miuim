@@ -20,13 +20,14 @@ import { getTableLabel } from '../utils/snapshotUtils';
 interface SnapshotPreviewModalProps {
     snapshot: Snapshot;
     onClose: () => void;
-    onRestore: () => void;
+    onRestore: (tables?: string[]) => void;
 }
 
 export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snapshot, onClose, onRestore }) => {
     const [viewingTable, setViewingTable] = useState<string | null>(null);
     const [tableData, setTableData] = useState<any[]>([]);
     const [loadingData, setLoadingData] = useState(false);
+    const [selectedTables, setSelectedTables] = useState<string[]>([]);
 
     const [peopleMap, setPeopleMap] = useState<Record<string, any>>({});
     const [teamsMap, setTeamsMap] = useState<Record<string, any>>({});
@@ -48,62 +49,80 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
     const loadTableData = async (tableName: string) => {
         try {
             setLoadingData(true);
-            const data = await snapshotService.fetchSnapshotTableData(snapshot.id, tableName);
-            setTableData(data);
 
-            // Parallel fetch for dependencies
-            const promises: Promise<void>[] = [];
-
-            // Helper to fetch and set if empty
-            const fetchIfMissing = async (
-                mapState: any,
-                tableKey: string,
-                setter: (d: any) => void,
-                transformToMap: boolean = false
-            ) => {
-                const isEmpty = Array.isArray(mapState) ? mapState.length === 0 : Object.keys(mapState).length === 0;
-                if (isEmpty) {
-                    try {
-                        const res = await snapshotService.fetchSnapshotTableData(snapshot.id, tableKey);
-                        if (transformToMap) {
-                            const map: Record<string, any> = {};
-                            res.forEach((item: any) => map[item.id] = item);
-                            setter(map);
-                        } else {
-                            setter(res);
-                        }
-                    } catch (e) {
-                        console.warn(`Failed to load dependency ${tableKey}`, e);
-                    }
-                }
-            };
-
-            // Define dependencies based on table
+            // 1. Determine all dependencies needed for this table
+            const dependencies: string[] = [];
             if (['shifts', 'absences', 'daily_presence', 'unified_presence', 'equipment', 'equipment_daily_checks'].includes(tableName)) {
-                promises.push(fetchIfMissing(peopleMap, 'people', setPeopleMap, true));
+                dependencies.push('people');
             }
-
             if (tableName === 'daily_presence' || tableName === 'unified_presence') {
-                promises.push(fetchIfMissing(teamsMap, 'teams', setTeamsMap, true));
-                promises.push(fetchIfMissing(absencesMap, 'absences', setAbsencesMap, false));
-                promises.push(fetchIfMissing(rotationsMap, 'team_rotations', setRotationsMap, false));
-                promises.push(fetchIfMissing(blockagesMap, 'hourly_blockages', setBlockagesMap, false));
+                dependencies.push('teams', 'absences', 'team_rotations', 'hourly_blockages');
             }
-
             if (tableName === 'people' || tableName === 'shifts') {
-                promises.push(fetchIfMissing(teamsMap, 'teams', setTeamsMap, true));
-                promises.push(fetchIfMissing(rolesMap, 'roles', setRolesMap, true));
+                dependencies.push('teams', 'roles');
             }
-
             if (tableName === 'shifts') {
-                promises.push(fetchIfMissing(tasksMap, 'task_templates', setTasksMap, true));
+                dependencies.push('task_templates');
             }
-
             if (tableName === 'equipment_daily_checks') {
-                promises.push(fetchIfMissing(equipmentMap, 'equipment', setEquipmentMap, true));
+                dependencies.push('equipment');
             }
 
-            await Promise.all(promises);
+            // 2. Filter for dependencies that are actually missing
+            const missingDependencies = dependencies.filter(dep => {
+                const stateMap: any = {
+                    'people': peopleMap,
+                    'teams': teamsMap,
+                    'roles': rolesMap,
+                    'task_templates': tasksMap,
+                    'equipment': equipmentMap,
+                    'absences': absencesMap,
+                    'team_rotations': rotationsMap,
+                    'hourly_blockages': blockagesMap
+                };
+                const val = stateMap[dep];
+                return Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
+            });
+
+            // 3. Fetch primary table + all missing dependencies in parallel (but bundled)
+            const [mainData, bundleData] = await Promise.all([
+                snapshotService.fetchSnapshotTableData(snapshot.id, tableName),
+                missingDependencies.length > 0
+                    ? snapshotService.fetchSnapshotDataBundle(snapshot.id, missingDependencies)
+                    : Promise.resolve({})
+            ]);
+
+            // 4. Update states
+            setTableData(mainData);
+
+            if (bundleData.people) {
+                const map: Record<string, any> = {};
+                bundleData.people.forEach((item: any) => map[item.id] = item);
+                setPeopleMap(map);
+            }
+            if (bundleData.teams) {
+                const map: Record<string, any> = {};
+                bundleData.teams.forEach((item: any) => map[item.id] = item);
+                setTeamsMap(map);
+            }
+            if (bundleData.roles) {
+                const map: Record<string, any> = {};
+                bundleData.roles.forEach((item: any) => map[item.id] = item);
+                setRolesMap(map);
+            }
+            if (bundleData.task_templates) {
+                const map: Record<string, any> = {};
+                bundleData.task_templates.forEach((item: any) => map[item.id] = item);
+                setTasksMap(map);
+            }
+            if (bundleData.equipment) {
+                const map: Record<string, any> = {};
+                bundleData.equipment.forEach((item: any) => map[item.id] = item);
+                setEquipmentMap(map);
+            }
+            if (bundleData.absences) setAbsencesMap(bundleData.absences);
+            if (bundleData.team_rotations) setRotationsMap(bundleData.team_rotations);
+            if (bundleData.hourly_blockages) setBlockagesMap(bundleData.hourly_blockages);
 
         } catch (error) {
             console.error('Error loading table data:', error);
@@ -122,6 +141,15 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
         { id: 'absences', icon: Clock, color: 'text-red-500', bg: 'bg-red-50' },
         { id: 'equipment', icon: Package, color: 'text-orange-500', bg: 'bg-orange-50' },
     ];
+
+    const toggleTableSelection = (tableName: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSelectedTables(prev =>
+            prev.includes(tableName)
+                ? prev.filter(t => t !== tableName)
+                : [...prev, tableName]
+        );
+    };
 
     return (
         <Modal
@@ -152,10 +180,12 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
                         <Button
                             variant="primary"
                             icon={ArrowsClockwise}
-                            onClick={onRestore}
-                            className="bg-orange-600 border-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-100"
+                            onClick={() => onRestore(selectedTables.length > 0 ? selectedTables : undefined)}
+                            className={`${selectedTables.length > 0 ? 'bg-orange-600 border-orange-600' : 'bg-blue-600 border-blue-600'} hover:opacity-90 shadow-lg transition-all`}
                         >
-                            שחזר גרסה זו
+                            {selectedTables.length > 0
+                                ? `שחזר ${selectedTables.length} טבלאות נבחרות`
+                                : 'שחזר גרסה מלאה'}
                         </Button>
                     </div>
                 </div>
@@ -165,18 +195,30 @@ export const SnapshotPreviewModal: React.FC<SnapshotPreviewModalProps> = ({ snap
                 <div className="flex-1 overflow-hidden flex flex-col">
                     {!viewingTable ? (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 overflow-y-auto p-1 custom-scrollbar">
-                            {categories.map((cat) => (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => setViewingTable(cat.id)}
-                                    className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col items-center gap-3 hover:border-blue-400 hover:shadow-lg transition-all group"
-                                >
-                                    <div className={`w-12 h-12 ${cat.bg} ${cat.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                                        <cat.icon size={28} weight="duotone" />
+                            {categories.map((cat) => {
+                                const isSelected = selectedTables.includes(cat.id);
+                                return (
+                                    <div key={cat.id} className="relative group">
+                                        <button
+                                            onClick={() => setViewingTable(cat.id)}
+                                            className={`w-full bg-white border ${isSelected ? 'border-orange-400 ring-2 ring-orange-100 shadow-md' : 'border-slate-200'} rounded-2xl p-6 flex flex-col items-center gap-3 hover:border-blue-400 hover:shadow-lg transition-all`}
+                                        >
+                                            <div className={`w-12 h-12 ${cat.bg} ${cat.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                                                <cat.icon size={28} weight="duotone" />
+                                            </div>
+                                            <span className="font-black text-slate-700 text-sm italic">{getTableLabel(cat.id)}</span>
+
+                                            <div
+                                                onClick={(e) => toggleTableSelection(cat.id, e)}
+                                                className={`absolute top-3 left-3 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer ${isSelected ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-slate-200 text-transparent'
+                                                    }`}
+                                            >
+                                                <CheckCircle size={16} weight="bold" />
+                                            </div>
+                                        </button>
                                     </div>
-                                    <span className="font-black text-slate-700 text-sm">{getTableLabel(cat.id)}</span>
-                                </button>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0">

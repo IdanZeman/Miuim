@@ -43,6 +43,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
 
     const [previewSnapshot, setPreviewSnapshot] = useState<Snapshot | null>(null);
     const [restoringSnapshot, setRestoringSnapshot] = useState<Snapshot | null>(null);
+    const [selectedTables, setSelectedTables] = useState<string[] | undefined>(undefined);
     const [restoreVerification, setRestoreVerification] = useState('');
     const [restoreProgress, setRestoreProgress] = useState<string>('');
 
@@ -122,8 +123,9 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
         });
     };
 
-    const handleRestore = async (snapshot: Snapshot) => {
+    const handleRestore = async (snapshot: Snapshot, tables?: string[]) => {
         setRestoringSnapshot(snapshot);
+        setSelectedTables(tables);
         setRestoreVerification('');
     };
 
@@ -144,7 +146,8 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                 restoringSnapshot.id,
                 organizationId,
                 user.id,
-                (progress: string) => setRestoreProgress(progress)
+                (progress: string) => setRestoreProgress(progress),
+                selectedTables
             );
 
             showToast(
@@ -156,9 +159,19 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             setPreviewSnapshot(null);
             await loadSnapshots();
 
-            // Soft refresh instead of hard reload
-            queryClient.invalidateQueries();
-            showToast('הנתונים מתעדכנים ברקע...', 'info');
+            // Hard refresh strategy to ensure data is updated
+            // 1. Immediate reset to force loading state
+            await queryClient.resetQueries({ queryKey: ['organizationData'] });
+            await queryClient.resetQueries({ queryKey: ['battalionPresence'] });
+
+            // 2. Scheduled invalidation to catch any replication lag
+            setTimeout(() => {
+                console.log('🔄 Secondary invalidation for consistency');
+                queryClient.invalidateQueries({ queryKey: ['organizationData'] });
+                queryClient.invalidateQueries({ queryKey: ['battalionPresence'] });
+            }, 1000);
+
+            showToast('הנתונים מתעדכנים...', 'info');
         } catch (error: any) {
             console.error('Error restoring snapshot:', error);
             showToast(error.message || 'שגיאה בשחזור הגרסה', 'error');
@@ -201,8 +214,8 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
             ) : (
                 <div className="grid grid-cols-1 gap-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${snapshots.length >= 5 ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                            {snapshots.length} / 5 גרסאות בשימוש
+                        <div className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${snapshots.length >= 10 ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                            <span dir="ltr">{snapshots.length} / 10</span> גרסאות בשימוש
                         </div>
                     </div>
                     {snapshots.map((snapshot) => (

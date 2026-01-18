@@ -52,8 +52,8 @@ function mapSupabaseError(error: any): string {
       return 'לא ניתן למחוק גרסה זו - קיימים רשומות תלויות';
     
     case 'P0001': // raise_exception (our custom trigger)
-      if (message.includes('מגבלת 5 גרסאות')) {
-        return 'הגעת למגבלת 5 גרסאות. נא למחוק גרסה ישנה לפני יצירת חדשה';
+      if (message.includes('מגבלת 10 גרסאות')) {
+        return 'הגעת למגבלת 10 גרסאות. נא למחוק גרסה ישנה לפני יצירת חדשה';
       }
       if (message.includes('הרשאה')) {
         return 'אין לך הרשאה לבצע פעולה זו';
@@ -204,7 +204,8 @@ export const snapshotService = {
     snapshotId: string, 
     organizationId: string, 
     userId: string,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
+    tableNames?: string[]
   ) {
     // Get snapshot name for logging
     const { data: snapshotData } = await supabase
@@ -242,8 +243,8 @@ export const snapshotService = {
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: true });
       
-      // If we have 5 snapshots, delete the oldest one to make room for pre-restore backup
-      if (existingSnapshots && existingSnapshots.length >= 5) {
+      // If we have 10 snapshots, delete the oldest one to make room for pre-restore backup
+      if (existingSnapshots && existingSnapshots.length >= 10) {
         const oldestSnapshot = existingSnapshots[0];
         console.log('🗑️ Auto-rotating: Deleting oldest snapshot to make room for pre-restore backup:', oldestSnapshot.id);
         onProgress?.('🗑️ מוחק גרסה ישנה...');
@@ -272,7 +273,8 @@ export const snapshotService = {
       // Perform restoration
       const { error } = await supabase.rpc('restore_snapshot', {
         p_snapshot_id: snapshotId,
-        p_organization_id: organizationId
+        p_organization_id: organizationId,
+        p_table_names: tableNames
       });
 
       if (error) {
@@ -365,5 +367,15 @@ export const snapshotService = {
 
     if (error) throw new Error(mapSupabaseError(error));
     return data.data;
+  },
+
+  async fetchSnapshotDataBundle(snapshotId: string, tableNames: string[]) {
+    const { data, error } = await supabase.rpc('get_snapshot_data_bundle', {
+      p_snapshot_id: snapshotId,
+      p_table_names: tableNames
+    });
+
+    if (error) throw new Error(mapSupabaseError(error));
+    return data;
   }
 };

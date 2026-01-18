@@ -523,7 +523,7 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                             </div>
                             <div>
                                 <h4 className="text-lg font-black text-slate-800">{selectedItem.name}</h4>
-                                <p className="text-xs text-slate-400 font-bold">{getPersonalId(selectedItem)}</p>
+                                <p className="text-xs text-slate-400 font-bold" dir="ltr">{getPersonalId(selectedItem)}</p>
                             </div>
                         </div>
                         <Button variant="ghost" size="sm" onClick={() => setSelectedItem(null)} className="text-slate-400 font-bold">X</Button>
@@ -555,7 +555,7 @@ export const TableDataViewer: React.FC<TableDataViewerProps> = ({
                         </div>
                         <div>
                             <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block mb-1">טלפון</span>
-                            <span className="text-sm font-bold text-slate-700">{selectedItem.phone || 'אין'}</span>
+                            <span className="text-sm font-bold text-slate-700" dir="ltr">{selectedItem.phone || 'אין'}</span>
                         </div>
                         <div>
                             <span className="text-[10px] text-slate-400 font-black uppercase tracking-wider block mb-1">דוא"ל</span>

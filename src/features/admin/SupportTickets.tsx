@@ -211,7 +211,7 @@ export const SupportTickets: React.FC = () => {
                                         {selectedTicket.phone && (
                                             <>
                                                 <span className="text-slate-300">|</span>
-                                                <span className="text-xs font-mono">{selectedTicket.phone}</span>
+                                                <span className="text-xs font-mono" dir="ltr">{selectedTicket.phone}</span>
                                             </>
                                         )}
                                     </div>

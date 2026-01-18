@@ -38,39 +38,28 @@ export interface OrganizationData {
 export const fetchOrganizationData = async (organizationId: string, permissions?: any, userId?: string): Promise<OrganizationData> => {
     if (!organizationId) throw new Error('No organization ID provided');
 
-    const [
-        { data: people },
-        { data: teams },
-        { data: rotations },
-        { data: absences },
-        { data: hourlyBlockages },
-        { data: roles },
-        { data: shifts },
-        { data: tasks },
-        { data: constraints },
-        { data: settings },
-        { data: reports },
-        { data: equipment },
-        { data: checks }
-    ] = await Promise.all([
-        supabase.from('people').select('*').eq('organization_id', organizationId),
-        supabase.from('teams').select('*').eq('organization_id', organizationId),
-        supabase.from('team_rotations').select('*').eq('organization_id', organizationId),
-        supabase.from('absences').select('*').eq('organization_id', organizationId),
-        supabase.from('hourly_blockages').select('*').eq('organization_id', organizationId),
-        supabase.from('roles').select('*').eq('organization_id', organizationId),
-        supabase.from('shifts').select('*').eq('organization_id', organizationId),
-        supabase.from('task_templates').select('*').eq('organization_id', organizationId),
-        supabase.from('scheduling_constraints').select('*').eq('organization_id', organizationId),
-        supabase.from('organization_settings').select('*').eq('organization_id', organizationId).maybeSingle(),
-        supabase.from('mission_reports').select('*').eq('organization_id', organizationId),
-        supabase.from('equipment').select('*').eq('organization_id', organizationId),
-        supabase.from('equipment_daily_checks').select('*').eq('organization_id', organizationId)
-    ]);
+    const { data: bundle, error } = await supabase.rpc('get_org_data_bundle', { p_org_id: organizationId });
+    if (error) throw error;
+
+    const {
+        people,
+        teams,
+        rotations,
+        absences,
+        hourly_blockages,
+        roles,
+        shifts,
+        task_templates: tasks,
+        scheduling_constraints: constraints,
+        settings,
+        mission_reports: reports,
+        equipment,
+        equipment_daily_checks: checks
+    } = bundle;
 
     let mappedPeople = (people || []).map(mapPersonFromDB);
     let mappedAbsences = (absences || []).map(mapAbsenceFromDB);
-    let mappedBlockages = (hourlyBlockages || []).map(mapHourlyBlockageFromDB);
+    let mappedBlockages = (hourly_blockages || []).map(mapHourlyBlockageFromDB);
     let mappedConstraints = (constraints || []).map(mapConstraintFromDB);
     let mappedShifts = (shifts || []).map(mapShiftFromDB);
     let mappedEquipment = (equipment || []).map(mapEquipmentFromDB);
@@ -232,6 +221,16 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
     useEffect(() => {
         if (!organizationId) return;
 
+        // Debounce invalidation to prevent flood during batch updates (like restore)
+        let timeoutId: NodeJS.Timeout;
+        const debouncedInvalidate = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                console.log('🔄 Realtime update: Refetching organization data...');
+                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+            }, 1000); // 1 second debounce
+        };
+
         const channel = supabase.channel(`org-updates-${organizationId}`)
             .on(
                 'postgres_changes',
@@ -242,9 +241,8 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
                     filter: `organization_id=eq.${organizationId}`
                 },
                 () => {
-                    // Invalidate query to refetch fresh data
-                    console.log('Realtime update detected: people');
-                    queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                    console.log('Realtime update detected');
+                    debouncedInvalidate();
                 }
             )
             .on(
@@ -256,8 +254,7 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
                     filter: `organization_id=eq.${organizationId}`
                 },
                 () => {
-                    console.log('Realtime update detected: absences');
-                    queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                    debouncedInvalidate();
                 }
             )
             .on(
@@ -270,39 +267,39 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
                 },
                 () => {
                     console.log('Realtime update detected: hourly_blockages');
-                    queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                    debouncedInvalidate();
                 }
             )
             // --- Expanded Subscriptions (Equipment, Shifts, Teams, etc.) ---
             .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment', filter: `organization_id=eq.${organizationId}` }, () => {
                 console.log('Realtime update detected: equipment');
-                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                debouncedInvalidate();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment_daily_checks', filter: `organization_id=eq.${organizationId}` }, () => {
                 console.log('Realtime update detected: equipment_daily_checks');
-                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                debouncedInvalidate();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts', filter: `organization_id=eq.${organizationId}` }, () => {
                 console.log('Realtime update detected: shifts');
-                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                debouncedInvalidate();
             })
             // For shifts, we also want to know if tasks change
             .on('postgres_changes', { event: '*', schema: 'public', table: 'task_templates', filter: `organization_id=eq.${organizationId}` }, () => {
                 console.log('Realtime update detected: task_templates');
-                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                debouncedInvalidate();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'mission_reports', filter: `organization_id=eq.${organizationId}` }, () => {
                 console.log('Realtime update detected: mission_reports');
-                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                debouncedInvalidate();
             })
             // Structural changes
             .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `organization_id=eq.${organizationId}` }, () => {
                 console.log('Realtime update detected: teams');
-                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                debouncedInvalidate();
             })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `organization_id=eq.${organizationId}` }, () => {
                 console.log('Realtime update detected: roles');
-                queryClient.invalidateQueries({ queryKey: ['organizationData', organizationId, userId] });
+                debouncedInvalidate();
             })
             .subscribe((status) => {
                 console.log(`Supabase Realtime Connection Status: ${status}`);
@@ -315,6 +312,7 @@ export const useOrganizationData = (organizationId?: string | null, permissions?
             });
 
         return () => {
+            clearTimeout(timeoutId);
             supabase.removeChannel(channel);
         };
     }, [organizationId, userId, queryClient]);

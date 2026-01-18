@@ -397,15 +397,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                                                             <span>הגדרות ארגון</span>
                                                         </button>
                                                     )}
-                                                    {checkAccess('settings') && (
-                                                        <button
-                                                            onClick={() => { handleNav('admin-center'); setIsProfileDropdownOpen(false); }}
-                                                            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all text-right"
-                                                        >
-                                                            <Pulse className="w-4 h-4" />
-                                                            <span>ניהול ואנליטיקה</span>
-                                                        </button>
-                                                    )}
                                                     {organization?.battalion_id && organization?.is_hq && checkAccess('battalion-settings') && (
                                                         <button
                                                             onClick={() => { handleNav('battalion-settings'); setIsProfileDropdownOpen(false); }}

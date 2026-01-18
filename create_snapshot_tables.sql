@@ -107,8 +107,8 @@ CREATE POLICY "Admins can delete snapshot data"
 CREATE OR REPLACE FUNCTION public.enforce_snapshot_limit()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF (SELECT COUNT(*) FROM public.organization_snapshots WHERE organization_id = NEW.organization_id) >= 5 THEN
-    RAISE EXCEPTION 'מגבלת 5 גרסאות לארגון הושגה. נא למחוק גרסה ישנה לפני יצירת חדשה.';
+  IF (SELECT COUNT(*) FROM public.organization_snapshots WHERE organization_id = NEW.organization_id) >= 10 THEN
+    RAISE EXCEPTION 'מגבלת 10 גרסאות לארגון הושגה. נא למחוק גרסה ישנה לפני יצירת חדשה.';
   END IF;
   RETURN NEW;
 END;
@@ -120,13 +120,23 @@ CREATE TRIGGER trigger_enforce_snapshot_limit
   BEFORE INSERT ON public.organization_snapshots
   FOR EACH ROW EXECUTE FUNCTION public.enforce_snapshot_limit();
 
-CREATE OR REPLACE FUNCTION public.restore_snapshot(p_snapshot_id uuid, p_organization_id uuid)
+-- Clear old function signatures to prevent ambiguity (PGRST203)
+DROP FUNCTION IF EXISTS public.restore_snapshot(uuid, uuid);
+
+CREATE OR REPLACE FUNCTION public.restore_snapshot(
+  p_snapshot_id uuid, 
+  p_organization_id uuid,
+  p_table_names text[] DEFAULT NULL
+)
 RETURNS void AS $$
 DECLARE
   v_table_record record;
   v_table_name text;
   v_data jsonb;
+  v_restore_all boolean;
 BEGIN
+  v_restore_all := (p_table_names IS NULL OR array_length(p_table_names, 1) IS NULL);
+
   -- 1. Verify user has permission to restore snapshots
   -- Allow either super_admin OR canManageSettings permission
   IF NOT EXISTS (
@@ -150,60 +160,37 @@ BEGIN
   -- 3. Performance and safety: Target ID Collection
   -- We collect all IDs that need cleaning to handle inconsistent cross-references.
   
-  -- Create temp tables for IDs in scope
+  -- Create temp  -- 3. Target ID Collection
   CREATE TEMP TABLE target_teams AS SELECT id::text FROM public.teams WHERE organization_id::text = p_organization_id::text;
   CREATE TEMP TABLE target_roles AS SELECT id::text FROM public.roles WHERE organization_id::text = p_organization_id::text;
   CREATE TEMP TABLE target_tasks AS SELECT id::text FROM public.task_templates WHERE organization_id::text = p_organization_id::text;
-  
-  CREATE TEMP TABLE target_people AS 
-  SELECT id::text FROM public.people 
-  WHERE organization_id::text = p_organization_id::text 
-     OR team_id IN (SELECT id FROM target_teams);
-     
-  CREATE TEMP TABLE target_shifts AS 
-  SELECT id::text FROM public.shifts 
-  WHERE organization_id::text = p_organization_id::text 
-     OR task_id IN (SELECT id FROM target_tasks);
-  
-  CREATE TEMP TABLE target_equipment AS 
-  SELECT id::text FROM public.equipment 
-  WHERE organization_id::text = p_organization_id::text;
+  CREATE TEMP TABLE target_people AS SELECT id::text FROM public.people WHERE organization_id::text = p_organization_id::text OR team_id::text IN (SELECT id FROM target_teams);
+  CREATE TEMP TABLE target_shifts AS SELECT id::text FROM public.shifts WHERE organization_id::text = p_organization_id::text OR task_id::text IN (SELECT id FROM target_tasks);
+  CREATE TEMP TABLE target_equipment AS SELECT id::text FROM public.equipment WHERE organization_id::text = p_organization_id::text;
 
-  -- 3. Strictly Ordered Deletion
-  -- We delete from leaf nodes up to core tables.
+  -- 4. Selective Deletion
+  IF v_restore_all OR 'mission_reports' = ANY(p_table_names) THEN DELETE FROM public.mission_reports WHERE organization_id::text = p_organization_id::text OR shift_id::text IN (SELECT id FROM target_shifts); END IF;
+  IF v_restore_all OR 'user_load_stats' = ANY(p_table_names) THEN DELETE FROM public.user_load_stats WHERE organization_id::text = p_organization_id::text OR person_id::text IN (SELECT id FROM target_people); END IF;
+  IF v_restore_all OR 'daily_attendance_snapshots' = ANY(p_table_names) THEN DELETE FROM public.daily_attendance_snapshots WHERE organization_id::text = p_organization_id::text OR person_id::text IN (SELECT id FROM target_people); END IF;
+  IF v_restore_all OR 'daily_presence' = ANY(p_table_names) THEN DELETE FROM public.daily_presence WHERE organization_id::text = p_organization_id::text OR person_id::text IN (SELECT id FROM target_people); END IF;
+  IF v_restore_all OR 'absences' = ANY(p_table_names) THEN DELETE FROM public.absences WHERE organization_id::text = p_organization_id::text OR person_id::text IN (SELECT id FROM target_people); END IF;
+  IF v_restore_all OR 'hourly_blockages' = ANY(p_table_names) THEN DELETE FROM public.hourly_blockages WHERE organization_id::text = p_organization_id::text OR person_id::text IN (SELECT id FROM target_people); END IF;
+  IF v_restore_all OR 'scheduling_constraints' = ANY(p_table_names) THEN DELETE FROM public.scheduling_constraints WHERE organization_id::text = p_organization_id::text OR person_id::text IN (SELECT id FROM target_people); END IF;
+  IF v_restore_all OR 'equipment_daily_checks' = ANY(p_table_names) THEN DELETE FROM public.equipment_daily_checks WHERE organization_id::text = p_organization_id::text OR equipment_id::text IN (SELECT id FROM target_equipment); END IF;
   
-  -- Leaf Table Group 1: Reports and Stats
-  DELETE FROM public.mission_reports WHERE organization_id::text = p_organization_id::text OR shift_id IN (SELECT id FROM target_shifts);
-  DELETE FROM public.user_load_stats WHERE organization_id::text = p_organization_id::text OR person_id IN (SELECT id FROM target_people);
-  DELETE FROM public.daily_attendance_snapshots WHERE organization_id::text = p_organization_id::text OR person_id IN (SELECT id FROM target_people);
+  -- Sentinel: Unified Presence
+  IF v_restore_all OR 'daily_presence' = ANY(p_table_names) OR 'absences' = ANY(p_table_names) THEN
+    DELETE FROM public.unified_presence WHERE organization_id::text = p_organization_id::text OR person_id::text IN (SELECT id FROM target_people);
+  END IF;
   
-  -- Leaf Table Group 2: Presence and Scheduling
-  DELETE FROM public.daily_presence WHERE organization_id::text = p_organization_id::text OR person_id IN (SELECT id FROM target_people);
-  DELETE FROM public.absences WHERE organization_id::text = p_organization_id::text OR person_id IN (SELECT id FROM target_people);
-  DELETE FROM public.hourly_blockages WHERE organization_id::text = p_organization_id::text OR person_id IN (SELECT id FROM target_people);
-  DELETE FROM public.scheduling_constraints WHERE organization_id::text = p_organization_id::text OR person_id IN (SELECT id FROM target_people);
-  
-  -- Specialized Leaf: Equipment Checks
-  DELETE FROM public.equipment_daily_checks WHERE organization_id::text = p_organization_id::text OR equipment_id IN (SELECT id FROM target_equipment);
-
-  -- THE Sentinel Delete: Unified Presence
-  -- We delete this AFTER all other presence data to ensure triggers don't keep it alive.
-  DELETE FROM public.unified_presence WHERE organization_id::text = p_organization_id::text OR person_id IN (SELECT id FROM target_people);
-  
-  -- Intermediate Table Group: Shifts and Tasks
-  DELETE FROM public.shifts WHERE organization_id::text = p_organization_id::text OR task_id IN (SELECT id FROM target_tasks);
-  DELETE FROM public.task_templates WHERE organization_id::text = p_organization_id::text OR assigned_team_id IN (SELECT id FROM target_teams);
-
-  -- Core Table Group 1: Equipment, People, Rotations
-  UPDATE public.equipment SET assigned_to_id = NULL WHERE assigned_to_id IN (SELECT id FROM target_people);
-  DELETE FROM public.equipment WHERE id IN (SELECT id FROM target_equipment);
-  DELETE FROM public.team_rotations WHERE organization_id::text = p_organization_id::text OR team_id IN (SELECT id FROM target_teams);
-  DELETE FROM public.people WHERE id IN (SELECT id FROM target_people);
-  
-  -- Core Table Group 2: Structure and Settings
-  DELETE FROM public.roles WHERE id IN (SELECT id FROM target_roles);
-  DELETE FROM public.teams WHERE id IN (SELECT id FROM target_teams);
-  DELETE FROM public.organization_settings WHERE organization_id::text = p_organization_id::text;
+  IF v_restore_all OR 'shifts' = ANY(p_table_names) THEN DELETE FROM public.shifts WHERE organization_id::text = p_organization_id::text OR task_id::text IN (SELECT id FROM target_tasks); END IF;
+  IF v_restore_all OR 'task_templates' = ANY(p_table_names) THEN DELETE FROM public.task_templates WHERE organization_id::text = p_organization_id::text OR assigned_team_id::text IN (SELECT id FROM target_teams); END IF;
+  IF v_restore_all OR 'equipment' = ANY(p_table_names) THEN UPDATE public.equipment SET assigned_to_id = NULL WHERE assigned_to_id::text IN (SELECT id FROM target_people); DELETE FROM public.equipment WHERE id::text IN (SELECT id FROM target_equipment); END IF;
+  IF v_restore_all OR 'team_rotations' = ANY(p_table_names) THEN DELETE FROM public.team_rotations WHERE organization_id::text = p_organization_id::text OR team_id::text IN (SELECT id FROM target_teams); END IF;
+  IF v_restore_all OR 'people' = ANY(p_table_names) THEN DELETE FROM public.people WHERE id::text IN (SELECT id FROM target_people); END IF;
+  IF v_restore_all OR 'roles' = ANY(p_table_names) THEN DELETE FROM public.roles WHERE id::text IN (SELECT id FROM target_roles); END IF;
+  IF v_restore_all OR 'teams' = ANY(p_table_names) THEN DELETE FROM public.teams WHERE id::text IN (SELECT id FROM target_teams); END IF;
+  IF v_restore_all OR 'organization_settings' = ANY(p_table_names) THEN DELETE FROM public.organization_settings WHERE organization_id::text = p_organization_id::text; END IF;
 
   -- Clean up temp tables
   DROP TABLE target_teams;
@@ -220,6 +207,7 @@ BEGIN
     SELECT table_name, data 
     FROM public.snapshot_table_data 
     WHERE snapshot_id = p_snapshot_id
+      AND (v_restore_all OR table_name = ANY(p_table_names))
     ORDER BY 
       CASE table_name
         -- Phase 1: Base structure (no dependencies)
@@ -406,4 +394,6 @@ BEGIN
     END IF;
   END LOOP;
 END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;

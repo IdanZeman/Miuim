@@ -172,6 +172,7 @@ export const ContactPage: React.FC = () => {
                             onChange={(e) => setPhone(e.target.value)}
                             icon={PhoneIcon}
                             placeholder="050-0000000"
+                            dir="ltr"
                             className="!bg-slate-50 border-slate-200 focus:bg-white text-right"
                         />
 
