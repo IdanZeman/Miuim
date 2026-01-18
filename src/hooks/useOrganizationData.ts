@@ -38,8 +38,15 @@ export interface OrganizationData {
 export const fetchOrganizationData = async (organizationId: string, permissions?: any, userId?: string): Promise<OrganizationData> => {
     if (!organizationId) throw new Error('No organization ID provided');
 
+    console.time('⚡ fetchOrganizationData (RPC)');
     const { data: bundle, error } = await supabase.rpc('get_org_data_bundle', { p_org_id: organizationId });
+    console.timeEnd('⚡ fetchOrganizationData (RPC)');
+
     if (error) throw error;
+
+    // Log payload size for performance analysis
+    const sizeInKB = Math.round(JSON.stringify(bundle).length / 1024);
+    console.log(`📦 Data Bundle Size: ~${sizeInKB}KB`);
 
     const {
         people,
