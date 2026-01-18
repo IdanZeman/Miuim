@@ -12,7 +12,7 @@ export interface RosterGenerationParams {
     endDate: Date;
     people: Person[];
     teams: Team[];
-    settings: OrganizationSettings & { optimizationMode?: 'ratio' | 'min_staff' | 'tasks' }; 
+    settings: OrganizationSettings; 
     teamRotations: TeamRotation[];
     constraints: SchedulingConstraint[];
     absences: Absence[];
@@ -71,7 +71,13 @@ interface ISchedulingStrategy {
 }
 
 const toDateKey = (d: Date) => d.toLocaleDateString('en-CA');
-const getDayIndex = (d: Date, start: Date) => Math.floor((d.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+const getDayIndex = (d: Date | string, start: Date | string) => {
+    const dObj = typeof d === 'string' ? new Date(d) : d;
+    const sObj = typeof start === 'string' ? new Date(start) : start;
+    const dCopy = new Date(dObj.getFullYear(), dObj.getMonth(), dObj.getDate());
+    const sCopy = new Date(sObj.getFullYear(), sObj.getMonth(), sObj.getDate());
+    return Math.round((dCopy.getTime() - sCopy.getTime()) / (1000 * 60 * 60 * 24));
+};
 
 // --- STRATEGIES ---
 
@@ -401,12 +407,12 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
     const configMap = new Map<string, { daysBase: number, daysHome: number }>();
     
     console.log('[RotaGenerator] Params received:', { 
-        mode: settings.optimizationMode, 
+        mode: settings.optimization_mode, 
         hasCustomRotation: !!params.customRotation,
         customRotationVals: params.customRotation 
     });
 
-    if (params.customRotation && settings.optimizationMode === 'ratio') {
+    if (params.customRotation && settings.optimization_mode === 'ratio') {
         const base = Number(params.customRotation.daysBase);
         const home = Number(params.customRotation.daysHome);
         console.log(`[RotaGenerator] Applying Custom Ratio: ${base}/${home}`);
@@ -440,7 +446,7 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
 
     // 2. Select Strategy
     let strategy: ISchedulingStrategy;
-    const mode = settings.optimizationMode || 'ratio';
+    const mode = settings.optimization_mode || 'ratio';
 
     if (mode === 'min_staff') {
         strategy = new MinHeadcountStrategy();
@@ -533,42 +539,6 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
         }
     }
 
-    // 5. Format Output
-    const roster: DailyPresence[] = [];
-    const personStatuses: Record<string, Record<string, string>> = {};
-    let totalPresence = 0;
-
-
-    for (let i = 0; i < totalDays; i++) {
-        const d = new Date(startDate.getTime() + i * 86400000);
-        const dateKey = toDateKey(d);
-        personStatuses[dateKey] = {};
-        
-        people.forEach(p => {
-            const isBase = schedule[p.id]?.[i] ?? true; 
-            
-            // Determine final label
-            let label = isBase ? 'base' : 'home';
-            
-            // Overlay hard constraint label
-            if (constraintMap.get(p.id)?.has(i)) {
-                if (!isBase) label = 'unavailable'; 
-            }
-            
-            personStatuses[dateKey][p.id] = label === 'unavailable' ? 'unavailable' : (label === 'base' ? 'base' : 'home');
-
-            roster.push({
-                date: dateKey,
-                person_id: p.id,
-                organization_id: settings.organization_id,
-                status: label === 'base' ? 'base' : (label === 'unavailable' ? 'unavailable' : 'home'),
-                source: 'algorithm'
-            });
-
-            if (label === 'base') totalPresence++;
-        });
-    }
-
     // 5. Verify Constraints & Calculate Stats
     const unfulfilledConstraints: UnfulfilledConstraint[] = [];
     let totalConstraintsToCheck = 0;
@@ -584,7 +554,7 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
                 
                 if (isAssignedBase) {
                     // Violation! Constraint said "No Base" (Home/Unavailable), but Schedule said "Base"
-                    const dateObj = new Date(startDate.getTime() + dayIndex * 86400000);
+                    const dateObj = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + dayIndex);
                     unfulfilledConstraints.push({
                         personId: p.id,
                         personName: p.name,
@@ -602,6 +572,38 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
     const constraintPercentage = totalConstraintsToCheck > 0 
         ? Math.round((metConstraints / totalConstraintsToCheck) * 100) 
         : 100;
+
+    // 5. Format Output
+    const roster: DailyPresence[] = [];
+    const personStatuses: Record<string, Record<string, string>> = {};
+    let totalPresence = 0;
+
+    // Build final roster with correct statuses
+    for (let i = 0; i < totalDays; i++) {
+        const d = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
+        const dateKey = toDateKey(d);
+        personStatuses[dateKey] = {};
+        
+        people.forEach(p => {
+            const isBase = schedule[p.id]?.[i] ?? true; 
+            const hasConstraint = constraintMap.get(p.id)?.has(i);
+            
+            // Determine final label
+            let label = isBase ? 'base' : (hasConstraint ? 'unavailable' : 'home');
+            
+            personStatuses[dateKey][p.id] = label;
+
+            roster.push({
+                date: dateKey,
+                person_id: p.id,
+                organization_id: settings.organization_id,
+                status: label as any,
+                source: 'algorithm'
+            });
+
+            if (label === 'base') totalPresence++;
+        });
+    }
 
     return {
         roster,

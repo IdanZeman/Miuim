@@ -68,9 +68,11 @@ export const calculateHistoricalLoad = (
     const task = tasks.find(t => t.id === shift.taskId);
     if (!task) return;
 
-    // Difficulty mapping
+    // Difficulty mapping: handle both descriptive strings and direct numbers
     const diffMap: Record<string, number> = { 'easy': 1, 'medium': 2, 'hard': 3 };
-    const difficultyScore = diffMap[String(task.difficulty)] || 1;
+    const difficultyScore = typeof task.difficulty === 'number' 
+      ? task.difficulty 
+      : (diffMap[String(task.difficulty)] || 1);
 
     // Duration Calc
     const start = new Date(shift.startTime).getTime();
