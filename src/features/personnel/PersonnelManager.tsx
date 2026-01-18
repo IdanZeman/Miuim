@@ -889,7 +889,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         onChange={e => setNewPhone(e.target.value)}
                                         placeholder="050-0000000"
                                         type="tel"
-                                        className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300"
+                                        className="block w-full bg-transparent border-none p-0 outline-none text-slate-900 font-bold text-base placeholder:text-slate-300 text-right"
                                         dir="ltr"
                                     />
                                 </div>
@@ -1101,7 +1101,8 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                     value={value || ''}
                                                     onChange={(e) => setNewCustomFields({ ...newCustomFields, [field.key]: e.target.value })}
                                                     placeholder={field.placeholder}
-                                                    className="bg-slate-50 border-slate-200 rounded-xl"
+                                                    className={`bg-slate-50 border-slate-200 rounded-xl ${['phone', 'number', 'email'].includes(field.type) ? 'text-right' : ''}`}
+                                                    dir={['phone', 'number', 'email'].includes(field.type) ? 'ltr' : undefined}
                                                 />
                                             )}
 

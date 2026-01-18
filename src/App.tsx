@@ -26,6 +26,8 @@ const ContactPage = lazyWithRetry(() => import('./features/core/ContactPage').th
 const SystemManagementPage = lazyWithRetry(() => import('./pages/SystemManagementPage').then(module => ({ default: module.SystemManagementPage })));
 const AccessibilityStatement = lazyWithRetry(() => import('./features/core/AccessibilityStatement').then(module => ({ default: module.AccessibilityStatement })));
 const GateDashboard = lazyWithRetry(() => import('./components/GateControl/GateDashboard').then(module => ({ default: module.GateDashboard })));
+const AnalyticsDashboard = lazyWithRetry(() => import('./features/admin/analytics/AnalyticsDashboard').then(module => ({ default: module.AnalyticsDashboard })));
+const AdminCenter = lazyWithRetry(() => import('./features/admin/AdminCenter').then(module => ({ default: module.AdminCenter })));
 
 
 
@@ -72,6 +74,9 @@ import { EmptyStateGuide } from './components/ui/EmptyStateGuide';
 import { ToastProvider } from './contexts/ToastContext';
 import { BackgroundPrefetcher } from './components/core/BackgroundPrefetcher';
 
+
+
+import { ConfirmationModal } from './components/ui/ConfirmationModal';
 
 
 // Disable console logs in production (non-localhost)
@@ -170,6 +175,12 @@ const useMainAppState = () => {
     }, [activeOrgId, profile?.organization_id, battalionCompanies]);
     const [schedulingSuggestions, setSchedulingSuggestions] = useState<SchedulingSuggestion[]>([]);
     const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+    const [deletionPending, setDeletionPending] = useState<{
+        ids: string[];
+        personName?: string;
+        impactItems: string[];
+        totalRecords: number;
+    } | null>(null);
 
     const {
         people,
@@ -423,55 +434,150 @@ const useMainAppState = () => {
         }
     };
 
-    const handleDeletePerson = async (id: string, forceSoft = false) => {
-        try {
-            if (forceSoft) throw { code: '23503' }; // Simulate constraint to force soft delete logic
-            const { error } = await supabase.from('people').delete().eq('id', id);
-            if (error) throw error;
+    const handleDeletePerson = async (id: string) => {
+        const person = state.people.find(p => p.id === id);
 
-            await logger.logDelete('person', id, state.people.find(p => p.id === id)?.name || 'אדם', state.people.find(p => p.id === id));
-            refreshData();
-        } catch (e: any) {
-            // Check for Foreign Key Violation (Postgres Code 23503) or 409 Conflict
-            if (e.code === '23503' || e.code === '409' || e.message?.includes('violates foreign key constraint') || e.status === 409) {
-                console.warn("Soft Deleting due to constraints:", id);
-                try {
-                    await supabase.from('people').update({ is_active: false }).eq('id', id);
-                    showToast('החייל הועבר לארכיון (כי קיימים נתונים מקושרים)', 'info');
-                    refreshData();
-                } catch (softErr) {
-                    console.error("Soft Delete Failed:", softErr);
-                    showToast("שגיאה במחיקת/ארכוב חייל", 'error');
-                }
-            } else {
-                console.warn("DB Delete Failed", e);
-                showToast("שגיאה במחיקת חייל", 'error');
-            }
+        // First, preview what will be deleted
+        try {
+            const { data: preview, error: previewError } = await supabase
+                .rpc('preview_person_deletion', { p_person_id: id });
+
+            if (previewError) throw previewError;
+
+            // Build detailed data for modal
+            const impactItems = preview
+                ?.filter((item: any) => item.count > 0)
+                .map((item: any) => `• ${item.description}: ${item.count}`) || [];
+
+            const totalRecords = preview?.reduce((sum: number, item: any) => sum + item.count, 0) || 0;
+
+            setDeletionPending({
+                ids: [id],
+                personName: person?.name,
+                impactItems,
+                totalRecords
+            });
+
+        } catch (previewErr) {
+            console.warn("Preview failed, proceeding with standard confirmation:", previewErr);
+            setDeletionPending({
+                ids: [id],
+                personName: person?.name,
+                impactItems: [],
+                totalRecords: 0
+            });
         }
     };
 
     const handleDeletePeople = async (ids: string[]) => {
+        // Preview deletion impact for all selected people
         try {
-            const { error } = await supabase.from('people').delete().in('id', ids);
-            if (error) throw error;
+            const previewPromises = ids.map(id =>
+                supabase.rpc('preview_person_deletion', { p_person_id: id })
+            );
 
+            const results = await Promise.all(previewPromises);
+
+            // Aggregate counts across all people
+            const aggregated: Record<string, { count: number; description: string; category: string }> = {};
+
+            results.forEach(result => {
+                if (result.data) {
+                    result.data.forEach((item: any) => {
+                        if (!aggregated[item.category]) {
+                            aggregated[item.category] = { count: 0, description: item.description, category: item.category };
+                        }
+                        aggregated[item.category].count += item.count;
+                    });
+                }
+            });
+
+            // Build detailed data
+            const impactItems = Object.values(aggregated)
+                .filter(item => item.count > 0)
+                .map(item => `• ${item.description}: ${item.count}`);
+
+            const totalRecords = Object.values(aggregated).reduce((sum, item) => sum + item.count, 0);
+
+            setDeletionPending({
+                ids,
+                impactItems,
+                totalRecords
+            });
+
+        } catch (previewErr) {
+            console.warn("Preview failed, proceeding with standard confirmation:", previewErr);
+            setDeletionPending({
+                ids,
+                impactItems: [],
+                totalRecords: 0
+            });
+        }
+    };
+
+    const confirmExecuteDeletion = async () => {
+        if (!deletionPending) return;
+        const { ids, personName } = deletionPending;
+        const isBatch = ids.length > 1;
+
+        setDeletionPending(null); // Close modal
+
+        try {
+            if (isBatch) {
+                // Archive all selection before deletion
+                const { error: archiveError } = await supabase.rpc('archive_people_before_delete', {
+                    p_person_ids: ids,
+                    p_deleted_by: user?.id,
+                    p_reason: `Batch deletion of ${ids.length} people via UI`
+                });
+                if (archiveError) console.warn('Failed to archive people:', archiveError);
+
+                // Cascade delete
+                const { error } = await supabase.rpc('delete_people_cascade', { p_person_ids: ids });
+                if (error) throw error;
+
+                await logger.log({
+                    action: 'DELETE',
+                    entityId: 'bulk',
+                    category: 'data',
+                    metadata: { details: `Bulk deleted ${ids.length} people` }
+                });
+                showToast(`${ids.length} חיילים נמחקו לצמיתות`, 'success');
+            } else {
+                const id = ids[0];
+                // Archive before deletion
+                const { error: archiveError } = await supabase.rpc('archive_person_before_delete', {
+                    p_person_id: id,
+                    p_deleted_by: user?.id,
+                    p_reason: 'Manual deletion via UI'
+                });
+                if (archiveError) console.warn('Failed to archive person:', archiveError);
+
+                // Cascade delete
+                const { error } = await supabase.rpc('delete_person_cascade', { p_person_id: id });
+                if (error) throw error;
+
+                await logger.logDelete('person', id, personName || 'אדם', {});
+                showToast('החייל נמחק לצמיתות', 'success');
+            }
             refreshData();
         } catch (e: any) {
-            // Check for Foreign Key Violation
-            if (e.code === '23503' || e.code === '409' || e.message?.includes('violates foreign key constraint') || e.status === 409) {
-                console.warn("Soft Deleting Batch due to constraints");
+            console.warn("Delete failed, falling back to soft delete:", e);
+            if (e.code === '23503' || e.code === '409' || e.message?.includes('violates foreign key constraint')) {
                 try {
-                    // Fallback: Archive all selected
-                    await supabase.from('people').update({ is_active: false }).in('id', ids);
-                    showToast(`החיילים הועברו לארכיון (${ids.length}) כי קיימים להם נתונים`, 'info');
+                    if (isBatch) {
+                        await supabase.from('people').update({ is_active: false }).in('id', ids);
+                        showToast(`החיילים הועברו לארכיון (${ids.length}) בגלל אילוצי מסד נתונים`, 'info');
+                    } else {
+                        await supabase.from('people').update({ is_active: false }).eq('id', ids[0]);
+                        showToast('החייל הועבר לארכיון בגלל אילוצי מסד נתונים', 'info');
+                    }
                     refreshData();
                 } catch (softErr) {
-                    console.error("Batch Soft Delete Failed:", softErr);
-                    showToast("שגיאה במחיקת/ארכוב חיילים", 'error');
+                    showToast("שגיאה בארכוב חייל", 'error');
                 }
             } else {
-                console.warn("Bulk DB Delete Failed", e);
-                showToast("שגיאה במחיקה קבוצתית", 'error');
+                showToast("שגיאה במחיקת חייל", 'error');
             }
         }
     };
@@ -1337,7 +1443,7 @@ const useMainAppState = () => {
             case 'stats': return <StatsDashboard people={state.people} shifts={state.shifts} tasks={state.taskTemplates} roles={state.roles} teams={state.teams} teamRotations={state.teamRotations} absences={state.absences} hourlyBlockages={state.hourlyBlockages} settings={state.settings} isViewer={!checkAccess('stats', 'edit')} currentUserEmail={profile?.email} currentUserName={profile?.full_name} />;
             case 'settings': return checkAccess('settings', 'edit') ? <OrganizationSettingsComponent teams={state.teams} /> : <Navigate to="/" />;
             case 'logs': return profile?.is_super_admin ? <AdminLogsViewer /> : <Navigate to="/" />;
-            case 'org-logs': return checkAccess('org-logs', 'view') ? <OrganizationLogsViewer limit={100} /> : <Navigate to="/" />;
+            case 'org-logs': return checkAccess('settings', 'edit') ? <AdminCenter /> : <Navigate to="/" />;
             case 'lottery': return <Lottery
                 people={state.allPeople || state.people}
                 teams={state.teams}
@@ -1396,6 +1502,9 @@ const useMainAppState = () => {
                 return <BattalionMorningReport battalionId={organization?.battalion_id} />;
             case 'gate':
                 return <GateDashboard />;
+            case 'admin-analytics':
+            case 'admin-center':
+                return checkAccess('settings', 'edit') ? <AdminCenter /> : <Navigate to="/" />;
             default:
                 return (
                     <div className="p-8">
@@ -1420,7 +1529,7 @@ const useMainAppState = () => {
         handleAddShift, handleUpdateShift, handleToggleCancelShift, refetchOrgData, myPerson, personnelTab,
         autoOpenRotaWizard, setAutoOpenRotaWizard, schedulingSuggestions, showSuggestionsModal,
         setShowSuggestionsModal, isGlobalLoading, checkAccess, renderContent,
-        handleAddPeople // Export this
+        handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion
     };
 };
 
@@ -1430,7 +1539,7 @@ const MainApp: React.FC = () => {
         state, selectedDate, setSelectedDate, showScheduleModal, setShowScheduleModal,
         scheduleStartDate, isScheduling, refetchOrgData, myPerson,
         schedulingSuggestions, showSuggestionsModal, setShowSuggestionsModal, renderContent,
-        handleAddPeople
+        handleAddPeople, deletionPending, setDeletionPending, confirmExecuteDeletion
     } = useMainAppState();
 
     const hasSkippedLinking = localStorage.getItem('miuim_skip_linking') === 'true';
@@ -1451,6 +1560,40 @@ const MainApp: React.FC = () => {
                     </React.Suspense>
                 </div>
             </ErrorBoundary>
+
+            {/* Delete Confirmation Modal */}
+            {deletionPending && (
+                <ConfirmationModal
+                    isOpen={true}
+                    title={deletionPending.ids.length > 1 ? `מחיקת ${deletionPending.ids.length} חיילים` : `מחיקת ${deletionPending.personName || 'חייל'}`}
+                    type="danger"
+                    confirmText="מחק לצמיתות"
+                    onConfirm={confirmExecuteDeletion}
+                    onCancel={() => setDeletionPending(null)}
+                >
+                    <div className="space-y-4 text-right" dir="rtl">
+                        <p className="font-bold text-slate-800">פעולה זו תמחק לצמיתות את המידע הבא:</p>
+
+                        {deletionPending.impactItems.length > 0 ? (
+                            <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 space-y-2">
+                                {deletionPending.impactItems.map((item, idx) => (
+                                    <p key={idx} className="text-rose-700 text-sm font-medium">{item}</p>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-slate-500 italic text-sm">אין נתונים מקושרים משמעותיים שימחקו.</p>
+                        )}
+
+                        {deletionPending.totalRecords > 0 && (
+                            <p className="text-sm text-slate-600">
+                                סה"כ <span className="font-black text-rose-600">{deletionPending.totalRecords}</span> רשומות ימחקו לצמיתות ולא יהיה ניתן לשחזרן (אלא אם הורדת גיבוי).
+                            </p>
+                        )}
+
+                        <p className="text-xs text-slate-400 mt-2">האם אתה בטוח שברצונך להמשיך?</p>
+                    </div>
+                </ConfirmationModal>
+            )}
 
             {/* Suggestions Modal */}
             {showSuggestionsModal && schedulingSuggestions.length > 0 && (
@@ -1626,7 +1769,7 @@ const AppContent: React.FC = () => {
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-slate-600 font-medium">
-                        {isProcessingInvite ? 'מצטרף לארגון...' : 'טוען נתונים...'}
+                        {isProcessingInvite ? 'מצטרף לפלוגה...' : 'טוען נתונים...'}
                     </p>
                 </div>
             </div>

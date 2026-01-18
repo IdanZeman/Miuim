@@ -145,6 +145,7 @@ export const ContactUsPage: React.FC = () => {
                                                 onChange={(e) => setPhone(e.target.value)}
                                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pr-10 pl-4 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-right"
                                                 placeholder="050-0000000"
+                                                dir="ltr"
                                             />
                                         </div>
                                     </div>

@@ -304,7 +304,33 @@ export interface ContactMessage {
   updated_at?: string; // New column
 }
 
-export type ViewMode = 'home' | 'dashboard' | 'personnel' | 'attendance' | 'tasks' | 'stats' | 'settings' | 'reports' | 'logs' | 'lottery' | 'contact' | 'constraints' | 'tickets' | 'system' | 'planner' | 'absences' | 'equipment' | 'org-logs' | 'faq' | 'gate' | 'battalion-home' | 'battalion-personnel' | 'battalion-attendance' | 'battalion-settings';
+export type ViewMode = 
+    | 'home' 
+    | 'dashboard' 
+    | 'personnel' 
+    | 'stats' 
+    | 'settings' 
+    | 'attendance' 
+    | 'absences' 
+    | 'reports' 
+    | 'gate' 
+    | 'tasks' 
+    | 'constraints' 
+    | 'system' 
+    | 'logs' 
+    | 'tickets' 
+    | 'faq' 
+    | 'contact' 
+    | 'org-logs' 
+    | 'equipment' 
+    | 'lottery' 
+    | 'battalion-home' 
+    | 'battalion-personnel' 
+    | 'battalion-attendance' 
+    | 'battalion-settings' 
+    | 'admin-analytics'
+    | 'admin-center'
+    | 'unknown';
 
 export interface DailyPresence {
   id?: string; // Optional for new entries

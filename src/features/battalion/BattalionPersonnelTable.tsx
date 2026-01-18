@@ -439,7 +439,7 @@ export const BattalionPersonnelTable: React.FC = () => {
                                 {selectedPerson.phone && (
                                     <div className="bg-slate-50 p-4 rounded-xl">
                                         <p className="text-xs font-bold text-slate-400 mb-1">טלפון</p>
-                                        <p className="font-black text-slate-900 direction-ltr text-right">{selectedPerson.phone}</p>
+                                        <p className="font-black text-slate-900 text-right" dir="ltr">{selectedPerson.phone}</p>
                                     </div>
                                 )}
                                 {selectedPerson.email && (

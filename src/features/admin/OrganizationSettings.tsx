@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../features/auth/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { useToast } from '../../contexts/ToastContext';
-import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak } from '@phosphor-icons/react';
+import { FloppyDisk as Save, CheckCircle, Clock, Shield, Link as LinkIcon, Moon, Trash as Trash2, Users, MagnifyingGlass as Search, PencilSimple as Pencil, Info, Copy, ArrowsClockwise as RefreshCw, Gear as Settings, Plus, Gavel, SquaresFour as Layout, UserCircle, Globe, Anchor, Pulse as Activity, CaretLeft as ChevronLeft, Warning as AlertTriangle, Megaphone, IdentificationBadge as Accessibility, PlusIcon, SpeakerHigh, LinkBreak, ClockCounterClockwise } from '@phosphor-icons/react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Team, Profile, UserPermissions, UserRole, OrganizationInvite, PermissionTemplate, ViewMode, Role } from '../../types';
@@ -21,6 +21,7 @@ import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
 import { joinBattalion, fetchBattalion, unlinkBattalion } from '../../services/battalionService';
 import { Battalion } from '../../types';
 import { CustomFieldsManager } from '../personnel/CustomFieldsManager';
+import { SnapshotManager } from './snapshots/SnapshotManager';
 
 import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../../utils/permissions';
 
@@ -544,7 +545,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const [searchTerm, setSearchTerm] = useState('');
     const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
     const [roles, setRoles] = useState<Role[]>([]); // New State
-    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles' | 'messages' | 'teams' | 'battalion' | 'customFields'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles' | 'messages' | 'teams' | 'battalion' | 'customFields' | 'snapshots'>('general');
     const [organizationSettings, setOrganizationSettings] = useState<any>(null); // New organization settings state
     const [isCreating, setIsCreating] = useState(false);
 
@@ -698,6 +699,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         { id: 'members', label: 'חברים', icon: Users },
         { id: 'messages', label: 'הודעות ועדכונים', icon: SpeakerHigh },
         { id: 'battalion', label: 'שיוך גדודי', icon: Anchor },
+        { id: 'snapshots', label: 'גרסאות מערכת', icon: ClockCounterClockwise },
     ];
 
     return (
@@ -887,6 +889,11 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                     organizationId={organization?.id || ''}
                                     currentBattalionId={organization?.battalion_id || null}
                                 />
+                            </div>
+                        )}
+                        {activeTab === 'snapshots' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <SnapshotManager organizationId={organization?.id || ''} />
                             </div>
                         )}
                     </div>

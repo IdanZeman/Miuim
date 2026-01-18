@@ -296,6 +296,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                         <span>צור קשר</span>
                     </button>
 
+
                     {checkAccess('settings') && (
                         <button
                             className={`p-4 text-right font-medium rounded-xl flex items-center gap-3 transition-all ${currentView === 'settings'
