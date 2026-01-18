@@ -59,7 +59,8 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
             relevantPeople.forEach(person => {
                 totalPeople++;
                 const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
-                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') presentPeople++;
+                const isDeparture = avail.status === 'departure' || (avail.endHour && avail.endHour !== '23:59');
+                if ((avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') && !isDeparture) presentPeople++;
             });
 
             const percentage = totalPeople > 0 ? Math.round((presentPeople / totalPeople) * 100) : 0;
