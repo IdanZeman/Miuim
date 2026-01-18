@@ -1391,9 +1391,9 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 isSearchExpanded={isSearchExpanded}
                 onSearchExpandedChange={setIsSearchExpanded}
                 onExport={handleExport}
-                className="px-4 md:px-6 sticky top-0 bg-white"
+                className="px-3 md:px-6 sticky top-0 bg-white"
                 leftActions={
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2 md:gap-3 shrink-0">
                         <div className="hidden 2xl:flex w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl items-center justify-center shrink-0">
                             <Users size={22} weight="duotone" />
                         </div>
@@ -1428,7 +1428,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as Tab)}
-                                className={`px-3 lg:px-5 py-2 rounded-xl text-xs font-black transition-all duration-300 flex items-center gap-2 ${activeTab === tab.id
+                                className={`px-2.5 lg:px-5 py-1.5 md:py-2 rounded-xl text-[11px] md:text-xs font-black transition-all duration-300 flex items-center gap-1.5 md:gap-2 ${activeTab === tab.id
                                     ? 'bg-white text-indigo-600 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700'
                                     }`}
@@ -1702,7 +1702,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                 return (
                                                     <div
                                                         key={person.id}
-                                                        className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
+                                                        className={`flex items-center gap-3 md:gap-4 py-3 px-4 md:py-4 md:px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
                                                         onTouchStart={(e) => canEdit && handleTouchStart(e, person)}
                                                         onTouchEnd={handleTouchEnd}
                                                         onContextMenu={handleContextMenu}
@@ -1729,7 +1729,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                                                         {/* Avatar Group */}
                                                         <div className="relative shrink-0">
-                                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm md:text-xs shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${colorClass}`}>
+                                                            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-white font-black text-xs shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${colorClass}`}>
                                                                 {getPersonInitials(person.name)}
                                                             </div>
                                                         </div>
@@ -1737,7 +1737,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                         {/* Content Area */}
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center gap-2 mb-0.5">
-                                                                <h4 className={`font-black text-slate-900 text-lg md:text-base tracking-tight truncate ${!person.isActive ? 'text-slate-400 opacity-60' : ''}`}>
+                                                                <h4 className={`font-black text-slate-900 text-base md:text-base tracking-tight truncate ${!person.isActive ? 'text-slate-400 opacity-60' : ''}`}>
                                                                     {person.name}
                                                                 </h4>
                                                                 {!person.isActive && (
@@ -1748,13 +1748,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                             </div>
 
                                                             {/* Labels / Metadata */}
-                                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                                                                 <div className="flex flex-wrap gap-1.5">
                                                                     {(person.roleIds || []).length > 0 ? (
                                                                         (person.roleIds || []).map(rid => {
                                                                             const r = roles.find(rl => rl.id === rid);
                                                                             return r ? (
-                                                                                <span key={r.id} className="text-[10px] md:text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">
+                                                                                <span key={r.id} className="text-[10px] md:text-[11px] px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">
                                                                                     {r.name}
                                                                                 </span>
                                                                             ) : null
@@ -1933,7 +1933,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 return (
                                     <div
                                         key={team.id}
-                                        className={`flex items-center gap-4 py-4 px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
+                                        className={`flex items-center gap-3 md:gap-4 py-3 px-4 md:py-4 md:px-5 bg-white md:bg-white md:border-b md:border-slate-100 transition-all select-none relative group active:bg-slate-50/80 md:active:bg-slate-50 ${isSelected ? 'bg-indigo-50/50 scale-[0.99] md:scale-100' : ''}`}
                                         onClick={(e) => {
                                             if (e.detail > 1) return;
                                             if (selectedItemIds.size > 0 || isSelected) toggleSelection(team.id);
@@ -1958,13 +1958,13 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         )}
 
                                         {/* Avatar/Icon */}
-                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-slate-500 font-bold text-sm shrink-0 shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${team.color?.replace('border-', 'bg-').replace('-500', '-100').replace('-600', '-100') || 'bg-slate-100'}`}>
-                                            <Users size={22} className={`${team.color?.replace('border-', 'text-') || 'text-slate-500'}`} />
+                                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-slate-500 font-bold text-xs shrink-0 shadow-md shadow-slate-200/50 transition-transform group-active:scale-95 ${team.color?.replace('border-', 'bg-').replace('-500', '-100').replace('-600', '-100') || 'bg-slate-100'}`}>
+                                            <Users size={18} className={`${team.color?.replace('border-', 'text-') || 'text-slate-500'}`} />
                                         </div>
 
                                         {/* Info */}
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="font-black text-slate-900 text-lg md:text-base tracking-tight truncate">{team.name}</h4>
+                                            <h4 className="font-black text-slate-900 text-base md:text-base tracking-tight truncate">{team.name}</h4>
                                             <div className="flex items-center gap-1.5 mt-0.5">
                                                 <span className="text-[10px] md:text-[11px] px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">
                                                     {memberCount} חיילים

@@ -322,9 +322,9 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-4 md:space-y-8 animate-in fade-in duration-500">
             {/* Compact Header / Controls */}
-            <div className="bg-white/80 backdrop-blur-md p-3 rounded-2xl shadow-sm border border-slate-200 sticky top-0 z-20 flex flex-col gap-3">
+            <div className="bg-white/80 backdrop-blur-md p-2.5 md:p-3 rounded-2xl shadow-sm border border-slate-200 sticky top-0 z-20 flex flex-col gap-3">
                 {/* Single Row Filters */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     {/* Left Side: View Toggle + Date */}
@@ -408,7 +408,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                 <>
                     {/* KPI Cards */}
                     {/* KPI Bento Grid */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
                         <KPICard
                             title='סד"כ כולל'
                             value={stats.dailyStats.total}
@@ -454,7 +454,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                     </div>
 
                     {/* Presence Overview Visual */}
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                    <div className="bg-slate-50 p-3 md:p-4 rounded-2xl border border-slate-100 space-y-3">
                         <div className="flex justify-between items-center mb-1">
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">סקירת נוכחות ויזואלית</h3>
                             <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{stats.dailyStats.percentage}% זמינות</span>
@@ -524,7 +524,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                                                     people: [...role.presentPeople, ...role.absentPeople],
                                                     type: 'general'
                                                 })}
-                                                className="relative p-4 hover:bg-slate-50 transition-colors cursor-pointer group"
+                                                className="relative p-3 md:p-4 hover:bg-slate-50 transition-colors cursor-pointer group"
                                             >
                                                 <div className="flex items-center justify-between mb-1 relative z-10">
                                                     <div className="flex flex-col">
@@ -561,7 +561,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                         {(selectedTeamIds.includes('all') || selectedTeamIds.length > 1) && (
                             <div className="bg-white p-6 rounded-2xl border border-slate-100 flex flex-col">
                                 <h3 className="text-lg font-bold text-slate-800 mb-2">התפלגות נוכחים לפי צוותים</h3>
-                                <div className="w-full h-[400px] relative">
+                                <div className="w-full h-[280px] md:h-[400px] relative">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart margin={{ top: 0, right: 0, bottom: 20, left: 0 }}>
                                             <Pie
@@ -678,7 +678,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                                 <TrendingUp className="text-blue-500" size={20} weight="duotone" />
                                 גרף נוכחות - {trendPeriod} ימים
                             </h3>
-                            <div className="h-[300px] w-full">
+                            <div className="h-[250px] md:h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={stats.trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                         <defs>
@@ -714,7 +714,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                                 <Calendar className="text-emerald-500" size={20} weight="duotone" />
                                 ניתוח נוכחות לפי ימי שבוע
                             </h3>
-                            <div className="h-[300px] w-full">
+                            <div className="h-[250px] md:h-[300px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={stats.weekdayAnalysis} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -961,13 +961,13 @@ const KPICard: React.FC<{ title: string, value: string | number, subtext?: strin
     return (
         <div
             onClick={onClick}
-            className={`bg-white p-3 lg:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between transition-all aspect-[1.3] lg:aspect-auto ${onClick ? 'cursor-pointer hover:shadow-md active:scale-95' : ''}`}
+            className={`bg-white p-2.5 md:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between transition-all aspect-[1.3] lg:aspect-auto ${onClick ? 'cursor-pointer hover:shadow-md active:scale-95' : ''}`}
         >
-            <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center mb-auto ${colorClasses[color] || colorClasses.blue}`}>
+            <div className={`w-7 h-7 md:w-10 md:h-10 rounded-xl flex items-center justify-center mb-auto ${colorClasses[color] || colorClasses.blue}`}>
                 {icon}
             </div>
-            <div className="mt-2">
-                <h3 className={`text-xl lg:text-3xl font-black ${color === 'red' ? 'text-red-600' : color === 'green' || color === 'emerald' ? 'text-green-600' : color === 'blue' ? 'text-blue-600' : 'text-slate-800'}`}>
+            <div className="mt-2 text-right">
+                <h3 className={`text-lg md:text-3xl font-black ${color === 'red' ? 'text-red-600' : color === 'green' || color === 'emerald' ? 'text-green-600' : color === 'blue' ? 'text-blue-600' : 'text-slate-800'}`}>
                     {value}
                 </h3>
                 <p className="text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-tighter truncate">{title}</p>

@@ -128,8 +128,8 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
-            <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-100">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="bg-white rounded-2xl p-3.5 md:p-6 shadow-sm border border-slate-100">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
                     {/* Top Section: Back Button + Avatar + Name */}
                     <div className="flex items-center gap-3 md:gap-6">
                         {showBackButton && (
@@ -142,7 +142,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                         )}
                         {/* Avatar with Initials */}
                         <div
-                            className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center text-lg md:text-2xl font-bold text-white shadow-md flex-shrink-0 ${person.color}`}
+                            className={`w-10 h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center text-base md:text-2xl font-bold text-white shadow-md flex-shrink-0 ${person.color}`}
                         >
                             {getPersonInitials(person.name)}
                         </div>
@@ -182,7 +182,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                         <TrendingUp size={18} className="text-blue-500" weight="duotone" />
                         פעילות שבועית
                     </h3>
-                    <div className="h-[200px] md:h-[300px]">
+                    <div className="h-[180px] md:h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={stats.weeklyHours}>
                                 <defs>
@@ -210,7 +210,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                         <Moon size={18} className="text-indigo-500" weight="duotone" />
                         יום / לילה
                     </h3>
-                    <div className="h-[180px] md:h-[220px] relative">
+                    <div className="h-[160px] md:h-[220px] relative">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -247,11 +247,11 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
             {/* Task Breakdown Chart */}
             <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
                 <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 md:mb-6 flex items-center gap-2">
-                    <Award className="text-orange-500" size={18} weight="duotone" />
+                    <Award size={18} className="text-orange-500" weight="duotone" />
                     התפלגות משימות
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center">
-                    <div className="h-[250px] md:h-[300px] w-full">
+                    <div className="h-[200px] md:h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -388,7 +388,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                         <p className="text-xs md:text-sm mt-1">משמרות ב-{viewerDaysLimit} ימים הקרובים יופיעו כאן</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-4">
                         {stats.shifts.map(shift => {
                             const task = tasks.find(t => t.id === shift.taskId);
                             const start = new Date(shift.startTime);
@@ -399,8 +399,8 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                                         {task?.difficulty && task.difficulty > 1.5 ? <AlertCircle size={16} weight="duotone" /> : <CheckCircle size={16} weight="duotone" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="font-bold text-slate-800 text-sm md:text-base truncate">{task?.name}</p>
-                                        <p className="text-xs text-slate-500">
+                                        <p className="font-bold text-slate-800 text-sm truncate">{task?.name}</p>
+                                        <p className="text-[11px] text-slate-500">
                                             {start.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })} • <span dir="ltr">{start.getHours()}:{start.getMinutes().toString().padStart(2, '0')} - {end.getHours()}:{end.getMinutes().toString().padStart(2, '0')}</span>
                                         </p>
                                     </div>

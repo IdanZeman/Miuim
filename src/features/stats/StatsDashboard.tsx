@@ -34,12 +34,12 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    const [reportType, setReportType] = useState<ReportType>(isViewer ? 'tasks' : 'manpower');
 
    return (
-      <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden p-4 md:p-8">
+      <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden p-3 md:p-8">
 
          {/* Header & Navigation Combined */}
          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4">
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 shrink-0">
-               <BarChart3 className="text-blue-600" size={28} weight="duotone" />
+            <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 shrink-0">
+               <BarChart3 className="text-blue-600" size={24} className="md:w-7 md:h-7" weight="duotone" />
                דוחות ונתונים
                <PageInfo
                   title="דוחות ונתונים"

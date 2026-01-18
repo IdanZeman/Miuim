@@ -245,28 +245,28 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                 >
                     <div className="max-w-5xl mx-auto bg-white min-h-full shadow-sm border-x border-slate-100">
                         {/* Global Summary Card - Daily View (Light Premium Style) */}
-                        <div className="bg-white p-6 m-4 mt-6 rounded-3xl shadow-xl shadow-slate-200/40 border border-slate-100 relative overflow-hidden group">
+                        <div className="bg-white p-4.5 m-3 mt-4 rounded-3xl shadow-xl shadow-slate-200/40 border border-slate-100 relative overflow-hidden group">
                             {/* Subtle Background Decoration */}
                             <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-50/50 rounded-full blur-3xl" />
 
                             <div className="flex items-center justify-between mb-4 relative z-10">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center border border-blue-100 shadow-sm transition-transform group-hover:scale-110">
-                                        <Users size={26} className="text-blue-600" weight="duotone" />
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100 shadow-sm transition-transform group-hover:scale-110">
+                                        <Users size={22} className="text-blue-600" weight="duotone" />
                                     </div>
                                     <div>
-                                        <h3 className="text-slate-900 font-black text-lg tracking-tight">סיכום נוכחות יומי</h3>
-                                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">נתונים מעודכנים</p>
+                                        <h3 className="text-slate-900 font-black text-base tracking-tight">סיכום נוכחות יומי</h3>
+                                        <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest mt-0.5">נתונים מעודכנים</p>
                                     </div>
                                 </div>
                                 <div className="text-left">
-                                    <span className="text-4xl font-bold text-slate-900 ml-1">{globalStats.present}</span>
-                                    <span className="text-lg font-black text-slate-300 ">/ {globalStats.total}</span>
+                                    <span className="text-3xl font-bold text-slate-900 ml-1">{globalStats.present}</span>
+                                    <span className="text-base font-black text-slate-300 ">/ {globalStats.total}</span>
                                 </div>
                             </div>
 
                             {/* Progress Bar - Improved Light Style */}
-                            <div className="relative z-10 w-full h-3.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100 mb-4 p-0.5 shadow-inner">
+                            <div className="relative z-10 w-full h-2.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100 mb-4 p-0.5 shadow-inner">
                                 <div
                                     className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-1000 ease-out shadow-sm"
                                     style={{ width: `${(globalStats.present / (globalStats.total || 1)) * 100}%` }}
@@ -294,33 +294,33 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         {/* Premium Team Header - Sticky with Visual Depth */}
                                         <div
                                             onClick={() => toggleTeam(team.id)}
-                                            className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex items-center justify-between cursor-pointer group transition-all h-[72px]"
+                                            className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-2.5 flex items-center justify-between cursor-pointer group transition-all h-[60px]"
                                         >
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-3">
                                                 <div
-                                                    className="w-1.5 h-8 rounded-full"
+                                                    className="w-1 h-7 rounded-full"
                                                     style={{ backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6' }}
                                                 />
                                                 <div className="flex flex-col">
                                                     <div className="flex items-center gap-2">
-                                                        <h3 className="text-lg font-black text-slate-900 tracking-tight leading-none">{team.name}</h3>
+                                                        <h3 className="text-base font-black text-slate-900 tracking-tight leading-none">{team.name}</h3>
                                                         {companies.length > 0 && (
-                                                            <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[10px] font-black border border-blue-100/50">
+                                                            <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[9px] font-black border border-blue-100/50">
                                                                 {companies.find(c => c.id === team.organization_id)?.name}
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{members.length} לוחמים</span>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{members.length} לוחמים</span>
                                                         <div className="w-1 h-1 rounded-full bg-slate-200" />
-                                                        <span className={`text-[11px] font-black uppercase tracking-widest ${teamStats[team.id]?.present === teamStats[team.id]?.total ? 'text-emerald-500' : 'text-blue-500'}`}>
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${teamStats[team.id]?.present === teamStats[team.id]?.total ? 'text-emerald-500' : 'text-blue-500'}`}>
                                                             {teamStats[team.id]?.present} נוכחים
                                                         </span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className={`w-8 h-8 rounded-full bg-slate-50 group-hover:bg-slate-100 flex items-center justify-center transition-all duration-300 ${collapsedTeams.has(team.id) ? 'rotate-0' : 'rotate-180'}`}>
-                                                <ChevronDown size={18} className="text-slate-400 group-hover:text-slate-600" weight="duotone" />
+                                            <div className={`w-7 h-7 rounded-full bg-slate-50 group-hover:bg-slate-100 flex items-center justify-center transition-all duration-300 ${collapsedTeams.has(team.id) ? 'rotate-0' : 'rotate-180'}`}>
+                                                <ChevronDown size={16} className="text-slate-400 group-hover:text-slate-600" weight="duotone" />
                                             </div>
                                         </div>
 
@@ -406,20 +406,20 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         <div
                                                             key={person.id}
                                                             onClick={(e) => handleCellClick(e, person, currentDate)}
-                                                            className="flex items-center justify-between px-3 md:px-6 py-4 md:py-6 bg-white hover:bg-slate-50/80 active:bg-slate-100 transition-all min-h-[72px] md:min-h-[80px] cursor-pointer group border-b border-slate-50 gap-2 md:gap-4"
+                                                            className="flex items-center justify-between px-3 md:px-6 py-3 md:py-5 bg-white hover:bg-slate-50/80 active:bg-slate-100 transition-all min-h-[64px] md:min-h-[80px] cursor-pointer group border-b border-slate-50 gap-2 md:gap-4"
                                                             role="button"
                                                             tabIndex={0}
                                                         >
                                                             {/* Right: Person Info (Visually Right in RTL) */}
                                                             <div
-                                                                className="flex items-center gap-3 md:gap-4 shrink-0 min-w-0 bg-inherit relative z-10 cursor-pointer"
+                                                                className="flex items-center gap-2.5 md:gap-4 shrink-0 min-w-0 bg-inherit relative z-10 cursor-pointer"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     onSelectPerson(person);
                                                                 }}
                                                             >
                                                                 <div
-                                                                    className="w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-xs md:text-sm font-black text-white shadow-lg group-hover:shadow-blue-500/10 group-active:scale-95 transition-all shrink-0"
+                                                                    className="w-9 h-9 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-[11px] md:text-sm font-black text-white shadow-lg group-hover:shadow-blue-500/10 group-active:scale-95 transition-all shrink-0"
                                                                     style={{
                                                                         backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6',
                                                                         backgroundImage: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}cc)`
@@ -428,10 +428,10 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     {getPersonInitials(person.name)}
                                                                 </div>
                                                                 <div className="flex flex-col min-w-0">
-                                                                    <span className="text-sm md:text-base font-black text-slate-900 leading-tight group-hover:text-blue-600 transition-colors uppercase tracking-tight truncate">{person.name}</span>
+                                                                    <span className="text-xs md:text-base font-black text-slate-900 leading-tight group-hover:text-blue-600 transition-colors uppercase tracking-tight truncate">{person.name}</span>
                                                                     <div className="flex items-center gap-1.5 mt-0.5">
                                                                         <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-slate-300 group-hover:bg-blue-300 transition-colors shrink-0" />
-                                                                        <span className="text-[10px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest truncate">לוחם</span>
+                                                                        <span className="text-[9px] md:text-[11px] text-slate-400 font-bold uppercase tracking-widest truncate">לוחם</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -467,11 +467,11 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                                                 <div
                                                                     className={`
-                                                                    flex items-center gap-1.5 md:gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs shrink-0
-                                                                    ${statusConfig.bg} transition-all shadow-sm ring-1 ring-black/5
-                                                                `}
+                                                                        flex items-center gap-1 md:gap-2 px-2.5 py-1.5 md:px-4 md:py-2.5 rounded-xl md:rounded-2xl font-black text-[9px] md:text-xs shrink-0
+                                                                        ${statusConfig.bg} transition-all shadow-sm ring-1 ring-black/5
+                                                                    `}
                                                                 >
-                                                                    <statusConfig.icon size={14} weight="duotone" className="shrink-0" />
+                                                                    <statusConfig.icon size={13} weight="duotone" className="shrink-0" />
                                                                     <span className="whitespace-nowrap tracking-tight">{statusConfig.label}</span>
                                                                 </div>
                                                             </div>
@@ -502,19 +502,19 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                             <div className="min-w-max">
                                 {/* Floating Header (Dates) */}
                                 <div className="flex sticky top-0 z-[90] bg-white">
-                                    <div className="w-60 shrink-0 bg-white border-b border-l border-slate-200 sticky right-0 z-[100] flex items-center px-6 py-4 font-black text-slate-400 text-xs uppercase tracking-widest">
+                                    <div className="w-52 shrink-0 bg-white border-b border-l border-slate-200 sticky right-0 z-[100] flex items-center px-4 md:px-6 py-3 md:py-4 font-black text-slate-400 text-xs uppercase tracking-widest">
                                         שם הלוחם
                                     </div>
 
                                     {showStatistics && (
                                         <>
-                                            <div className="w-16 shrink-0 bg-white border-b border-l border-slate-200 sticky right-60 z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
+                                            <div className="w-14 shrink-0 bg-white border-b border-l border-slate-200 sticky right-52 z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
                                                 בסיס
                                             </div>
-                                            <div className="w-16 shrink-0 bg-white border-b border-l border-slate-200 sticky right-[304px] z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
+                                            <div className="w-14 shrink-0 bg-white border-b border-l border-slate-200 sticky right-[264px] z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
                                                 בית
                                             </div>
-                                            <div className="w-16 shrink-0 bg-white border-b border-l border-slate-200 sticky right-[368px] z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
+                                            <div className="w-14 shrink-0 bg-white border-b border-l border-slate-200 sticky right-[320px] z-[100] flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
                                                 יחס
                                             </div>
                                         </>
@@ -526,12 +526,12 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             return (
                                                 <div
                                                     key={date.toISOString()}
-                                                    className={`w-24 h-16 shrink-0 flex flex-col items-center justify-center border-l border-slate-100 transition-all relative ${isToday ? 'bg-blue-600 text-white z-10' : isWeekend ? 'bg-slate-50' : 'bg-white'}`}
+                                                    className={`w-20 md:w-24 h-14 md:h-16 shrink-0 flex flex-col items-center justify-center border-l border-slate-100 transition-all relative ${isToday ? 'bg-blue-600 text-white z-10' : isWeekend ? 'bg-slate-50' : 'bg-white'}`}
                                                 >
-                                                    <span className={`text-[11px] font-black uppercase mb-0.5 ${isToday ? 'text-blue-100' : isWeekend ? 'text-slate-500' : 'text-slate-400'}`}>
+                                                    <span className={`text-[10px] md:text-[11px] font-black uppercase mb-0.5 ${isToday ? 'text-blue-100' : isWeekend ? 'text-slate-500' : 'text-slate-400'}`}>
                                                         {weekDaysShort[date.getDay()]}
                                                     </span>
-                                                    <span className={`text-xl font-black ${isToday ? 'text-white' : 'text-slate-800'}`}>
+                                                    <span className={`text-lg md:text-xl font-black ${isToday ? 'text-white' : 'text-slate-800'}`}>
                                                         {date.getDate()}
                                                     </span>
                                                     {isToday && <div className="absolute top-0 right-0 left-0 h-1 bg-white/30" />}
@@ -544,9 +544,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 {/* Summary Row (Required Manpower) - Optional */}
                                 {showRequiredDetails && (
                                     <div className="flex sticky z-[85] top-[64px] bg-white backdrop-blur-md h-12 border-b border-slate-200 shadow-sm">
-                                        <div className="w-60 shrink-0 bg-rose-50 border-l border-rose-100 h-full flex items-center gap-2 sticky right-0 z-[90] px-6">
-                                            <AlertCircle size={16} className="text-rose-500" weight="duotone" />
-                                            <span className="text-sm font-black text-rose-900 tracking-tight">נדרשים למשימות</span>
+                                        <div className="w-52 shrink-0 bg-rose-50 border-l border-rose-100 h-full flex items-center gap-2 sticky right-0 z-[90] px-4 md:px-6">
+                                            <AlertCircle size={14} className="text-rose-500" weight="duotone" />
+                                            <span className="text-xs md:text-sm font-black text-rose-900 tracking-tight">נדרשים למשימות</span>
                                         </div>
                                         <div className="flex h-full">
                                             {dates.map(date => {
@@ -602,10 +602,10 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 <div className={`flex sticky z-[85] ${showRequiredDetails ? 'top-[112px]' : 'top-[64px]'} bg-white backdrop-blur-md h-12`}>
                                     <div
                                         onClick={() => onShowTeamStats && onShowTeamStats({ id: 'all', name: 'כל הפלוגה' } as Team)}
-                                        className="w-60 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[90] px-6 cursor-pointer hover:bg-blue-50 transition-colors"
+                                        className="w-52 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[90] px-4 md:px-6 cursor-pointer hover:bg-blue-50 transition-colors"
                                     >
-                                        <Users size={16} className="text-blue-600" weight="duotone" />
-                                        <span className="text-sm font-black text-slate-900 tracking-tight">סך הכל פלוגה</span>
+                                        <Users size={14} className="text-blue-600" weight="duotone" />
+                                        <span className="text-[13px] md:text-sm font-black text-slate-900 tracking-tight">סך הכל פלוגה</span>
                                     </div>
 
                                     {showStatistics && (() => {
@@ -624,14 +624,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         const baseAvgNorm = 14 - homeAvgNorm;
                                         return (
                                             <>
-                                                <div className="w-16 shrink-0 bg-emerald-50 border-b border-l border-emerald-100 h-full flex items-center justify-center sticky right-60 z-[90]">
+                                                <div className="w-14 shrink-0 bg-emerald-50 border-b border-l border-emerald-100 h-full flex items-center justify-center sticky right-52 z-[90]">
                                                     <span className="text-xs font-black text-emerald-700">{Math.round(baseAvg)}</span>
                                                 </div>
-                                                <div className="w-16 shrink-0 bg-red-50 border-b border-l border-red-100 h-full flex items-center justify-center sticky right-[304px] z-[90]">
+                                                <div className="w-14 shrink-0 bg-red-50 border-b border-l border-red-100 h-full flex items-center justify-center sticky right-[264px] z-[90]">
                                                     <span className="text-xs font-black text-red-700">{Math.round(homeAvg)}</span>
                                                 </div>
-                                                <div className="w-16 shrink-0 bg-blue-50 border-b border-l border-blue-100 h-full flex items-center justify-center sticky right-[368px] z-[90]" dir="ltr">
-                                                    <span className="text-[10px] font-black text-blue-700">{homeAvgNorm} / {baseAvgNorm}</span>
+                                                <div className="w-14 shrink-0 bg-blue-50 border-b border-l border-blue-100 h-full flex items-center justify-center sticky right-[320px] z-[90]" dir="ltr">
+                                                    <span className="text-[9px] font-black text-blue-700">{homeAvgNorm} / {baseAvgNorm}</span>
                                                 </div>
                                             </>
                                         );
@@ -678,15 +678,15 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 className={`flex sticky z-[75] ${showRequiredDetails ? 'top-[160px]' : 'top-[112px]'} group cursor-pointer bg-white h-12`}
                                             >
                                                 {/* Sticky Name Part */}
-                                                <div className="w-60 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex flex-col justify-center gap-0.5 sticky right-0 z-[80] px-4">
-                                                    <div className="flex items-center gap-2">
+                                                <div className="w-52 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex flex-col justify-center gap-0.5 sticky right-0 z-[80] px-4">
+                                                    <div className="flex items-center gap-1.5">
                                                         <div className={`transition-transform duration-300 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
-                                                            <ChevronDown size={14} className="text-slate-600" weight="duotone" />
+                                                            <ChevronDown size={12} className="text-slate-600" weight="duotone" />
                                                         </div>
-                                                        <span className="text-sm font-black text-slate-900 tracking-tight truncate">{team.name}</span>
+                                                        <span className="text-xs md:text-sm font-black text-slate-900 tracking-tight truncate">{team.name}</span>
                                                     </div>
                                                     {companies.length > 0 && (
-                                                        <span className="text-[10px] font-bold text-blue-600 pr-5 truncate">
+                                                        <span className="text-[9px] font-bold text-blue-600 pr-4 truncate">
                                                             {companies.find(c => c.id === team.organization_id)?.name}
                                                         </span>
                                                     )}
@@ -708,14 +708,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     const baseAvgNorm = 14 - homeAvgNorm;
                                                     return (
                                                         <>
-                                                            <div className="w-16 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-60 z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }}>
+                                                            <div className="w-14 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-52 z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }}>
                                                                 <span className="text-xs font-black text-emerald-600">{Math.round(baseAvg)}</span>
                                                             </div>
-                                                            <div className="w-16 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-[304px] z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }}>
+                                                            <div className="w-14 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-[264px] z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }}>
                                                                 <span className="text-xs font-black text-red-600">{Math.round(homeAvg)}</span>
                                                             </div>
-                                                            <div className="w-16 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-[368px] z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }} dir="ltr">
-                                                                <span className="text-[10px] font-black text-blue-500">{homeAvgNorm} / {baseAvgNorm}</span>
+                                                            <div className="w-14 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center justify-center sticky right-[320px] z-[80] cursor-pointer hover:bg-blue-50" onClick={(e) => { e.stopPropagation(); onShowTeamStats?.(team); }} dir="ltr">
+                                                                <span className="text-[9px] font-black text-blue-500">{homeAvgNorm} / {baseAvgNorm}</span>
                                                             </div>
                                                         </>
                                                     );
@@ -757,10 +757,10 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                             {/* Person Info Sticky Cell */}
                                                             <div
                                                                 onClick={() => onSelectPerson(person)}
-                                                                className={`w-60 shrink-0 px-6 py-4 border-l border-slate-100 sticky right-0 z-[60] flex items-center gap-4 cursor-pointer transition-all ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} group-hover/row:bg-blue-50 group-hover/row:shadow-[4px_0_12px_rgba(0,0,0,0.05)] shadow-[2px_0_5px_rgba(0,0,0,0.02)]`}
+                                                                className={`w-52 shrink-0 px-4 md:px-6 py-2.5 md:py-4 border-l border-slate-100 sticky right-0 z-[60] flex items-center gap-3 md:gap-4 cursor-pointer transition-all ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} group-hover/row:bg-blue-50 group-hover/row:shadow-[4px_0_12px_rgba(0,0,0,0.05)] shadow-[2px_0_5px_rgba(0,0,0,0.02)]`}
                                                             >
                                                                 <div
-                                                                    className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-black shrink-0 text-white shadow-md ring-4 ring-white transition-transform group-hover/row:scale-110"
+                                                                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 text-white shadow-md ring-2 ring-white transition-transform group-hover/row:scale-110"
                                                                     style={{
                                                                         backgroundColor: team.color?.startsWith('#') ? team.color : '#3b82f6',
                                                                         backgroundImage: `linear-gradient(135deg, ${team.color || '#3b82f6'}, ${team.color || '#3b82f6'}cc)`

@@ -77,10 +77,10 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({
         >
             <div className="relative flex items-center justify-between gap-4">
                 {/* Right Area: Identity */}
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex items-center gap-2.5 md:gap-3.5 min-w-0">
                     <div className="relative shrink-0">
                         <div
-                            className="w-12 h-12 rounded-xl flex items-center justify-center text-slate-800 text-lg font-black shadow-sm transition-all duration-300 group-hover:scale-105 border-2 border-white ring-1 ring-slate-100"
+                            className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-slate-800 text-base md:text-lg font-black shadow-sm transition-all duration-300 group-hover:scale-105 border-2 border-white ring-1 ring-slate-100"
                             style={{
                                 backgroundColor: person.color || '#F1F5F9',
                                 backgroundImage: person.color
@@ -94,30 +94,30 @@ export const PersonalStats: React.FC<PersonalStatsProps> = ({
                     </div>
 
                     <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
-                            <h3 className="text-base font-black text-slate-800 truncate group-hover:text-blue-700 transition-colors tracking-tight">{person.name}</h3>
-                            <Sparkle size={12} weight="fill" className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                            <h3 className="text-sm md:text-base font-black text-slate-800 truncate group-hover:text-blue-700 transition-colors tracking-tight">{person.name}</h3>
+                            <Sparkle size={10} weight="fill" className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-colors border border-slate-100/50">
-                                <Clock size={12} className="text-slate-400 group-hover:text-blue-500" />
-                                <span className="text-[11px] font-black text-slate-600 group-hover:text-blue-700">{totalHours.toFixed(1)} <span className="text-[9px] opacity-40">ש'</span></span>
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-colors border border-slate-100/50">
+                                <Clock size={10} className="text-slate-400 group-hover:text-blue-500" />
+                                <span className="text-[10px] md:text-[11px] font-black text-slate-600 group-hover:text-blue-700">{totalHours.toFixed(1)} <span className="text-[8px] md:text-[9px] opacity-40">ש'</span></span>
                             </div>
-                            <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-50 rounded-lg group-hover:bg-emerald-50 transition-colors border border-slate-100/50">
-                                <CalendarBlank size={12} className="text-slate-400 group-hover:text-emerald-500" />
-                                <span className="text-[11px] font-black text-slate-600 group-hover:text-emerald-700">{shiftCount} <span className="text-[9px] opacity-40">מש'</span></span>
+                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-50 rounded-lg group-hover:bg-emerald-50 transition-colors border border-slate-100/50">
+                                <CalendarBlank size={10} className="text-slate-400 group-hover:text-emerald-500" />
+                                <span className="text-[10px] md:text-[11px] font-black text-slate-600 group-hover:text-emerald-700">{shiftCount} <span className="text-[8px] md:text-[9px] opacity-40">מש'</span></span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Left Area: Load Points */}
-                <div className="flex items-center gap-4 shrink-0 px-4">
-                    <div className="w-px h-8 bg-slate-100" />
+                <div className="flex items-center gap-2 md:gap-4 shrink-0 px-2 md:px-4">
+                    <div className="hidden md:block w-px h-8 bg-slate-100" />
                     <div className="text-left">
-                        <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mb-1">ניקוד עומס</div>
-                        <div className="text-xl font-black text-slate-400 group-hover:text-blue-600 transition-colors flex items-baseline gap-1">
-                            {totalLoad.toFixed(0)}<span className="text-[10px] opacity-40">PT</span>
+                        <div className="text-[9px] md:text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none mb-0.5 md:mb-1">ניקוד עומס</div>
+                        <div className="text-lg md:text-xl font-black text-slate-400 group-hover:text-blue-600 transition-colors flex items-baseline gap-1">
+                            {totalLoad.toFixed(0)}<span className="text-[9px] md:text-[10px] opacity-40">PT</span>
                         </div>
                     </div>
                 </div>

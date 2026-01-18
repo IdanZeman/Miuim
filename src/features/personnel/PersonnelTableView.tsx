@@ -92,21 +92,21 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
                 <table className="w-full border-collapse min-w-[1200px] text-right">
                     <thead className="sticky top-0 z-30 bg-slate-50 border-b border-slate-200 shadow-sm">
                         <tr>
-                            <th className="px-4 py-3 w-12 text-center sticky right-0 bg-slate-50 z-20 border-l border-slate-100/50">
+                            <th className="px-3 py-2 md:px-4 md:py-3 w-12 text-center sticky right-0 bg-slate-50 z-20 border-l border-slate-100/50">
                                 {/* Bulk Selection Header Placeholder */}
                             </th>
-                            <th className="px-4 py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[200px] sticky right-12 bg-slate-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                            <th className="px-3 py-2 md:px-4 md:py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[200px] sticky right-12 bg-slate-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                                 שם מלא
                             </th>
-                            <th className="px-4 py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[140px]">צוות</th>
-                            <th className="px-4 py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[220px]">תפקידים</th>
-                            <th className="px-4 py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[130px]">טלפון</th>
-                            <th className="px-4 py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[180px]">אימייל</th>
-                            <th className="px-4 py-3 text-xs font-black text-slate-400 uppercase tracking-widest w-28">סטטוס</th>
+                            <th className="px-3 py-2 md:px-4 md:py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[140px]">צוות</th>
+                            <th className="px-3 py-2 md:px-4 md:py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[220px]">תפקידים</th>
+                            <th className="px-3 py-2 md:px-4 md:py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[130px]">טלפון</th>
+                            <th className="px-3 py-2 md:px-4 md:py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[180px]">אימייל</th>
+                            <th className="px-3 py-2 md:px-4 md:py-3 text-xs font-black text-slate-400 uppercase tracking-widest w-28">סטטוס</th>
 
                             {/* Dynamic Custom Fields Headers */}
                             {sortedSchema.map(field => (
-                                <th key={field.id} className="px-4 py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[140px]">
+                                <th key={field.id} className="px-3 py-2 md:px-4 md:py-3 text-xs font-black text-slate-400 uppercase tracking-widest min-w-[140px]">
                                     {field.label}
                                 </th>
                             ))}
@@ -123,7 +123,7 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
                                     className={`group hover:bg-slate-50 transition-colors ${isSelected ? 'bg-indigo-50/50' : ''}`}
                                 >
                                     {/* Checkbox (Sticky Left) */}
-                                    <td className="px-4 py-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 z-10 border-l border-slate-100/50" onClick={(e) => e.stopPropagation()}>
+                                    <td className="px-3 py-2 md:px-4 md:py-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 z-10 border-l border-slate-100/50" onClick={(e) => e.stopPropagation()}>
                                         <div
                                             onClick={() => toggleSelection(person.id)}
                                             className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-200 bg-white group-hover:border-slate-300'}`}
@@ -134,7 +134,7 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
 
                                     {/* Name (Sticky Left) */}
                                     <td
-                                        className="px-4 py-3 sticky right-12 bg-white group-hover:bg-slate-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] cursor-text"
+                                        className="px-3 py-2 md:px-4 md:py-3 sticky right-12 bg-white group-hover:bg-slate-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] cursor-text"
                                         onClick={() => handleCellClick(person, 'name', person.name)}
                                     >
                                         {editingCell?.personId === person.id && editingCell.field === 'name' ? (
@@ -148,18 +148,18 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
                                                 onKeyDown={handleKeyDown}
                                             />
                                         ) : (
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-lg ${team?.color?.replace('border-', 'bg-') || 'bg-slate-200'} text-white flex items-center justify-center text-[10px] font-black shrink-0`}>
+                                            <div className="flex items-center gap-2.5 md:gap-3">
+                                                <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg ${team?.color?.replace('border-', 'bg-') || 'bg-slate-200'} text-white flex items-center justify-center text-[9px] md:text-[10px] font-black shrink-0`}>
                                                     {getPersonInitials(person.name)}
                                                 </div>
-                                                <span className="text-sm font-bold text-slate-900 truncate max-w-[150px]">{person.name}</span>
+                                                <span className="text-xs md:text-sm font-bold text-slate-900 truncate max-w-[150px]">{person.name}</span>
                                             </div>
                                         )}
                                     </td>
 
                                     {/* Team */}
                                     <td
-                                        className="px-4 py-3 cursor-pointer"
+                                        className="px-3 py-2 md:px-4 md:py-3 cursor-pointer"
                                         onClick={() => handleCellClick(person, 'teamId', person.teamId)}
                                     >
                                         {editingCell?.personId === person.id && editingCell.field === 'teamId' ? (
@@ -188,7 +188,7 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
                                     </td>
 
                                     {/* Roles (Multiple Select is complex for inline, simplifying to display mostly, or simplified edit) */}
-                                    <td className="px-4 py-3">
+                                    <td className="px-3 py-2 md:px-4 md:py-3">
                                         {/* For quick MVP inline edit of roles, maybe just click to open full modal or a simplified multiselect. 
                                             For now, keeping it read-only-ish or simple click-to-edit-in-modal is safer unless requested otherwise. 
                                             User requested "edit fields directly", so let's try a simple multiselect or just text for now? 
@@ -215,7 +215,7 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
 
                                     {/* Phone */}
                                     <td
-                                        className="px-4 py-3 cursor-text"
+                                        className="px-3 py-1.5 md:px-4 md:py-3 cursor-text"
                                         onClick={() => handleCellClick(person, 'phone', person.phone)}
                                     >
                                         {editingCell?.personId === person.id && editingCell.field === 'phone' ? (
@@ -235,7 +235,7 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
 
                                     {/* Email */}
                                     <td
-                                        className="px-4 py-3 cursor-text"
+                                        className="px-3 py-1.5 md:px-4 md:py-3 cursor-text"
                                         onClick={() => handleCellClick(person, 'email', person.email)}
                                     >
                                         {editingCell?.personId === person.id && editingCell.field === 'email' ? (
@@ -254,7 +254,7 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
                                     </td>
 
                                     {/* Status */}
-                                    <td className="px-4 py-3 cursor-pointer" onClick={() => {
+                                    <td className="px-3 py-1.5 md:px-4 md:py-3 cursor-pointer" onClick={() => {
                                         onUpdatePerson({ ...person, isActive: !person.isActive });
                                     }}>
                                         <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-black border transition-colors ${person.isActive !== false ? 'bg-green-50 text-green-700 border-green-100 hover:bg-green-100' : 'bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100'}`}>
@@ -271,7 +271,7 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
                                         return (
                                             <td
                                                 key={field.id}
-                                                className="px-4 py-3 cursor-pointer"
+                                                className="px-3 py-1.5 md:px-4 md:py-3 cursor-pointer"
                                                 onClick={() => handleCellClick(person, field.key, value)}
                                             >
                                                 {isEditing ? (
@@ -353,7 +353,7 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
             </div>
 
             {/* Table Footer info */}
-            <div className="bg-slate-50 border-t border-slate-200 px-4 py-2 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest sticky bottom-0 z-30">
+            <div className="bg-slate-50 border-t border-slate-200 px-3 py-1.5 md:px-4 md:py-2 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest sticky bottom-0 z-30">
                 <div>סה״כ: {people.length} חברים</div>
                 {selectedItemIds.size > 0 && (
                     <div className="text-indigo-600">נבחרו {selectedItemIds.size} פריטים</div>

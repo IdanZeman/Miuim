@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
-import { Profile, Team, PermissionTemplate, UserPermissions } from '../../types';
+import { Profile, Team, PermissionTemplate, UserPermissions, Organization } from '../../types';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { Users, MagnifyingGlass, PencilSimple, ShieldCheck, Shield, CircleNotch, Building } from '@phosphor-icons/react';
+import { Users, MagnifyingGlass, PencilSimple, ShieldCheck, Shield, CircleNotch, Buildings as Building } from '@phosphor-icons/react';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { PermissionEditor } from './PermissionEditor';
+import { UserEditModal } from './UserEditModal';
 
 export const GlobalUserManagement: React.FC = () => {
     const { profile: myProfile } = useAuth();
@@ -15,11 +15,16 @@ export const GlobalUserManagement: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingUser, setEditingUser] = useState<Profile | null>(null);
-    const [organizations, setOrganizations] = useState<Record<string, string>>({});
+    const [organizations, setOrganizations] = useState<Organization[]>([]);
+    const [orgMap, setOrgMap] = useState<Record<string, string>>({});
 
     // For PermissionEditor
     const [allTeams, setAllTeams] = useState<Team[]>([]);
     const [allTemplates, setAllTemplates] = useState<PermissionTemplate[]>([]);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 20;
 
     useEffect(() => {
         fetchInitialData();
@@ -30,7 +35,7 @@ export const GlobalUserManagement: React.FC = () => {
         try {
             const [profilesRes, orgsRes, teamsRes, templatesRes] = await Promise.all([
                 supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-                supabase.from('organizations').select('id, name'),
+                supabase.from('organizations').select('*'),
                 supabase.from('teams').select('*'),
                 supabase.from('permission_templates').select('*')
             ]);
@@ -38,9 +43,12 @@ export const GlobalUserManagement: React.FC = () => {
             if (profilesRes.error) throw profilesRes.error;
             setProfiles(profilesRes.data || []);
 
-            const orgMap: Record<string, string> = {};
-            orgsRes.data?.forEach(org => orgMap[org.id] = org.name);
-            setOrganizations(orgMap);
+            const orgs = orgsRes.data || [];
+            setOrganizations(orgs);
+
+            const map: Record<string, string> = {};
+            orgs.forEach(org => map[org.id] = org.name);
+            setOrgMap(map);
 
             setAllTeams(teamsRes.data || []);
             setAllTemplates(templatesRes.data || []);
@@ -52,30 +60,66 @@ export const GlobalUserManagement: React.FC = () => {
         }
     };
 
-    const handleSavePermissions = async (userId: string, permissions: UserPermissions, templateId?: string | null) => {
+    const handleSaveUser = async (userId: string, updates: Partial<Profile>, linkedPersonId: string | null) => {
         try {
-            const { error } = await supabase
+            // 1. Update Profile (Name, Org, Permissions)
+            const { error: profileError } = await supabase
                 .from('profiles')
-                .update({
-                    permissions,
-                    permission_template_id: templateId || null
-                })
+                .update(updates)
                 .eq('id', userId);
 
-            if (error) throw error;
+            if (profileError) throw profileError;
 
-            showToast('הרשאות עודכנו בהצלחה', 'success');
-            setProfiles(prev => prev.map(p => p.id === userId ? { ...p, permissions, permission_template_id: templateId || undefined } : p));
+            // 2. Handle Linking
+            // 2a. Unlink everyone currently linked to this user
+            const { error: unlinkError } = await supabase
+                .from('people')
+                .update({ user_id: null })
+                .eq('user_id', userId);
+
+            if (unlinkError) throw unlinkError;
+
+            // 2b. If a person is selected, link them
+            if (linkedPersonId) {
+                const { error: linkError } = await supabase
+                    .from('people')
+                    .update({ user_id: userId })
+                    .eq('id', linkedPersonId);
+
+                if (linkError) throw linkError;
+            }
+
+            showToast('המשתמש עודכן בהצלחה', 'success');
+
+            // Update local state
+            setProfiles(prev => prev.map(p => p.id === userId ? { ...p, ...updates } : p));
+            setEditingUser(null);
         } catch (error: any) {
-            console.error('Error saving permissions:', error);
-            showToast('שגיאה בשמירת הרשאות', 'error');
+            console.error('Error saving user:', error);
+            showToast('שגיאה בעדכון המשתמש', 'error');
         }
     };
 
     const filteredProfiles = profiles.filter(p =>
         (p.full_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (p.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (organizations[p.organization_id || '']?.toLowerCase().includes(searchTerm.toLowerCase()))
+        (orgMap[p.organization_id || '']?.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+    // Reset to page 1 when searching
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
+
+    // Scroll to top when page changes
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [currentPage]);
+
+    const totalPages = Math.ceil(filteredProfiles.length / itemsPerPage);
+    const paginatedProfiles = filteredProfiles.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
     );
 
     if (loading) {
@@ -86,7 +130,7 @@ export const GlobalUserManagement: React.FC = () => {
             </div>
         );
     }
-
+    // Render logic remains similar but uses UserEditModal
     return (
         <div className="space-y-6">
             <div className="bg-white rounded-2xl p-4 md:p-6 border border-slate-200 shadow-sm">
@@ -125,7 +169,7 @@ export const GlobalUserManagement: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {filteredProfiles.map(user => (
+                            {paginatedProfiles.map(user => (
                                 <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                                     <td className="px-4 py-4">
                                         <div className="flex items-center gap-3">
@@ -144,7 +188,7 @@ export const GlobalUserManagement: React.FC = () => {
                                     <td className="px-4 py-4">
                                         <div className="flex items-center gap-1.5 text-slate-600 text-sm">
                                             <Building size={14} className="text-slate-400" />
-                                            {user.organization_id ? organizations[user.organization_id] || 'פלוגה לא ידועה' : 'ללא שיוך'}
+                                            {user.organization_id ? orgMap[user.organization_id] || 'פלוגה לא ידועה' : 'ללא שיוך'}
                                         </div>
                                     </td>
                                     <td className="px-4 py-4">
@@ -179,7 +223,7 @@ export const GlobalUserManagement: React.FC = () => {
                                                     variant="ghost"
                                                     size="sm"
                                                     className="text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50"
-                                                    title="ערוך הרשאות"
+                                                    title="ערוך משתמש"
                                                 >
                                                     <PencilSimple size={18} weight="duotone" />
                                                 </Button>
@@ -194,7 +238,7 @@ export const GlobalUserManagement: React.FC = () => {
 
                 {/* Mobile Card View */}
                 <div className="md:hidden space-y-3">
-                    {filteredProfiles.map(user => (
+                    {paginatedProfiles.map(user => (
                         <div key={user.id} className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
                             <div className="flex items-start gap-3">
                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center text-purple-600 font-bold border-2 border-white shadow-sm shrink-0">
@@ -214,7 +258,7 @@ export const GlobalUserManagement: React.FC = () => {
                                     <span className="text-slate-500 font-medium">פלוגה:</span>
                                     <div className="flex items-center gap-1.5 text-slate-600">
                                         <Building size={12} className="text-slate-400" />
-                                        <span className="text-xs font-medium">{user.organization_id ? organizations[user.organization_id] || 'לא ידועה' : 'ללא שיוך'}</span>
+                                        <span className="text-xs font-medium">{user.organization_id ? orgMap[user.organization_id] || 'לא ידועה' : 'ללא שיוך'}</span>
                                     </div>
                                 </div>
 
@@ -254,7 +298,7 @@ export const GlobalUserManagement: React.FC = () => {
                                         className="w-full h-10 text-sm font-bold"
                                         icon={PencilSimple}
                                     >
-                                        ערוך הרשאות
+                                        ערוך משתמש
                                     </Button>
                                 )}
                             </div>
@@ -267,18 +311,77 @@ export const GlobalUserManagement: React.FC = () => {
                         לא נמצאו משתמשים התואמים לחיפוש שלך.
                     </div>
                 )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-slate-100">
+                        <div className="text-sm text-slate-500 font-medium">
+                            מציג <span className="text-slate-900 font-bold">{Math.min(filteredProfiles.length, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(filteredProfiles.length, currentPage * itemsPerPage)}</span> מתוך <span className="text-slate-900 font-bold">{filteredProfiles.length}</span> משתמשים
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="font-bold text-xs"
+                            >
+                                הקודם
+                            </Button>
+                            <div className="flex items-center gap-1">
+                                {[...Array(totalPages)].map((_, i) => {
+                                    const page = i + 1;
+                                    // Show first, last, and pages around current
+                                    if (
+                                        page === 1 ||
+                                        page === totalPages ||
+                                        (page >= currentPage - 1 && page <= currentPage + 1)
+                                    ) {
+                                        return (
+                                            <button
+                                                key={page}
+                                                onClick={() => setCurrentPage(page)}
+                                                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === page
+                                                    ? 'bg-purple-600 text-white shadow-md shadow-purple-200'
+                                                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                    }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        );
+                                    } else if (
+                                        page === currentPage - 2 ||
+                                        page === currentPage + 2
+                                    ) {
+                                        return <span key={page} className="text-slate-300 px-1">...</span>;
+                                    }
+                                    return null;
+                                })}
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="font-bold text-xs"
+                            >
+                                הבא
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {editingUser && (
-                <PermissionEditor
+                <UserEditModal
                     isOpen={true}
                     onClose={() => setEditingUser(null)}
                     user={editingUser}
-                    onSave={handleSavePermissions}
-                    teams={allTeams.filter(t => t.organization_id === editingUser.organization_id)}
-                    templates={allTemplates.filter(t => t.organization_id === editingUser.organization_id)}
+                    organizations={organizations}
+                    onSave={handleSaveUser}
                 />
             )}
         </div>
     );
 };
+

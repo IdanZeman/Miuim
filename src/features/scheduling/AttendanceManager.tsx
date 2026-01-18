@@ -798,33 +798,33 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 relative isolate z-10 overflow-hidden
             `}>
                 {/* Mobile Header - Premium Design */}
-                <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 py-3 flex flex-col gap-3">
+                <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 py-2.5 flex flex-col gap-2.5">
                     <div className="flex items-center gap-2">
                         {/* Compact Segmented Control */}
-                        <div className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 h-9">
+                        <div className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 h-8.5">
                             <button
                                 onClick={() => setViewMode('calendar')}
                                 className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                             >
-                                <CalendarDays size={14} weight="duotone" />
-                                <span className="text-xs">חודשי</span>
+                                <CalendarDays size={13} weight="duotone" />
+                                <span className="text-[11px]">חודשי</span>
                             </button>
                             <button
                                 onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
                                 className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'day_detail' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                             >
-                                <ListChecks size={14} weight="duotone" />
-                                <span className="text-xs">יומי</span>
+                                <ListChecks size={13} weight="duotone" />
+                                <span className="text-[11px]">יומי</span>
                             </button>
                         </div>
 
                         {!isViewer && (
                             <button
                                 onClick={() => setShowRotaWizard(true)}
-                                className="w-9 h-9 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl border border-blue-100 active:scale-95 transition-all shrink-0"
+                                className="w-8.5 h-8.5 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl border border-blue-100 active:scale-95 transition-all shrink-0"
                                 title="מחולל סבבים"
                             >
-                                <Sparkles size={18} weight="duotone" />
+                                <Sparkles size={16} weight="duotone" />
                             </button>
                         )}
                         <ExportButton
@@ -832,7 +832,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             iconOnly
                             variant="secondary"
                             size="sm"
-                            className="w-9 h-9 rounded-xl"
+                            className="w-8.5 h-8.5 rounded-xl"
                             title="ייצוא נתוני נוכחות"
                         />
                     </div>
@@ -846,7 +846,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 else setSelectedDate(d);
                             }}
                             mode={viewMode === 'calendar' ? 'month' : 'day'}
-                            className="w-full justify-between border-none bg-transparent h-9"
+                            className="w-full justify-between border-none bg-transparent h-8.5"
                             showTodayButton={true}
                             maxDate={isViewer ? (() => {
                                 const days = settings?.viewer_schedule_days || 7;
@@ -881,7 +881,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     ) : (
                         <div className="h-full flex flex-col">
                             {/* Search Bar - Premium Mobile Design */}
-                            <div className="px-4 py-3 bg-white/50 backdrop-blur-sm border-b border-slate-100">
+                            <div className="px-3 py-2.5 bg-white/50 backdrop-blur-sm border-b border-slate-100">
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
                                         <Search size={16} weight="duotone" />
