@@ -33,11 +33,52 @@ const MetricTooltip = ({ text }: { text: string }) => (
     </div>
 );
 
+const AnalyticsSkeleton = () => (
+    <div className="space-y-8 animate-pulse">
+        {/* Main Stats Row Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map(i => (
+                <div key={i} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm h-32">
+                    <div className="flex justify-between items-start">
+                        <div className="space-y-3">
+                            <div className="w-20 h-3 bg-slate-100 rounded" />
+                            <div className="w-12 h-8 bg-slate-100 rounded" />
+                        </div>
+                        <div className="w-12 h-12 bg-slate-100 rounded-2xl" />
+                    </div>
+                </div>
+            ))}
+        </div>
+
+        {/* System Performance & Nightly Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 bg-white border border-slate-100 rounded-[2.5rem] p-8 h-64 flex items-center gap-8">
+                <div className="w-32 h-32 bg-slate-100 rounded-full shrink-0" />
+                <div className="flex-1 space-y-6">
+                    <div className="space-y-2">
+                        <div className="w-48 h-6 bg-slate-100 rounded" />
+                        <div className="w-64 h-4 bg-slate-100 rounded" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="h-20 bg-slate-50 rounded-2xl border border-slate-100" />
+                        <div className="h-20 bg-slate-50 rounded-2xl border border-slate-100" />
+                    </div>
+                </div>
+            </div>
+            <div className="bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 h-64" />
+        </div>
+
+        {/* Activity Feed Skeleton */}
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 h-[400px]" />
+    </div>
+);
+
 interface AnalyticsDashboardProps {
     isEmbedded?: boolean;
+    onNavigate?: (tab: 'analytics' | 'logs') => void;
 }
 
-export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedded = false }) => {
+export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedded = false, onNavigate }) => {
     const { organization } = useAuth();
     const { showToast } = useToast();
     const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
@@ -173,195 +214,265 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedd
                     </div>
                 </section>
 
-                {/* Main Stats Row */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <StatCard
-                        title="חיילים פעילים"
-                        value={summary?.active_people}
-                        icon={Users}
-                        color={{ bg: "bg-blue-100/50", text: "text-blue-600" }}
-                        description="Active Personnel"
-                        tooltip="מספר החיילים המוגדרים כ'פעילים' כרגע במערכת. חיילים בארכיון אינם נספרים כאן."
-                    />
-                    <StatCard
-                        title="מחיקות ל-ארכיון"
-                        value={summary?.deletions_30d}
-                        icon={Trash}
-                        color={{ bg: "bg-rose-100/50", text: "text-rose-600" }}
-                        description="Security Audit"
-                        tooltip="כמות החיילים שהוסרו מהארגון ב-30 הימים האחרונים. כל מחיקה מתועדת וניתנת לשחזור במידת הצורך."
-                    />
-                    <StatCard
-                        title="נקודות שחזור (Snapshots)"
-                        value={summary?.snapshots_30d}
-                        icon={Database}
-                        color={{ bg: "bg-indigo-100/50", text: "text-indigo-600" }}
-                        description="System Backups"
-                        tooltip="כמות הגיבויים המלאים (ידניים ואוטומטיים) שבוצעו החודש. הגיבויים כוללים את כלל נתוני השיבוץ והנוכחות."
-                    />
-                    <StatCard
-                        title="שחזורי מערכת"
-                        value={summary?.restores_30d}
-                        icon={ArrowsClockwise}
-                        color={{ bg: "bg-amber-100/50", text: "text-amber-600" }}
-                        description="Recovery Events"
-                        tooltip="כמות הפעמים שבוצע שחזור מידע מגיבוי קודם. שחזור הוא פעולה רגישה המגובה אוטומטית לפני ביצוע."
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Nightly Backup Health */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-white rounded-3xl p-8 border border-slate-200/60 shadow-sm relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full -mr-16 -mt-16 z-0 group-hover:bg-blue-50 transition-colors" />
-
-                            <div className="relative z-10 text-center">
-                                <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-8">Backup Health</h4>
-
-                                <div className="flex flex-col items-center">
-                                    {summary?.last_nightly_status === 'success' ? (
-                                        <>
-                                            <div className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-emerald-50/50">
-                                                <CheckCircle size={56} weight="duotone" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <p className="text-xl font-black text-slate-800">המערכת תקינה ומגובה</p>
-                                                <p className="text-slate-500 text-sm font-bold flex items-center justify-center gap-1.5 line-through decoration-slate-300 decoration-1">
-                                                    <Clock size={16} />
-                                                    גיבוי אוטומטי בוצע הלילה ב-01:00
-                                                </p>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-rose-50/50">
-                                                <Warning size={56} weight="duotone" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <p className="text-xl font-black text-slate-800">נדרשת תשומת לב</p>
-                                                <p className="text-rose-600 text-sm font-bold">לא זוהה גיבוי לילי תקין לאחרונה</p>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-
-                                <div className="mt-10 grid grid-cols-2 gap-4 border-t border-slate-100 pt-8">
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">מדיניות</p>
-                                        <p className="text-sm font-black text-slate-700">גיבוי לילי אוט'</p>
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">שמירת נתונים</p>
-                                        <p className="text-sm font-black text-slate-700">30 יום אחרונים</p>
-                                    </div>
-                                </div>
-                            </div>
+                {loading ? (
+                    <AnalyticsSkeleton />
+                ) : (
+                    <>
+                        {/* Main Stats Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <StatCard
+                                title="אנשים פעילים"
+                                value={summary?.active_people}
+                                icon={Users}
+                                color={{ bg: "bg-blue-100/50", text: "text-blue-600" }}
+                                description="Active Personnel"
+                                tooltip="מספר החיילים המוגדרים כ'פעילים' כרגע במערכת."
+                            />
+                            <StatCard
+                                title="מחיקות ל-ארכיון"
+                                value={summary?.deletions_30d}
+                                icon={Trash}
+                                color={{ bg: "bg-rose-100/50", text: "text-rose-600" }}
+                                description="Security Audit"
+                                tooltip="כמות החיילים שהוסרו מהארגון ב-30 הימים האחרונים."
+                            />
+                            <StatCard
+                                title="נקודות שחזור"
+                                value={summary?.snapshots_30d}
+                                icon={Database}
+                                color={{ bg: "bg-indigo-100/50", text: "text-indigo-600" }}
+                                description="System Backups"
+                                tooltip="כמות הגיבויים המלאים שבוצעו החודש."
+                            />
+                            <StatCard
+                                title="שחזורי מערכת"
+                                value={summary?.restores_30d}
+                                icon={ArrowsClockwise}
+                                color={{ bg: "bg-amber-100/50", text: "text-amber-600" }}
+                                description="Recovery Events"
+                                tooltip="כמות הפעמים שבוצע שחזור מידע מגיבוי קודם."
+                            />
                         </div>
 
-                        {/* Quick Tips */}
-                        <div className="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden">
-                            <div className="absolute bottom-0 right-0 opacity-10 scale-150 rotate-12">
-                                <Shield size={120} weight="duotone" />
-                            </div>
-                            <h3 className="text-lg font-black mb-4 flex items-center gap-2">
-                                <Shield size={24} weight="duotone" className="text-blue-400" />
-                                אבטחת נתונים
-                            </h3>
-                            <p className="text-slate-400 text-sm font-medium leading-relaxed mb-6">
-                                המערכת מצלמת את כל הארגון בכל ללה. אם מחקתם מידע בטעות, אל דאגה - ניתן לבצע שחזור מלא מניהול הגיבויים.
-                            </p>
-                            <button className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-black transition-all">
-                                למד עוד על ניהול גיבויים
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Activity Feed */}
-                    <div className="lg:col-span-2">
-                        <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden h-full flex flex-col">
-                            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-                                <div>
-                                    <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                                        <Pulse size={22} weight="duotone" className="text-blue-500" />
-                                        יומן אירועים אחרונים
-                                    </h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Recent System Activity</p>
-                                </div>
-                                <span className="bg-white border border-slate-200 text-slate-600 text-[10px] font-black px-3 py-1.5 rounded-lg shadow-sm">
-                                    {activity.length} פעולות מוצגות
-                                </span>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                {activity.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center p-20 text-center">
-                                        <div className="w-16 h-16 bg-slate-50 text-slate-200 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
-                                            <Calendar size={32} weight="duotone" />
+                        {/* Performance and Activity Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            {/* System Performance & Health */}
+                            <div className="lg:col-span-2 space-y-8">
+                                <div className="bg-white border border-slate-200/60 rounded-[2.5rem] p-8 shadow-sm flex flex-col md:flex-row items-center gap-8">
+                                    <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
+                                        <svg className="w-full h-full transform -rotate-90">
+                                            <circle
+                                                cx="64"
+                                                cy="64"
+                                                r="58"
+                                                fill="transparent"
+                                                stroke="#f1f5f9"
+                                                strokeWidth="10"
+                                            />
+                                            <circle
+                                                cx="64"
+                                                cy="64"
+                                                r="58"
+                                                fill="transparent"
+                                                stroke={
+                                                    (summary?.health_score || 0) > 90 ? '#10b981' :
+                                                        (summary?.health_score || 0) > 70 ? '#3b82f6' : '#f59e0b'
+                                                }
+                                                strokeWidth="10"
+                                                strokeDasharray={364}
+                                                strokeDashoffset={364 - (364 * (summary?.health_score || 0)) / 100}
+                                                strokeLinecap="round"
+                                                className="transition-all duration-1000 ease-out"
+                                            />
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center translate-x-[4px]">
+                                            <span className="text-3xl font-black text-slate-800">{summary?.health_score || 0}%</span>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">בריאות</span>
                                         </div>
-                                        <h4 className="text-slate-800 font-black">אין אירועים להצגה</h4>
-                                        <p className="text-slate-400 text-sm font-medium mt-1">לא זוהתה פעילות מערכת חריגה בתקופה האחרונה</p>
                                     </div>
-                                ) : (
-                                    <div className="divide-y divide-slate-50">
-                                        {activity.map((event, idx) => (
-                                            <div key={idx} className="px-8 py-5 hover:bg-slate-50/50 transition-colors group">
-                                                <div className="flex items-start gap-5">
-                                                    <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 group-hover:border-blue-200 group-hover:shadow-md transition-all">
-                                                        {getEventIcon(event.event_type)}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between mb-1.5">
-                                                            <div className="flex items-center gap-2">
-                                                                <h4 className="font-black text-slate-800 truncate">{event.event_name}</h4>
-                                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${event.event_type === 'deletion' ? 'bg-rose-50 text-rose-600' :
-                                                                    event.event_type === 'create' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-600'
-                                                                    }`}>
-                                                                    {getEventLabel(event.event_type)}
-                                                                </span>
-                                                            </div>
-                                                            <span className="text-[10px] font-black uppercase text-slate-400 bg-slate-50 px-2 py-1 rounded-md">
-                                                                {new Date(event.occurred_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center flex-wrap gap-x-5 gap-y-1.5 text-[11px] text-slate-500 font-bold">
-                                                            <span className="flex items-center gap-1.5 bg-slate-100/50 px-2 py-1 rounded-lg">
-                                                                <UserIcon size={14} weight="bold" className="text-slate-400" />
-                                                                {event.user_name || 'המערכת'}
-                                                            </span>
-                                                            <span className="flex items-center gap-1.5">
-                                                                <Calendar size={14} weight="bold" className="text-slate-400" />
-                                                                {new Date(event.occurred_at).toLocaleDateString('he-IL')}
-                                                            </span>
-                                                            <span className={`flex items-center gap-1.5 ${event.status === 'success' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                                <div className={`w-1.5 h-1.5 rounded-full ${event.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                                                                {event.status === 'success' ? 'הושלם בהצלחה' : 'נכשל'}
-                                                            </span>
-                                                        </div>
-                                                        {event.metadata?.reason && (
-                                                            <div className="mt-3 relative">
-                                                                <div className="absolute inset-y-0 right-0 w-0.5 bg-rose-200 rounded-full" />
-                                                                <p className="pr-3 text-xs text-slate-500 font-medium italic">
-                                                                    סיבת המחיקה: {event.metadata.reason}
-                                                                </p>
-                                                            </div>
-                                                        )}
-                                                    </div>
+
+                                    <div className="flex-1 space-y-4">
+                                        <div>
+                                            <h3 className="text-lg font-black text-slate-800 mb-1">ביצועי מערכת ומסד נתונים</h3>
+                                            <p className="text-sm text-slate-500 font-bold text-right">ניטור רציף של מהירויות תגובה ויציבות הגיבויים</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">זמן תגובה ממוצע</div>
+                                                <div className="flex items-end gap-1">
+                                                    <span className="text-xl font-black text-slate-800">{summary?.avg_latency_ms || 0}</span>
+                                                    <span className="text-xs font-bold text-slate-500 mb-1">ms</span>
                                                 </div>
                                             </div>
-                                        ))}
+                                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 text-right">סטטוס סנכרון</div>
+                                                <div className="flex items-center gap-2 text-emerald-600 font-black justify-end">
+                                                    <Shield size={18} weight="duotone" />
+                                                    <span>תקין</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                )}
+                                </div>
+
+                                {/* Activity Feed */}
+                                <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+                                    <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+                                        <div>
+                                            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                                                <Pulse size={22} weight="duotone" className="text-blue-500" />
+                                                יומן אירועים אחרונים
+                                            </h3>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Recent System Activity</p>
+                                        </div>
+                                        <span className="bg-white border border-slate-200 text-slate-600 text-[10px] font-black px-3 py-1.5 rounded-lg shadow-sm">
+                                            {activity.length} פעולות מוצגות
+                                        </span>
+                                    </div>
+
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                        {activity.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center p-20 text-center">
+                                                <div className="w-16 h-16 bg-slate-50 text-slate-200 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
+                                                    <Calendar size={32} weight="duotone" />
+                                                </div>
+                                                <h4 className="text-slate-800 font-black">אין אירועים להצגה</h4>
+                                                <p className="text-slate-400 text-sm font-medium mt-1">לא זוהתה פעילות מערכת חריגה בתקופה האחרונה</p>
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-slate-50">
+                                                {activity.map((event, idx) => (
+                                                    <div key={idx} className="px-8 py-5 hover:bg-slate-50/50 transition-colors group">
+                                                        <div className="flex items-start gap-5">
+                                                            <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 group-hover:border-blue-200 group-hover:shadow-md transition-all">
+                                                                {getEventIcon(event.event_type)}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between mb-1.5 text-right">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h4 className="font-black text-slate-800 truncate">{event.event_name}</h4>
+                                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${event.event_type === 'deletion' ? 'bg-rose-50 text-rose-600' :
+                                                                            event.event_type === 'create' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-600'
+                                                                            }`}>
+                                                                            {getEventLabel(event.event_type)}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="text-[10px] font-black uppercase text-slate-400 bg-slate-50 px-2 py-1 rounded-md">
+                                                                        {new Date(event.occurred_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center flex-wrap gap-x-5 gap-y-1.5 text-[11px] text-slate-500 font-bold justify-end">
+                                                                    <span className="flex items-center gap-1.5 bg-slate-100/50 px-2 py-1 rounded-lg">
+                                                                        <UserIcon size={14} weight="bold" className="text-slate-400" />
+                                                                        {event.user_name || 'המערכת'}
+                                                                    </span>
+                                                                    <span className="flex items-center gap-1.5">
+                                                                        <Calendar size={14} weight="bold" className="text-slate-400" />
+                                                                        {new Date(event.occurred_at).toLocaleDateString('he-IL')}
+                                                                    </span>
+                                                                    <span className={`flex items-center gap-1.5 ${event.status === 'success' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                                        <div className={`w-1.5 h-1.5 rounded-full ${event.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                                                        {event.status === 'success' ? 'הושלם בהצלחה' : 'נכשל'}
+                                                                    </span>
+                                                                </div>
+                                                                {event.metadata?.reason && (
+                                                                    <div className="mt-3 relative">
+                                                                        <div className="absolute inset-y-0 right-0 w-0.5 bg-rose-200 rounded-full" />
+                                                                        <p className="pr-3 text-xs text-slate-500 font-medium italic text-right">
+                                                                            סיבת המחיקה: {event.metadata.reason}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="px-8 py-5 bg-slate-100/30 border-t border-slate-100">
+                                        <button
+                                            className="text-blue-600 font-black text-xs hover:gap-2 transition-all flex items-center gap-1 justify-end w-full"
+                                            onClick={() => onNavigate?.('logs')}
+                                        >
+                                            צפה בהיסטוריה מלאה ביומן הפעילות (Logs)
+                                            <ArrowRight size={16} mirrored />
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="px-8 py-5 bg-slate-100/30 border-t border-slate-100">
-                                <button className="text-blue-600 font-black text-xs hover:gap-2 transition-all flex items-center gap-1">
-                                    צפה בהיסטוריה מלאה ביומן הפעילות (Logs)
-                                    <ArrowRight size={16} mirrored />
-                                </button>
+                            {/* Side Info & Nightly Status */}
+                            <div className="lg:col-span-1 space-y-8">
+                                {/* Nightly Status Card */}
+                                <div className={`
+                            rounded-[2.5rem] p-8 shadow-sm flex flex-col border h-fit
+                            ${summary?.last_nightly_status === 'success'
+                                        ? 'bg-emerald-50/50 border-emerald-100/50'
+                                        : summary?.last_nightly_status === 'failed'
+                                            ? 'bg-rose-50 border-rose-100'
+                                            : 'bg-orange-50 border-orange-100'}
+                        `}>
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div className={`
+                                    w-12 h-12 rounded-2xl flex items-center justify-center
+                                    ${summary?.last_nightly_status === 'success' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-orange-500 text-white shadow-lg shadow-orange-100'}
+                                `}>
+                                            <Clock size={28} weight="duotone" />
+                                        </div>
+                                        <span className="text-[10px] font-black opacity-40 uppercase tracking-widest">Nightly Health</span>
+                                    </div>
+
+                                    <div className="text-right">
+                                        <h3 className="text-xl font-black text-slate-800 mb-2">גיבוי לילי אחרון</h3>
+                                        <div className="flex items-center gap-2 justify-end">
+                                            <span className={`font-black ${summary?.last_nightly_status === 'success' ? 'text-emerald-700' : 'text-orange-700'}`}>
+                                                {summary?.last_nightly_status === 'success' ? 'בוצע בהצלחה' : 'דרושה תשומת לב'}
+                                            </span>
+                                            <div className={`w-2 h-2 rounded-full animate-pulse ${summary?.last_nightly_status === 'success' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                                        </div>
+                                    </div>
+
+                                    <p className="text-xs font-bold text-slate-500 leading-relaxed mt-6 text-right">
+                                        {summary?.last_nightly_status === 'success'
+                                            ? 'מערכת הגיבויים הלילית פועלת כסדרה. כל המידע הארגוני מאובטח ומשוכפל אוטומטית לענן.'
+                                            : 'לא נמצא תיעוד של גיבוי לילי מוצלח ב-24 השעות האחרונות. כדאי לבדוק את הגדרות הארגון או לבצע גיבוי ידני.'}
+                                    </p>
+
+                                    <div className="mt-10 grid grid-cols-2 gap-4 border-t border-slate-100 pt-8">
+                                        <div className="text-right">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase mb-1">מדיניות</p>
+                                            <p className="text-sm font-black text-slate-700">גיבוי לילי אוט'</p>
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase mb-1">שמירת נתונים</p>
+                                            <p className="text-sm font-black text-slate-700">30 יום אחרונים</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Quick Tips */}
+                                <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden">
+                                    <div className="absolute bottom-0 right-0 opacity-10 scale-150 rotate-12">
+                                        <Shield size={120} weight="duotone" />
+                                    </div>
+                                    <h3 className="text-lg font-black mb-4 flex items-center gap-2 text-right justify-end">
+                                        אבטחת נתונים
+                                        <Shield size={24} weight="duotone" className="text-blue-400" />
+                                    </h3>
+                                    <p className="text-slate-400 text-sm font-medium leading-relaxed mb-6 text-right">
+                                        המערכת מצלמת את כל הארגון בכל לילה. אם מחקתם מידע בטעות, אל דאגה - ניתן לבצע שחזור מלא מניהול הגיבויים.
+                                    </p>
+                                    <button className="w-full py-4 bg-white/10 hover:bg-white/20 rounded-2xl text-xs font-black transition-all border border-white/5">
+                                        למד עוד על ניהול גיבויים
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </>
+                )}
             </div>
         </div>
     );

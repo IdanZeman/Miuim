@@ -1,11 +1,13 @@
 import { supabase } from '../lib/supabase';
 
 export interface AnalyticsSummary {
+  active_people: number;
   deletions_30d: number;
   snapshots_30d: number;
   restores_30d: number;
-  last_nightly_status: 'success' | 'failed' | 'started' | 'in_progress' | null;
-  active_people: number;
+  last_nightly_status: 'success' | 'failed' | 'pending' | null;
+  avg_latency_ms: number;
+  health_score: number;
 }
 
 export interface ActivityEvent {

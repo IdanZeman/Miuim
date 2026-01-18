@@ -11,9 +11,10 @@ RETURNS void AS $$
 DECLARE
     v_snapshot_id uuid;
     v_record_counts jsonb;
+    v_org_name text;
     v_tables text[] := ARRAY[
         'teams', 'roles', 'people', 'task_templates', 'shifts', 
-        'absences', 'daily_presence', 'unified_presence', 
+        'absences', 'daily_presence', 
         'hourly_blockages', 'equipment', 'equipment_daily_checks',
         'daily_attendance_snapshots', 'user_load_stats', 'mission_reports',
         'scheduling_constraints', 'team_rotations', 'organization_settings'
@@ -22,7 +23,21 @@ DECLARE
     v_data jsonb;
     v_row_count integer;
     v_counts_map jsonb := '{}'::jsonb;
+    v_log_id uuid;
 BEGIN
+    -- Get org name for backup title
+    SELECT name INTO v_org_name FROM public.organizations WHERE id = p_org_id;
+
+    -- Start telemetry logging
+    v_log_id := public.log_snapshot_operation_start(
+        p_org_id,
+        'create',
+        NULL,
+        'גיבוי אוטומטי - ' || v_org_name,
+        '00000000-0000-0000-0000-000000000000'::uuid, -- System user ID
+        jsonb_build_object('trigger', 'nightly_cron')
+    );
+
     -- A. Enforce 5-snapshot limit (KEEP only the 4 newest, so we have room for 1 more)
     DELETE FROM public.organization_snapshots
     WHERE organization_id = p_org_id
@@ -44,13 +59,16 @@ BEGIN
     )
     VALUES (
         p_org_id, 
-        'גיבוי אוטומטי - ' || to_char(now() AT TIME ZONE 'Asia/Jerusalem', 'DD/MM/YYYY'),
+        'גיבוי אוטומטי - ' || v_org_name || ' - ' || to_char(now() AT TIME ZONE 'Asia/Jerusalem', 'DD/MM/YYYY'),
         'מערכת: גיבוי יומי אוטומטי',
-        (SELECT id FROM public.profiles WHERE organization_id = p_org_id LIMIT 1), -- Assign to first available profile
+        NULL, -- System generated, no specific user
         v_tables,
         '{}'::jsonb
     )
     RETURNING id INTO v_snapshot_id;
+
+    -- Update log with the new snapshot ID
+    UPDATE public.snapshot_operations_log SET snapshot_id = v_snapshot_id WHERE id = v_log_id;
 
     -- C. Loop through tables and copy data
     FOREACH v_table_name IN ARRAY v_tables LOOP
@@ -83,6 +101,28 @@ BEGIN
     SET record_counts = v_counts_map 
     WHERE id = v_snapshot_id;
 
+    -- Complete telemetry logging
+    PERFORM public.log_snapshot_operation_complete(
+        v_log_id,
+        'success',
+        NULL,
+        NULL,
+        NULL,
+        (SELECT SUM(row_count) FROM public.snapshot_table_data WHERE snapshot_id = v_snapshot_id)::integer
+    );
+
+EXCEPTION WHEN OTHERS THEN
+    -- Log failure if telemetry ID exists
+    IF v_log_id IS NOT NULL THEN
+        PERFORM public.log_snapshot_operation_complete(
+            v_log_id,
+            'failed',
+            SQLERRM,
+            SQLSTATE
+        );
+    END IF;
+    -- Re-raise exception
+    RAISE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -92,7 +132,7 @@ RETURNS void AS $$
 DECLARE
     org_rec record;
 BEGIN
-    FOR org_rec IN SELECT id FROM public.organizations WHERE is_active = true LOOP
+    FOR org_rec IN SELECT id FROM public.organizations LOOP
         BEGIN
             PERFORM public.internal_create_snapshot_for_org(org_rec.id);
         EXCEPTION WHEN OTHERS THEN

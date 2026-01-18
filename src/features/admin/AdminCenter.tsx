@@ -74,9 +74,13 @@ export const AdminCenter: React.FC = () => {
                         className="h-full"
                     >
                         {activeTab === 'analytics' ? (
-                            <AnalyticsContent />
+                            <div className="h-full overflow-y-auto custom-scrollbar p-8 pt-4">
+                                <AnalyticsDashboard isEmbedded={true} onNavigate={setActiveTab} />
+                            </div>
                         ) : (
-                            <LogsContent />
+                            <div className="h-full overflow-y-auto custom-scrollbar">
+                                <UserActivityStats isEmbedded={true} />
+                            </div>
                         )}
                     </motion.div>
                 </AnimatePresence>
@@ -85,23 +89,3 @@ export const AdminCenter: React.FC = () => {
     );
 };
 
-// Helper components that render only the interior content of the original dashboards
-// We will need to slightly refactor AnalyticsDashboard and UserActivityStats to export their inner content or accept a prop to hide the outer frame.
-
-const AnalyticsContent: React.FC = () => {
-    return (
-        <div className="h-full overflow-y-auto custom-scrollbar p-8 pt-4">
-            {/* We will refactor AnalyticsDashboard to expose its content */}
-            <AnalyticsDashboard isEmbedded={true} />
-        </div>
-    );
-};
-
-const LogsContent: React.FC = () => {
-    return (
-        <div className="h-full overflow-y-auto custom-scrollbar">
-            {/* We will refactor UserActivityStats similarly */}
-            <UserActivityStats isEmbedded={true} />
-        </div>
-    );
-};

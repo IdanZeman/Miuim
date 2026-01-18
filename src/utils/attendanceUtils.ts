@@ -91,7 +91,7 @@ export const getEffectiveAvailability = (
         if (!manual.status && manual.isAvailable) {
             if (manual.startHour && manual.startHour !== '00:00') status = 'arrival';
             else if (manual.endHour && manual.endHour !== '23:59') status = 'departure';
-        } else if (!manual.isAvailable) {
+        } else if (manual.isAvailable === false) {
             status = 'home';
         }
 
