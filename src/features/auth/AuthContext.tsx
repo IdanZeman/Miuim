@@ -14,6 +14,7 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   checkAccess: (screen: ViewMode, requiredLevel?: 'view' | 'edit') => boolean;
   isFetchingProfile: boolean;
+  leaveOrganization: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -472,9 +473,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logger.error('LOGOUT', 'Sign-out failed', error);
     }
   };
+  const leaveOrganization = async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          organization_id: null,
+          permission_template_id: null,
+          permissions: { dataScope: 'personal', screens: {} }
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setProfile(prev => prev ? {
+        ...prev,
+        organization_id: null,
+        permission_template_id: null,
+        permissions: { dataScope: 'personal', screens: {} }
+      } : null);
+      setOrganization(null);
+
+      // showToast is from ToastContext, but using it here might cause circularity 
+      // check if it's available or just use window.dispatch if we have a custom event system.
+      // For now, let's assume AuthContext doesn't have direct access to ToastContext to avoid circular deps.
+    } catch (error) {
+      console.error('Error leaving organization:', error);
+      logger.error('AUTH', 'Failed to leave organization', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ user, profile, organization, loading, signOut, refreshProfile, checkAccess, isFetchingProfile }}>
+    <AuthContext.Provider value={{ user, profile, organization, loading, signOut, refreshProfile, checkAccess, isFetchingProfile, leaveOrganization }}>
       {children}
     </AuthContext.Provider>
   );

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabaseClient';
 import { DashboardSkeleton } from '../../components/ui/DashboardSkeleton';
 import { useAuth } from './AuthContext';
-import { Buildings as Building2, Envelope as Mail, CheckCircle, Sparkle as Sparkles, Shield, FileXls as FileSpreadsheet, UploadSimple as Upload, ArrowLeft, Users, MagnifyingGlass as Search, CircleNotch, CircleNotchIcon, ArrowLeftIcon } from '@phosphor-icons/react';
+import { Buildings as Building2, Envelope as Mail, CheckCircle, Sparkle as Sparkles, Shield, FileXls as FileSpreadsheet, UploadSimple as Upload, ArrowLeft, Users, MagnifyingGlass as Search, CircleNotch, CircleNotchIcon, ArrowLeftIcon, Link as LinkIcon } from '@phosphor-icons/react';
 import { analytics } from '../../services/analytics';
 import { useToast } from '../../contexts/ToastContext';
 import { ExcelImportWizard } from '../personnel/ExcelImportWizard';
@@ -28,6 +28,8 @@ export const Onboarding: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [checkingInvite, setCheckingInvite] = useState(true);
     const [pendingInvite, setPendingInvite] = useState<any>(null);
+    const [inviteCode, setInviteCode] = useState('');
+    const [isJoiningWithCode, setIsJoiningWithCode] = useState(false);
     const [error, setError] = useState('');
 
     // Local state for the Import Wizard (before saving to DB)
@@ -121,6 +123,29 @@ export const Onboarding: React.FC = () => {
             logger.error('AUTH', 'Failed to accept invitation during onboarding', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleJoinWithCode = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!inviteCode.trim()) return;
+
+        setIsJoiningWithCode(true);
+        setError('');
+        try {
+            // Validate code by fetching org name
+            const { data: orgName, error: fetchError } = await supabase.rpc('get_org_name_by_token', { p_token: inviteCode.trim() });
+            if (fetchError || !orgName) {
+                setError('קוד לא תקין או שפג תוקפו');
+                return;
+            }
+
+            // Redirect to join page with this token
+            window.location.href = `/join/${inviteCode.trim()}`;
+        } catch (err) {
+            setError('שגיאה באימות הקוד');
+        } finally {
+            setIsJoiningWithCode(false);
         }
     };
 
@@ -614,6 +639,39 @@ export const Onboarding: React.FC = () => {
                                     <p className="text-slate-500 text-base md:text-lg">שם הפלוגה, הגדוד או היחידה שלך.</p>
                                 </div>
 
+                                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 mb-2">
+                                    <h3 className="font-bold text-amber-900 mb-3 flex items-center gap-2">
+                                        <LinkIcon size={18} weight="bold" />
+                                        קיבלת קוד הצטרפות?
+                                    </h3>
+                                    <form onSubmit={handleJoinWithCode} className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={inviteCode}
+                                            onChange={(e) => setInviteCode(e.target.value)}
+                                            placeholder="הזן קוד כאן..."
+                                            className="flex-1 px-4 py-2 rounded-xl bg-white border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold"
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={isJoiningWithCode || !inviteCode.trim()}
+                                            className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-2 rounded-xl transition-all disabled:opacity-50"
+                                        >
+                                            {isJoiningWithCode ? <CircleNotch className="animate-spin" /> : 'הצטרף'}
+                                        </button>
+                                    </form>
+                                    {error && inviteCode && <p className="text-red-500 text-xs font-bold mt-2">{error}</p>}
+                                </div>
+
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-slate-200"></div>
+                                    </div>
+                                    <div className="relative flex justify-center text-sm">
+                                        <span className="px-2 bg-white text-slate-400 font-bold">או צור ארגון חדש</span>
+                                    </div>
+                                </div>
+
                                 <form onSubmit={entityType === 'organization' ? handleCreateOrg : handleCreateBattalion} className="space-y-6 md:space-y-8 flex-1 flex flex-col">
                                     <div className="flex gap-4 p-1 bg-slate-100/80 rounded-xl">
                                         <button
@@ -798,6 +856,6 @@ export const Onboarding: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };

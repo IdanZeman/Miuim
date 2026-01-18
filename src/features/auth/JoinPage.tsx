@@ -8,7 +8,7 @@ import { CircleNotch as LoaderIcon, WarningCircle as AlertCircleIcon, CheckCircl
 const JoinPage: React.FC = () => {
     const { token } = useParams<{ token: string }>();
     const navigate = useNavigate();
-    const { user, loading: authLoading, signOut, refreshProfile } = useAuth();
+    const { user, profile, loading: authLoading, signOut, refreshProfile } = useAuth();
     const { showToast } = useToast();
 
     const [orgName, setOrgName] = useState('');
@@ -16,6 +16,7 @@ const JoinPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [joining, setJoining] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [isSwitching, setIsSwitching] = useState(false);
 
     useEffect(() => {
         if (token) {
@@ -44,12 +45,21 @@ const JoinPage: React.FC = () => {
         }
     };
 
-    const handleJoin = async () => {
+    const handleJoin = async (forceSwitch = false) => {
         if (!user) {
             // Store token for post-login processing
             localStorage.setItem('pending_invite_token', token || '');
             showToast('אנא התחבר למערכת כדי להצטרף לארגון', 'info');
             navigate('/'); // Redirect to home/login
+            return;
+        }
+
+        // Check if user is already in another organization
+        const hasOtherOrg = profile?.organization_id && profile.organization_id !== '00000000-0000-0000-0000-000000000000'; // Assuming ID exists
+        // Actually best to check if it's different.
+        // But for simplicity, if they have ANY org and haven't confirmed switch yet:
+        if (profile?.organization_id && !forceSwitch) {
+            setIsSwitching(true);
             return;
         }
 
@@ -142,7 +152,33 @@ const JoinPage: React.FC = () => {
                     <p className="text-xl text-teal-700 font-bold">{orgName}</p>
                 </div>
 
-                {user ? (
+                {isSwitching ? (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <div className="bg-amber-50 border-2 border-amber-100 p-5 rounded-2xl text-right" dir="rtl">
+                            <h3 className="text-amber-800 font-black mb-2 flex items-center gap-2">
+                                <AlertCircleIcon size={20} weight="bold" />
+                                שים לב!
+                            </h3>
+                            <p className="text-amber-900 text-sm font-medium leading-relaxed">
+                                אתה כבר חבר בארגון אחר. הצטרפות ל-{orgName} תנתק אותך מהארגון הנוכחי שלך. האם אתה בטוח שברצונך להמשיך?
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => handleJoin(true)}
+                                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition-all"
+                            >
+                                כן, החלף ארגון
+                            </button>
+                            <button
+                                onClick={() => navigate('/')}
+                                className="flex-1 bg-white border-2 border-slate-200 text-slate-600 font-bold py-4 rounded-xl hover:bg-slate-50 transition-all"
+                            >
+                                ביטול
+                            </button>
+                        </div>
+                    </div>
+                ) : user ? (
                     <div className="space-y-6">
                         <div className="flex items-center justify-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100 text-blue-800">
                             <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center text-xs font-bold">
@@ -161,7 +197,7 @@ const JoinPage: React.FC = () => {
                         </div>
 
                         <button
-                            onClick={handleJoin}
+                            onClick={() => handleJoin()}
                             disabled={joining}
                             aria-busy={joining}
                             className="w-full group relative bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden"

@@ -22,6 +22,7 @@ import { joinBattalion, fetchBattalion, unlinkBattalion } from '../../services/b
 import { Battalion } from '../../types';
 import { CustomFieldsManager } from '../personnel/CustomFieldsManager';
 import { SnapshotManager } from './snapshots/SnapshotManager';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../../utils/permissions';
 
@@ -262,6 +263,21 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
     const [daysOff, setDaysOff] = useState(3);
     const [minStaff, setMinStaff] = useState(0);
     const [rotationStart, setRotationStart] = useState('');
+    const { leaveOrganization } = useAuth();
+    const { confirm, modalProps } = useConfirmation();
+
+    const handleLeaveOrg = () => {
+        confirm({
+            title: 'עזיבת ארגון',
+            message: 'האם אתה בטוח שברצונך לעזוב את הארגון? הגישה שלך לנתוני הארגון תיחסם מיד.',
+            confirmText: 'כן, עזוב ארגון',
+            type: 'danger',
+            onConfirm: async () => {
+                await leaveOrganization();
+                window.location.href = '/';
+            }
+        });
+    };
 
     useEffect(() => {
         fetchSettings();
@@ -385,6 +401,29 @@ const GeneralSettings: React.FC<{ organizationId: string }> = ({ organizationId 
                 >
                     {saving ? 'שומר...' : 'שמור שינויים'}
                 </Button>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="border-t border-rose-100 pt-8 mt-8">
+                <div className="flex items-center gap-3 mb-4">
+                    <Trash2 className="text-rose-500" size={20} weight="bold" />
+                    <h3 className="text-lg font-black text-slate-800">אזור מסוכן</h3>
+                </div>
+                <div className="bg-rose-50 rounded-2xl p-6 border border-rose-100">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h4 className="font-bold text-rose-900">עזיבת הארגון</h4>
+                            <p className="text-sm text-rose-700 font-medium">פעולה זו תנתק אותך מהארגון הנוכחי. תוכל להצטרף שוב רק באמצעות הזמנה חדשה.</p>
+                        </div>
+                        <Button
+                            variant="danger"
+                            icon={LinkBreak}
+                            onClick={handleLeaveOrg}
+                        >
+                            עזוב ארגון
+                        </Button>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -532,6 +571,59 @@ const BattalionAssociationSettings: React.FC<{ organizationId: string; currentBa
                 </div>
             )}
             <ConfirmationModal {...modalProps} />
+        </div>
+    );
+};
+
+const SettingsSkeleton: React.FC = () => {
+    return (
+        <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col md:flex-row md:gap-8 md:p-6 overflow-hidden min-h-[600px]" dir="rtl">
+            {/* Sidebar Skeleton */}
+            <div className="hidden md:flex flex-col w-64 shrink-0 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm h-full">
+                <div className="p-6 border-b border-slate-100 bg-slate-50">
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="w-10 h-10 rounded-lg" />
+                        <div className="space-y-2 flex-1">
+                            <Skeleton className="h-4 w-2/3" />
+                            <Skeleton className="h-3 w-1/2" />
+                        </div>
+                    </div>
+                </div>
+                <div className="p-2 space-y-2">
+                    {[1, 2, 3, 4, 5, 6].map(i => (
+                        <Skeleton key={i} className="h-10 w-full rounded-xl" />
+                    ))}
+                </div>
+            </div>
+
+            {/* Content Skeleton */}
+            <div className="flex-1 p-6 md:p-8 bg-white rounded-[2rem] border border-slate-100">
+                <div className="space-y-8 animate-pulse">
+                    <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <Skeleton className="h-8 w-48 rounded-lg" />
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="space-y-4">
+                            <Skeleton className="h-4 w-32 rounded" />
+                            <div className="flex gap-4">
+                                <Skeleton className="h-12 flex-1 rounded-xl" />
+                                <Skeleton className="h-12 flex-1 rounded-xl" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 pt-6 border-t border-slate-100">
+                            <Skeleton className="h-4 w-24 rounded" />
+                            <Skeleton className="h-20 w-full rounded-2xl" />
+                        </div>
+
+                        <div className="flex justify-end pt-4">
+                            <Skeleton className="h-12 w-32 rounded-xl" />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
@@ -690,7 +782,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     }
 
     if (loading) {
-        return <div className="p-8 text-center text-slate-500">טוען...</div>;
+        return <SettingsSkeleton />;
     }
 
     const navigationTabs = [
@@ -1104,6 +1196,18 @@ const InviteLinkSettings: React.FC<{
                                     <span>{copied ? 'הועתק' : 'העתק'}</span>
                                 </div>
                             </button>
+                        </div>
+
+                        <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100/50">
+                            <div className="flex gap-2">
+                                <Info size={16} className="text-blue-500 shrink-0 mt-0.5" weight="bold" />
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-blue-900">טיפ: ניתן להזין קוד ידנית</p>
+                                    <p className="text-[11px] text-blue-700 leading-relaxed font-medium">
+                                        במקום לשלוח קישור מלא, ניתן לשלוח רק את הקוד <b>{inviteToken}</b>. המשתמשים יוכלו להזין אותו ידנית במסך ההרשמה תחת "קיבלת קוד הצטרפות?".
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex justify-center">
