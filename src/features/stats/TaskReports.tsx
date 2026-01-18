@@ -252,7 +252,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                     <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm relative overflow-hidden group">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                                <Users size={16} weight="duotone" />
+                                <Users size={16} weight="bold" />
                             </div>
                             <div>
                                 <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5 leading-none">סד"כ פעיל</div>
@@ -263,7 +263,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                     <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm relative overflow-hidden group">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                                <Moon size={16} weight="duotone" />
+                                <Moon size={16} weight="bold" />
                             </div>
                             <div>
                                 <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5 leading-none">שעות לילה בצוות</div>
@@ -274,7 +274,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                     <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm relative overflow-hidden group">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                                <Activity size={16} weight="duotone" />
+                                <Activity size={16} weight="bold" />
                             </div>
                             <div>
                                 <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5 leading-none">ניקוד עומס ממוצע</div>
@@ -357,7 +357,7 @@ export const TaskReports: React.FC<TaskReportsProps> = ({ people, shifts, tasks,
                         {/* Advanced Stats: Night Leaders (Adapted) */}
                         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                             <div className="p-3 md:p-4 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2">
-                                <Moon className="text-indigo-500" size={18} weight="duotone" />
+                                <Moon className="text-indigo-500" size={18} weight="bold" />
                                 <h3 className="font-bold text-indigo-900 text-sm md:text-base">שיאני לילה</h3>
                             </div>
                             <div className="divide-y divide-slate-50">

@@ -139,9 +139,9 @@ export const SupportTicketsPage: React.FC = () => {
 
     const getStatusIcon = (status: TicketStatus) => {
         switch (status) {
-            case 'resolved': return <CheckCircle size={16} weight="duotone" />;
-            case 'in_progress': return <Clock size={16} weight="duotone" />;
-            default: return <AlertCircle size={16} weight="duotone" />;
+            case 'resolved': return <CheckCircle size={16} weight="bold" />;
+            case 'in_progress': return <Clock size={16} weight="bold" />;
+            default: return <AlertCircle size={16} weight="bold" />;
         }
     };
 
@@ -150,7 +150,7 @@ export const SupportTicketsPage: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                        <MessageSquare className="text-blue-600" weight="duotone" />
+                        <MessageSquare className="text-blue-600" weight="bold" />
                         ניהול פניות ותמיכה
                     </h1>
                     <p className="text-slate-500 mt-1">מעקב וטיפול בפניות משתמשים (Contact Tickets)</p>
@@ -200,7 +200,7 @@ export const SupportTicketsPage: React.FC = () => {
                 </div>
             ) : filteredTickets.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-300">
-                    <MessageSquare size={48} className="mx-auto text-slate-300 mb-4" weight="duotone" />
+                    <MessageSquare size={48} className="mx-auto text-slate-300 mb-4" weight="bold" />
                     <h3 className="text-lg font-bold text-slate-600">אין פניות להצגה</h3>
                     <p className="text-slate-400">לא נמצאו פניות התואמות את הסינון הנוכחי</p>
                 </div>
@@ -216,7 +216,7 @@ export const SupportTicketsPage: React.FC = () => {
                                         {STATUS_LABELS[ticket.status || 'new']}
                                     </span>
                                     <div className="flex items-center gap-1 text-slate-400 text-xs">
-                                        <Calendar size={12} weight="duotone" />
+                                        <Calendar size={12} weight="bold" />
                                         {new Date(ticket.created_at).toLocaleDateString('he-IL')}
                                     </div>
                                     <div className="text-xs text-slate-400">
@@ -235,14 +235,14 @@ export const SupportTicketsPage: React.FC = () => {
                                             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 mt-1">
                                                 {ticket.phone && (
                                                     <a href={`tel:${ticket.phone}`} className="flex items-center gap-1 hover:text-blue-600 border border-slate-200 px-2 py-1 rounded-md bg-white">
-                                                        <Phone size={14} weight="duotone" />
+                                                        <Phone size={14} weight="bold" />
                                                         {ticket.phone}
                                                     </a>
                                                 )}
 
                                                 {ticket.email && (
                                                     <a href={`mailto:${ticket.email}`} className="flex items-center gap-1 hover:text-blue-600 border border-slate-200 px-2 py-1 rounded-md bg-white">
-                                                        <Mail size={14} weight="duotone" />
+                                                        <Mail size={14} weight="bold" />
                                                         {ticket.email}
                                                     </a>
                                                 )}
@@ -260,7 +260,7 @@ export const SupportTicketsPage: React.FC = () => {
                                                     className="flex items-center gap-1 hover:text-red-600 border border-red-100 text-red-600 px-2 py-1 rounded-md bg-red-50 font-medium transition-colors"
                                                     title={ticket.email ? `השב ל-${ticket.email}` : "פתח ב-Gmail"}
                                                 >
-                                                    <Mail size={14} weight="duotone" />
+                                                    <Mail size={14} weight="bold" />
                                                     השב ב-Gmail
                                                 </button>
                                             </div>
@@ -274,9 +274,9 @@ export const SupportTicketsPage: React.FC = () => {
                                     {ticket.image_url && (
                                         <div className="mt-2">
                                             <a href={ticket.image_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
-                                                <ImageIcon size={16} weight="duotone" />
+                                                <ImageIcon size={16} weight="bold" />
                                                 צפה בקובץ המצורף
-                                                <ExternalLink size={12} weight="duotone" />
+                                                <ExternalLink size={12} weight="bold" />
                                             </a>
                                         </div>
                                     )}
@@ -340,7 +340,7 @@ export const SupportTicketsPage: React.FC = () => {
                                                         onClick={() => handleSaveNote(ticket.id)}
                                                         className="p-1 text-green-600 hover:bg-green-50 rounded"
                                                     >
-                                                        <Save size={16} weight="duotone" />
+                                                        <Save size={16} weight="bold" />
                                                     </button>
                                                 </div>
                                             </div>

@@ -40,7 +40,7 @@ export const PersonalRotationEditor: React.FC<PersonalRotationEditorProps> = ({ 
         <div className="flex flex-col pr-2 text-right">
             <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">סבב אישי - {person.name}</h2>
             <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wider">
-                <Settings size={14} className="text-slate-400" weight="duotone" />
+                <Settings size={14} className="text-slate-400" weight="bold" />
                 <span>הגדרת מחזוריות אישית</span>
             </div>
         </div>

@@ -195,7 +195,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 md:p-12 mb-8 text-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
                     <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-50 text-indigo-600 rounded-2xl mb-6 shadow-sm rotate-3">
-                        <HelpCircleIcon size={40} weight="duotone" />
+                        <HelpCircleIcon size={40} weight="bold" />
                     </div>
                     <h1 className="text-4xl font-black text-slate-900 mb-3 tracking-tight">מרכז עזרה ומדריכים</h1>
                     <p className="text-slate-500 text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
@@ -230,7 +230,7 @@ export const FAQPage: React.FC<{ onNavigate: (view: any) => void }> = ({ onNavig
                             <div key={category.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow duration-300 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${catIdx * 0.05}s` }}>
                                 <div className="bg-slate-50/50 p-5 border-b border-slate-100 flex items-center gap-4">
                                     <div className={`p-2 rounded-xl bg-white shadow-sm text-indigo-600`}>
-                                        <category.icon size={22} weight="duotone" />
+                                        <category.icon size={22} weight="bold" />
                                     </div>
                                     <h2 className="text-xl font-black text-slate-800 tracking-tight">{category.title}</h2>
                                 </div>

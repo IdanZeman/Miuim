@@ -164,7 +164,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
     if (!profile?.is_super_admin) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400">
-                <ShieldIcon size={64} className="mb-4 opacity-20" weight="duotone" />
+                <ShieldIcon size={64} className="mb-4 opacity-20" weight="bold" />
                 <h2 className="text-xl font-bold">Access Denied</h2>
                 <p>This area is restricted to system administrators.</p>
             </div>
@@ -177,7 +177,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
             <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shadow-blue-100">
-                        <ShieldIcon size={24} weight="duotone" />
+                        <ShieldIcon size={24} weight="bold" />
                     </div>
                     <div>
                         <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">יומן פעילות מערכתי</h1>
@@ -439,7 +439,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                                     <td colSpan={8} className="px-4 py-24 text-center text-slate-400">
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
-                                                <SearchIcon size={32} className="opacity-40" weight="duotone" />
+                                                <SearchIcon size={32} className="opacity-40" weight="bold" />
                                             </div>
                                             <div>
                                                 <h3 className="font-bold text-lg text-slate-600">לא נמצאו תוצאות</h3>

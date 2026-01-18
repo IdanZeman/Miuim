@@ -764,7 +764,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
     const modalTitle = (
         <div className="flex flex-col">
             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 tracking-tight">
-                <FileSpreadsheet className="text-green-600" size={24} weight="duotone" />
+                <FileSpreadsheet className="text-green-600" size={24} weight="bold" />
                 ייבוא אקסל
             </h2>
             <p className="text-xs text-slate-400 font-bold mt-0.5">
@@ -858,7 +858,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                 {step === 'upload' && (
                     <div className="flex flex-col items-center justify-center h-full space-y-6 md:space-y-8 py-8 animate-in fade-in zoom-in-95 duration-300">
                         <div className="w-24 h-24 bg-green-50 rounded-[2rem] flex items-center justify-center border border-green-100 shadow-sm rotate-3">
-                            <FileSpreadsheet size={48} className="text-green-600" weight="duotone" />
+                            <FileSpreadsheet size={48} className="text-green-600" weight="bold" />
                         </div>
 
                         <div className="text-center space-y-2 max-w-sm mx-auto">
@@ -902,7 +902,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
                         <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex gap-3 text-blue-800 text-sm items-start">
                             <div className="bg-blue-100 p-1 rounded-lg shrink-0">
-                                <AlertCircle size={20} weight="duotone" />
+                                <AlertCircle size={20} weight="bold" />
                             </div>
                             <div className="pt-0.5 font-medium leading-relaxed">
                                 המערכת ביצעה התאמה אוטומטית לעמודות הקובץ.
@@ -975,7 +975,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                     <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
                         <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex gap-3 text-amber-800 text-sm items-start">
                             <div className="bg-amber-100 p-1 rounded-lg shrink-0">
-                                <AlertTriangle size={20} weight="duotone" />
+                                <AlertTriangle size={20} weight="bold" />
                             </div>
                             <div className="pt-0.5 font-medium leading-relaxed">
                                 נמצאו נתונים חדשים או כפולים הדורשים את החלטתך.
@@ -1103,7 +1103,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
                                     <div className="flex items-start gap-3">
                                         <div className="bg-amber-100 p-1.5 rounded-lg shrink-0">
-                                            <AlertTriangle size={20} weight="duotone" className="text-amber-600" />
+                                            <AlertTriangle size={20} weight="bold" className="text-amber-600" />
                                         </div>
                                         <div className="flex-1">
                                             <h4 className="text-sm font-black text-amber-900 mb-2">נדרשת תשומת לב</h4>
@@ -1115,7 +1115,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {unmappedFields.map(m => (
                                                             <span key={m.excelColumn} className="inline-flex items-center gap-1 px-2 py-1 bg-white/60 border border-amber-200 rounded-lg text-xs font-black text-amber-700">
-                                                                <Tag size={12} weight="duotone" />
+                                                                <Tag size={12} weight="bold" />
                                                                 {m.excelColumn}
                                                             </span>
                                                         ))}
@@ -1320,7 +1320,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({
                         <div className="relative">
                             <div className="w-20 h-20 border-4 border-green-100 border-t-green-600 rounded-full animate-spin"></div>
                             <div className="absolute inset-0 flex items-center justify-center">
-                                <FileSpreadsheet size={32} className="text-green-600" weight="duotone" />
+                                <FileSpreadsheet size={32} className="text-green-600" weight="bold" />
                             </div>
                         </div>
 

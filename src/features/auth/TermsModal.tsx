@@ -15,7 +15,7 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
             onClose={onClose}
             title={
                 <div className="flex items-center gap-3">
-                    <Shield className="text-blue-600" size={24} weight="duotone" />
+                    <Shield className="text-blue-600" size={24} weight="bold" />
                     <span className="text-xl font-bold text-slate-800">תנאי שימוש ומדיניות פרטיות</span>
                 </div>
             }
@@ -33,7 +33,7 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
         >
             <div className="space-y-6 text-slate-700 leading-relaxed" dir="rtl">
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3 text-yellow-800">
-                    <AlertTriangle className="shrink-0 mt-0.5" size={20} weight="duotone" />
+                    <AlertTriangle className="shrink-0 mt-0.5" size={20} weight="bold" />
                     <div>
                         <span className="font-bold block mb-1">שים לב! איסור העלאת מידע מסווג</span>
                         המערכת פועלת על גבי רשת האינטרנט האזרחית. חל איסור מוחלט להעלות מידע בסיווג "שמור" ומעלה.

@@ -165,7 +165,7 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
             <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shadow-blue-100">
-                        <Megaphone size={24} weight="duotone" />
+                        <Megaphone size={24} weight="bold" />
                     </div>
                     <div>
                         <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">הודעות ועדכונים</h2>
@@ -181,7 +181,7 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
                 ) : messages.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
                         <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-3xl flex items-center justify-center mb-4">
-                            <Megaphone size={40} weight="duotone" />
+                            <Megaphone size={40} weight="bold" />
                         </div>
                         <h3 className="text-lg font-black text-slate-800 mb-2">אין הודעות פעילות</h3>
                         <p className="text-slate-500 max-w-xs mb-8">
@@ -389,7 +389,7 @@ export const OrganizationMessagesManager: React.FC<Props> = ({ teams, roles = []
                         {/* Audience Selection */}
                         <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-6">
                             <h3 className="font-black text-slate-800 text-sm flex items-center gap-2 uppercase tracking-wider">
-                                <Users size={18} weight="duotone" className="text-blue-500" />
+                                <Users size={18} weight="bold" className="text-blue-500" />
                                 קהל יעד
                             </h3>
                             <p className="text-xs text-slate-400 leading-relaxed -mt-4">

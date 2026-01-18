@@ -27,7 +27,7 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
     if (logs.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center p-12 text-slate-400">
-                <CalendarIcon size={48} className="mb-4 opacity-50" weight="duotone" />
+                <CalendarIcon size={48} className="mb-4 opacity-50" weight="bold" />
                 <p className="text-lg font-medium">לא נמצאה היסטוריה</p>
                 <p className="text-sm">נסה לשנות את תאריכי הסינון</p>
             </div>
@@ -81,7 +81,7 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors">
-                                <CalendarIcon size={16} weight="duotone" />
+                                <CalendarIcon size={16} weight="bold" />
                             </div>
                             <span className="text-sm font-black text-slate-900 tracking-tight">{date}</span>
                         </div>
@@ -112,7 +112,7 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
                                                 ? 'bg-amber-50 text-amber-600 shadow-sm shadow-amber-100'
                                                 : 'bg-blue-50 text-blue-600 shadow-sm shadow-blue-100'
                                                 }`}>
-                                                {log.entry_type === 'pedestrian' ? <FootprintsIcon size={22} weight="duotone" /> : <CarIcon size={22} weight="duotone" />}
+                                                {log.entry_type === 'pedestrian' ? <FootprintsIcon size={22} weight="bold" /> : <CarIcon size={22} weight="bold" />}
                                             </div>
 
                                             <div className="min-w-0 flex-1">
@@ -128,7 +128,7 @@ export const GateHistoryList: React.FC<GateHistoryListProps> = ({ logs, isLoadin
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-xs text-slate-500 font-bold">
-                                                    <UserIcon size={12} className="text-slate-400" weight="duotone" />
+                                                    <UserIcon size={12} className="text-slate-400" weight="bold" />
                                                     <span className="truncate">{log.driver_name}</span>
                                                     {log.organizations?.name && (
                                                         <>

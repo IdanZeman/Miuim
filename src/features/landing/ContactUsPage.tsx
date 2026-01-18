@@ -192,7 +192,7 @@ export const ContactUsPage: React.FC = () => {
                                             htmlFor="file-upload-contact"
                                             className="cursor-pointer flex items-center gap-2 px-6 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl transition-all font-medium"
                                         >
-                                            <UploadSimple size={18} weight="duotone" />
+                                            <UploadSimple size={18} weight="bold" />
                                             בחר קובץ
                                         </label>
                                         {file && (
@@ -225,7 +225,7 @@ export const ContactUsPage: React.FC = () => {
                                         </>
                                     ) : (
                                         <>
-                                            <PaperPlaneRight size={20} weight="duotone" />
+                                            <PaperPlaneRight size={20} weight="bold" />
                                             <span>שלח הודעה</span>
                                         </>
                                     )}

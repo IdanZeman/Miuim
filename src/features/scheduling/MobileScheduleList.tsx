@@ -119,7 +119,7 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                             <button className="text-slate-400">
                                 <ChevronDown
                                     className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90 rtl:rotate-90' : ''}`}
-                                    weight="duotone"
+                                    weight="bold"
                                 />
                             </button>
                         </div>
@@ -159,7 +159,7 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                 {/* Status Badge */}
                                                 {isCancelled ? (
                                                     <span className="px-2 py-1.5 rounded-md bg-slate-100 text-slate-500 text-sm font-bold flex items-center gap-1"> {/* Rule 2: min 14px text */}
-                                                        <Ban size={14} weight="duotone" /> מבוטל
+                                                        <Ban size={14} weight="bold" /> מבוטל
                                                     </span>
                                                 ) : isEmpty ? (
                                                     <span className="px-2 py-1.5 rounded-md bg-orange-50 text-orange-600 text-sm font-bold border border-orange-100">
@@ -167,7 +167,7 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                     </span>
                                                 ) : (
                                                     <span className="px-2 py-1.5 rounded-md bg-green-50 text-green-600 text-sm font-bold border border-green-100 flex items-center gap-1">
-                                                        <CheckCircle size={14} weight="duotone" /> מאויש
+                                                        <CheckCircle size={14} weight="bold" /> מאויש
                                                     </span>
                                                 )}
 
@@ -214,7 +214,7 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                 ) : (
                                                     <div className="flex items-center gap-3 text-slate-400 w-full">
                                                         <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 border-dashed">
-                                                            <User size={20} className="opacity-50" weight="duotone" />
+                                                            <User size={20} className="opacity-50" weight="bold" />
                                                         </div>
                                                         <span className="text-sm font-medium">טרם שובץ לוחם</span>
 
@@ -239,7 +239,7 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                         : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                                                         }`}
                                                 >
-                                                    <FileText size={18} className={hasReport ? "fill-blue-700" : ""} weight="duotone" />
+                                                    <FileText size={18} className={hasReport ? "fill-blue-700" : ""} weight="bold" />
                                                     {hasReport ? "צפה בדוח משימה" : "מלא דוח משימה"}
                                                 </button>
                                             </div>
@@ -255,7 +255,7 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
             {activeShifts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-300">
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                        <CheckCircle size={32} weight="duotone" />
+                        <CheckCircle size={32} weight="bold" />
                     </div>
                     <p className="text-lg font-medium text-slate-500">הכל פנוי!</p>
                     <p className="text-sm">אין משמרות להיום</p>

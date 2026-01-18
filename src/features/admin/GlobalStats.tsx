@@ -220,7 +220,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
             <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shadow-blue-100">
-                        <ActivityIcon size={24} weight="duotone" />
+                        <ActivityIcon size={24} weight="bold" />
                     </div>
                     <div>
                         <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">מרכז הבקרה הגלובלי</h3>
@@ -250,7 +250,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                         title="ארגונים חדשים"
                         value={newOrgsCount}
                         sub="נוספו בטווח שנבחר"
-                        icon={<Building2Icon size={24} weight="duotone" />}
+                        icon={<Building2Icon size={24} weight="bold" />}
                         color="blue"
                         onClick={() => setSelectedMetric({ title: 'ארגונים חדשים', type: 'orgs', data: newOrgsList })}
                     />
@@ -258,7 +258,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                         title="משתמשים חדשים"
                         value={newUsersCount}
                         sub="נרשמו בטווח שנבחר"
-                        icon={<UsersIcon size={24} weight="duotone" />}
+                        icon={<UsersIcon size={24} weight="bold" />}
                         color="indigo"
                         onClick={() => setSelectedMetric({ title: 'משתמשים חדשים', type: 'users', data: newUsersList })}
                     />
@@ -266,7 +266,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                         title="משתמשים פעילים"
                         value={activeUsersCount}
                         sub={timeframe === 'today' ? 'פעילים היום' : timeframe === 'week' ? 'פעילים השבוע' : 'פעילים החודש'}
-                        icon={<ActivityIcon size={24} weight="duotone" />}
+                        icon={<ActivityIcon size={24} weight="bold" />}
                         color="emerald"
                         pulse
                         onClick={() => setSelectedMetric({ title: 'משתמשים פעילים', type: 'users', data: topUsers })}
@@ -275,7 +275,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                         title="ארגונים פעילים"
                         value={activeOrgsCount}
                         sub="ביצעו פעולות בטווח"
-                        icon={<GlobeIcon size={24} weight="duotone" />}
+                        icon={<GlobeIcon size={24} weight="bold" />}
                         color="cyan"
                         onClick={() => setSelectedMetric({ title: 'ארגונים פעילים', type: 'orgs', data: activeOrgsList })}
                     />
@@ -283,7 +283,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                         title="סה״כ פעולות"
                         value={totalActions}
                         sub="אינטראקציות מערכת"
-                        icon={<TrendingUpIcon size={24} weight="duotone" />}
+                        icon={<TrendingUpIcon size={24} weight="bold" />}
                         color="amber"
                     // onClick={() => setSelectedMetric({ title: 'לוג פעולות', type: 'actions', data: [] })} // Not implemented yet
                     />
@@ -295,7 +295,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                     <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6 lg:col-span-2">
                         <div className="flex justify-between items-center mb-6 border-b border-slate-200/60 pb-4">
                             <h4 className="font-black text-slate-800 flex items-center gap-2 text-sm uppercase tracking-wider">
-                                <TrendingUpIcon size={18} className="text-blue-500" weight="duotone" />
+                                <TrendingUpIcon size={18} className="text-blue-500" weight="bold" />
                                 מגמות פעילות
                             </h4>
                             <div className="text-[10px] font-bold text-slate-400">Total: {activityTrend.reduce((acc: number, curr: any) => acc + curr.count, 0)} actions</div>
@@ -322,7 +322,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                     {/* 2. Device Analysis */}
                     <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6">
                         <h4 className="font-black text-slate-800 mb-6 flex items-center gap-2 text-sm border-b border-slate-200/60 pb-4 uppercase tracking-wider">
-                            <SmartphoneIcon size={18} className="text-purple-500" weight="duotone" />
+                            <SmartphoneIcon size={18} className="text-purple-500" weight="bold" />
                             התקני גישה
                         </h4>
                         <div className="h-64 w-full text-[10px] min-h-[256px]" dir="ltr">
@@ -356,7 +356,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                     {/* Top Organizations */}
                     <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6">
                         <h4 className="font-black text-slate-800 mb-6 flex items-center gap-2 text-sm border-b border-slate-200/60 pb-4 uppercase tracking-wider">
-                            <TrophyIcon size={18} className="text-emerald-500" weight="duotone" />
+                            <TrophyIcon size={18} className="text-emerald-500" weight="bold" />
                             ארגונים מובילים (פעילות {timeframe === 'today' ? 'יומית' : timeframe === 'week' ? 'שבועית' : 'חודשית'})
                         </h4>
                         <div className="space-y-3">
@@ -423,7 +423,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                     {/* Geo Map */}
                     <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6">
                         <h4 className="font-black text-slate-800 mb-6 flex items-center gap-2 text-sm border-b border-slate-200/60 pb-4 uppercase tracking-wider">
-                            <GlobeIcon size={18} className="text-emerald-600" weight="duotone" />
+                            <GlobeIcon size={18} className="text-emerald-600" weight="bold" />
                             מפת תפוצה (Live Map)
                         </h4>
                         <LocationMap data={mapData || []} total={totalActions} />
@@ -432,7 +432,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                     {/* Cities */}
                     <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6 flex flex-col">
                         <h4 className="font-black text-slate-800 mb-6 flex items-center gap-2 text-sm border-b border-slate-200/60 pb-4 uppercase tracking-wider">
-                            <MapPinIcon size={18} className="text-blue-500" weight="duotone" />
+                            <MapPinIcon size={18} className="text-blue-500" weight="bold" />
                             ערים מובילות
                         </h4>
                         <div className="flex flex-wrap gap-2 content-start">

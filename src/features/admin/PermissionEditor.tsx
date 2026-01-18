@@ -102,7 +102,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
             title={
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                        <Shield size={24} weight="duotone" />
+                        <Shield size={24} weight="bold" />
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-800">עריכת הרשאות מתקדמת</h2>
@@ -138,7 +138,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                 {/* --- System Presets Area --- */}
                 <section>
                     <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2 mb-3">
-                        <Globe size={14} weight="duotone" />
+                        <Globe size={14} weight="bold" />
                         תבניות מערכת (קבועות)
                     </h3>
                     <div className="flex flex-wrap gap-2">
@@ -159,7 +159,7 @@ export const PermissionEditor: React.FC<PermissionEditorProps> = ({ isOpen, onCl
                 <section>
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                            <Shield size={14} weight="duotone" />
+                            <Shield size={14} weight="bold" />
                             תבניות מותאמות לארגון
                         </h3>
                         {onManageTemplates && (

@@ -51,7 +51,7 @@ export const HomeStatusSelector: React.FC<HomeStatusSelectorProps> = ({
                 ${option.color}
               `}
                         >
-                            <Icon size={20} weight={isSelected ? 'fill' : 'duotone'} />
+                            <Icon size={20} weight={isSelected ? 'fill' : 'bold'} />
                             <span className="text-sm font-bold flex-1 text-right">{option.label}</span>
                             {isSelected && (
                                 <div className="absolute top-1 left-1 w-2 h-2 bg-blue-600 rounded-full" />

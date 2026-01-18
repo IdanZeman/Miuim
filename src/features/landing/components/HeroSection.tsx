@@ -146,7 +146,7 @@ export const HeroSection: React.FC = () => {
 
                     {/* Secondary Button */}
                     <button className="h-14 px-8 rounded-full border border-white/10 text-slate-300 font-medium hover:bg-white/5 hover:text-white transition-all hover:border-white/20 flex items-center gap-2">
-                        <Shield className="text-violet-500" size={18} weight="duotone" />
+                        <Shield className="text-violet-500" size={18} weight="bold" />
                         <span>Security Audit</span>
                     </button>
                 </motion.div>

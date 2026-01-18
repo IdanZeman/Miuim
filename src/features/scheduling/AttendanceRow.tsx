@@ -74,8 +74,8 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
                     <div className="flex items-center gap-2">
                         <h4 className="font-bold text-slate-800 text-base truncate group-hover:text-blue-600 transition-colors">{person.name}</h4>
                         <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] whitespace-nowrap ${statusColor} flex items-center gap-1 shadow-sm`}>
-                            {availStatus === 'arrival' && <ChevronLeft size={10} className="rotate-180" weight="duotone" />}
-                            {availStatus === 'departure' && <ChevronRight size={10} className="rotate-180" weight="duotone" />}
+                            {availStatus === 'arrival' && <ChevronLeft size={10} className="rotate-180" weight="bold" />}
+                            {availStatus === 'departure' && <ChevronRight size={10} className="rotate-180" weight="bold" />}
                             {statusLabel}
                         </span>
                     </div>
@@ -108,7 +108,7 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
                                     onClick={(e) => { e.stopPropagation(); setIsTimeExpanded(false); }}
                                     className="mr-1 p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
                                 >
-                                    <CheckCircle2 size={14} className="text-green-600" weight="duotone" />
+                                    <CheckCircle2 size={14} className="text-green-600" weight="bold" />
                                 </button>
                             </div>
                         ) : (
@@ -147,7 +147,7 @@ export const AttendanceRow: React.FC<AttendanceRowProps> = ({
                         className="text-slate-300 hover:text-blue-600 transition-colors"
                         title="הגדרת סבב אישי"
                     >
-                        <Settings size={14} weight="duotone" />
+                        <Settings size={14} weight="bold" />
                     </button>
                 )}
             </div>

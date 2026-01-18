@@ -88,7 +88,7 @@ export const StatusEditPopover: React.FC<StatusEditPopoverProps> = ({
                         </div>
 
                         <button onClick={() => setCustomType('custom')} className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded text-xs text-slate-700 w-full text-right transition-colors mt-1 font-bold">
-                            <Clock size={12} className="text-blue-500" weight="duotone" /> שעות מותאמות...
+                            <Clock size={12} className="text-blue-500" weight="bold" /> שעות מותאמות...
                         </button>
 
                         <button onClick={() => handleApply('unavailable')} className="flex items-center gap-3 px-2 py-2 hover:bg-slate-100 rounded text-xs text-slate-400 w-full text-right border-t mt-2 pt-3 transition-colors font-black uppercase tracking-tighter">
@@ -98,7 +98,7 @@ export const StatusEditPopover: React.FC<StatusEditPopoverProps> = ({
                 ) : (
                     <div className="flex flex-col gap-3 p-1">
                         <button onClick={() => setCustomType(null)} className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 font-bold">
-                            <ArrowLeft size={14} weight="duotone" />
+                            <ArrowLeft size={14} weight="bold" />
                             <span className="text-xs">חזרה</span>
                         </button>
 

@@ -156,7 +156,7 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
             <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shadow-blue-100">
-                        <Activity size={24} weight="duotone" />
+                        <Activity size={24} weight="bold" />
                     </div>
                     <div>
                         <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">סטטיסטיקות אירגון</h2>
@@ -191,7 +191,7 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex flex-col justify-between h-full group hover:border-blue-200 transition-colors">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="p-2 bg-blue-100/50 text-blue-600 rounded-lg group-hover:scale-110 transition-transform">
-                                        <Activity size={20} weight="duotone" />
+                                        <Activity size={20} weight="bold" />
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Actions</span>
                                 </div>
@@ -204,7 +204,7 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex flex-col justify-between h-full group hover:border-amber-200 transition-colors">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="p-2 bg-amber-100/50 text-amber-600 rounded-lg group-hover:scale-110 transition-transform">
-                                        <Trophy size={20} weight="duotone" />
+                                        <Trophy size={20} weight="bold" />
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Top User</span>
                                 </div>
@@ -219,7 +219,7 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex flex-col justify-between h-full group hover:border-emerald-200 transition-colors">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="p-2 bg-emerald-100/50 text-emerald-600 rounded-lg group-hover:scale-110 transition-transform">
-                                        <Eye size={20} weight="duotone" />
+                                        <Eye size={20} weight="bold" />
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Top Page</span>
                                 </div>
@@ -234,7 +234,7 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 flex flex-col justify-between h-full group hover:border-indigo-200 transition-colors">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="p-2 bg-indigo-100/50 text-indigo-600 rounded-lg group-hover:scale-110 transition-transform">
-                                        <Activity size={20} weight="duotone" />
+                                        <Activity size={20} weight="bold" />
                                     </div>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Clicks</span>
                                 </div>
@@ -253,7 +253,7 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                             {/* 1. Activity Trend */}
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
                                 <h4 className="font-black text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
-                                    <TrendingUp size={18} weight="duotone" className="mr-2 text-blue-500" />
+                                    <TrendingUp size={18} weight="bold" className="mr-2 text-blue-500" />
                                     מגמת פעילות
                                 </h4>
                                 <div className="h-64 w-full text-[10px] font-bold" dir="ltr">
@@ -282,7 +282,7 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                             {/* 2. Top 5 Users Bar Chart */}
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
                                 <h4 className="font-black text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
-                                    <Users size={18} weight="duotone" className="mr-2 text-purple-500" />
+                                    <Users size={18} weight="bold" className="mr-2 text-purple-500" />
                                     5 המשתמשים הפעילים ביותר
                                 </h4>
                                 <div className="h-64 w-full text-[10px] font-bold" dir="ltr">
@@ -312,7 +312,7 @@ export const OrganizationStats: React.FC<OrganizationStatsProps> = ({ organizati
                             {/* 3. Category Breakdown Pie */}
                             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60 lg:col-span-2">
                                 <h4 className="font-black text-slate-800 mb-6 flex items-center text-sm uppercase tracking-wider">
-                                    <Activity size={18} weight="duotone" className="mr-2 text-slate-500" />
+                                    <Activity size={18} weight="bold" className="mr-2 text-slate-500" />
                                     התפלגות פעולות לפי קטגוריה
                                 </h4>
                                 <div className="h-64 w-full text-[10px] font-bold" dir="ltr">

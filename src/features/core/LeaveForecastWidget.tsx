@@ -202,8 +202,8 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                 <div className="flex items-center justify-between pb-2 md:pb-4 border-b border-slate-100 mb-3 md:mb-6">
                     <h2 className="text-lg md:text-2xl font-black text-slate-900 flex items-center gap-2 md:gap-3">
                         <div className="w-7 h-7 md:w-10 md:h-10 bg-emerald-100 rounded-lg md:rounded-xl flex items-center justify-center">
-                            <HouseIcon size={16} className="text-emerald-600 md:hidden" weight="duotone" />
-                            <HouseIcon size={20} className="text-emerald-600 hidden md:block" weight="duotone" />
+                            <HouseIcon size={16} className="text-emerald-600 md:hidden" weight="bold" />
+                            <HouseIcon size={20} className="text-emerald-600 hidden md:block" weight="bold" />
                         </div>
                         צפי יציאות
                     </h2>
@@ -216,7 +216,7 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                 {timelinePeriods.length === 0 ? (
                     <div className="text-center py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
                         <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-slate-400">
-                            <Calendar size={32} weight="duotone" />
+                            <Calendar size={32} weight="bold" />
                         </div>
                         <h3 className="text-lg font-bold text-slate-900">אין נתונים</h3>
                         <p className="text-slate-500 mt-1">לא נמצאו נתוני נוכחות בטווח הזמן שנבחר.</p>
@@ -263,14 +263,14 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                                                 <div className="flex items-center gap-2 md:gap-3">
                                                     <div className={`w-8 h-8 md:w-12 md:h-12 ${iconBg} rounded-lg md:rounded-xl flex items-center justify-center shrink-0`}>
                                                         {isHome ? (
-                                                            <House size={16} className={`${iconColor} md:hidden`} weight="duotone" />
+                                                            <House size={16} className={`${iconColor} md:hidden`} weight="bold" />
                                                         ) : (
-                                                            <Buildings size={16} className={`${iconColor} md:hidden`} weight="duotone" />
+                                                            <Buildings size={16} className={`${iconColor} md:hidden`} weight="bold" />
                                                         )}
                                                         {isHome ? (
-                                                            <House size={24} className={`${iconColor} hidden md:block`} weight="duotone" />
+                                                            <House size={24} className={`${iconColor} hidden md:block`} weight="bold" />
                                                         ) : (
-                                                            <Buildings size={24} className={`${iconColor} hidden md:block`} weight="duotone" />
+                                                            <Buildings size={24} className={`${iconColor} hidden md:block`} weight="bold" />
                                                         )}
                                                     </div>
                                                     <div>
@@ -295,7 +295,7 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                                                     {period.departureTime && (
                                                         <div className="bg-white/60 rounded-lg p-2 md:p-3 border border-emerald-100">
                                                             <div className={`flex items-center gap-2 ${isHome ? 'text-rose-700' : 'text-emerald-700'} mb-1`}>
-                                                                <Clock size={12} weight="duotone" />
+                                                                <Clock size={12} weight="bold" />
                                                                 <span className="text-[10px] md:text-xs font-black uppercase">יציאה</span>
                                                             </div>
                                                             <p className="text-xs md:text-sm font-bold text-slate-900">
@@ -306,7 +306,7 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                                                     {period.returnTime && (
                                                         <div className="bg-white/60 rounded-lg p-2 md:p-3 border border-emerald-100">
                                                             <div className={`flex items-center gap-2 ${isHome ? 'text-rose-700' : 'text-emerald-700'} mb-1`}>
-                                                                <Clock size={12} weight="duotone" />
+                                                                <Clock size={12} weight="bold" />
                                                                 <span className="text-[10px] md:text-xs font-black uppercase">חזרה</span>
                                                             </div>
                                                             <p className="text-xs md:text-sm font-bold text-slate-900">

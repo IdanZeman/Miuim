@@ -39,7 +39,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
          {/* Header & Navigation Combined */}
          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4">
             <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 shrink-0">
-               <BarChart3 className="text-blue-600" size={24} className="md:w-7 md:h-7" weight="duotone" />
+               <BarChart3 className="text-blue-600" size={24} className="md:w-7 md:h-7" weight="bold" />
                דוחות ונתונים
                <PageInfo
                   title="דוחות ונתונים"
@@ -77,7 +77,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      aria-controls="report-content"
                      id="tab-manpower"
                   >
-                     <Users size={18} aria-hidden="true" weight="duotone" />
+                     <Users size={18} aria-hidden="true" weight="bold" />
                      <span className={reportType === 'manpower' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>כוח אדם</span>
                   </button>
                   <button
@@ -91,7 +91,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      aria-controls="report-content"
                      id="tab-tasks"
                   >
-                     <ClipboardList size={18} aria-hidden="true" weight="duotone" />
+                     <ClipboardList size={18} aria-hidden="true" weight="bold" />
                      <span className={reportType === 'tasks' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>שיבוץ</span>
                   </button>
                   <button
@@ -105,7 +105,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      aria-controls="report-content"
                      id="tab-location"
                   >
-                     <MapPin size={18} aria-hidden="true" weight="duotone" />
+                     <MapPin size={18} aria-hidden="true" weight="bold" />
                      <span className={reportType === 'location' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>מיקום</span>
                   </button>
                   <button
@@ -119,7 +119,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      aria-controls="report-content"
                      id="tab-customFields"
                   >
-                     <ListChecks size={18} aria-hidden="true" weight="duotone" />
+                     <ListChecks size={18} aria-hidden="true" weight="bold" />
                      <span className={reportType === 'customFields' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>שדות מותאמים</span>
                   </button>
                </div>

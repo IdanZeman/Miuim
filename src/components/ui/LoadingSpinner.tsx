@@ -4,7 +4,7 @@ import { CircleNotch } from '@phosphor-icons/react';
 interface LoadingSpinnerProps {
     size?: number;
     className?: string; // For color, margins, etc.
-    weight?: 'bold' | 'duotone' | 'regular' | 'fill' | 'light' | 'thin';
+    weight?: 'bold' | 'bold' | 'regular' | 'fill' | 'light' | 'thin';
 }
 
 export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 24, className, weight = 'bold' }) => {

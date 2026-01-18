@@ -20,7 +20,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 <div className="relative">
                     {Icon && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                            <Icon size={18} aria-hidden="true" weight="duotone" />
+                            <Icon size={18} aria-hidden="true" weight="bold" />
                         </div>
                     )}
                     <input

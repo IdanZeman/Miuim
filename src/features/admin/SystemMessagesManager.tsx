@@ -133,7 +133,7 @@ export const SystemMessagesManager: React.FC = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2">
-                    <Megaphone size={20} weight="duotone" className="text-blue-600" />
+                    <Megaphone size={20} weight="bold" className="text-blue-600" />
                     הודעות מערכת (פופאפים)
                 </h2>
                 {!isEditing && (
@@ -207,7 +207,7 @@ export const SystemMessagesManager: React.FC = () => {
                     <DashboardSkeleton />
                 ) : messages.length === 0 ? (
                     <div className="p-12 text-center text-slate-400">
-                        <Megaphone size={48} weight="duotone" className="mx-auto mb-3 opacity-20" />
+                        <Megaphone size={48} weight="bold" className="mx-auto mb-3 opacity-20" />
                         <p>לא נמצאו הודעות מערכת.</p>
                     </div>
                 ) : (
@@ -229,12 +229,12 @@ export const SystemMessagesManager: React.FC = () => {
                                             <td className="px-6 py-4">
                                                 {msg.is_active ? (
                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                                        <CheckCircle size={12} weight="duotone" />
+                                                        <CheckCircle size={12} weight="bold" />
                                                         פעיל
                                                     </span>
                                                 ) : (
                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                                        <XCircle size={12} weight="duotone" />
+                                                        <XCircle size={12} weight="bold" />
                                                         לא פעיל
                                                     </span>
                                                 )}
@@ -280,12 +280,12 @@ export const SystemMessagesManager: React.FC = () => {
                                         <div>
                                             {msg.is_active ? (
                                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                                    <CheckCircle size={12} weight="duotone" />
+                                                    <CheckCircle size={12} weight="bold" />
                                                     פעיל
                                                 </span>
                                             ) : (
                                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                                    <XCircle size={12} weight="duotone" />
+                                                    <XCircle size={12} weight="bold" />
                                                     לא פעיל
                                                 </span>
                                             )}

@@ -191,7 +191,7 @@ export const BattalionPersonnelTable: React.FC = () => {
                 leftActions={
                     <div className="flex items-center gap-4">
                         <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                            <Users className="text-blue-600" size={24} weight="duotone" />
+                            <Users className="text-blue-600" size={24} weight="bold" />
                             סד"כ גדודי
                             <PageInfo
                                 title={'סד"כ גדודי'}
@@ -272,7 +272,7 @@ export const BattalionPersonnelTable: React.FC = () => {
                                                     >
                                                         <div className="flex items-center gap-3">
                                                             {isTeamExpanded ? <CaretDown size={16} weight="bold" /> : <CaretRight size={16} weight="bold" />}
-                                                            <Users size={18} className="text-blue-500" weight="duotone" />
+                                                            <Users size={18} className="text-blue-500" weight="bold" />
                                                             <span className="font-bold text-slate-700">{team.name}</span>
                                                             <span className="text-xs font-bold text-slate-400">({teamPeople.length})</span>
                                                         </div>
@@ -377,7 +377,7 @@ export const BattalionPersonnelTable: React.FC = () => {
                         title={
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                                    <User size={24} weight="duotone" />
+                                    <User size={24} weight="bold" />
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-black text-slate-800">{selectedPerson.name}</h2>

@@ -140,7 +140,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                 className="flex items-center justify-center h-9 w-9 rounded-md text-slate-700 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label={mode === 'day' ? "יום קודם" : "חודש קודם"}
             >
-                <ChevronRight size={20} weight="duotone" />
+                <ChevronRight size={20} weight="bold" />
             </button>
 
             <div
@@ -151,7 +151,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                 {label && <span className="text-xs text-slate-500 font-medium hidden md:block">{label}</span>}
 
                 <div className="flex items-center gap-2">
-                    <CalendarIcon size={14} className="text-slate-500 md:hidden" weight="duotone" />
+                    <CalendarIcon size={14} className="text-slate-500 md:hidden" weight="bold" />
 
                     {/* Check mode for display format */}
                     {mode === 'month' ? (
@@ -190,7 +190,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
                 className="flex items-center justify-center h-9 w-9 rounded-md text-slate-700 hover:text-slate-900 hover:bg-white hover:shadow-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label={mode === 'day' ? "יום הבא" : "חודש הבא"}
             >
-                <ChevronLeft size={20} weight="duotone" />
+                <ChevronLeft size={20} weight="bold" />
             </button>
 
             {/* Portal Popover / Modal */}

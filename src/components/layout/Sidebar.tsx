@@ -73,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                             }`}
                         onClick={() => { setView('home'); onClose() }}
                     >
-                        <Home size={22} weight="duotone" className={currentView === 'home' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                        <Home size={22} weight="bold" className={currentView === 'home' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                         <span>בית</span>
                     </button>
 
@@ -90,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                     }`}
                                 onClick={() => { setView('battalion-home'); onClose() }}
                             >
-                                <Activity size={22} weight="duotone" className={currentView === 'battalion-home' ? 'text-blue-500' : 'text-slate-400'} />
+                                <Activity size={22} weight="bold" className={currentView === 'battalion-home' ? 'text-blue-500' : 'text-slate-400'} />
                                 <span>מבט גדודי</span>
                             </button>
                             <button
@@ -100,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                     }`}
                                 onClick={() => { setView('battalion-personnel'); onClose() }}
                             >
-                                <Users size={22} weight="duotone" className={currentView === 'battalion-personnel' ? 'text-blue-500' : 'text-slate-400'} />
+                                <Users size={22} weight="bold" className={currentView === 'battalion-personnel' ? 'text-blue-500' : 'text-slate-400'} />
                                 <span>סד"כ גדודי</span>
                             </button>
                             <button
@@ -110,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                     }`}
                                 onClick={() => { setView('battalion-attendance'); onClose() }}
                             >
-                                <Calendar size={22} weight="duotone" className={currentView === 'battalion-attendance' ? 'text-blue-500' : 'text-slate-400'} />
+                                <Calendar size={22} weight="bold" className={currentView === 'battalion-attendance' ? 'text-blue-500' : 'text-slate-400'} />
                                 <span>יומן נוכחות גדודי</span>
                             </button>
                             <button
@@ -120,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                     }`}
                                 onClick={() => { setView('battalion-settings'); onClose() }}
                             >
-                                <Settings size={22} weight="duotone" className={currentView === 'battalion-settings' ? 'text-blue-500' : 'text-slate-400'} />
+                                <Settings size={22} weight="bold" className={currentView === 'battalion-settings' ? 'text-blue-500' : 'text-slate-400'} />
                                 <span>הגדרות גדוד</span>
                             </button>
                         </>
@@ -138,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('dashboard'); onClose() }}
                         >
-                            <Calendar size={22} weight="duotone" className={currentView === 'dashboard' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Calendar size={22} weight="bold" className={currentView === 'dashboard' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>לוח שיבוצים</span>
                         </button>
                     )}
@@ -151,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('personnel'); onClose() }}
                         >
-                            <Users size={22} weight="duotone" className={currentView === 'personnel' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Users size={22} weight="bold" className={currentView === 'personnel' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>ניהול כוח אדם</span>
                         </button>
                     )}
@@ -164,7 +164,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('tasks'); onClose() }}
                         >
-                            <ClipboardList size={22} weight="duotone" className={currentView === 'tasks' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <ClipboardList size={22} weight="bold" className={currentView === 'tasks' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>משימות</span>
                         </button>
                     )}
@@ -177,7 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('constraints'); onClose() }}
                         >
-                            <Anchor size={22} weight="duotone" className={currentView === 'constraints' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Anchor size={22} weight="bold" className={currentView === 'constraints' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>אילוצים</span>
                         </button>
                     )}
@@ -190,7 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('absences'); onClose() }}
                         >
-                            <UserX size={22} weight="duotone" className={currentView === 'absences' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <UserX size={22} weight="bold" className={currentView === 'absences' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>בקשות יציאה</span>
                         </button>
                     )}
@@ -203,7 +203,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('attendance'); onClose() }}
                         >
-                            <Clock size={22} weight="duotone" className={currentView === 'attendance' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Clock size={22} weight="bold" className={currentView === 'attendance' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>נוכחות</span>
                         </button>
                     )}
@@ -218,7 +218,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('stats'); onClose() }}
                         >
-                            <FileText size={22} weight="duotone" className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <FileText size={22} weight="bold" className={currentView === 'stats' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>{!checkAccess('stats', 'edit') ? 'דוח אישי' : 'דוחות'}</span>
                         </button>
                     )}
@@ -231,7 +231,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('org-logs'); onClose() }}
                         >
-                            <Activity size={22} weight="duotone" className={currentView === 'org-logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Activity size={22} weight="bold" className={currentView === 'org-logs' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>יומן פעילות</span>
                         </button>
                     )}
@@ -244,7 +244,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('equipment'); onClose() }}
                         >
-                            <Package size={22} weight="duotone" className={currentView === 'equipment' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Package size={22} weight="bold" className={currentView === 'equipment' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>ניהול אמצעים (צלם)</span>
                         </button>
                     )}
@@ -257,7 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('gate'); onClose() }}
                         >
-                            <Car size={22} weight="duotone" className={currentView === 'gate' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Car size={22} weight="bold" className={currentView === 'gate' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>ש.ג</span>
                         </button>
                     )}
@@ -270,7 +270,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('lottery'); onClose() }}
                         >
-                            <Dices size={22} weight="duotone" className={currentView === 'lottery' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Dices size={22} weight="bold" className={currentView === 'lottery' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>הגרלה</span>
                         </button>
                     )}
@@ -282,7 +282,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                             }`}
                         onClick={() => { setView('faq'); onClose() }}
                     >
-                        <HelpCircle size={22} weight="duotone" className={currentView === 'faq' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                        <HelpCircle size={22} weight="bold" className={currentView === 'faq' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                         <span>עזרה / מדריכים</span>
                     </button>
                     <button
@@ -292,7 +292,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                             }`}
                         onClick={() => { setView('contact'); onClose() }}
                     >
-                        <Mail size={22} weight="duotone" className={currentView === 'contact' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                        <Mail size={22} weight="bold" className={currentView === 'contact' ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                         <span>צור קשר</span>
                     </button>
 
@@ -317,7 +317,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, currentView, 
                                 }`}
                             onClick={() => { setView('system'); onClose() }}
                         >
-                            <Shield size={22} weight="duotone" className={(currentView === 'system' || currentView === 'logs' || currentView === 'tickets') ? 'text-idf-yellow-hover' : 'text-slate-400'} />
+                            <Shield size={22} weight="bold" className={(currentView === 'system' || currentView === 'logs' || currentView === 'tickets') ? 'text-idf-yellow-hover' : 'text-slate-400'} />
                             <span>ניהול מערכת</span>
                         </button>
                     )}

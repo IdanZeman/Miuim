@@ -30,7 +30,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
             <h3 className="text-xl font-black text-slate-800 tracking-tight">פרטי דיווח שער</h3>
             <div className="flex items-center gap-2 mt-1">
                 <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
-                    {log.entry_type === 'pedestrian' ? <FootprintsIcon size={14} weight="duotone" /> : <CarIcon size={14} weight="duotone" />}
+                    {log.entry_type === 'pedestrian' ? <FootprintsIcon size={14} weight="bold" /> : <CarIcon size={14} weight="bold" />}
                 </div>
                 <span className="text-[10px] font-bold text-slate-400 font-mono uppercase tracking-widest">
                     {log.entry_type === 'pedestrian' ? 'הולך רגל' : 'רכב ממונע'}
@@ -81,7 +81,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
                         <div>
                             <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">נהג / מדווח</span>
                             <span className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <UserIcon size={14} className="text-slate-400" weight="duotone" />
+                                <UserIcon size={14} className="text-slate-400" weight="bold" />
                                 {log.driver_name}
                             </span>
                         </div>
@@ -97,7 +97,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
                 {/* Timeline Section */}
                 <div className="px-1">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <HistoryIcon size={14} weight="duotone" /> ציר זמן דיווחים
+                        <HistoryIcon size={14} weight="bold" /> ציר זמן דיווחים
                     </h4>
 
                     <div className="space-y-6 relative mr-2">
@@ -113,7 +113,7 @@ export const LogDetailsModal: React.FC<LogDetailsModalProps> = ({ log, onClose }
                                     <span className="text-xs text-slate-500 font-bold">{formatDate(log.entry_time)}</span>
                                 </div>
                                 <div className="mt-2 flex items-center gap-1.5 text-slate-400 group">
-                                    <UserPlusIcon size={12} className="group-hover:text-blue-500 transition-colors" weight="duotone" />
+                                    <UserPlusIcon size={12} className="group-hover:text-blue-500 transition-colors" weight="bold" />
                                     <span className="text-[10px] font-bold text-slate-500">
                                         מדווח: <span className="text-slate-700">{log.entry_reporter?.full_name || 'מערכת'}</span>
                                     </span>

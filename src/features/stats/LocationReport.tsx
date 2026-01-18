@@ -226,7 +226,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
             return (
                 <div className="space-y-6">
                     <section>
-                        {renderSectionHeader('mission', 'במשימה', grouped.mission.length, <Briefcase size={20} className="text-rose-500" weight="duotone" />, 'bg-rose-50/50 hover:bg-rose-50', 'border-rose-100')}
+                        {renderSectionHeader('mission', 'במשימה', grouped.mission.length, <Briefcase size={20} className="text-rose-500" weight="bold" />, 'bg-rose-50/50 hover:bg-rose-50', 'border-rose-100')}
                         {isSectionExpanded('mission') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 {grouped.mission.map(r => <PersonCard key={r.person.id} r={r} teamName={getTeamName(r.person.teamId)} settings={settings} showCustomFields={showCustomFields} />)}
@@ -236,7 +236,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                     </section>
 
                     <section>
-                        {renderSectionHeader('base', 'בבסיס', grouped.base.length, <MapPin size={20} className="text-emerald-600" weight="duotone" />, 'bg-emerald-50/50 hover:bg-emerald-50', 'border-emerald-100')}
+                        {renderSectionHeader('base', 'בבסיס', grouped.base.length, <MapPin size={20} className="text-emerald-600" weight="bold" />, 'bg-emerald-50/50 hover:bg-emerald-50', 'border-emerald-100')}
                         {isSectionExpanded('base') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 {grouped.base.map(r => <PersonCard key={r.person.id} r={r} type="base" teamName={getTeamName(r.person.teamId)} settings={settings} showCustomFields={showCustomFields} />)}
@@ -246,7 +246,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                     </section>
 
                     <section>
-                        {renderSectionHeader('home', 'בבית', grouped.home.length, <Home size={20} className="text-slate-500" weight="duotone" />, 'bg-slate-50 hover:bg-slate-100', 'border-slate-200')}
+                        {renderSectionHeader('home', 'בבית', grouped.home.length, <Home size={20} className="text-slate-500" weight="bold" />, 'bg-slate-50 hover:bg-slate-100', 'border-slate-200')}
                         {isSectionExpanded('home') && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 {grouped.home.map(r => <PersonCard key={r.person.id} r={r} type="home" teamName={getTeamName(r.person.teamId)} settings={settings} showCustomFields={showCustomFields} />)}
@@ -279,7 +279,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                 className="flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 border-slate-100 bg-white hover:bg-slate-50 cursor-pointer shadow-sm transition-all"
                             >
                                 <div className="flex items-center gap-3">
-                                    <Users size={20} className="text-blue-500" weight="duotone" />
+                                    <Users size={20} className="text-blue-500" weight="bold" />
                                     <span className="text-base">{teamName} <span className="text-slate-400 font-black text-sm ml-1">({members.length})</span></span>
                                 </div>
                                 <ChevronDown
@@ -332,7 +332,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                 className="flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 border-rose-100 bg-rose-50/50 hover:bg-rose-50 cursor-pointer shadow-sm transition-all"
                             >
                                 <div className="flex items-center gap-3">
-                                    <Briefcase size={20} className="text-rose-500" weight="duotone" />
+                                    <Briefcase size={20} className="text-rose-500" weight="bold" />
                                     <span className="text-base">{missionName} <span className="text-slate-400 font-black text-sm ml-1">({members.length})</span></span>
                                 </div>
                                 <ChevronDown
@@ -365,7 +365,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                 className="flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 border-slate-100 bg-slate-50 hover:bg-slate-100 cursor-pointer shadow-sm transition-all"
                             >
                                 <div className="flex items-center gap-3">
-                                    <Users size={20} className="text-slate-500" weight="duotone" />
+                                    <Users size={20} className="text-slate-500" weight="bold" />
                                     <span className="text-base">ללא משימה <span className="text-slate-400 font-black text-sm ml-1">({notOnMission.length})</span></span>
                                 </div>
                                 <ChevronDown
@@ -399,7 +399,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                     <section>
                         <div className="flex items-center justify-between font-bold text-slate-700 mb-3 p-3 rounded-xl border-2 border-slate-100 bg-slate-50/50">
                             <div className="flex items-center gap-3">
-                                <User size={20} className="text-indigo-500" weight="duotone" />
+                                <User size={20} className="text-indigo-500" weight="bold" />
                                 <span className="text-base">רשימה שמית <span className="text-slate-400 font-black text-sm ml-1">({sorted.length})</span></span>
                             </div>
                         </div>
@@ -429,7 +429,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                 searchPlaceholder="חיפוש לפי שם..."
                 leftActions={
                     <div className="flex items-center gap-2">
-                        <MapPin className="text-emerald-500 hidden md:block" size={24} weight="duotone" />
+                        <MapPin className="text-emerald-500 hidden md:block" size={24} weight="bold" />
                         <h2 className="text-xl md:text-2xl font-black text-slate-800 whitespace-nowrap">
                             דוח מיקום
                         </h2>
@@ -490,7 +490,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                 }`}
                             title="הצג שדות מותאמים"
                         >
-                            <LayoutGrid size={18} weight="duotone" />
+                            <LayoutGrid size={18} weight="bold" />
                         </button>
 
                         <button
@@ -518,7 +518,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                             className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm hidden md:flex"
                             title="העתק לווצאפ"
                         >
-                            <Copy size={18} weight="duotone" />
+                            <Copy size={18} weight="bold" />
                         </button>
 
                         <ExportButton

@@ -19,7 +19,7 @@ const BentoCard: React.FC<BentoCardProps> = ({ title, description, icon: Icon, c
             <div className="relative z-10 flex h-full flex-col justify-between gap-2">
                 <div>
                     <div className="mb-2 inline-flex rounded-lg bg-blue-50 p-2 text-blue-600">
-                        <Icon size={20} weight="duotone" />
+                        <Icon size={20} weight="bold" />
                     </div>
                     <h3 className="mb-1 text-lg font-bold text-slate-800">{title}</h3>
                     <p className="text-sm leading-tight text-slate-500">{description}</p>

@@ -391,7 +391,7 @@ export const WarClock: React.FC<WarClockProps> = ({ myPerson, teams, roles }) =>
                 >
                     <h3 className="text-sm md:text-lg font-bold text-slate-800 flex items-center gap-2">
                         <div className={`p-1 md:p-1.5 rounded-lg transition-colors ${isOpen ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <Clock size={16} className="md:w-5 md:h-5" weight="duotone" />
+                            <Clock size={16} className="md:w-5 md:h-5" weight="bold" />
                         </div>
                         סדר יום
                         {!isOpen && <span className="text-[9px] md:text-xs font-normal text-slate-400 px-2 py-0.5 bg-slate-100 rounded-full">{timelineData.items.length} אירועים</span>}

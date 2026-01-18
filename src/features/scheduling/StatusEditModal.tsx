@@ -192,7 +192,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             <div className="flex flex-col gap-3 mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center justify-between px-1">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                        <Info size={14} weight="duotone" />
+                        <Info size={14} weight="bold" />
                         יומן יומי וחסימות
                     </span>
                     {!isAddingBlock && (
@@ -271,7 +271,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                         >
                             <div className="flex items-center gap-3">
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${editingBlockId === block.id ? 'bg-blue-100 text-blue-600' : 'bg-rose-50 text-rose-500'}`}>
-                                    <Clock size={16} weight="duotone" />
+                                    <Clock size={16} weight="bold" />
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-xs font-bold text-slate-800 tracking-tight">{block.start} - {block.end}</span>
@@ -282,7 +282,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                 onClick={(e) => { e.stopPropagation(); removeBlock(block.id); }}
                                 className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
                             >
-                                <Trash size={16} weight="duotone" />
+                                <Trash size={16} weight="bold" />
                             </button>
                         </div>
                     ))}
@@ -341,7 +341,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                 : 'text-slate-400 hover:text-slate-600'
                                 }`}
                         >
-                            <Buildings size={18} weight={mainStatus === 'base' ? 'duotone' : 'bold'} />
+                            <Buildings size={18} weight={mainStatus === 'base' ? 'bold' : 'bold'} />
                             בבסיס
                         </button>
                         <button
@@ -351,7 +351,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                 : 'text-slate-400 hover:text-slate-600'
                                 }`}
                         >
-                            <House size={18} weight={mainStatus === 'home' ? 'duotone' : 'bold'} />
+                            <House size={18} weight={mainStatus === 'home' ? 'bold' : 'bold'} />
                             בבית
                         </button>
                     </div>

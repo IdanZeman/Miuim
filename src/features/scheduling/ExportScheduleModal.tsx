@@ -125,11 +125,11 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
     const modalTitle = (
         <div className="flex flex-col gap-0.5">
             <h3 className="text-xl font-black text-slate-800 leading-tight flex items-center gap-2">
-                <FileDown className="text-blue-500" size={20} weight="duotone" />
+                <FileDown className="text-blue-500" size={20} weight="bold" />
                 <span>ייצוא נתוני שיבוץ</span>
             </h3>
             <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                <Download size={12} className="text-blue-500" weight="duotone" />
+                <Download size={12} className="text-blue-500" weight="bold" />
                 <span>הפקת קובץ CSV לניתוח באקסל</span>
             </div>
         </div>

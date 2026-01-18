@@ -689,7 +689,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 leftActions={
                     <div className="flex items-center gap-3">
                         <div className="hidden md:flex w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl items-center justify-center">
-                            <CalendarDays size={22} weight="duotone" />
+                            <CalendarDays size={22} weight="bold" />
                         </div>
                         <div className="flex flex-col">
                             <h2 className="text-lg md:text-xl font-black text-slate-800 tracking-tight leading-tight">ניהול היעדרויות</h2>
@@ -700,7 +700,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             description={
                                 <div className="space-y-3">
                                     <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-start gap-3">
-                                        <Info size={20} className="text-emerald-600 shrink-0 mt-0.5" weight="duotone" />
+                                        <Info size={20} className="text-emerald-600 shrink-0 mt-0.5" weight="bold" />
                                         <div className="text-sm">
                                             <h4 className="font-black text-emerald-900 mb-1">בקשות יציאה וחופשות</h4>
                                             <p className="text-emerald-700/80 leading-relaxed font-medium">כאן מנהלים את כל בקשות היציאה, החופשות והסיווגים של אנשי הצוות.</p>
@@ -992,7 +992,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             <div className="flex-1 overflow-y-auto p-4 pb-32 md:pb-4">
                                 {activeAbsences.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                        <CalendarIcon size={48} className="mb-4 opacity-20" weight="duotone" />
+                                        <CalendarIcon size={48} className="mb-4 opacity-20" weight="bold" />
                                         <p>אין בקשות יציאה רשומות במערכת</p>
                                     </div>
                                 ) : (
@@ -1069,7 +1069,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
                                                             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-slate-500">
                                                                 <div className="flex items-center gap-2.5 bg-slate-50/80 px-4 py-1.5 rounded-xl border border-slate-100/50 shadow-sm">
-                                                                    <CalendarDays size={16} className="text-emerald-500" weight="duotone" />
+                                                                    <CalendarDays size={16} className="text-emerald-500" weight="bold" />
                                                                     <span className="text-sm font-bold text-slate-700 tracking-tight">
                                                                         {new Date(absence.start_date).toDateString() === new Date(absence.end_date).toDateString()
                                                                             ? new Date(absence.start_date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })
@@ -1083,7 +1083,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                                                                 </div>
                                                                 {absence.reason && (
                                                                     <div className="flex items-center gap-2 max-w-[300px]">
-                                                                        <Tag size={16} className="text-slate-400" weight="duotone" />
+                                                                        <Tag size={16} className="text-slate-400" weight="bold" />
                                                                         <span className="text-sm font-bold text-slate-500 truncate">{absence.reason}</span>
                                                                     </div>
                                                                 )}
@@ -1340,7 +1340,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-600 shadow-sm border border-slate-100 group-hover:border-emerald-100">
-                                        <CalendarDays size={20} weight="duotone" />
+                                        <CalendarDays size={20} weight="bold" />
                                     </div>
                                     <div>
                                         <div className="text-sm font-black text-slate-800">היעדרות ליום שלם</div>
@@ -1387,7 +1387,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                 title={
                     <div className="flex flex-col gap-0.5">
                         <h3 className="text-xl font-black text-emerald-800 leading-tight flex items-center gap-2">
-                            <ShieldCheck size={24} className="text-emerald-600" weight="duotone" />
+                            <ShieldCheck size={24} className="text-emerald-600" weight="bold" />
                             <span>אישור בקשת יציאה</span>
                         </h3>
                         <div className="flex items-center gap-2 text-[10px] text-emerald-600 font-black uppercase tracking-[0.2em] px-1">
@@ -1463,7 +1463,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
                             return (
                                 <div key={i} className="flex items-center gap-2 text-sm text-red-700">
-                                    <AlertTriangle size={14} className="shrink-0" weight="duotone" />
+                                    <AlertTriangle size={14} className="shrink-0" weight="bold" />
                                     <span className="font-bold">{c.taskName}</span>
                                     <span className="text-red-500 text-xs bg-white px-1 py-0.5 rounded border border-red-100">
                                         {date} | {start} - {end}

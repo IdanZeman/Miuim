@@ -342,7 +342,7 @@ export const PersonnelTableView: React.FC<PersonnelTableViewProps> = ({
                             <tr>
                                 <td colSpan={7 + sortedSchema.length} className="px-4 py-12 text-center">
                                     <div className="flex flex-col items-center justify-center text-slate-400">
-                                        <User size={48} weight="duotone" className="mb-4 opacity-20" />
+                                        <User size={48} weight="bold" className="mb-4 opacity-20" />
                                         <p className="text-sm font-bold">לא נמצאו תוצאות לחיפוש הנוכחי</p>
                                     </div>
                                 </td>

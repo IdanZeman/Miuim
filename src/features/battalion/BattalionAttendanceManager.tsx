@@ -314,14 +314,14 @@ export const BattalionAttendanceManager: React.FC = () => {
                                 onClick={() => setViewMode('calendar')}
                                 className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                             >
-                                <Calendar size={14} weight="duotone" />
+                                <Calendar size={14} weight="bold" />
                                 <span className="text-xs">חודשי</span>
                             </button>
                             <button
                                 onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
                                 className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'day_detail' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                             >
-                                <ListChecks size={14} weight="duotone" />
+                                <ListChecks size={14} weight="bold" />
                                 <span className="text-xs">יומי</span>
                             </button>
                         </div>
@@ -373,7 +373,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                             <div className="px-4 py-3 bg-white/50 backdrop-blur-sm border-b border-slate-100">
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
-                                        <Search size={16} weight="duotone" />
+                                        <Search size={16} weight="bold" />
                                     </div>
                                     <input
                                         type="text"
@@ -413,7 +413,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                     leftActions={
                         <div className="flex items-center gap-4">
                             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                <Calendar className="text-blue-600" size={24} weight="duotone" />
+                                <Calendar className="text-blue-600" size={24} weight="bold" />
                                 יומן נוכחות גדודי
                                 <PageInfo
                                     title="יומן נוכחות גדודי"
@@ -449,7 +449,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                                         : 'text-slate-500 hover:text-slate-700'
                                         }`}
                                 >
-                                    <tab.icon size={14} weight="duotone" />
+                                    <tab.icon size={14} weight="bold" />
                                     {tab.label}
                                 </button>
                             ))}

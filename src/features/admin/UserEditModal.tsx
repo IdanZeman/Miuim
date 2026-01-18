@@ -140,7 +140,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({ isOpen, onClose, u
             title={
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                        <User size={24} weight="duotone" />
+                        <User size={24} weight="bold" />
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-800">עריכת משתמש מלאה</h2>

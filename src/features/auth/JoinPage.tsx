@@ -94,7 +94,7 @@ const JoinPage: React.FC = () => {
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 p-4">
                 <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center border-2 border-green-100 animate-in zoom-in-95 duration-300">
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                        <CheckCircleIcon className="w-10 h-10 text-green-600" weight="duotone" />
+                        <CheckCircleIcon className="w-10 h-10 text-green-600" weight="bold" />
                     </div>
                     <h1 className="text-3xl font-bold text-slate-800 mb-2">הצטרפת בהצלחה!</h1>
                     <p className="text-slate-600 mb-6 text-lg">אתה מועבר למערכת...</p>
@@ -108,7 +108,7 @@ const JoinPage: React.FC = () => {
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-teal-50 to-blue-50 p-4">
                 <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 text-center border-2 border-red-100 animate-in zoom-in-95 duration-300" role="alert">
                     <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner" aria-hidden="true">
-                        <AlertCircleIcon className="w-10 h-10 text-red-600" weight="duotone" />
+                        <AlertCircleIcon className="w-10 h-10 text-red-600" weight="bold" />
                     </div>
                     <h1 className="text-2xl font-bold text-slate-800 mb-2">שגיאה</h1>
                     <p className="text-slate-600 mb-8">{error}</p>

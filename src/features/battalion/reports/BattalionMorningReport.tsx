@@ -256,7 +256,7 @@ export const BattalionMorningReport: React.FC<BattalionMorningReportProps> = ({ 
                                         >
                                             <div className="flex-1 flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-700">
-                                                    <Buildings size={20} weight="duotone" />
+                                                    <Buildings size={20} weight="bold" />
                                                 </div>
                                                 <div>
                                                     <div className="font-bold text-slate-900 text-sm">{company.name}</div>

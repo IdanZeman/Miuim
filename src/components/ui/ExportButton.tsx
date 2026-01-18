@@ -84,7 +84,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
             {isExporting ? (
                 <Spinner className="animate-spin" size={size === 'sm' ? 18 : size === 'md' ? 24 : 30} weight="bold" />
             ) : (
-                variant === 'ghost' ? <MicrosoftExcelLogo size={24} weight="duotone" className="text-emerald-600" /> : <ExcelIcon size={iconSize} />
+                variant === 'ghost' ? <MicrosoftExcelLogo size={24} weight="bold" className="text-emerald-600" /> : <ExcelIcon size={iconSize} />
             )}
 
             {!iconOnly && <span className="tracking-tight">{isExporting ? 'מייצא...' : label}</span>}

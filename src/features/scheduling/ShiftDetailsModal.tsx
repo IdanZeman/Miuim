@@ -54,7 +54,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
     <div className="flex flex-col gap-0.5">
       <h3 className="text-xl font-black text-slate-800 leading-tight">{task.name}</h3>
       <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-        <Users size={12} className="text-blue-500" weight="duotone" />
+        <Users size={12} className="text-blue-500" weight="bold" />
         <span>{dateStr} • <span dir="ltr">{startTimeStr} - {endTimeStr}</span></span>
       </div>
     </div>
@@ -93,7 +93,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           <div className="flex flex-col gap-2">
             {shift.assignedPersonIds.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border-2 border-dashed border-slate-100 rounded-2xl text-slate-400">
-                <Users size={32} className="mb-2 opacity-20" weight="duotone" />
+                <Users size={32} className="mb-2 opacity-20" weight="bold" />
                 <p className="text-sm font-bold italic">אין חיילים משובצים למשמרת זו</p>
               </div>
             ) : (

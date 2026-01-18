@@ -141,7 +141,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
                     {/* Main Stats Cards */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-100 relative overflow-hidden group">
-                            <Base size={40} weight="duotone" className="absolute -right-2 -bottom-2 text-emerald-200/50 group-hover:scale-110 transition-transform" />
+                            <Base size={40} weight="bold" className="absolute -right-2 -bottom-2 text-emerald-200/50 group-hover:scale-110 transition-transform" />
                             <span className="text-xs font-black text-emerald-600 uppercase tracking-wider">ימים בבסיס</span>
                             <div className="mt-1 flex items-baseline gap-2" dir="ltr">
                                 <span className="text-3xl font-black text-emerald-700">{Math.round(stats.personBase)}</span>
@@ -149,7 +149,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
                             </div>
                         </div>
                         <div className="p-6 rounded-2xl bg-red-50 border border-red-100 relative overflow-hidden group">
-                            <Home size={40} weight="duotone" className="absolute -right-2 -bottom-2 text-red-200/50 group-hover:scale-110 transition-transform" />
+                            <Home size={40} weight="bold" className="absolute -right-2 -bottom-2 text-red-200/50 group-hover:scale-110 transition-transform" />
                             <span className="text-xs font-black text-red-600 uppercase tracking-wider">ימים בבית</span>
                             <div className="mt-1 flex items-baseline gap-2" dir="ltr">
                                 <span className="text-3xl font-black text-red-700">{Math.round(stats.personHome)}</span>
@@ -161,7 +161,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
                     {/* Visualization Section */}
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 mb-2">
-                            <TrendUp size={18} className="text-blue-600" weight="duotone" />
+                            <TrendUp size={18} className="text-blue-600" weight="bold" />
                             <h4 className="font-black text-slate-800">יחס פריסה</h4>
                         </div>
 
@@ -192,7 +192,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
                     {/* Benchmarks */}
                     <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
                         <div className="flex items-center gap-2">
-                            <Users size={18} className="text-slate-600" weight="duotone" />
+                            <Users size={18} className="text-slate-600" weight="bold" />
                             <h4 className="font-black text-slate-800">השוואת ביצועים (ממוצע ימים בסבב)</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -233,7 +233,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
                     {person && stats.cycles.length > 0 && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 mb-2">
-                                <ListNumbers size={18} className="text-blue-600" weight="duotone" />
+                                <ListNumbers size={18} className="text-blue-600" weight="bold" />
                                 <h4 className="font-black text-slate-800">פירוט סבבים (ימים רצופים)</h4>
                             </div>
                             <div className="flex flex-wrap gap-2">

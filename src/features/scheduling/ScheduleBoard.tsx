@@ -170,7 +170,7 @@ const ShiftCard: React.FC<{
                     `}
                     title={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "דוח הוגש - לחץ לצפייה" : "דוח משימה"}
                 >
-                    <FileText size={14} weight={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "fill" : "duotone"} className={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "text-blue-600" : ""} />
+                    <FileText size={14} weight={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "fill" : "bold"} className={missionReports.find(r => r.shift_id === shift.id)?.submitted_at ? "text-blue-600" : ""} />
                 </button>
                 {!isViewer && (
                     <button
@@ -178,7 +178,7 @@ const ShiftCard: React.FC<{
                         className="opacity-0 group-hover:opacity-100 p-0.5 bg-white/50 hover:bg-white rounded shadow-sm text-slate-400 hover:text-red-500 transition-all border border-transparent hover:border-slate-200"
                         title={shift.isCancelled ? 'הפעל משמרת' : 'בטל משמרת'}
                     >
-                        {shift.isCancelled ? <RotateCcw size={12} className="text-blue-500" weight="duotone" /> : <Ban size={12} weight="duotone" />}
+                        {shift.isCancelled ? <RotateCcw size={12} className="text-blue-500" weight="bold" /> : <Ban size={12} weight="bold" />}
                     </button>
                 )}
             </div>
@@ -186,18 +186,18 @@ const ShiftCard: React.FC<{
             {/* Top Row: Task Name */}
             <div className={`flex font-bold truncate text-slate-800 ${isCompact ? 'text-[9px] pl-10' : 'text-[11px] md:text-sm pl-12'} items-start w-full`}>
                 <div className="flex items-center gap-1 truncate w-full">
-                    {shift.isCancelled && <Ban size={12} className="text-red-500 mr-1 shrink-0" weight="duotone" />}
+                    {shift.isCancelled && <Ban size={12} className="text-red-500 mr-1 shrink-0" weight="bold" />}
 
                     {/* Inline Warnings */}
                     {hasRoleMismatch && !hasMissingRoles && (
-                        <AlertTriangle size={12} className="text-amber-500 shrink-0" weight="duotone" />
+                        <AlertTriangle size={12} className="text-amber-500 shrink-0" weight="bold" />
                     )}
                     {hasMissingRoles && (
-                        <AlertTriangle size={12} className="text-red-500 drop-shadow-sm shrink-0" weight="duotone" />
+                        <AlertTriangle size={12} className="text-red-500 drop-shadow-sm shrink-0" weight="bold" />
                     )}
                     {hasTeamMismatch && (
                         <span title="ישנם משובצים שאינם מהצוות המוגדר!">
-                            <AlertTriangle size={12} className="text-orange-500 shrink-0" weight="duotone" />
+                            <AlertTriangle size={12} className="text-orange-500 shrink-0" weight="bold" />
                         </span>
                     )}
                     {hasAbsenceConflict && (
@@ -328,7 +328,7 @@ const ClearScheduleModal: React.FC<ClearScheduleModalProps> = ({ isOpen, onClose
             title={
                 <div className="flex flex-col gap-0.5">
                     <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight flex items-center gap-2">
-                        <Trash2 className="text-red-500" size={20} weight="duotone" />
+                        <Trash2 className="text-red-500" size={20} weight="bold" />
                         <span>ניקוי לוח</span>
                     </h2>
                     <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
@@ -903,7 +903,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                                 return (
                                     <div className="hidden xs:flex items-center gap-2 bg-gradient-to-r from-emerald-50 to-green-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                                        <User size={14} className="text-emerald-600" weight="duotone" />
+                                        <User size={14} className="text-emerald-600" weight="bold" />
                                         <span className="text-xs font-bold text-emerald-700">
                                             זמינים: {availableCount}/{activePeople.length}
                                         </span>
@@ -972,7 +972,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 onClick={handleExportClick}
                                 className="flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm"
                             >
-                                <Copy size={18} weight="duotone" />
+                                <Copy size={18} weight="bold" />
                             </button>
                         </Tooltip>
 
@@ -982,7 +982,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     onClick={handleClearDayClick}
                                     className="flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-all shadow-sm"
                                 >
-                                    <Trash2 size={18} weight="duotone" />
+                                    <Trash2 size={18} weight="bold" />
                                 </button>
                             </Tooltip>
                         )}
@@ -1049,7 +1049,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
                             >
                                 <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-                                    <Copy size={22} weight="duotone" />
+                                    <Copy size={22} weight="bold" />
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="font-bold text-base text-slate-800">העתק לוח</span>
@@ -1065,7 +1065,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     className="flex items-center gap-4 px-4 py-3.5 bg-red-50 text-red-700 hover:bg-red-100 active:bg-red-200 rounded-xl transition-colors text-right w-full mt-2"
                                 >
                                     <div className="p-2 bg-red-100 text-red-600 rounded-lg">
-                                        <Trash2 size={22} weight="duotone" />
+                                        <Trash2 size={22} weight="bold" />
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="font-bold text-base text-red-700">נקה יום</span>
@@ -1299,7 +1299,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         visibleTasks.length === 0 && (
                             <div className="absolute inset-0 col-span-full flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in duration-500">
                                 <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6 shadow-sm border border-slate-100/50">
-                                    <ClipboardIcon size={48} className="text-slate-300" weight="duotone" />
+                                    <ClipboardIcon size={48} className="text-slate-300" weight="bold" />
                                 </div>
                                 <h3 className="text-2xl font-black text-slate-800 mb-2 tracking-tight">אין עדיין משימות להצגה</h3>
                                 <p className="text-slate-500 max-w-sm mb-8 font-medium leading-relaxed">

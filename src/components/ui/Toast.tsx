@@ -28,25 +28,25 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
             bg: 'bg-green-50',
             border: 'border-green-200',
             text: 'text-green-800',
-            icon: <CheckCircleIcon className="w-5 h-5 text-green-500" weight="duotone" />,
+            icon: <CheckCircleIcon className="w-5 h-5 text-green-500" weight="bold" />,
         },
         error: {
             bg: 'bg-red-50',
             border: 'border-red-200',
             text: 'text-red-800',
-            icon: <XCircleIcon className="w-5 h-5 text-red-500" weight="duotone" />,
+            icon: <XCircleIcon className="w-5 h-5 text-red-500" weight="bold" />,
         },
         warning: {
             bg: 'bg-yellow-50',
             border: 'border-yellow-200',
             text: 'text-yellow-800',
-            icon: <AlertTriangleIcon className="w-5 h-5 text-yellow-500" weight="duotone" />,
+            icon: <AlertTriangleIcon className="w-5 h-5 text-yellow-500" weight="bold" />,
         },
         info: {
             bg: 'bg-blue-50',
             border: 'border-blue-200',
             text: 'text-blue-800',
-            icon: <InfoIcon className="w-5 h-5 text-blue-500" weight="duotone" />,
+            icon: <InfoIcon className="w-5 h-5 text-blue-500" weight="bold" />,
         },
     };
 

@@ -136,7 +136,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                         </div>
                     )}
                 </div>
-                <ChevronDown size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} weight="duotone" />
+                <ChevronDown size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} weight="bold" />
             </button>
 
             {isOpen && createPortal(

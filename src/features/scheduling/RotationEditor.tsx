@@ -48,7 +48,7 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
         <div className="flex flex-col pr-2 text-right">
             <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">הגדרות סבב - {team.name}</h2>
             <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wider">
-                <Settings size={14} className="text-slate-400" weight="duotone" />
+                <Settings size={14} className="text-slate-400" weight="bold" />
                 <span>ניהול מחזוריות צוותית</span>
             </div>
         </div>
@@ -86,7 +86,7 @@ export const RotationEditor: React.FC<RotationEditorProps> = ({ team, existing, 
                 {/* Guidance Note */}
                 <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 text-sm text-blue-800 flex items-start gap-4">
                     <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                        <CalendarDays className="text-blue-600" size={20} weight="duotone" />
+                        <CalendarDays className="text-blue-600" size={20} weight="bold" />
                     </div>
                     <div>
                         <strong className="block text-blue-900 mb-1 font-black">הגדרת סבב יציאות:</strong>

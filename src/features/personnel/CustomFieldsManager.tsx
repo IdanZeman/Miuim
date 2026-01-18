@@ -132,7 +132,7 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({ fields
                             >
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                     <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                                        <TypeIcon size={20} weight="duotone" />
+                                        <TypeIcon size={20} weight="bold" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="font-bold text-slate-800 truncate">{field.label}</div>
@@ -173,7 +173,7 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({ fields
                                         className="text-slate-400 hover:text-blue-600"
                                         title="שכפל שדה"
                                     >
-                                        <Copy size={16} weight="duotone" />
+                                        <Copy size={16} weight="bold" />
                                     </Button>
                                     <Button
                                         onClick={() => handleEditField(field)}
@@ -182,7 +182,7 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({ fields
                                         className="text-slate-400 hover:text-green-600"
                                         title="ערוך שדה"
                                     >
-                                        <PencilSimple size={16} weight="duotone" />
+                                        <PencilSimple size={16} weight="bold" />
                                     </Button>
                                     <Button
                                         onClick={() => handleDeleteField(field.id)}
@@ -191,7 +191,7 @@ export const CustomFieldsManager: React.FC<CustomFieldsManagerProps> = ({ fields
                                         className="text-slate-400 hover:text-red-600"
                                         title="מחק שדה"
                                     >
-                                        <Trash size={16} weight="duotone" />
+                                        <Trash size={16} weight="bold" />
                                     </Button>
                                 </div>
                             </div>
@@ -279,7 +279,7 @@ const FieldEditorModal: React.FC<FieldEditorModalProps> = ({ field, isCreating, 
             title={
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                        <TypeIcon size={24} weight="duotone" />
+                        <TypeIcon size={24} weight="bold" />
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-800">

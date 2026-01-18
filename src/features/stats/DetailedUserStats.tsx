@@ -179,7 +179,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                 {/* Weekly Activity */}
                 <div className="lg:col-span-2 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 md:mb-6 flex items-center gap-2">
-                        <TrendingUp size={18} className="text-blue-500" weight="duotone" />
+                        <TrendingUp size={18} className="text-blue-500" weight="bold" />
                         פעילות שבועית
                     </h3>
                     <div className="h-[180px] md:h-[300px]">
@@ -207,7 +207,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                 {/* Day/Night Distribution */}
                 <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 md:mb-6 flex items-center gap-2">
-                        <Moon size={18} className="text-indigo-500" weight="duotone" />
+                        <Moon size={18} className="text-indigo-500" weight="bold" />
                         יום / לילה
                     </h3>
                     <div className="h-[160px] md:h-[220px] relative">
@@ -247,7 +247,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
             {/* Task Breakdown Chart */}
             <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
                 <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 md:mb-6 flex items-center gap-2">
-                    <Award size={18} className="text-orange-500" weight="duotone" />
+                    <Award size={18} className="text-orange-500" weight="bold" />
                     התפלגות משימות
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center">
@@ -377,13 +377,13 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
             {/* Recent Shifts List */}
             <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
                 <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                    <Calendar size={18} className="text-purple-500" weight="duotone" />
+                    <Calendar size={18} className="text-purple-500" weight="bold" />
                     משמרות ({viewerDaysLimit} ימים קדימה)
                 </h3>
                 {stats.shifts.length === 0 ? (
                     <div className="text-center py-8 md:py-12 text-slate-400">
-                        <Calendar size={36} className="md:hidden mx-auto mb-3 opacity-50" weight="duotone" />
-                        <Calendar size={48} className="hidden md:block mx-auto mb-3 opacity-50" weight="duotone" />
+                        <Calendar size={36} className="md:hidden mx-auto mb-3 opacity-50" weight="bold" />
+                        <Calendar size={48} className="hidden md:block mx-auto mb-3 opacity-50" weight="bold" />
                         <p className="font-medium text-sm md:text-base">אין משמרות בטווח הזמן</p>
                         <p className="text-xs md:text-sm mt-1">משמרות ב-{viewerDaysLimit} ימים הקרובים יופיעו כאן</p>
                     </div>
@@ -396,7 +396,7 @@ export const DetailedUserStats: React.FC<DetailedUserStatsProps> = ({
                             return (
                                 <div key={shift.id} className="border border-slate-100 rounded-xl p-3 md:p-4 flex items-center gap-3 md:gap-4 hover:border-blue-200 transition-colors">
                                     <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${task?.difficulty && task.difficulty > 1.5 ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-                                        {task?.difficulty && task.difficulty > 1.5 ? <AlertCircle size={16} weight="duotone" /> : <CheckCircle size={16} weight="duotone" />}
+                                        {task?.difficulty && task.difficulty > 1.5 ? <AlertCircle size={16} weight="bold" /> : <CheckCircle size={16} weight="bold" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <p className="font-bold text-slate-800 text-sm truncate">{task?.name}</p>

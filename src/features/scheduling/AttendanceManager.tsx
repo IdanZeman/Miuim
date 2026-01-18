@@ -864,14 +864,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 onClick={() => setViewMode('calendar')}
                                 className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                             >
-                                <CalendarDays size={13} weight="duotone" />
+                                <CalendarDays size={13} weight="bold" />
                                 <span className="text-[11px]">חודשי</span>
                             </button>
                             <button
                                 onClick={() => { setViewMode('day_detail'); setSelectedDate(new Date()); }}
                                 className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'day_detail' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
                             >
-                                <ListChecks size={13} weight="duotone" />
+                                <ListChecks size={13} weight="bold" />
                                 <span className="text-[11px]">יומי</span>
                             </button>
                         </div>
@@ -882,7 +882,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 className="w-8.5 h-8.5 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl border border-blue-100 active:scale-95 transition-all shrink-0"
                                 title="מחולל סבבים"
                             >
-                                <Sparkles size={16} weight="duotone" />
+                                <Sparkles size={16} weight="bold" />
                             </button>
                         )}
                         <ExportButton
@@ -942,7 +942,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             <div className="px-3 py-2.5 bg-white/50 backdrop-blur-sm border-b border-slate-100">
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
-                                        <Search size={16} weight="duotone" />
+                                        <Search size={16} weight="bold" />
                                     </div>
                                     <input
                                         type="text"
@@ -987,7 +987,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     leftActions={
                         <div className="flex items-center gap-4">
                             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                <Calendar className="text-blue-600" size={24} weight="duotone" />
+                                <Calendar className="text-blue-600" size={24} weight="bold" />
                                 <span className={isSearchExpanded ? 'hidden lg:inline' : 'inline'}>יומן נוכחות</span>
                                 <PageInfo
                                     title="יומן נוכחות"
@@ -1031,7 +1031,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         }`}
                                     title={tab.label}
                                 >
-                                    <tab.icon size={16} weight="duotone" />
+                                    <tab.icon size={16} weight="bold" />
                                     <span className={(isSearchExpanded || searchTerm) ? 'hidden' : 'inline'}>{tab.label}</span>
                                 </button>
                             ))}
@@ -1063,14 +1063,14 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                             className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showStatistics ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
                                             title={showStatistics ? 'הסתר סטטיסטיקה' : 'הצג סטטיסטיקה'}
                                         >
-                                            <ChartBar size={20} weight="duotone" />
+                                            <ChartBar size={20} weight="bold" />
                                         </button>
                                         <button
                                             onClick={() => setShowRequiredDetails(!showRequiredDetails)}
                                             className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showRequiredDetails ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
                                             title={showRequiredDetails ? 'הסתר דרישות כוח אדם' : 'הצג דרישות כוח אדם'}
                                         >
-                                            <ListChecks size={20} weight="duotone" />
+                                            <ListChecks size={20} weight="bold" />
                                         </button>
                                     </>
                                 )}
@@ -1082,7 +1082,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                         className="h-10 w-10 flex items-center justify-center bg-slate-100/50 text-slate-500 hover:bg-white hover:text-blue-600 rounded-xl transition-all border border-slate-200 shadow-sm transition-all group"
                                         title="מחולל סבבים"
                                     >
-                                        <Sparkles size={18} weight="duotone" className="group-hover:text-blue-600 transition-colors" />
+                                        <Sparkles size={18} weight="bold" className="group-hover:text-blue-600 transition-colors" />
                                     </button>
                                 )}
                             </div>

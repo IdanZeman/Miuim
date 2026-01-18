@@ -214,7 +214,7 @@ export const SystemStatsDashboard: React.FC = () => {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-6rem)]">
-                <ActivityIcon className="animate-spin text-emerald-600 mb-4" size={32} weight="duotone" />
+                <ActivityIcon className="animate-spin text-emerald-600 mb-4" size={32} weight="bold" />
                 <span className="text-slate-500 font-bold text-sm">טוען נתונים...</span>
             </div>
         );
@@ -226,7 +226,7 @@ export const SystemStatsDashboard: React.FC = () => {
             <div className="flex items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm shadow-emerald-100">
-                        <ActivityIcon size={24} weight="duotone" />
+                        <ActivityIcon size={24} weight="bold" />
                     </div>
                     <div>
                         <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">מדדי מערכת</h2>
@@ -243,21 +243,21 @@ export const SystemStatsDashboard: React.FC = () => {
                     <StatCard
                         title="ארגונים במערכת"
                         value={stats.totalOrgs}
-                        icon={<Building2Icon size={24} weight="duotone" />}
+                        icon={<Building2Icon size={24} weight="bold" />}
                         color="blue"
                         subtext={`+${stats.newOrgsMonth} החודש`}
                     />
                     <StatCard
                         title="משתמשים רשומים"
                         value={stats.totalUsers}
-                        icon={<UsersIcon size={24} weight="duotone" />}
+                        icon={<UsersIcon size={24} weight="bold" />}
                         color="indigo"
                         subtext={`+${stats.newUsersMonth} החודש`}
                     />
                     <StatCard
                         title="פעילים כעת"
                         value={stats.activeUsersNow}
-                        icon={<ActivityIcon size={24} weight="duotone" />}
+                        icon={<ActivityIcon size={24} weight="bold" />}
                         color="emerald"
                         subtext="ב-15 דקות האחרונות"
                         pulse
@@ -265,7 +265,7 @@ export const SystemStatsDashboard: React.FC = () => {
                     <StatCard
                         title="פעולות היום"
                         value={stats.actions24h}
-                        icon={<TrendingUpIcon size={24} weight="duotone" />}
+                        icon={<TrendingUpIcon size={24} weight="bold" />}
                         color="amber"
                         subtext="עומס מערכת"
                     />
@@ -275,7 +275,7 @@ export const SystemStatsDashboard: React.FC = () => {
                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
                     <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
                         <h3 className="text-sm font-black text-slate-800 flex items-center uppercase tracking-wider">
-                            <TrendingUpIcon className="w-5 h-5 mr-2 text-rose-500" weight="duotone" />
+                            <TrendingUpIcon className="w-5 h-5 mr-2 text-rose-500" weight="bold" />
                             מדדי צמיחה
                         </h3>
                         <div className="flex bg-white border border-slate-200/60 p-1 rounded-xl text-xs font-bold shadow-sm">
@@ -295,7 +295,7 @@ export const SystemStatsDashboard: React.FC = () => {
                         <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                                    <Building2Icon size={24} weight="duotone" />
+                                    <Building2Icon size={24} weight="bold" />
                                 </div>
                                 <div>
                                     <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wide">ארגונים חדשים</h4>
@@ -312,7 +312,7 @@ export const SystemStatsDashboard: React.FC = () => {
                         <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
-                                    <UsersIcon size={24} weight="duotone" />
+                                    <UsersIcon size={24} weight="bold" />
                                 </div>
                                 <div>
                                     <h4 className="text-slate-500 text-xs font-bold uppercase tracking-wide">משתמשים חדשים</h4>
@@ -333,7 +333,7 @@ export const SystemStatsDashboard: React.FC = () => {
                     <div className="lg:col-span-2 bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-sm font-black text-slate-800 flex items-center uppercase tracking-wider">
-                                <ActivityIcon className="w-5 h-5 mr-2 text-blue-500" weight="duotone" />
+                                <ActivityIcon className="w-5 h-5 mr-2 text-blue-500" weight="bold" />
                                 פעילות מערכת
                             </h3>
                             <div className="flex bg-white border border-slate-200/60 p-1 rounded-xl text-xs font-bold shadow-sm">
@@ -380,7 +380,7 @@ export const SystemStatsDashboard: React.FC = () => {
                     {/* New Organizations List */}
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
                         <h3 className="text-sm font-black text-slate-800 mb-6 flex items-center uppercase tracking-wider">
-                            <Building2Icon className="w-5 h-5 mr-2 text-green-500" weight="duotone" />
+                            <Building2Icon className="w-5 h-5 mr-2 text-green-500" weight="bold" />
                             ארגונים חדשים
                         </h3>
                         <div className="space-y-3">
@@ -404,7 +404,7 @@ export const SystemStatsDashboard: React.FC = () => {
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-sm font-black text-slate-800 flex items-center uppercase tracking-wider">
-                                <TrophyIcon className="w-5 h-5 mr-2 text-yellow-500" weight="duotone" />
+                                <TrophyIcon className="w-5 h-5 mr-2 text-yellow-500" weight="bold" />
                                 ארגונים מובילים (כל הזמנים)
                             </h3>
                         </div>
@@ -447,7 +447,7 @@ export const SystemStatsDashboard: React.FC = () => {
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                             <h3 className="text-sm font-black text-slate-800 flex items-center uppercase tracking-wider">
-                                <UsersIcon className="w-5 h-5 mr-2 text-purple-500" weight="duotone" />
+                                <UsersIcon className="w-5 h-5 mr-2 text-purple-500" weight="bold" />
                                 משתמשים פעילים
                             </h3>
                             <div className="flex bg-white border border-slate-200/60 p-1 rounded-xl text-xs font-bold shadow-sm">

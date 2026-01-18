@@ -184,7 +184,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden">
             <div className="flex flex-col md:flex-row justify-between items-center p-4 md:p-6 border-b border-slate-100 gap-4 sticky top-0 bg-white z-10 transition-shadow">
                 <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 md:gap-3">
-                    <span className="bg-blue-50 p-2 rounded-lg text-blue-600"><CheckSquare size={20} weight="duotone" /></span>
+                    <span className="bg-blue-50 p-2 rounded-lg text-blue-600"><CheckSquare size={20} weight="bold" /></span>
                     ניהול משימות
                     <PageInfo
                         title="ניהול משימות ומשמרות"
@@ -269,7 +269,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                 <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100/50 flex flex-col justify-center">
                                     <span className="text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider">מקטעים</span>
                                     <div className="flex items-center gap-2 text-slate-700 font-bold">
-                                        <Layers size={16} weight="duotone" className="text-blue-500" />
+                                        <Layers size={16} weight="bold" className="text-blue-500" />
                                         <span className="text-sm">{task.segments?.length || 0}</span>
                                     </div>
                                 </div>
@@ -289,12 +289,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                             {/* Optional: Team Badge / Info */}
                             {task.assignedTeamId ? (
                                 <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-600">
-                                    <Users size={14} weight="duotone" className="text-slate-400 text-blue-500" />
+                                    <Users size={14} weight="bold" className="text-slate-400 text-blue-500" />
                                     <span>צוות {teams.find(t => t.id === task.assignedTeamId)?.name}</span>
                                 </div>
                             ) : (
                                 <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-400">
-                                    <Globe size={14} weight="duotone" />
+                                    <Globe size={14} weight="bold" />
                                     <span>פתוח לכולם</span>
                                 </div>
                             )}
@@ -385,7 +385,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                                                 aria-label={`בחר צבע ${bgColor.replace('bg-', '')}`}
                                                 aria-pressed={isSelected}
                                             >
-                                                {isSelected && <CheckSquare size={14} weight="duotone" className="text-white bg-black/20 rounded" aria-hidden="true" />}
+                                                {isSelected && <CheckSquare size={14} weight="bold" className="text-white bg-black/20 rounded" aria-hidden="true" />}
                                             </button>
                                         );
                                     })}

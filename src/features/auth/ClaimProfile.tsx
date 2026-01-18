@@ -71,7 +71,7 @@ export const ClaimProfile: React.FC = () => {
                 <div className="max-w-3xl mx-auto px-4 w-full flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100 p-1.5">
-                            <UserIcon size={20} className="text-slate-900" weight="duotone" />
+                            <UserIcon size={20} className="text-slate-900" weight="bold" />
                         </div>
                         <span className="text-xl font-black text-slate-900 tracking-tight">אימות זהות</span>
                     </div>
@@ -150,7 +150,7 @@ export const ClaimProfile: React.FC = () => {
                                 </div>
                                 {selectedPerson?.id === person.id && (
                                     <div className="bg-emerald-500 rounded-full p-1 text-white animate-in zoom-in spin-in-90 duration-300">
-                                        <CheckCircleIcon size={24} className="fill-current" weight="duotone" />
+                                        <CheckCircleIcon size={24} className="fill-current" weight="bold" />
                                     </div>
                                 )}
                             </button>
@@ -164,7 +164,7 @@ export const ClaimProfile: React.FC = () => {
                 <div className="max-w-3xl mx-auto flex flex-col items-center">
                     {error && (
                         <div className="w-full mb-4 bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-red-100 animate-in slide-in-from-bottom-2">
-                            <AlertCircleIcon size={20} className="shrink-0" weight="duotone" />
+                            <AlertCircleIcon size={20} className="shrink-0" weight="bold" />
                             {error}
                         </div>
                     )}

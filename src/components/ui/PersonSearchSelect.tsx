@@ -37,7 +37,7 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
         <div className={`space-y-4 ${className}`}>
             <div className="flex flex-col md:flex-row gap-2.5">
                 <div className="relative flex-1">
-                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} weight="duotone" />
+                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} weight="bold" />
                     <input
                         type="text"
                         placeholder={placeholder}

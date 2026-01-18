@@ -110,7 +110,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'home' ? `text-${themeColor}-600` : 'text-slate-400'}`}
                 >
                   <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'home' ? `bg-${themeColor}-50` : ''}`}>
-                    <Home size={22} className={currentView === 'home' ? `fill-${themeColor}-200/40` : ''} weight="duotone" />
+                    <Home size={22} className={currentView === 'home' ? `fill-${themeColor}-200/40` : ''} weight="bold" />
                   </div>
                   <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'home' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>בית</span>
                   {currentView === 'home' && <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-${themeColor}-600 rounded-b-full shadow-[0_1px_4px_${themeShadow}]`} />}
@@ -122,7 +122,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                     className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'dashboard' ? `text-${themeColor}-600` : 'text-slate-400'}`}
                   >
                     <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'dashboard' ? `bg-${themeColor}-50` : ''}`}>
-                      <Calendar size={22} className={currentView === 'dashboard' ? `fill-${themeColor}-200/40` : ''} weight="duotone" />
+                      <Calendar size={22} className={currentView === 'dashboard' ? `fill-${themeColor}-200/40` : ''} weight="bold" />
                     </div>
                     <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'dashboard' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>שיבוצים</span>
                     {currentView === 'dashboard' && <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-${themeColor}-600 rounded-b-full shadow-[0_1px_4px_${themeShadow}]`} />}
@@ -135,7 +135,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                     className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'attendance' ? `text-${themeColor}-600` : 'text-slate-400'}`}
                   >
                     <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'attendance' ? `bg-${themeColor}-50` : ''}`}>
-                      <Clock size={22} className={currentView === 'attendance' ? `fill-${themeColor}-200/40` : ''} weight="duotone" />
+                      <Clock size={22} className={currentView === 'attendance' ? `fill-${themeColor}-200/40` : ''} weight="bold" />
                     </div>
                     <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'attendance' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>נוכחות</span>
                     {currentView === 'attendance' && <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-${themeColor}-600 rounded-b-full shadow-[0_1px_4px_${themeShadow}]`} />}
@@ -148,7 +148,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                     className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'gate' ? `text-${themeColor}-600` : 'text-slate-400'}`}
                   >
                     <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'gate' ? `bg-${themeColor}-50` : ''}`}>
-                      <Car size={22} className={currentView === 'gate' ? `fill-${themeColor}-200/40` : ''} weight="duotone" />
+                      <Car size={22} className={currentView === 'gate' ? `fill-${themeColor}-200/40` : ''} weight="bold" />
                     </div>
                     <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'gate' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>ש.ג</span>
                     {currentView === 'gate' && <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-${themeColor}-600 rounded-b-full shadow-[0_1px_4px_${themeShadow}]`} />}
@@ -164,7 +164,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                   className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'battalion-home' ? `text-${themeColor}-600` : 'text-slate-400'}`}
                 >
                   <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'battalion-home' ? `bg-${themeColor}-50` : ''}`}>
-                    <Buildings size={22} className={currentView === 'battalion-home' ? `fill-${themeColor}-200/40` : ''} weight="duotone" />
+                    <Buildings size={22} className={currentView === 'battalion-home' ? `fill-${themeColor}-200/40` : ''} weight="bold" />
                   </div>
                   <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'battalion-home' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>מבט גדודי</span>
                   {currentView === 'battalion-home' && <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-${themeColor}-600 rounded-b-full shadow-[0_1px_4px_${themeShadow}]`} />}
@@ -176,7 +176,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                     className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'battalion-personnel' ? `text-${themeColor}-600` : 'text-slate-400'}`}
                   >
                     <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'battalion-personnel' ? `bg-${themeColor}-50` : ''}`}>
-                      <Users size={22} className={currentView === 'battalion-personnel' ? `fill-${themeColor}-200/40` : ''} weight="duotone" />
+                      <Users size={22} className={currentView === 'battalion-personnel' ? `fill-${themeColor}-200/40` : ''} weight="bold" />
                     </div>
                     <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'battalion-personnel' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>סד"כ גדודי</span>
                     {currentView === 'battalion-personnel' && <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-${themeColor}-600 rounded-b-full shadow-[0_1px_4px_${themeShadow}]`} />}
@@ -189,7 +189,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
                     className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${currentView === 'battalion-attendance' ? `text-${themeColor}-600` : 'text-slate-400'}`}
                   >
                     <div className={`p-2 rounded-xl transition-all duration-300 ${currentView === 'battalion-attendance' ? `bg-${themeColor}-50` : ''}`}>
-                      <ClipboardList size={22} className={currentView === 'battalion-attendance' ? `fill-${themeColor}-200/40` : ''} weight="duotone" />
+                      <ClipboardList size={22} className={currentView === 'battalion-attendance' ? `fill-${themeColor}-200/40` : ''} weight="bold" />
                     </div>
                     <span className={`text-[10px] font-bold mt-1 transition-all ${currentView === 'battalion-attendance' ? 'opacity-100 scale-100' : 'opacity-70 scale-95'}`}>יומן נוכחות גדודי</span>
                     {currentView === 'battalion-attendance' && <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-${themeColor}-600 rounded-b-full shadow-[0_1px_4px_${themeShadow}]`} />}
@@ -203,7 +203,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, setView, children, 
               className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${isMobileMenuOpen ? `text-${themeColor}-600` : 'text-slate-400'}`}
             >
               <div className={`p-2 rounded-xl transition-all duration-300 ${isMobileMenuOpen ? `bg-${themeColor}-50` : ''}`}>
-                <Menu size={22} weight="duotone" />
+                <Menu size={22} weight="bold" />
               </div>
               <span className="text-[10px] font-bold mt-1">תפריט</span>
               {isMobileMenuOpen && <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-${themeColor}-600 rounded-b-full shadow-[0_1px_4px_${themeShadow}]`} />}

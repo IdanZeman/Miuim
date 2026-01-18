@@ -335,7 +335,7 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
                                     <div key={shift.id} className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
                                         <div className="flex items-center gap-2.5 min-w-0">
                                             <div className="w-7 h-7 rounded bg-slate-50 flex items-center justify-center text-slate-400 shrink-0 border border-slate-100">
-                                                <ClipboardList size={14} weight="duotone" />
+                                                <ClipboardList size={14} weight="bold" />
                                             </div>
                                             <div className="min-w-0">
                                                 <h5 className="font-black text-slate-800 text-[11px] leading-tight truncate">{task?.name || 'משימה'}</h5>
@@ -486,8 +486,8 @@ export const ShiftHistoryModal: React.FC<ShiftHistoryModalProps> = ({
                         פרופיל חייל
                     </span>
                     <div className="flex items-center gap-3 text-xs font-bold text-slate-400">
-                        <span className="flex items-center gap-1.5"><Medal size={14} weight="duotone" className="text-amber-500" /> {metrics.totalShifts} משמרות</span>
-                        <span className="flex items-center gap-1.5"><Clock size={14} weight="duotone" className="text-blue-500" /> {metrics.totalHours.toFixed(0)} שעות</span>
+                        <span className="flex items-center gap-1.5"><Medal size={14} weight="bold" className="text-amber-500" /> {metrics.totalShifts} משמרות</span>
+                        <span className="flex items-center gap-1.5"><Clock size={14} weight="bold" className="text-blue-500" /> {metrics.totalHours.toFixed(0)} שעות</span>
                     </div>
                 </div>
             </div>

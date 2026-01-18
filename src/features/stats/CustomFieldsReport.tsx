@@ -242,7 +242,7 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
                     {/* Pie Chart with Legend */}
                     <div className="bg-white rounded-2xl border border-slate-100 p-6">
                         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <ChartPie size={20} className="text-emerald-600" weight="duotone" />
+                            <ChartPie size={20} className="text-emerald-600" weight="bold" />
                             התפלגות
                         </h3>
                         <div className="flex flex-col lg:flex-row items-center gap-6">
@@ -292,7 +292,7 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
                     {/* Statistics Table */}
                     <div className="bg-white rounded-2xl border border-slate-100 p-6">
                         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <ChartBar size={20} className="text-blue-600" weight="duotone" />
+                            <ChartBar size={20} className="text-blue-600" weight="bold" />
                             סטטיסטיקות
                         </h3>
                         <div className="overflow-x-auto">
@@ -399,7 +399,7 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
             <div className="mt-8 pt-8 border-t border-slate-100">
                 <div className="flex items-center gap-2 mb-6">
                     <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                        <Briefcase size={18} className="text-amber-600" weight="duotone" />
+                        <Briefcase size={18} className="text-amber-600" weight="bold" />
                     </div>
                     <div>
                         <h3 className="text-lg font-bold text-slate-800">התפלגות תפקידים כללית</h3>
@@ -507,12 +507,12 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
                     <p className="font-bold text-slate-900 truncate">{person.name}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5">
                         <div className="flex items-center gap-1 text-xs text-slate-500">
-                            <House size={12} weight="duotone" className="text-blue-500" />
+                            <House size={12} weight="bold" className="text-blue-500" />
                             <span>{teamName}</span>
                         </div>
                         {person.roleIds && person.roleIds.length > 0 && (
                             <div className="flex items-center gap-1 text-xs text-slate-500 border-r border-slate-200 pr-3 mr-0">
-                                <Briefcase size={12} weight="duotone" className="text-amber-500" />
+                                <Briefcase size={12} weight="bold" className="text-amber-500" />
                                 <span className="truncate max-w-[150px]">{roleNames}</span>
                             </div>
                         )}
@@ -579,7 +579,7 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
                                     {selectedFieldKey !== '_role' && (
                                         <div className="mb-6 bg-white rounded-xl border border-slate-200 p-4">
                                             <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                <Briefcase size={14} weight="duotone" className="text-amber-500" />
+                                                <Briefcase size={14} weight="bold" className="text-amber-500" />
                                                 התפלגות תפקידים בקבוצה זו
                                             </h4>
                                             <div className="flex flex-wrap gap-2">
@@ -635,7 +635,7 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
         return (
             <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <ListChecks size={32} className="text-slate-400" weight="duotone" />
+                    <ListChecks size={32} className="text-slate-400" weight="bold" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">אין שדות מותאמים אישית</h3>
                 <p className="text-slate-500 mb-4">
@@ -652,7 +652,7 @@ export const CustomFieldsReport: React.FC<CustomFieldsReportProps> = ({ people, 
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                            <ListChecks size={24} className="text-emerald-600" weight="duotone" />
+                            <ListChecks size={24} className="text-emerald-600" weight="bold" />
                         </div>
                         <div>
                             <h2 className="text-2xl font-black text-slate-900">דוחות שדות מותאמים</h2>

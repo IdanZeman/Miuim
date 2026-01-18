@@ -83,7 +83,7 @@ const WheelView = ({ sizeClass, rotation, isSpinning, candidates, wheelColors, o
             onClick={!isSpinning ? onSpin : undefined}
             className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full shadow-xl flex items-center justify-center z-10 ${onSpin && !isSpinning ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}>
             <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-white">
-                <Dices size={20} weight="duotone" />
+                <Dices size={20} weight="bold" />
             </div>
         </div>
     </div >
@@ -395,7 +395,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                     onClick={() => setIsEditMode(!isEditMode)}
                     className="text-xs flex items-center gap-1 text-slate-500 hover:text-blue-600 transition-colors"
                 >
-                    <Settings2 size={12} weight="duotone" />
+                    <Settings2 size={12} weight="bold" />
                     {isEditMode ? 'סגור' : 'ערוך'}
                 </button>
             </div>
@@ -480,13 +480,13 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                             onClick={() => setIsSettingsOpen(true)}
                             className={`p-3 rounded-xl border bg-slate-50 border-slate-200 text-slate-500 hover:text-indigo-600 transition-all active:scale-95`}
                         >
-                            <Settings2 size={24} aria-hidden="true" weight="duotone" />
+                            <Settings2 size={24} aria-hidden="true" weight="bold" />
                         </button>
                         <button
                             onClick={() => setShowHistory(!showHistory)}
                             className={`p-3 rounded-xl border transition-all active:scale-95 ${showHistory ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
                         >
-                            <Trophy size={24} aria-hidden="true" weight="duotone" />
+                            <Trophy size={24} aria-hidden="true" weight="bold" />
                         </button>
                     </div>
                 </div>
@@ -571,7 +571,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                                     : 'bg-idf-yellow text-slate-900 shadow-yellow-500/20'
                                 }`}
                         >
-                            {isSpinning ? <RefreshCw className="animate-spin" size={24} weight="duotone" /> : <Dices size={24} weight="duotone" />}
+                            {isSpinning ? <RefreshCw className="animate-spin" size={24} weight="bold" /> : <Dices size={24} weight="bold" />}
                             {isSpinning ? 'מסתובב...' : 'סובב את הגלגל!'}
                         </button>
                     </div>
@@ -640,7 +640,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                 <div className="w-[320px] lg:w-[400px] bg-white flex flex-col overflow-hidden border-r border-slate-100 shrink-0 transition-all">
                     <div className="p-4 lg:p-6 border-b border-slate-100 bg-slate-50/50">
                         <h2 className="text-lg lg:text-xl font-bold text-slate-800 flex items-center gap-2 mb-4 lg:mb-6">
-                            <Settings2 className="text-indigo-600" weight="duotone" />
+                            <Settings2 className="text-indigo-600" weight="bold" />
                             לוח בקרה
                             <PageInfo
                                 title="הגרלה"
@@ -669,7 +669,7 @@ export const Lottery: React.FC<LotteryProps> = ({ people, teams, roles, shifts =
                                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-indigo-500/30 hover:-translate-y-1'
                                 }`}
                         >
-                            {isSpinning ? <RefreshCw className="animate-spin" size={24} weight="duotone" /> : <Dices size={24} weight="duotone" />}
+                            {isSpinning ? <RefreshCw className="animate-spin" size={24} weight="bold" /> : <Dices size={24} weight="bold" />}
                             {isSpinning ? 'מגריל...' : 'סובב עכשיו!'}
                         </button>
                     </div>

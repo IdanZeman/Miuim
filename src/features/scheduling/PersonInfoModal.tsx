@@ -56,7 +56,7 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                     <div className="flex flex-col">
                         <h2 className="text-xl font-black text-slate-800 leading-tight">{person.name}</h2>
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 ">
-                            <IdentificationCard size={14} weight="duotone" />
+                            <IdentificationCard size={14} weight="bold" />
                             פרופיל חייל
                         </span>
                     </div>
@@ -68,12 +68,12 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                 {/* Status Badges */}
                 <div className="flex flex-wrap gap-2">
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl border border-blue-100/50">
-                        <Users size={16} weight="duotone" />
+                        <Users size={16} weight="bold" />
                         <span className="text-sm font-black">{personTeam?.name || 'ללא צוות'}</span>
                     </div>
                     {personRoles.map(role => (
                         <div key={role.id} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-xl border border-slate-200/50">
-                            <Shield size={16} weight="duotone" />
+                            <Shield size={16} weight="bold" />
                             <span className="text-sm font-black">{role.name}</span>
                         </div>
                     ))}
@@ -91,7 +91,7 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                         <div className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl group hover:border-blue-200 transition-colors">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                                    <Phone size={20} weight="duotone" />
+                                    <Phone size={20} weight="bold" />
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-bold text-slate-400">טלפון</span>
@@ -111,7 +111,7 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                         <div className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl group hover:border-purple-200 transition-colors">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-purple-50 group-hover:text-purple-500 transition-colors">
-                                    <Envelope size={20} weight="duotone" />
+                                    <Envelope size={20} weight="bold" />
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-bold text-slate-400">דוא״ל</span>
@@ -179,12 +179,12 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                                                 <div key={shift.id} className="flex items-center justify-between p-3 bg-blue-50/30 border border-blue-200/50 rounded-xl shadow-sm">
                                                     <div className="flex items-center gap-3">
                                                         <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                                                            <CalendarBlank size={14} className="text-blue-500" weight="duotone" />
+                                                            <CalendarBlank size={14} className="text-blue-500" weight="bold" />
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-xs font-black text-slate-700">{taskTemplate?.name || 'משימה'}</span>
                                                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600/70">
-                                                                <Clock size={12} weight="duotone" />
+                                                                <Clock size={12} weight="bold" />
                                                                 <span dir="ltr">{startTime} - {endTime}</span>
                                                             </div>
                                                         </div>
@@ -212,12 +212,12 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                                                 <div key={shift.id} className="flex items-center justify-between p-3 bg-emerald-50/30 border border-emerald-100/50 rounded-xl">
                                                     <div className="flex items-center gap-3">
                                                         <div className="p-1.5 bg-white rounded-lg shadow-sm">
-                                                            <CalendarBlank size={14} className="text-emerald-500" weight="duotone" />
+                                                            <CalendarBlank size={14} className="text-emerald-500" weight="bold" />
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-xs font-black text-slate-700">{taskTemplate?.name || 'משימה'}</span>
                                                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600/70">
-                                                                <Clock size={12} weight="duotone" />
+                                                                <Clock size={12} weight="bold" />
                                                                 <span>{date} • <span dir="ltr">{startTime} - {endTime}</span></span>
                                                             </div>
                                                         </div>
@@ -249,7 +249,7 @@ export const PersonInfoModal: React.FC<PersonInfoModalProps> = ({
                                                         <div className="flex flex-col">
                                                             <span className="text-xs font-bold text-slate-600">{taskTemplate?.name || 'משימה'}</span>
                                                             <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
-                                                                <Clock size={12} weight="duotone" />
+                                                                <Clock size={12} weight="bold" />
                                                                 <span>{date} • <span dir="ltr">{startTime} - {endTime}</span></span>
                                                             </div>
                                                         </div>

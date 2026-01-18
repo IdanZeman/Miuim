@@ -100,7 +100,7 @@ const RoleTemplateManager: React.FC<{
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 md:gap-3">
-                    <Shield className="text-indigo-600 flex-shrink-0" size={24} weight="duotone" />
+                    <Shield className="text-indigo-600 flex-shrink-0" size={24} weight="bold" />
                     <div>
                         <h2 className="text-lg md:text-xl font-black text-slate-800">תבניות הרשאות</h2>
                         <p className="text-xs md:text-sm text-slate-500 font-bold">הגדר תפקידים מובנים כמו "מפקד מחלקה", "חייל" וכו'</p>
@@ -208,7 +208,7 @@ const TemplateEditorModal: React.FC<{
             title={
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                        <Shield size={24} weight="duotone" strokeWidth={2.5} />
+                        <Shield size={24} weight="bold" strokeWidth={2.5} />
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-800">{template ? 'עריכת תבנית' : 'יצירת תבנית חדשה'}</h2>
@@ -467,7 +467,7 @@ const BattalionAssociationSettings: React.FC<{ organizationId: string; currentBa
                     <div className="flex items-center justify-between gap-6">
                         <div className="flex items-center gap-6">
                             <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
-                                <Shield size={40} weight="duotone" />
+                                <Shield size={40} weight="bold" />
                             </div>
                             <div>
                                 <p className="text-emerald-600 font-bold text-sm mb-1">מחובר לגדוד</p>
@@ -681,7 +681,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     if (!checkAccess('settings', 'edit') && !profile?.is_super_admin) {
         return (
             <div className="bg-white rounded-xl p-8 shadow-sm border border-red-200 text-center">
-                <Shield className="mx-auto text-red-500 mb-4" size={40} weight="duotone" />
+                <Shield className="mx-auto text-red-500 mb-4" size={40} weight="bold" />
                 <h2 className="text-xl font-bold text-slate-800 mb-2">אין הרשאה</h2>
                 <p className="text-slate-600">רק מנהלים יכולים לגשת להגדרות הארגון</p>
             </div>
@@ -734,7 +734,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                 aria-selected={activeTab === tab.id}
                                 aria-controls={`panel-${tab.id}`}
                             >
-                                <tab.icon size={18} weight="duotone" className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} aria-hidden="true" />
+                                <tab.icon size={18} weight="bold" className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} aria-hidden="true" />
                                 {tab.label}
                             </button>
                         ))}
@@ -744,7 +744,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                             href="/accessibility"
                             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all group"
                         >
-                            <Accessibility size={18} weight="duotone" className="text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
+                            <Accessibility size={18} weight="bold" className="text-slate-400 group-hover:text-slate-600" aria-hidden="true" />
                             הצהרת נגישות
                         </a>
                     </div>
@@ -793,7 +793,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                             }`}
                                         aria-label={tab.label}
                                     >
-                                        <tab.icon size={22} weight={activeTab === tab.id ? 'fill' : 'duotone'} className={tab.id === 'messages' && activeTab !== tab.id ? 'text-slate-500' : ''} />
+                                        <tab.icon size={22} weight={activeTab === tab.id ? 'fill' : 'bold'} className={tab.id === 'messages' && activeTab !== tab.id ? 'text-slate-500' : ''} />
                                     </button>
                                 ))}
                             </div>
@@ -804,7 +804,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <div className="hidden md:flex items-center gap-2 mb-2 border-b border-slate-100 pb-4">
                                     <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                                        <Settings className="text-slate-600" size={28} weight="duotone" />
+                                        <Settings className="text-slate-600" size={28} weight="bold" />
                                         הגדרות וניהול
                                         <PageInfo
                                             title="הגדרות ארגון"
@@ -824,7 +824,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                 </div>
                                 <section>
                                     <div className="flex items-center gap-2 mb-4 text-slate-800">
-                                        <LinkIcon className="text-blue-500" size={20} weight="duotone" />
+                                        <LinkIcon className="text-blue-500" size={20} weight="bold" />
                                         <h2 className="text-xl font-black">הגדרות הזמנה</h2>
                                     </div>
                                     <InviteLinkSettings
@@ -840,7 +840,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
 
                                 <section>
                                     <div className="flex items-center gap-2 mb-4 text-slate-800">
-                                        <Clock className="text-orange-500" size={20} weight="duotone" />
+                                        <Clock className="text-orange-500" size={20} weight="bold" />
                                         <h2 className="text-xl font-black">הגדרות כלליות</h2>
                                     </div>
                                     <GeneralSettings organizationId={organization?.id || ''} />
@@ -1061,7 +1061,7 @@ const InviteLinkSettings: React.FC<{
                         {/* Template Selector - Compact */}
                         <div>
                             <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
-                                <Shield size={12} weight="duotone" /> תבנית הרשאות למצטרפים (דרך הקישור)
+                                <Shield size={12} weight="bold" /> תבנית הרשאות למצטרפים (דרך הקישור)
                             </label>
                             <div className="flex gap-2">
                                 <div className="flex-1">
@@ -1077,7 +1077,7 @@ const InviteLinkSettings: React.FC<{
                                     />
                                 </div>
                                 <button onClick={onViewTemplates} className="bg-white border border-slate-200 rounded-lg px-3 hover:bg-slate-50 text-slate-500">
-                                    <Settings size={16} weight="duotone" />
+                                    <Settings size={16} weight="bold" />
                                 </button>
                             </div>
                         </div>
@@ -1093,7 +1093,7 @@ const InviteLinkSettings: React.FC<{
                                     {window.location.origin}/join/{inviteToken.slice(0, 8)}...
                                 </span>
                                 <div className="flex items-center gap-2 font-bold text-sm bg-slate-100 px-3 py-1.5 rounded-lg group-hover:bg-blue-50 group-hover:text-blue-700">
-                                    {copied ? <CheckCircle size={16} weight="duotone" /> : <Copy size={16} weight="duotone" />}
+                                    {copied ? <CheckCircle size={16} weight="bold" /> : <Copy size={16} weight="bold" />}
                                     <span>{copied ? 'הועתק' : 'העתק'}</span>
                                 </div>
                             </button>

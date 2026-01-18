@@ -63,7 +63,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ label, value, onChange, 
                 onClick={handleClick}
             >
                 <div className="text-blue-600 bg-white p-2 rounded-lg border border-slate-100 shadow-sm group-hover:scale-110 transition-transform">
-                    <Calendar size={18} weight="duotone" />
+                    <Calendar size={18} weight="bold" />
                 </div>
                 <div className="flex flex-col min-w-0">
                     <span className="text-base font-bold text-slate-800 truncate">
@@ -148,7 +148,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({ label, value, onChange, 
                 onClick={handleClick}
             >
                 <div className="text-blue-600 bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm group-hover:scale-110 transition-transform">
-                    <Clock size={18} weight="duotone" />
+                    <Clock size={18} weight="bold" />
                 </div>
                 <div className="flex flex-col min-w-0 justify-center">
                     <span className="text-base font-bold text-slate-800">
@@ -197,7 +197,7 @@ export const DateTimePicker: React.FC<DatePickerProps> = ({ label, value, onChan
                 onClick={handleClick}
             >
                 <div className="text-blue-600 bg-white p-2 rounded-lg border border-slate-100 shadow-sm group-hover:scale-110 transition-transform">
-                    <Calendar size={18} weight="duotone" />
+                    <Calendar size={18} weight="bold" />
                 </div>
                 <div className="flex flex-col min-w-0">
                     <span className="text-base font-bold text-slate-800 truncate">

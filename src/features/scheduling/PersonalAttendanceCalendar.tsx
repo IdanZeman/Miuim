@@ -453,7 +453,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                                 flex flex-col items-center gap-1 text-center font-black leading-tight
                                 ${statusConfig.text}
                             `}>
-                                <Icon size={20} weight={statusConfig.bg.includes('500') ? "fill" : "duotone"} className="mb-0.5 opacity-90" />
+                                <Icon size={20} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-0.5 opacity-90" />
                                 <span className="text-[11px] px-1">{statusConfig.label}</span>
                             </div>
                         )}
@@ -489,7 +489,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">{person.name}</h2>
                 <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold tracking-wider flex-wrap">
                     <div className="flex items-center gap-1.5">
-                        <CalendarIcon size={14} className="text-slate-400" weight="duotone" />
+                        <CalendarIcon size={14} className="text-slate-400" weight="bold" />
                         <span>לוח נוכחות אישי</span>
                     </div>
                     {(person.phone || person.email) && (
@@ -497,13 +497,13 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     )}
                     {person.phone && (
                         <a href={`tel:${person.phone}`} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition-colors" title="התקשר">
-                            <Phone size={14} weight="duotone" className="text-slate-400" />
+                            <Phone size={14} weight="bold" className="text-slate-400" />
                             <span>{person.phone}</span>
                         </a>
                     )}
                     {person.email && (
                         <a href={`mailto:${person.email}`} className="flex items-center gap-1.5 text-slate-500 hover:text-blue-600 transition-colors lowercase">
-                            <Envelope size={14} weight="duotone" className="text-slate-400" />
+                            <Envelope size={14} weight="bold" className="text-slate-400" />
                             <span title={person.email}>{person.email}</span>
                         </a>
                     )}
@@ -526,7 +526,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                 className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-50 rounded-full transition-colors"
                 title="העתק לו&quot;ז"
             >
-                <Copy size={20} weight="duotone" />
+                <Copy size={20} weight="bold" />
             </button>
             {person.phone && (
                 <button
@@ -534,7 +534,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     className="w-10 h-10 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"
                     title="ייצוא לווטסאפ"
                 >
-                    <WhatsappLogo size={24} weight="duotone" />
+                    <WhatsappLogo size={24} weight="bold" />
                 </button>
             )}
             {!isViewer && (
@@ -543,7 +543,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     className="w-10 h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
                     title="הגדרת סבב אישי"
                 >
-                    <RotateCcw size={20} weight="duotone" />
+                    <RotateCcw size={20} weight="bold" />
                 </button>
             )}
         </div>

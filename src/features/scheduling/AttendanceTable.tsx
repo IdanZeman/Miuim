@@ -252,7 +252,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                             <div className="flex items-center justify-between mb-4 relative z-10">
                                 <div className="flex items-center gap-2.5">
                                     <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100 shadow-sm transition-transform group-hover:scale-110">
-                                        <Users size={22} className="text-blue-600" weight="duotone" />
+                                        <Users size={22} className="text-blue-600" weight="bold" />
                                     </div>
                                     <div>
                                         <h3 className="text-slate-900 font-black text-base tracking-tight">סיכום נוכחות יומי</h3>
@@ -320,7 +320,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 </div>
                                             </div>
                                             <div className={`w-7 h-7 rounded-full bg-slate-50 group-hover:bg-slate-100 flex items-center justify-center transition-all duration-300 ${collapsedTeams.has(team.id) ? 'rotate-0' : 'rotate-180'}`}>
-                                                <ChevronDown size={16} className="text-slate-400 group-hover:text-slate-600" weight="duotone" />
+                                                <ChevronDown size={16} className="text-slate-400 group-hover:text-slate-600" weight="bold" />
                                             </div>
                                         </div>
 
@@ -471,7 +471,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         ${statusConfig.bg} transition-all shadow-sm ring-1 ring-black/5
                                                                     `}
                                                                 >
-                                                                    <statusConfig.icon size={13} weight="duotone" className="shrink-0" />
+                                                                    <statusConfig.icon size={13} weight="bold" className="shrink-0" />
                                                                     <span className="whitespace-nowrap tracking-tight">{statusConfig.label}</span>
                                                                 </div>
                                                             </div>
@@ -545,7 +545,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                 {showRequiredDetails && (
                                     <div className="flex sticky z-[85] top-[64px] bg-white backdrop-blur-md h-12 border-b border-slate-200 shadow-sm">
                                         <div className="w-52 shrink-0 bg-rose-50 border-l border-rose-100 h-full flex items-center gap-2 sticky right-0 z-[90] px-4 md:px-6">
-                                            <AlertCircle size={14} className="text-rose-500" weight="duotone" />
+                                            <AlertCircle size={14} className="text-rose-500" weight="bold" />
                                             <span className="text-xs md:text-sm font-black text-rose-900 tracking-tight">נדרשים למשימות</span>
                                         </div>
                                         <div className="flex h-full">
@@ -604,7 +604,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         onClick={() => onShowTeamStats && onShowTeamStats({ id: 'all', name: 'כל הפלוגה' } as Team)}
                                         className="w-52 shrink-0 bg-slate-50 border-b border-l border-slate-200 h-full flex items-center gap-2 sticky right-0 z-[90] px-4 md:px-6 cursor-pointer hover:bg-blue-50 transition-colors"
                                     >
-                                        <Users size={14} className="text-blue-600" weight="duotone" />
+                                        <Users size={14} className="text-blue-600" weight="bold" />
                                         <span className="text-[13px] md:text-sm font-black text-slate-900 tracking-tight">סך הכל פלוגה</span>
                                     </div>
 
@@ -681,7 +681,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 <div className="w-52 shrink-0 bg-slate-100 border-b border-l border-slate-200 h-full flex flex-col justify-center gap-0.5 sticky right-0 z-[80] px-4">
                                                     <div className="flex items-center gap-1.5">
                                                         <div className={`transition-transform duration-300 ${isCollapsed ? 'rotate-0' : 'rotate-180'}`}>
-                                                            <ChevronDown size={12} className="text-slate-600" weight="duotone" />
+                                                            <ChevronDown size={12} className="text-slate-600" weight="bold" />
                                                         </div>
                                                         <span className="text-xs md:text-sm font-black text-slate-900 tracking-tight truncate">{team.name}</span>
                                                     </div>
@@ -898,7 +898,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                                                         content = (
                                                                             <div className="flex flex-col items-center justify-center gap-0.5">
-                                                                                <Home size={14} className="text-red-300" weight="duotone" />
+                                                                                <Home size={14} className="text-red-300" weight="bold" />
                                                                                 <span className="text-[10px] font-black">{isConstraint ? 'אילוץ' : 'בית'}</span>
                                                                                 {displayHomeType && (
                                                                                     <span className="text-[8px] font-bold text-red-500/70 leading-tight">{displayHomeType}</span>
@@ -939,7 +939,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                             <AlertCircle size={10} weight="fill" />
                                                                                         </div>
                                                                                     )}
-                                                                                    <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-emerald-500"} weight="duotone" />
+                                                                                    <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-emerald-500"} weight="bold" />
                                                                                     <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>הגעה</span>
                                                                                     <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.startHour === '00:00' ? defaultArrivalHour : avail.startHour}</span>
                                                                                     {constraintText}
@@ -956,7 +956,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                             <AlertCircle size={10} weight="fill" />
                                                                                         </div>
                                                                                     )}
-                                                                                    <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="duotone" />
+                                                                                    <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="bold" />
                                                                                     <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יציאה</span>
                                                                                     <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour === '23:59' ? defaultDepartureHour : avail.endHour}</span>
                                                                                     {constraintText}
@@ -972,7 +972,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                                             <AlertCircle size={10} weight="fill" />
                                                                                         </div>
                                                                                     )}
-                                                                                    <MapPin size={14} className={isUnapprovedExit && !hideAbsenceDetails ? "text-red-500" : "text-emerald-500/50"} weight="duotone" />
+                                                                                    <MapPin size={14} className={isUnapprovedExit && !hideAbsenceDetails ? "text-red-500" : "text-emerald-500/50"} weight="bold" />
                                                                                     <span className={`text-[10px] font-black ${isUnapprovedExit && !hideAbsenceDetails ? "text-red-700" : ""}`}>בסיס</span>
                                                                                     {(avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
                                                                                         <span className="text-[9px] font-bold text-red-600/90 leading-tight block whitespace-nowrap scale-90 -mt-0.5">

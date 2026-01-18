@@ -104,11 +104,11 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
     const modalTitle = (
         <div className="flex flex-col gap-0.5">
             <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight flex items-center gap-2">
-                <Sparkles className="text-blue-500" size={20} weight="duotone" />
+                <Sparkles className="text-blue-500" size={20} weight="bold" />
                 <span>שיבוץ אוטומטי</span>
             </h2>
             <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                <Wand2 size={12} className="text-blue-500" weight="duotone" />
+                <Wand2 size={12} className="text-blue-500" weight="bold" />
                 <span>אלגוריתם חלוקת משימות חכמה</span>
             </div>
         </div>
@@ -131,7 +131,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                 isLoading={isScheduling || localIsSubmitting}
             >
                 <div className="flex items-center justify-center gap-2">
-                    <Wand2 size={18} weight="duotone" />
+                    <Wand2 size={18} weight="bold" />
                     <span>התחל שיבוץ</span>
                 </div>
             </Button>
@@ -156,7 +156,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                             : 'text-slate-400 hover:text-slate-600'
                             }`}
                     >
-                        <Calendar size={14} className={`inline-block ml-2 ${mode === 'single' ? 'text-blue-500' : ''}`} weight="duotone" />
+                        <Calendar size={14} className={`inline-block ml-2 ${mode === 'single' ? 'text-blue-500' : ''}`} weight="bold" />
                         יום בודד
                     </button>
                     <button
@@ -166,7 +166,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                             : 'text-slate-400 hover:text-slate-600'
                             }`}
                     >
-                        <Calendar size={14} className={`inline-block ml-2 ${mode === 'range' ? 'text-blue-500' : ''}`} weight="duotone" />
+                        <Calendar size={14} className={`inline-block ml-2 ${mode === 'range' ? 'text-blue-500' : ''}`} weight="bold" />
                         טווח תאריכים
                     </button>
                 </div>
@@ -193,7 +193,7 @@ export const AutoScheduleModal: React.FC<AutoScheduleModalProps> = ({
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 my-4">
                     <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-lg ${prioritizeTeamOrganic ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>
-                            <Users size={20} weight="duotone" />
+                            <Users size={20} weight="bold" />
                         </div>
                         <div>
                             <h4 className="text-sm font-black text-slate-800 leading-tight">שמור על אורגניות צוותים</h4>

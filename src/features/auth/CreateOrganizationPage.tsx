@@ -65,7 +65,7 @@ export const CreateOrganizationPage: React.FC = () => {
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <ShieldIcon size={32} className="text-white" weight="duotone" />
+            <ShieldIcon size={32} className="text-white" weight="bold" />
           </div>
           <h1 className="text-3xl font-bold text-slate-800 mb-2">ברוכים הבאים למערכת לניהול פלוגה משימות!</h1>
           <p className="text-slate-600">הגדר את הארגון שלך כדי להתחיל</p>
@@ -87,7 +87,7 @@ export const CreateOrganizationPage: React.FC = () => {
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-            <SparklesIcon size={20} className="text-blue-600 flex-shrink-0 mt-0.5" weight="duotone" />
+            <SparklesIcon size={20} className="text-blue-600 flex-shrink-0 mt-0.5" weight="bold" />
             <div className="text-sm text-blue-800">
               <p className="font-bold mb-1">טיפ:</p>
               <p>תוכל להוסיף חברי צוות נוספים ולהגדיר הרשאות בהגדרות הארגון לאחר מכן.</p>

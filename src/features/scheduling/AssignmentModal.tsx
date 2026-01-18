@@ -674,7 +674,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">{task.name}</h2>
             <div className="flex items-center gap-4 text-sm text-slate-500 font-bold">
                 <div className="flex items-center gap-1.5 shrink-0">
-                    <CalendarIcon size={14} className="text-slate-400" weight="duotone" />
+                    <CalendarIcon size={14} className="text-slate-400" weight="bold" />
                     <span>{new Date(selectedShift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</span>
                 </div>
                 <span className="text-slate-300">|</span>
@@ -688,7 +688,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                             -
                             {new Date(selectedShift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        {!isViewer && <Pencil size={12} className="opacity-50" weight="duotone" />}
+                        {!isViewer && <Pencil size={12} className="opacity-50" weight="bold" />}
                     </button>
                 ) : (
                     <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -705,8 +705,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                             onChange={(val) => setNewEnd(val)}
                             className="w-24"
                         />
-                        <button onClick={handleSaveTime} className="p-2 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors h-10 w-10 flex items-center justify-center"><CheckCircle size={20} weight="duotone" /></button>
-                        <button onClick={() => setIsEditingTime(false)} className="p-2 bg-slate-50 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors h-10 w-10 flex items-center justify-center"><X size={20} weight="duotone" /></button>
+                        <button onClick={handleSaveTime} className="p-2 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors h-10 w-10 flex items-center justify-center"><CheckCircle size={20} weight="bold" /></button>
+                        <button onClick={() => setIsEditingTime(false)} className="p-2 bg-slate-50 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors h-10 w-10 flex items-center justify-center"><X size={20} weight="bold" /></button>
                     </div>
                 )}
             </div>
@@ -721,7 +721,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             }}
             className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 text-[10px] md:text-xs font-black rounded-full hover:bg-blue-100 transition-all active:scale-95 shadow-sm border border-blue-100 uppercase tracking-wider"
         >
-            <Wand2 size={16} weight="duotone" />
+            <Wand2 size={16} weight="bold" />
             <span className="hidden sm:inline">הצעה חכמה</span>
         </button>
     );
@@ -734,7 +734,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     onClick={() => setActiveMobileTab('available')}
                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${activeMobileTab === 'available' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
                 >
-                    <Search size={16} weight="duotone" />
+                    <Search size={16} weight="bold" />
                     <span>מאגר פנוי</span>
                     <span className="bg-slate-200 text-slate-600 text-[10px] px-1.5 rounded-full ml-1">{availablePeopleWithMetrics.length}</span>
                 </button>
@@ -742,7 +742,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     onClick={() => setActiveMobileTab('assigned')}
                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all ${activeMobileTab === 'assigned' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
                 >
-                    <Users size={16} weight="duotone" />
+                    <Users size={16} weight="bold" />
                     <span>משובצים</span>
                     <span className="bg-blue-100 text-blue-600 text-[10px] px-1.5 rounded-full ml-1">{assignedPeople.length}</span>
                 </button>
@@ -818,7 +818,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 <div className="flex items-center justify-between bg-blue-600 border border-blue-500 rounded-2xl p-3 md:p-2 text-white shadow-lg animate-in slide-in-from-top-4">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                            <Sparkles size={16} className="text-white" weight="duotone" />
+                            <Sparkles size={16} className="text-white" weight="bold" />
                         </div>
                         <div className="flex flex-col">
                             <div className="flex items-center gap-2">
@@ -830,8 +830,8 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     </div>
                     <div className="flex gap-2">
                         <button onClick={() => handleAttemptAssign(currentSuggestion.person.id)} className="px-4 py-2 bg-white text-blue-600 rounded-xl hover:bg-blue-50 font-black text-sm active:scale-95 transition-all shadow-sm">שבץ</button>
-                        <button onClick={handleNextSuggestion} className="p-2 hover:bg-white/10 rounded-xl transition-colors"><RotateCcw size={20} className="md:w-3.5 md:h-3.5" weight="duotone" /></button>
-                        <button onClick={() => setSuggestedCandidates([])} className="p-2 hover:bg-white/10 rounded-xl transition-colors"><X size={20} className="md:w-3.5 md:h-3.5" weight="duotone" /></button>
+                        <button onClick={handleNextSuggestion} className="p-2 hover:bg-white/10 rounded-xl transition-colors"><RotateCcw size={20} className="md:w-3.5 md:h-3.5" weight="bold" /></button>
+                        <button onClick={() => setSuggestedCandidates([])} className="p-2 hover:bg-white/10 rounded-xl transition-colors"><X size={20} className="md:w-3.5 md:h-3.5" weight="bold" /></button>
                     </div>
                 </div>
             )}
@@ -844,7 +844,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 <div className="md:w-[20%] md:min-w-[180px] bg-slate-50 md:border-l border-b md:border-b-0 border-slate-200 p-3 md:p-3 flex md:flex-col gap-3 md:gap-2 md:overflow-y-auto shrink-0 z-30 overflow-hidden">
                     {/* Search */}
                     <div className="relative w-[45%] md:w-auto shrink-0 touch-none">
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} weight="duotone" />
+                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} weight="bold" />
                         <input
                             type="text"
                             placeholder="חפש חייל..."
@@ -895,7 +895,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                             onClick={() => setShowDetailedMetrics(!showDetailedMetrics)}
                             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${showDetailedMetrics ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
                         >
-                            <Info size={14} weight={showDetailedMetrics ? 'fill' : 'duotone'} />
+                            <Info size={14} weight={showDetailedMetrics ? 'fill' : 'bold'} />
                             <span>{showDetailedMetrics ? 'תצוגה מצומצמת' : 'הצג פירוט'}</span>
                         </button>
                     </div>
@@ -935,7 +935,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                             <span className="text-sm md:text-xs font-black text-slate-900 leading-tight group-hover/info:text-blue-600 group-hover/info:underline truncate transition-colors">
                                                                 {p.name}
                                                             </span>
-                                                            <IdentificationCard size={12} weight="duotone" className="text-slate-300 group-hover/info:text-blue-500 transition-colors shrink-0" />
+                                                            <IdentificationCard size={12} weight="bold" className="text-slate-300 group-hover/info:text-blue-500 transition-colors shrink-0" />
                                                         </div>
                                                     </Tooltip>
                                                     <span className="text-[9px] text-slate-500 font-bold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 whitespace-nowrap">
@@ -957,7 +957,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                             {/* Last Task */}
                                             <div className="flex flex-col gap-0 min-w-0">
                                                 <div className="flex items-center gap-1 text-[8px] font-bold text-red-400 uppercase tracking-tighter">
-                                                    <ClockCounterClockwise size={9} weight="duotone" className="text-red-400" />
+                                                    <ClockCounterClockwise size={9} weight="bold" className="text-red-400" />
                                                     <span>משימה אחרונה</span>
                                                 </div>
                                                 {metrics.lastShift ? (
@@ -981,7 +981,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                             {/* Next Task */}
                                             <div className="flex flex-col gap-0 min-w-0">
                                                 <div className="flex items-center gap-1 text-[8px] font-bold text-emerald-500 uppercase tracking-tighter">
-                                                    <ClockAfternoon size={9} weight="duotone" className="text-emerald-500" />
+                                                    <ClockAfternoon size={9} weight="bold" className="text-emerald-500" />
                                                     <span>משימה הבאה</span>
                                                 </div>
                                                 {metrics.nextShift ? (
@@ -1033,14 +1033,14 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                 <span className="text-sm font-black text-slate-800 group-hover/info:text-blue-600 group-hover/info:underline transition-colors">
                                                     {p.name}
                                                 </span>
-                                                <IdentificationCard size={12} weight="duotone" className="text-slate-300 group-hover/info:text-blue-500 transition-colors shrink-0" />
+                                                <IdentificationCard size={12} weight="bold" className="text-slate-300 group-hover/info:text-blue-500 transition-colors shrink-0" />
                                             </div>
                                         </Tooltip>
                                         <span className="text-[10px] text-slate-400 font-bold">{roles.find(r => (p.roleIds || [p.roleId]).includes(r.id))?.name}</span>
                                     </div>
                                 </div>
                                 {!isViewer && (
-                                    <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-slate-300 hover:text-red-500 p-2"><X size={18} weight="duotone" /></button>
+                                    <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-slate-300 hover:text-red-500 p-2"><X size={18} weight="bold" /></button>
                                 )}
                             </div>
                         ))}

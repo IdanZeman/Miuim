@@ -307,7 +307,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                 leftActions={
                     <div className="flex items-center gap-2">
                         <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-100/50">
-                            <Package size={20} weight="duotone" />
+                            <Package size={20} weight="bold" />
                         </div>
                         <h2 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-1.5 min-w-0">
                             <span className="truncate">רשימת ציוד</span>
@@ -317,7 +317,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                     description={
                                         <div className="space-y-4">
                                             <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-start gap-3">
-                                                <Package size={20} className="text-indigo-600 shrink-0 mt-0.5" weight="duotone" />
+                                                <Package size={20} className="text-indigo-600 shrink-0 mt-0.5" weight="bold" />
                                                 <div className="text-sm">
                                                     <h4 className="font-black text-indigo-900 mb-1">ניהול אמצעים ומלאי</h4>
                                                     <p className="text-indigo-700/80 leading-relaxed font-medium">מעקב אחר חתימות ציוד, תקינות, ובדיקות יומיות של אמצעי לחימה ואופטיקה.</p>
@@ -326,13 +326,13 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                             <div className="grid grid-cols-1 gap-3">
                                                 <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
                                                     <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-indigo-600">
-                                                        <Tag size={18} weight="duotone" />
+                                                        <Tag size={18} weight="bold" />
                                                     </div>
                                                     <span className="text-sm font-bold text-slate-700">סיווג לפי סוגי ציוד</span>
                                                 </div>
                                                 <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
                                                     <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-emerald-600">
-                                                        <CheckCircle size={18} weight="duotone" />
+                                                        <CheckCircle size={18} weight="bold" />
                                                     </div>
                                                     <span className="text-sm font-bold text-slate-700">בדיקה יומית ודיווח סטטוס</span>
                                                 </div>
@@ -423,7 +423,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                 {/* Left Info */}
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 shadow-sm shadow-indigo-100/50">
-                                        <Package size={24} weight="duotone" />
+                                        <Package size={24} weight="bold" />
                                     </div>
                                     <div className="flex flex-col">
                                         <div className="flex items-center gap-2">
@@ -480,7 +480,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                                        <Package size={20} weight="duotone" />
+                                                        <Package size={20} weight="bold" />
                                                     </div>
                                                     <span className="font-black text-slate-800 tracking-tight">{item.serial_number}</span>
                                                 </div>
@@ -546,11 +546,11 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                 className="p-2 rounded-lg hover:bg-white text-indigo-600 transition-colors"
                                 aria-label="יום קודם"
                             >
-                                <ChevronRight size={20} weight="duotone" />
+                                <ChevronRight size={20} weight="bold" />
                             </button>
 
                             <div className="flex items-center gap-2">
-                                <CalendarIcon size={16} className="text-slate-500" aria-hidden="true" weight="duotone" />
+                                <CalendarIcon size={16} className="text-slate-500" aria-hidden="true" weight="bold" />
                                 <span className="font-bold text-slate-700" aria-live="polite">
                                     {selectedDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
                                 </span>
@@ -566,7 +566,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                 aria-label="יום הבא"
                                 disabled={isToday(selectedDate)}
                             >
-                                <ChevronLeft size={20} weight="duotone" />
+                                <ChevronLeft size={20} weight="bold" />
                             </button>
                         </div>
 
@@ -574,19 +574,19 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                         <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-4 flex flex-wrap gap-6 items-center justify-center text-[13px] font-black text-slate-600">
                             <div className="flex items-center gap-2 group">
                                 <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-100 transition-transform group-hover:scale-110">
-                                    <CheckCircle2 size={18} weight="duotone" />
+                                    <CheckCircle2 size={18} weight="bold" />
                                 </div>
                                 <span className="tracking-tight uppercase text-[11px]">תקין / נמצא</span>
                             </div>
                             <div className="flex items-center gap-2 group">
                                 <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-100 transition-transform group-hover:scale-110">
-                                    <Hammer size={18} weight="duotone" />
+                                    <Hammer size={18} weight="bold" />
                                 </div>
                                 <span className="tracking-tight uppercase text-[11px]">תקול / לתיקון</span>
                             </div>
                             <div className="flex items-center gap-2 group">
                                 <div className="w-8 h-8 rounded-xl bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-100 transition-transform group-hover:scale-110">
-                                    <AlertCircle size={18} weight="duotone" />
+                                    <AlertCircle size={18} weight="bold" />
                                 </div>
                                 <span className="tracking-tight uppercase text-[11px]">חסר / אבד</span>
                             </div>
@@ -626,7 +626,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                     : 'bg-white border-slate-100 text-slate-300'
                                                     }`}
                                             >
-                                                <CheckCircle2 size={24} weight={displayStatus === 'present' ? 'bold' : 'duotone'} />
+                                                <CheckCircle2 size={24} weight={displayStatus === 'present' ? 'bold' : 'bold'} />
                                             </button>
                                             <button
                                                 onClick={() => !isViewer && handleVerify(item.id, 'damaged')}
@@ -635,7 +635,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                     : 'bg-white border-slate-100 text-slate-300'
                                                     }`}
                                             >
-                                                <Hammer size={24} weight={displayStatus === 'damaged' ? 'bold' : 'duotone'} />
+                                                <Hammer size={24} weight={displayStatus === 'damaged' ? 'bold' : 'bold'} />
                                             </button>
                                             <button
                                                 onClick={() => !isViewer && handleVerify(item.id, 'missing')}
@@ -644,7 +644,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                     : 'bg-white border-slate-100 text-slate-300'
                                                     }`}
                                             >
-                                                <AlertCircle size={24} weight={displayStatus === 'missing' ? 'bold' : 'duotone'} />
+                                                <AlertCircle size={24} weight={displayStatus === 'missing' ? 'bold' : 'bold'} />
                                             </button>
                                         </div>
                                     </div>
@@ -676,7 +676,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                 <td className="px-6 py-5">
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                                            <QrCode size={20} weight="duotone" />
+                                                            <QrCode size={20} weight="bold" />
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <div className="flex items-center gap-2">
@@ -699,7 +699,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                                 : 'bg-slate-50/80 text-slate-300 hover:bg-emerald-50 hover:text-emerald-500'
                                                                 }`}
                                                         >
-                                                            <CheckCircle2 size={20} weight="duotone" />
+                                                            <CheckCircle2 size={20} weight="bold" />
                                                         </button>
                                                         <button
                                                             onClick={() => !isViewer && handleVerify(item.id, 'damaged')}
@@ -709,7 +709,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                                 : 'bg-slate-50/80 text-slate-300 hover:bg-amber-50 hover:text-amber-500'
                                                                 }`}
                                                         >
-                                                            <Hammer size={20} weight="duotone" />
+                                                            <Hammer size={20} weight="bold" />
                                                         </button>
                                                         <button
                                                             onClick={() => !isViewer && handleVerify(item.id, 'missing')}
@@ -719,7 +719,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                                                 : 'bg-slate-50/80 text-slate-300 hover:bg-rose-50 hover:text-rose-500'
                                                                 }`}
                                                         >
-                                                            <AlertCircle size={20} weight="duotone" />
+                                                            <AlertCircle size={20} weight="bold" />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -735,7 +735,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                 {viewMode === 'list' && filteredItems.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-50/50 rounded-[2.5rem] border border-dashed border-slate-200 shadow-sm mx-4 animate-in fade-in zoom-in duration-500">
                         <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-sm border border-slate-100">
-                            <Package size={40} className="text-slate-300" weight="duotone" />
+                            <Package size={40} className="text-slate-300" weight="bold" />
                         </div>
                         <p className="text-xl font-black text-slate-900 tracking-tight">
                             {searchTerm || filterType !== 'all' || filterStatus !== 'all' ? 'לא נמצאו פריטים תואמים' : 'רשימת הציוד ריקה'}
@@ -781,7 +781,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                     {/* Header Accents in Sheet */}
                     {!editingItem?.id && (
                         <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-start gap-3">
-                            <Info size={20} className="text-indigo-600 shrink-0 mt-0.5" weight="duotone" />
+                            <Info size={20} className="text-indigo-600 shrink-0 mt-0.5" weight="bold" />
                             <div>
                                 <h4 className="text-sm font-black text-indigo-900">רישום אמצעי חדש</h4>
                                 <p className="text-[11px] font-bold text-indigo-700/70 leading-relaxed">הזן את פרטי האמצעי (נשק, אופטיקה וכו') ואת מספר הצלם הייחודי שלו.</p>
@@ -792,7 +792,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="space-y-2 text-right">
                             <label className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest flex items-center justify-start gap-2">
-                                <Tag size={14} className="text-indigo-500" weight="duotone" />
+                                <Tag size={14} className="text-indigo-500" weight="bold" />
                                 סוג פריט
                             </label>
                             <Input
@@ -804,7 +804,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                         </div>
                         <div className="space-y-2 text-right">
                             <label className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest flex items-center justify-start gap-2">
-                                <QrCode size={14} className="text-indigo-500" weight="duotone" />
+                                <QrCode size={14} className="text-indigo-500" weight="bold" />
                                 מספר צלם / סידורי
                             </label>
                             <Input
@@ -818,7 +818,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
 
                     <div className="space-y-2 text-right">
                         <label className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest flex items-center justify-start gap-2">
-                            <Users size={14} className="text-indigo-500" weight="duotone" />
+                            <Users size={14} className="text-indigo-500" weight="bold" />
                             שיוך / חתימה (למי משויך?)
                         </label>
                         <div className="bg-white border border-slate-200 rounded-[1.5rem] shadow-sm overflow-hidden p-1">
@@ -837,7 +837,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
 
                     <div className="space-y-2 text-right">
                         <label className="text-[10px] font-black text-slate-400 px-4 uppercase tracking-widest flex items-center justify-start gap-2">
-                            <History size={14} className="text-indigo-500" weight="duotone" />
+                            <History size={14} className="text-indigo-500" weight="bold" />
                             הערות ותקינות
                         </label>
                         <textarea
@@ -861,7 +861,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                                 }}
                                 className="w-full h-12 text-rose-600 border-rose-100 hover:bg-rose-50 rounded-2xl font-black flex items-center justify-center gap-2"
                             >
-                                <Trash2 size={18} weight="duotone" />
+                                <Trash2 size={18} weight="bold" />
                                 מחק פריט מהמערכת
                             </Button>
                         </div>

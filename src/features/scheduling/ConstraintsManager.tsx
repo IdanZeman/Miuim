@@ -421,7 +421,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
             <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col gap-4 bg-white/50 backdrop-blur-sm z-10 shrink-0">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <ShieldAlert className="text-blue-600" size={32} weight="duotone" />
+                        <ShieldAlert className="text-blue-600" size={32} weight="bold" />
                         <div>
                             <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-none">ניהול אילוצים</h2>
                             <p className="text-xs md:text-sm font-bold text-slate-400 mt-1">
@@ -457,7 +457,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
             {/* Search Bar */}
             <div className="px-4 md:px-6 py-4 bg-white/50 backdrop-blur-sm z-10 shrink-0">
                 <div className="relative group">
-                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} weight="duotone" />
+                    <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} weight="bold" />
                     <input
                         type="text"
                         placeholder={managerMode === 'tasks' ? "חיפוש חוק לפי שם משימה, חייל או תפקיד..." : "חיפוש לפי תיאור האילוץ..."}
@@ -483,7 +483,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                 <div key={group.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group relative overflow-hidden">
                                     <div className="flex flex-col md:flex-row items-start md:items-center gap-4 relative z-10">
                                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${type === 'person' ? 'bg-blue-50 text-blue-600' : type === 'team' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'}`}>
-                                            <Icon size={24} weight="duotone" />
+                                            <Icon size={24} weight="bold" />
                                         </div>
 
                                         <div className="flex-1 min-w-0 w-full">
@@ -498,7 +498,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                                 </div>
 
                                                 <span className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 w-fit ${group.type === 'never_assign' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                                    {group.type === 'never_assign' ? <Ban size={14} weight="duotone" /> : <Pin size={14} weight="duotone" />}
+                                                    {group.type === 'never_assign' ? <Ban size={14} weight="bold" /> : <Pin size={14} weight="bold" />}
                                                     {group.type === 'never_assign' ? 'לעולם לא לשבץ' : 'שבץ רק לזה'}
                                                 </span>
                                             </div>
@@ -526,7 +526,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                         })
                     ) : (
                         <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
-                            <Shield className="text-slate-200" size={40} weight="duotone" />
+                            <Shield className="text-slate-200" size={40} weight="bold" />
                             <h3 className="text-lg font-bold text-slate-400 mt-4">לא נמצאו חוקים פעילים</h3>
                         </div>
                     )
@@ -536,7 +536,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                             <div key={ipc.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group relative overflow-hidden">
                                 <div className="flex flex-col md:flex-row items-start md:items-center gap-4 relative z-10">
                                     <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                                        <Users size={24} weight="duotone" />
+                                        <Users size={24} weight="bold" />
                                     </div>
 
                                     <div className="flex-1 min-w-0 w-full">
@@ -545,7 +545,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                                 {ipc.description || 'אילוץ בין-אישי'}
                                             </h3>
                                             <span className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 w-fit ${ipc.type === 'forbidden_together' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                                {ipc.type === 'forbidden_together' ? <Ban size={14} weight="duotone" /> : <Pin size={14} weight="duotone" />}
+                                                {ipc.type === 'forbidden_together' ? <Ban size={14} weight="bold" /> : <Pin size={14} weight="bold" />}
                                                 {ipc.type === 'forbidden_together' ? 'לא לשבץ יחד' : 'מיועד לשיבוץ יחד'}
                                             </span>
                                         </div>
@@ -577,7 +577,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                         ))
                     ) : (
                         <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
-                            <Users size={40} weight="duotone" className="text-slate-200" />
+                            <Users size={40} weight="bold" className="text-slate-200" />
                             <h3 className="text-lg font-bold text-slate-400 mt-4">אין אילוצים בין-אישיים</h3>
                         </div>
                     )
@@ -602,7 +602,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                             {editingRuleId ? 'עריכת חוק משימה' : 'הוספת חוק משימה חדש'}
                         </h3>
                         <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                            <ShieldAlert size={12} className="text-blue-500" weight="duotone" />
+                            <ShieldAlert size={12} className="text-blue-500" weight="bold" />
                             <span>הגדרת מגבלות לאלגוריתם השיבוץ</span>
                         </div>
                     </div>
@@ -648,7 +648,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                             : "text-slate-500 hover:text-slate-700"
                                     )}
                                 >
-                                    <Icon size={14} weight="duotone" />
+                                    <Icon size={14} weight="bold" />
                                     <span>{label}</span>
                                 </button>
                             ))}
@@ -677,7 +677,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                         )}
                         {ruleTargetType === 'person' && editingRuleId && (
                             <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-bold uppercase tracking-wide px-1">
-                                <AlertCircle size={10} weight="duotone" />
+                                <AlertCircle size={10} weight="bold" />
                                 <span>עריכת יחיד: החלפת החייל תעדכן את החוק הזה בלבד</span>
                             </div>
                         )}
@@ -712,7 +712,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                     {/* Information Box */}
                     <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50 flex gap-4">
                         <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                            <Briefcase size={20} weight="duotone" />
+                            <Briefcase size={20} weight="bold" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <h4 className="text-sm font-black text-blue-900 leading-tight mb-0.5">מידע על החוק הנבחר</h4>
@@ -992,7 +992,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                                         ipcType === type ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
                                     )}
                                 >
-                                    <Icon size={14} weight="duotone" />
+                                    <Icon size={14} weight="bold" />
                                     <span>{label}</span>
                                 </button>
                             ))}

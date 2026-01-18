@@ -12,7 +12,7 @@ export const AccessibilityStatement: React.FC = () => {
                 <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
-                            <AccessibilityIcon size={20} aria-hidden="true" weight="duotone" />
+                            <AccessibilityIcon size={20} aria-hidden="true" weight="bold" />
                         </div>
                         <div className="hidden md:block">
                             <h1 className="font-bold text-lg leading-tight text-slate-900">הצהרת נגישות</h1>
@@ -53,7 +53,7 @@ export const AccessibilityStatement: React.FC = () => {
                             <div className="absolute top-0 left-0 w-2 h-full bg-blue-600"></div>
                             <div className="flex items-start gap-4 relatie z-10">
                                 <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
-                                    <ShieldIcon size={24} aria-hidden="true" weight="duotone" />
+                                    <ShieldIcon size={24} aria-hidden="true" weight="bold" />
                                 </div>
                                 <div className="space-y-3">
                                     <h3 className="text-xl font-bold text-slate-900">תקינה וסטנדרטים</h3>

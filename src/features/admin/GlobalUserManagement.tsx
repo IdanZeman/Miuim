@@ -137,7 +137,7 @@ export const GlobalUserManagement: React.FC = () => {
                 <div className="flex flex-col gap-4 mb-6">
                     <div>
                         <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-                            <Users size={24} className="text-purple-500" weight="duotone" />
+                            <Users size={24} className="text-purple-500" weight="bold" />
                             ניהול משתמשים והרשאות (גלובלי)
                         </h2>
                         <p className="text-sm text-slate-500 mt-1">
@@ -225,7 +225,7 @@ export const GlobalUserManagement: React.FC = () => {
                                                     className="text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50"
                                                     title="ערוך משתמש"
                                                 >
-                                                    <PencilSimple size={18} weight="duotone" />
+                                                    <PencilSimple size={18} weight="bold" />
                                                 </Button>
                                             )}
                                         </div>

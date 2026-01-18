@@ -865,7 +865,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             {/* Name */}
                             <div className="flex items-center px-5 py-4 group">
                                 <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                    <User size={18} weight="duotone" />
+                                    <User size={18} weight="bold" />
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">שם מלא</label>
@@ -897,7 +897,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             {/* Email */}
                             <div className="flex items-center px-5 py-4 group">
                                 <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                    <Mail size={18} weight="duotone" />
+                                    <Mail size={18} weight="bold" />
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">אימייל</label>
@@ -921,7 +921,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             {/* Team Selector */}
                             <div className="flex items-center px-5 py-4 group bg-white relative">
                                 <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shrink-0 ml-4 group-focus-within:bg-indigo-50 group-focus-within:text-indigo-600 transition-colors">
-                                    <Users size={18} weight="duotone" />
+                                    <Users size={18} weight="bold" />
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-tight mb-0.5">צוות</label>
@@ -948,7 +948,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             >
                                 <div className="flex items-center">
                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ml-4 transition-colors ${newItemActive ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-400'}`}>
-                                        <Activity size={18} weight="duotone" />
+                                        <Activity size={18} weight="bold" />
                                     </div>
                                     <div>
                                         <div className="text-sm font-black text-slate-900">סטטוס פעיל</div>
@@ -1396,7 +1396,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                 leftActions={
                     <div className="flex items-center gap-2 md:gap-3 shrink-0">
                         <div className="hidden 2xl:flex w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl items-center justify-center shrink-0">
-                            <Users size={22} weight="duotone" />
+                            <Users size={22} weight="bold" />
                         </div>
                         <div className="flex flex-col min-w-0">
                             <h2 className="text-lg md:text-xl font-black text-slate-800 tracking-tight leading-tight truncate">ניהול כוח אדם</h2>
@@ -1435,7 +1435,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                     }`}
                                 title={tab.label}
                             >
-                                <tab.icon size={16} weight="duotone" />
+                                <tab.icon size={16} weight="bold" />
                                 <span className={isSearchExpanded ? 'hidden' : 'inline'}>{tab.label}</span>
                             </button>
                         ))}
@@ -1504,7 +1504,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
                             title="ניהול שדות מותאמים"
                         >
-                            <GearSix size={20} weight="duotone" />
+                            <GearSix size={20} weight="bold" />
                         </button>
 
                         {/* Show Inactive Toggle */}
@@ -1513,7 +1513,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                             className={`hidden md:flex h-10 w-10 items-center justify-center rounded-xl transition-all border shadow-sm ${showInactive ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-indigo-600'}`}
                             title={showInactive ? 'הסתר לא פעילים' : 'הצג לא פעילים'}
                         >
-                            {showInactive ? <Eye size={20} weight="duotone" /> : <EyeSlash size={20} weight="duotone" />}
+                            {showInactive ? <Eye size={20} weight="bold" /> : <EyeSlash size={20} weight="bold" />}
                         </button>
 
                         {/* Import Button */}
@@ -1523,7 +1523,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 className="hidden md:flex h-10 w-10 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl items-center justify-center hover:bg-emerald-100 transition-colors shadow-sm"
                                 title="ייבוא מאקסל"
                             >
-                                <CloudArrowUp size={20} weight="duotone" />
+                                <CloudArrowUp size={20} weight="bold" />
                             </button>
                         )}
 
@@ -1987,7 +1987,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                     className="p-2 text-slate-300 hover:text-red-500 rounded-full transition-colors hidden md:block"
                                                     aria-label={`מחק את הצוות ${team.name}`}
                                                 >
-                                                    <Trash size={18} weight="duotone" />
+                                                    <Trash size={18} weight="bold" />
                                                 </button>
                                             )}
                                             <div className="text-slate-300 md:hidden">
@@ -2072,7 +2072,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                                     className="p-2 text-slate-300 hover:text-red-500 rounded-full transition-colors hidden md:block"
                                                     aria-label={`מחק את התפקיד ${role.name}`}
                                                 >
-                                                    <Trash size={18} weight="duotone" />
+                                                    <Trash size={18} weight="bold" />
                                                 </button>
                                             )}
                                             <div className="text-slate-300 md:hidden">
@@ -2187,7 +2187,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                         );
                                     }} className="w-full text-right px-4 py-3 hover:bg-red-50 rounded-xl text-[13px] font-black flex items-center gap-3 text-red-600 transition-colors" role="menuitem">
                                         <div className="w-8 h-8 rounded-lg bg-red-100/50 text-red-600 flex items-center justify-center">
-                                            <Trash size={18} weight="duotone" />
+                                            <Trash size={18} weight="bold" />
                                         </div>
                                         <span>מחק חייל לצמיתות</span>
                                     </button>

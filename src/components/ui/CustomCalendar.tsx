@@ -189,7 +189,7 @@ export const CustomCalendar: React.FC<CustomCalendarProps> = ({
                     onClick={prev}
                     className="flex items-center justify-center w-11 h-11 bg-white text-slate-700 border border-slate-200 rounded-full shadow-sm hover:bg-slate-50 active:bg-slate-100 transition-colors" // Rule 1: 44-48px target
                 >
-                    <ChevronRight size={24} weight="duotone" /> {/* Rule 2: legible icon */}
+                    <ChevronRight size={24} weight="bold" /> {/* Rule 2: legible icon */}
                 </button>
 
                 {/* Selectors */}
@@ -203,7 +203,7 @@ export const CustomCalendar: React.FC<CustomCalendarProps> = ({
                             <span className="text-lg md:text-lg font-black text-slate-800 font-['Lexend']">
                                 {format(currentMonth, 'MMMM', { locale: he })}
                             </span>
-                            <ChevronDown size={16} className={`text-blue-600 transition-transform ${view === 'months' ? 'rotate-180' : ''}`} weight="duotone" />
+                            <ChevronDown size={16} className={`text-blue-600 transition-transform ${view === 'months' ? 'rotate-180' : ''}`} weight="bold" />
                         </button>
                     )}
 
@@ -214,7 +214,7 @@ export const CustomCalendar: React.FC<CustomCalendarProps> = ({
                         <span className="text-lg md:text-lg font-black text-slate-800 font-['Lexend']">
                             {format(currentMonth, 'yyyy')}
                         </span>
-                        <ChevronDown size={16} className={`text-blue-600 transition-transform ${view === 'years' ? 'rotate-180' : ''}`} weight="duotone" />
+                        <ChevronDown size={16} className={`text-blue-600 transition-transform ${view === 'years' ? 'rotate-180' : ''}`} weight="bold" />
                     </button>
                 </div>
 
@@ -222,7 +222,7 @@ export const CustomCalendar: React.FC<CustomCalendarProps> = ({
                     onClick={next}
                     className="flex items-center justify-center w-12 h-12 bg-white text-slate-700 border border-slate-200 rounded-full shadow-md hover:bg-slate-50 active:scale-90 transition-all"
                 >
-                    <ChevronLeft size={24} weight="duotone" />
+                    <ChevronLeft size={24} weight="bold" />
                 </button>
             </div>
 

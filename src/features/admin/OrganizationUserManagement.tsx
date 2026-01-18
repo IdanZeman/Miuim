@@ -234,7 +234,7 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                 <div className="flex flex-col gap-4 mb-6">
                     <div>
                         <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-                            <Users size={24} className="text-purple-500" weight="duotone" />
+                            <Users size={24} className="text-purple-500" weight="bold" />
                             משתמשי הארגון
                         </h2>
                         <div className="flex items-center gap-2 mt-1">
@@ -489,7 +489,7 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
                     title={
                         <div className="flex items-center gap-3 text-red-600">
                             <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-                                <Trash size={24} weight="duotone" />
+                                <Trash size={24} weight="bold" />
                             </div>
                             <div>
                                 <h2 className="text-xl font-black">הסרת משתמש מהארגון</h2>
@@ -551,7 +551,7 @@ const LinkPersonModal: React.FC<{
             title={
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center shrink-0">
-                        <LinkIcon size={24} weight="duotone" />
+                        <LinkIcon size={24} weight="bold" />
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-800">קישור משתמש לאדם</h2>

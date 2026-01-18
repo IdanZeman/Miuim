@@ -66,7 +66,7 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
             <div className="mb-10">
                 <div className="flex items-center gap-4 mb-2">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
-                        <Users size={28} weight="duotone" />
+                        <Users size={28} weight="bold" />
                     </div>
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 tracking-tight">מבט גדודי יומי</h1>
@@ -161,7 +161,7 @@ export const BattalionDashboard: React.FC<{ setView?: any }> = ({ setView }) => 
                                     <div className="flex items-center justify-between mb-6">
                                         <div className="flex items-center gap-3">
                                             <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors shadow-inner">
-                                                <Shield size={24} weight="duotone" />
+                                                <Shield size={24} weight="bold" />
                                             </div>
                                             <div>
                                                 <h3 className="text-lg font-black text-slate-900 leading-tight">{org.name}</h3>

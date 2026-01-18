@@ -49,7 +49,7 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
         <div className="flex flex-col gap-0.5">
             <h3 className="text-xl font-black text-slate-800 leading-tight">עריכה קבוצתית</h3>
             <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                <CheckCircle2 size={12} className="text-blue-500" weight="duotone" />
+                <CheckCircle2 size={12} className="text-blue-500" weight="bold" />
                 <span>עדכון סטטוס עבור {selectedCount} משתמשים</span>
             </div>
         </div>
@@ -96,7 +96,7 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
                                 : "border-slate-100 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-500"
                         )}
                     >
-                        <CheckCircle2 size={32} className={cn("mb-2 transition-transform group-hover:scale-110", status === 'available' ? "text-emerald-600" : "text-slate-200")} weight="duotone" />
+                        <CheckCircle2 size={32} className={cn("mb-2 transition-transform group-hover:scale-110", status === 'available' ? "text-emerald-600" : "text-slate-200")} weight="bold" />
                         <span className="font-black text-[10px] uppercase tracking-widest">נוכח / זמין</span>
                     </button>
                     <button
@@ -109,7 +109,7 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
                                 : "border-slate-100 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-500"
                         )}
                     >
-                        <XCircle size={32} className={cn("mb-2 transition-transform group-hover:scale-110", status === 'away' ? "text-red-600" : "text-slate-200")} weight="duotone" />
+                        <XCircle size={32} className={cn("mb-2 transition-transform group-hover:scale-110", status === 'away' ? "text-red-600" : "text-slate-200")} weight="bold" />
                         <span className="font-black text-[10px] uppercase tracking-widest">לא נוכח / חופש</span>
                     </button>
                 </div>
@@ -117,7 +117,7 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
                 {/* Date Range */}
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-2 px-1">
-                        <Calendar size={14} className="text-blue-500" weight="duotone" />
+                        <Calendar size={14} className="text-blue-500" weight="bold" />
                         <h3 className="font-black text-[10px] text-slate-400 uppercase tracking-widest">טווח תאריכים</h3>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -138,7 +138,7 @@ export const BulkAttendanceModal: React.FC<BulkAttendanceModalProps> = ({ isOpen
                 {status === 'available' && (
                     <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
                         <div className="flex items-center gap-2 px-1">
-                            <Clock size={14} className="text-blue-500" weight="duotone" />
+                            <Clock size={14} className="text-blue-500" weight="bold" />
                             <h3 className="font-black text-[10px] text-slate-400 uppercase tracking-widest">שעות זמינות</h3>
                         </div>
                         <div className="grid grid-cols-2 gap-4">

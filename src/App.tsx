@@ -1228,7 +1228,7 @@ const useMainAppState = () => {
         if (view !== 'contact' && !checkAccess(view)) {
             return (
                 <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-                    <ShieldIcon size={64} className="text-slate-300 mb-4" weight="duotone" />
+                    <ShieldIcon size={64} className="text-slate-300 mb-4" weight="bold" />
                     <h2 className="text-2xl font-bold text-slate-800 mb-2">אין לך הרשאה לצפות בעמוד זה</h2>
                     <p className="text-slate-500 mb-6">אנא פנה למנהל הארגון לקבלת הרשאות מתאימות.</p>
                     <button
@@ -1458,7 +1458,7 @@ const MainApp: React.FC = () => {
                     <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
                         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-white rounded-t-2xl">
                             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                <Sparkles className="text-idf-yellow" size={24} weight="duotone" />
+                                <Sparkles className="text-idf-yellow" size={24} weight="bold" />
                                 הצעות להשלמת שיבוץ
                             </h2>
                             <button onClick={() => setShowSuggestionsModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
@@ -1468,7 +1468,7 @@ const MainApp: React.FC = () => {
                         <div className="overflow-y-auto p-6 space-y-6">
                             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-right" dir="rtl">
                                 <div className="bg-blue-100 p-2 rounded-lg h-fit text-blue-600">
-                                    <ShieldIcon size={20} weight="duotone" />
+                                    <ShieldIcon size={20} weight="bold" />
                                 </div>
                                 <p className="text-blue-900 text-sm leading-relaxed">
                                     השיבוץ בוצע במצב <strong>"אורגניות צוות"</strong> קשיח. המשימות הבאות לא הושלמו במלואן כדי שלא לערבב צוותים, אך נמצאו אנשים מצוותים אחרים שיכולים להתאים:
@@ -1481,14 +1481,14 @@ const MainApp: React.FC = () => {
                                             <div>
                                                 <h3 className="font-bold text-slate-900 text-lg">{sug.taskName}</h3>
                                                 <div className="flex items-center gap-2 mt-1 text-slate-500 text-sm">
-                                                    <Calendar size={14} weight="duotone" />
+                                                    <Calendar size={14} weight="bold" />
                                                     <span>{new Date(sug.startTime).toLocaleDateString('he-IL')}</span>
                                                     <span className="text-slate-300">•</span>
                                                     <span>{new Date(sug.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
                                                 </div>
                                             </div>
                                             <div className="bg-rose-50 text-rose-600 text-xs px-3 py-1.5 rounded-full font-bold border border-rose-100 flex items-center gap-1.5 direction-ltr">
-                                                <AlertCircle size={14} weight="duotone" />
+                                                <AlertCircle size={14} weight="bold" />
                                                 חסרים {sug.missingCount}
                                             </div>
                                         </div>

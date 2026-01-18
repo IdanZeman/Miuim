@@ -98,7 +98,7 @@ export const SupportTickets: React.FC = () => {
             <div className="flex items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center shadow-sm shadow-rose-100">
-                        <MessageSquare size={24} weight="duotone" />
+                        <MessageSquare size={24} weight="bold" />
                     </div>
                     <div>
                         <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">מרכז תמיכה</h2>
@@ -228,14 +228,14 @@ export const SupportTickets: React.FC = () => {
                                             className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                                             title="סגור טיפול"
                                         >
-                                            <CheckCircle size={20} weight="duotone" />
+                                            <CheckCircle size={20} weight="bold" />
                                         </button>
                                         <div className="w-px h-6 bg-slate-100 my-auto mx-1" />
                                         <button className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="שעון">
-                                            <Clock size={20} weight="duotone" />
+                                            <Clock size={20} weight="bold" />
                                         </button>
                                         <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all" title="עוד">
-                                            <MoreHorizontal size={20} weight="duotone" />
+                                            <MoreHorizontal size={20} weight="bold" />
                                         </button>
                                     </div>
                                 </div>
@@ -310,7 +310,7 @@ export const SupportTickets: React.FC = () => {
                                         />
                                         <div className="absolute bottom-3 left-3 flex items-center gap-2">
                                             <button className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
-                                                <Paperclip size={18} weight="duotone" />
+                                                <Paperclip size={18} weight="bold" />
                                             </button>
                                             <button className="flex items-center gap-2 px-6 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-all shadow-sm shadow-rose-200 font-bold text-sm group-focus-within:shadow-md group-focus-within:shadow-rose-200 transform active:scale-95">
                                                 <span>שלח תגובה</span>
@@ -325,7 +325,7 @@ export const SupportTickets: React.FC = () => {
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-slate-300 bg-slate-50/50">
                             <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6 shadow-inset border border-slate-200">
-                                <MessageSquare size={40} weight="duotone" className="opacity-40" />
+                                <MessageSquare size={40} weight="bold" className="opacity-40" />
                             </div>
                             <p className="text-lg font-black text-slate-400">בחר פנייה לצפייה בפרטים</p>
                             <p className="text-xs font-bold text-slate-400/60 mt-2 uppercase tracking-widest">Select a ticket to view details</p>

@@ -158,10 +158,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                                 <div className="flex items-center gap-6 w-full">
                                     <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600 rounded-2xl md:rounded-[1.5rem] flex items-center justify-center shadow-lg shadow-blue-600/20 text-white shrink-0 md:rotate-3 group-hover:rotate-0 transition-transform">
                                         {activeShift.task?.icon && (AllIcons as any)[activeShift.task.icon] ?
-                                            React.createElement((AllIcons as any)[activeShift.task.icon], { size: 28, weight: "duotone", className: "md:hidden" }) : <Clock size={28} weight="bold" className="md:hidden" />
+                                            React.createElement((AllIcons as any)[activeShift.task.icon], { size: 28, weight: "bold", className: "md:hidden" }) : <Clock size={28} weight="bold" className="md:hidden" />
                                         }
                                         {activeShift.task?.icon && (AllIcons as any)[activeShift.task.icon] ?
-                                            React.createElement((AllIcons as any)[activeShift.task.icon], { size: 36, weight: "duotone", className: "hidden md:block" }) : <Clock size={36} weight="bold" className="hidden md:block" />
+                                            React.createElement((AllIcons as any)[activeShift.task.icon], { size: 36, weight: "bold", className: "hidden md:block" }) : <Clock size={36} weight="bold" className="hidden md:block" />
                                         }
                                     </div>
                                     <div className="min-w-0">
@@ -173,7 +173,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                                         </div>
                                         <h3 className="text-xl md:text-3xl font-black truncate text-slate-900 tracking-tight leading-none mb-1">{activeShift.task?.name}</h3>
                                         <div className="flex items-center gap-2 text-slate-500 text-sm md:text-base font-bold">
-                                            <Clock size={16} weight="duotone" />
+                                            <Clock size={16} weight="bold" />
                                             {activeShift.start.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {activeShift.end.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </div>

@@ -10,7 +10,7 @@ interface FloatingActionButtonProps {
     show?: boolean;
     variant?: ButtonVariant;
     className?: string;
-    iconWeight?: "bold" | "duotone" | "fill" | "light" | "regular" | "thin";
+    iconWeight?: "bold" | "bold" | "fill" | "light" | "regular" | "thin";
 }
 
 /**

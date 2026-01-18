@@ -302,7 +302,7 @@ export const ImportAttendanceModal: React.FC<ImportAttendanceModalProps> = ({ is
                 {step === 'map_values' && (
                     <div className="flex flex-col gap-4">
                         <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex items-start gap-3">
-                            <UserCircleGear size={20} className="text-blue-500 shrink-0 mt-0.5" weight="duotone" />
+                            <UserCircleGear size={20} className="text-blue-500 shrink-0 mt-0.5" weight="bold" />
                             <div className="text-sm text-blue-900 leading-relaxed">
                                 <strong>מצאנו ערכים לא מוכרים באקסל.</strong><br />
                                 אנא הגדר עבור כל ערך אם הוא מסמל "נוכח" (בבסיס) או "לא נוכח" (בבית). ערכים שתבחר להתעלם מהם לא יטענו.
@@ -362,7 +362,7 @@ export const ImportAttendanceModal: React.FC<ImportAttendanceModalProps> = ({ is
                             className="hidden"
                         />
                         <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
-                            <FileArrowUp size={32} weight="duotone" />
+                            <FileArrowUp size={32} weight="bold" />
                         </div>
                         <h4 className="font-black text-slate-800 mb-1">לחץ להעלאת קובץ</h4>
                         <p className="text-sm text-slate-500">תומך ב-Excel (.xlsx) בלבד</p>
@@ -378,7 +378,7 @@ export const ImportAttendanceModal: React.FC<ImportAttendanceModalProps> = ({ is
                 {step === 'match' && (
                     <div className="flex flex-col gap-4">
                         <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-start gap-3">
-                            <Warning size={20} className="text-amber-500 shrink-0 mt-0.5" weight="duotone" />
+                            <Warning size={20} className="text-amber-500 shrink-0 mt-0.5" weight="bold" />
                             <div className="text-sm text-amber-900 leading-relaxed">
                                 <strong>זיהינו {importData.length} לוחמים באקסל.</strong><br />
                                 שמות שלא זוהו אוטומטית יש לסמן ידנית כדי שנוכל לחבר אותם למסד הנתונים.
@@ -446,7 +446,7 @@ export const ImportAttendanceModal: React.FC<ImportAttendanceModalProps> = ({ is
                 {step === 'preview' && (
                     <div className="flex flex-col gap-4">
                         <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex items-start gap-3">
-                            <CheckCircle size={20} className="text-emerald-500 shrink-0 mt-0.5" weight="duotone" />
+                            <CheckCircle size={20} className="text-emerald-500 shrink-0 mt-0.5" weight="bold" />
                             <div className="text-sm text-emerald-900 leading-relaxed">
                                 <strong>הכל מוכן!</strong> נמצאו נתוני נוכחות עבור {datesFound.length} ימים.
                                 לחיצה על אישור תעדכן את הסטטוסים במערכת.

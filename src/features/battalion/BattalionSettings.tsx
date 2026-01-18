@@ -178,7 +178,7 @@ export const BattalionSettings: React.FC = () => {
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                            <Buildings size={20} weight="duotone" />
+                            <Buildings size={20} weight="bold" />
                         </div>
                         <div>
                             <h3 className="font-black text-slate-900">פלוגות משויכות</h3>
@@ -192,7 +192,7 @@ export const BattalionSettings: React.FC = () => {
 
                 {companies.length === 0 ? (
                     <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                        <Buildings size={48} className="mx-auto mb-4 text-slate-300" weight="duotone" />
+                        <Buildings size={48} className="mx-auto mb-4 text-slate-300" weight="bold" />
                         <p className="text-slate-500 font-bold">אין פלוגות משויכות כרגע</p>
                         <p className="text-xs text-slate-400 mt-1">שתף את קוד החיבור עם מנהלי הפלוגות</p>
                     </div>
@@ -225,7 +225,7 @@ export const BattalionSettings: React.FC = () => {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <div className="w-12 h-12 bg-white group-hover:bg-emerald-50 border-2 border-slate-200 group-hover:border-emerald-200 rounded-xl flex items-center justify-center shrink-0 transition-all">
-                                            <Buildings size={20} className="text-slate-400 group-hover:text-emerald-600 transition-colors" weight="duotone" />
+                                            <Buildings size={20} className="text-slate-400 group-hover:text-emerald-600 transition-colors" weight="bold" />
                                         </div>
                                         <div className="min-w-0">
                                             <h4 className="font-black text-slate-900 text-lg truncate">{company.name}</h4>

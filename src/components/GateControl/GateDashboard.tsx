@@ -653,7 +653,7 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                                <ShieldCheckIcon size={24} weight="duotone" />
+                                <ShieldCheckIcon size={24} weight="bold" />
                             </div>
                             <div className="flex flex-col">
                                 <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">שער הכניסה</h1>
@@ -679,7 +679,7 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                                 : 'text-slate-400 hover:text-slate-600'
                                 } `}
                         >
-                            <CarIcon size={18} weight={currentTab === 'control' ? 'duotone' : 'bold'} />
+                            <CarIcon size={18} weight={currentTab === 'control' ? 'bold' : 'bold'} />
                             <span>תנועה</span>
                         </button>
                         {canManageAuthorized && (
@@ -690,7 +690,7 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                                     : 'text-slate-400 hover:text-slate-600'
                                     } `}
                             >
-                                <SettingsIcon size={18} weight={currentTab === 'authorized' ? 'duotone' : 'bold'} />
+                                <SettingsIcon size={18} weight={currentTab === 'authorized' ? 'bold' : 'bold'} />
                                 <span>ניהול</span>
                             </button>
                         )}
@@ -751,7 +751,7 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                                         <div className="flex items-center justify-between mb-4">
                                             <div className="flex flex-col">
                                                 <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                                                    <HistoryIcon className="text-indigo-600" size={20} weight="duotone" />
+                                                    <HistoryIcon className="text-indigo-600" size={20} weight="bold" />
                                                     יומן תנועות
                                                 </h2>
                                                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">פעילות אחרונה בשער</span>

@@ -370,7 +370,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                                     <List size={16} weight="bold" />
                                 </span>
                             ) : (
-                                <List size={18} weight="duotone" />
+                                <List size={18} weight="bold" />
                             )}
                         </button>
 
@@ -413,7 +413,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                         <KPICard
                             title='סד"כ כולל'
                             value={stats.dailyStats.total}
-                            icon={<Users size={20} weight="duotone" />}
+                            icon={<Users size={20} weight="bold" />}
                             color="blue"
                             onClick={() => setModalConfig({
                                 isOpen: true,
@@ -425,7 +425,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                         <KPICard
                             title='נוכחים'
                             value={stats.dailyStats.present}
-                            icon={<CheckCircle2 size={20} weight="duotone" />}
+                            icon={<CheckCircle2 size={20} weight="bold" />}
                             color="green"
                             onClick={() => setModalConfig({
                                 isOpen: true,
@@ -437,7 +437,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                         <KPICard
                             title='חסרים'
                             value={stats.dailyStats.absent}
-                            icon={<XCircle size={20} weight="duotone" />}
+                            icon={<XCircle size={20} weight="bold" />}
                             color="red"
                             onClick={() => setModalConfig({
                                 isOpen: true,
@@ -449,7 +449,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                         <KPICard
                             title='כשירות'
                             value={`${stats.dailyStats.percentage}%`}
-                            icon={<TrendingUp size={20} weight="duotone" />}
+                            icon={<TrendingUp size={20} weight="bold" />}
                             color={stats.dailyStats.percentage > 80 ? 'emerald' : stats.dailyStats.percentage > 50 ? 'yellow' : 'red'}
                         />
                     </div>
@@ -493,7 +493,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                                 <div className="bg-white p-4 border-b border-slate-100">
                                     <div className="flex items-center justify-between gap-4">
                                         <h3 className="text-slate-800 font-bold text-lg flex items-center gap-2">
-                                            <Users size={20} className="text-emerald-500" weight="duotone" />
+                                            <Users size={20} className="text-emerald-500" weight="bold" />
                                             זמינות לפי תפקיד
                                         </h3>
                                         <div className="w-40">
@@ -627,20 +627,20 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                         <KPICard
                             title="ממוצע נוכחות לתקופה"
                             value={`${stats.avgAttendance}%`}
-                            icon={<TrendingUp size={24} weight="duotone" />}
+                            icon={<TrendingUp size={24} weight="bold" />}
                             color={stats.avgAttendance > 80 ? 'green' : stats.avgAttendance > 60 ? 'yellow' : 'red'}
                             subtext={`מבוסס על ${trendPeriod} הימים האחרונים`}
                         />
                         <KPICard
                             title="יציבות כוח אדם"
                             value={stats.trendData.filter(d => d.percentage > 70).length > trendPeriod * 0.8 ? 'גבוהה' : 'בינונית'}
-                            icon={<CheckCircle2 size={24} weight="duotone" />}
+                            icon={<CheckCircle2 size={24} weight="bold" />}
                             color="blue"
                             subtext="עקביות במצבת הנוכחים"
                         />
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                             <h4 className="text-sm font-bold text-slate-500 mb-4 flex items-center gap-2">
-                                <AlertCircle size={16} className="text-red-500" weight="duotone" />
+                                <AlertCircle size={16} className="text-red-500" weight="bold" />
                                 סיכונים בתפקידי ליבה
                             </h4>
                             <div className="space-y-3">
@@ -676,7 +676,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                         {/* Main Trend Chart */}
                         <div className="bg-white p-6 rounded-2xl border border-slate-100">
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                                <TrendingUp className="text-blue-500" size={20} weight="duotone" />
+                                <TrendingUp className="text-blue-500" size={20} weight="bold" />
                                 גרף נוכחות - {trendPeriod} ימים
                             </h3>
                             <div className="h-[250px] md:h-[300px] w-full">
@@ -712,7 +712,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                         {/* Weekday Analysis */}
                         <div className="bg-white p-6 rounded-2xl border border-slate-100">
                             <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                                <Calendar className="text-emerald-500" size={20} weight="duotone" />
+                                <Calendar className="text-emerald-500" size={20} weight="bold" />
                                 ניתוח נוכחות לפי ימי שבוע
                             </h3>
                             <div className="h-[250px] md:h-[300px] w-full">
@@ -773,7 +773,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                                             <div key={idx} className="bg-white border-2 border-red-100 rounded-xl p-4 shadow-sm">
                                                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-red-100">
                                                     <h4 className="font-bold text-slate-800 flex items-center gap-2">
-                                                        <Calendar size={16} className="text-red-500" weight="duotone" />
+                                                        <Calendar size={16} className="text-red-500" weight="bold" />
                                                         {dateStr}
                                                     </h4>
                                                     <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-bold">
@@ -824,7 +824,7 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                                 >
                                     <span className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selectedTeamIds.includes('all') ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
-                                            <Users size={20} weight="duotone" />
+                                            <Users size={20} weight="bold" />
                                         </div>
                                         <div className="text-right">
                                             <div className="text-sm font-bold">כל הארגון</div>

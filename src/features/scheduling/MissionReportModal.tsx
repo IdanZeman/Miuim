@@ -109,12 +109,12 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
             <h2 className="text-xl font-black text-slate-900 leading-none">{task.name}</h2>
             <div className="flex items-center gap-3 text-xs md:text-sm text-slate-500 font-bold whitespace-nowrap overflow-x-auto no-scrollbar">
                 <div className="flex items-center gap-1.5 shrink-0">
-                    <CalendarIcon size={14} className="text-slate-400" weight="duotone" />
+                    <CalendarIcon size={14} className="text-slate-400" weight="bold" />
                     <span>{new Date(shift.startTime).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })}</span>
                 </div>
                 <span className="text-slate-200">|</span>
                 <div className="flex items-center gap-1.5 font-mono shrink-0">
-                    <Clock size={14} className="text-slate-400" weight="duotone" />
+                    <Clock size={14} className="text-slate-400" weight="bold" />
                     <span>
                         {new Date(shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                         -
@@ -140,7 +140,7 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
             className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors"
             title="הדפס / יצא ל-PDF"
         >
-            <Printer size={20} weight="duotone" />
+            <Printer size={20} weight="bold" />
         </button>
     );
 
@@ -426,14 +426,14 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                 <div className="flex-1 flex flex-col min-w-0 bg-white border-l border-slate-200">
                     <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-20 shadow-sm">
                         <span className="text-sm font-black text-slate-700 flex items-center gap-2">
-                            <History size={18} className="text-indigo-600" weight="duotone" /> יומן מבצעים
+                            <History size={18} className="text-indigo-600" weight="bold" /> יומן מבצעים
                         </span>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 bg-slate-50/30">
                         {report?.ongoing_log.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full text-slate-300">
-                                <MessageCircle size={32} weight="duotone" className="mb-2 opacity-50" />
+                                <MessageCircle size={32} weight="bold" className="mb-2 opacity-50" />
                                 <span className="text-xs font-bold">אין רישומים ביומן</span>
                             </div>
                         ) : (
@@ -465,7 +465,7 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                         <div className="p-3 bg-white border-t border-slate-200">
                             {report?.submitted_at ? (
                                 <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 p-3 rounded-xl text-slate-500 text-sm font-bold justify-center">
-                                    <Shield size={16} weight="duotone" />
+                                    <Shield size={16} weight="bold" />
                                     דוח זה הוגש וננעל לעריכה
                                 </div>
                             ) : (
@@ -497,7 +497,7 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
                 <div className="hidden md:flex w-80 flex-col bg-slate-50 overflow-hidden border-l border-slate-200">
                     <div className="p-3 border-b border-slate-200 flex justify-between items-center bg-white sticky top-0 z-20">
                         <span className="text-sm font-black text-slate-700 flex items-center gap-2">
-                            <FileText size={18} className="text-slate-500" weight="duotone" /> טופס סיכום
+                            <FileText size={18} className="text-slate-500" weight="bold" /> טופס סיכום
                         </span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4">

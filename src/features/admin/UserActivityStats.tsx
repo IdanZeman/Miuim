@@ -137,7 +137,7 @@ export const UserActivityStats: React.FC = () => {
             <div className="flex flex-col md:flex-row items-center justify-between px-6 py-6 md:px-8 md:h-24 bg-white border-b border-slate-100 shrink-0 gap-4">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm shadow-indigo-100">
-                        <ActivityIcon size={24} weight="duotone" />
+                        <ActivityIcon size={24} weight="bold" />
                     </div>
                     <div>
                         <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">ניתוח פעילות משתמשים</h2>
@@ -168,7 +168,7 @@ export const UserActivityStats: React.FC = () => {
                         <div className="col-span-1 md:col-span-2 bg-slate-50 rounded-2xl border border-slate-200/60 p-6">
                             <div className="flex items-center justify-between mb-6 border-b border-slate-200/60 pb-4">
                                 <div className="flex items-center gap-2">
-                                    <BarChartIcon className="text-indigo-500" size={20} weight="duotone" />
+                                    <BarChartIcon className="text-indigo-500" size={20} weight="bold" />
                                     <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">מגמת פעילות</h3>
                                 </div>
                                 {stats.activityGraph.length > 0 && (
@@ -223,7 +223,7 @@ export const UserActivityStats: React.FC = () => {
                         {/* 2. Top Users */}
                         <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6 flex flex-col h-full">
                             <div className="flex items-center gap-2 mb-6 border-b border-slate-200/60 pb-4">
-                                <TrophyIcon className="text-amber-500" size={18} weight="duotone" />
+                                <TrophyIcon className="text-amber-500" size={18} weight="bold" />
                                 <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">משתמשים מובילים</h3>
                             </div>
                             <div className="flex-1">
@@ -255,7 +255,7 @@ export const UserActivityStats: React.FC = () => {
                         {/* 3. Top Pages */}
                         <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-6 flex flex-col h-full">
                             <div className="flex items-center gap-2 mb-6 border-b border-slate-200/60 pb-4">
-                                <LayoutIcon className="text-emerald-500" size={18} weight="duotone" />
+                                <LayoutIcon className="text-emerald-500" size={18} weight="bold" />
                                 <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">דפים נצפים ביותר</h3>
                             </div>
                             <div className="flex-1">
@@ -265,7 +265,7 @@ export const UserActivityStats: React.FC = () => {
                                             <div key={idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 hover:border-emerald-200 rounded-xl transition-all group shadow-sm">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                                                        <LayoutIcon size={14} weight="duotone" />
+                                                        <LayoutIcon size={14} weight="bold" />
                                                     </div>
                                                     <div className="font-bold text-xs text-slate-700 truncate max-w-[150px]" title={translateItem(page.page_name, 'page')}>
                                                         {translateItem(page.page_name, 'page')}
@@ -286,7 +286,7 @@ export const UserActivityStats: React.FC = () => {
                         {/* 4. Top Actions */}
                         <div className="md:col-span-2 bg-slate-50 rounded-2xl border border-slate-200/60 p-6 flex flex-col hover:border-purple-200/50 transition-colors">
                             <div className="flex items-center gap-2 mb-6 border-b border-slate-200/60 pb-4">
-                                <MousePointerClickIcon className="text-purple-500" size={18} weight="duotone" />
+                                <MousePointerClickIcon className="text-purple-500" size={18} weight="bold" />
                                 <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">פעולות נפוצות</h3>
                             </div>
                             <div className="flex-1">

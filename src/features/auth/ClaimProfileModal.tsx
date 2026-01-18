@@ -80,7 +80,7 @@ export const ClaimProfileModal: React.FC<ClaimProfileModalProps> = ({ isOpen, on
     const modalTitle = (
         <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-200/50">
-                <UserIcon size={24} weight="duotone" />
+                <UserIcon size={24} weight="bold" />
             </div>
             <div>
                 <h2 className="text-xl md:text-2xl font-black text-slate-900">מי אתה ברשימה?</h2>
@@ -93,7 +93,7 @@ export const ClaimProfileModal: React.FC<ClaimProfileModalProps> = ({ isOpen, on
         <div className="flex flex-col w-full gap-4">
             {error && (
                 <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-center gap-3 border border-red-200 w-full" dir="rtl">
-                    <AlertCircleIcon size={20} className="shrink-0" weight="duotone" />
+                    <AlertCircleIcon size={20} className="shrink-0" weight="bold" />
                     {error}
                 </div>
             )}
@@ -165,7 +165,7 @@ export const ClaimProfileModal: React.FC<ClaimProfileModalProps> = ({ isOpen, on
                                         </span>
                                     </div>
                                     {selectedPerson?.id === person.id && (
-                                        <CheckCircleIcon size={28} className="text-emerald-600 animate-in zoom-in duration-300" weight="duotone" />
+                                        <CheckCircleIcon size={28} className="text-emerald-600 animate-in zoom-in duration-300" weight="bold" />
                                     )}
                                 </button>
                             ))}

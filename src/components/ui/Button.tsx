@@ -10,7 +10,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: ButtonVariant;
     size?: ButtonSize;
     icon?: Icon;
-    iconWeight?: "bold" | "duotone" | "fill" | "light" | "regular" | "thin";
+    iconWeight?: "bold" | "bold" | "fill" | "light" | "regular" | "thin";
     isLoading?: boolean;
     fullWidth?: boolean;
 }
@@ -44,8 +44,8 @@ export const Button: React.FC<ButtonProps> = ({
     onClick,
     ...props
 }) => {
-    // Default to 'bold' for action buttons to avoid duotone 'shadow' effect, 
-    // otherwise default to 'duotone'.
+    // Default to 'bold' for action buttons to avoid bold 'shadow' effect, 
+    // otherwise default to 'bold'.
     const effectiveIconWeight = iconWeight || 'bold';
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         // Track the click

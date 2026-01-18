@@ -31,21 +31,21 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         switch (type) {
             case 'danger':
                 return {
-                    icon: <ShieldAlert size={28} weight="duotone" />,
+                    icon: <ShieldAlert size={28} weight="bold" />,
                     iconBg: 'bg-red-50',
                     iconColor: 'text-red-600',
                     buttonVariant: 'danger' as const,
                 };
             case 'info':
                 return {
-                    icon: <Info size={28} weight="duotone" />,
+                    icon: <Info size={28} weight="bold" />,
                     iconBg: 'bg-blue-50',
                     iconColor: 'text-blue-600',
                     buttonVariant: 'primary' as const,
                 };
             default: // warning
                 return {
-                    icon: <AlertTriangle size={28} weight="duotone" />,
+                    icon: <AlertTriangle size={28} weight="bold" />,
                     iconBg: 'bg-amber-50',
                     iconColor: 'text-amber-600',
                     buttonVariant: 'primary' as const,

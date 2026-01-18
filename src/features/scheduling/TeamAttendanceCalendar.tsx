@@ -80,7 +80,7 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
                     cellBg = 'bg-slate-50/50';
                     content = (
                         <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
-                            <Home size={18} weight="duotone" />
+                            <Home size={18} weight="bold" />
                             <span className="text-xs font-bold mt-1">בבית</span>
                         </div>
                     );
@@ -91,8 +91,8 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
 
                     content = (
                         <div className={`flex flex-col items-center justify-center h-full w-full rounded-md m-1 p-1 ${teamStyles.bg} ${teamStyles.text} ${teamStyles.border} border`}>
-                            {isArrival && <ArrowLeft size={16} className="mb-1" weight="duotone" />}
-                            {isDeparture && <ArrowRight size={16} className="mb-1" weight="duotone" />}
+                            {isArrival && <ArrowLeft size={16} className="mb-1" weight="bold" />}
+                            {isDeparture && <ArrowRight size={16} className="mb-1" weight="bold" />}
 
                             <span className="text-sm font-bold text-center leading-tight">
                                 {team.name}
@@ -137,7 +137,7 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
             <div className="flex flex-col gap-0.5">
                 <h2 className="text-xl font-black text-slate-800 leading-tight">{team.name}</h2>
                 <div className="flex items-center gap-2 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                    <CalendarIcon size={14} className="text-slate-400" weight="duotone" />
+                    <CalendarIcon size={14} className="text-slate-400" weight="bold" />
                     <span>לוח סבב צוותי</span>
                 </div>
             </div>
@@ -156,11 +156,11 @@ export const TeamAttendanceCalendar: React.FC<TeamAttendanceCalendarProps> = ({ 
                 {/* Calendar Controls */}
                 <div className="flex items-center justify-between mb-4 bg-slate-50 p-2 rounded-xl border border-slate-100">
                     <button onClick={handlePrevMonth} className="p-2 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-slate-200 transition-all text-slate-600">
-                        <ChevronRight weight="duotone" />
+                        <ChevronRight weight="bold" />
                     </button>
                     <h3 className="text-lg font-black text-slate-800 tracking-tight">{monthName}</h3>
                     <button onClick={handleNextMonth} className="p-2 hover:bg-white rounded-lg shadow-sm border border-transparent hover:border-slate-200 transition-all text-slate-600">
-                        <ChevronLeft weight="duotone" />
+                        <ChevronLeft weight="bold" />
                     </button>
                 </div>
 

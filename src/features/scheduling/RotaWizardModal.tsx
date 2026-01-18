@@ -1041,7 +1041,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         onClick={() => setShowStatsDetails(true)}
                         className="h-10 w-full md:w-auto md:px-4 rounded-xl shadow-sm border-slate-200 gap-2"
                     >
-                        <Calculator size={18} className="text-blue-500" weight="duotone" />
+                        <Calculator size={18} className="text-blue-500" weight="bold" />
                         <span className="hidden md:inline text-xs font-black text-slate-600">ממוצע ללוחם</span>
                     </Button>
                 </div>
@@ -1059,9 +1059,9 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             )}
                         >
                             {result.stats.constraintStats.percentage === 100 ? (
-                                <CheckCircle size={18} className="shrink-0" weight="duotone" />
+                                <CheckCircle size={18} className="shrink-0" weight="bold" />
                             ) : (
-                                <AlertTriangle size={18} className="shrink-0" weight="duotone" />
+                                <AlertTriangle size={18} className="shrink-0" weight="bold" />
                             )}
                             <span className="hidden md:inline text-xs">אילוצים</span>
                             <span className="bg-white/60 px-1 py-0.5 rounded-lg text-[10px] tabular-nums">
@@ -1081,7 +1081,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     className="bg-amber-500 hover:bg-amber-600 text-white shadow-lg h-10 px-2 md:px-8 text-sm font-black whitespace-nowrap rounded-xl md:rounded-lg flex items-center justify-center gap-2"
                     data-testid="rota-wizard-save-btn"
                 >
-                    <Save size={18} className="shrink-0" weight="duotone" />
+                    <Save size={18} className="shrink-0" weight="bold" />
                     <span className="hidden md:inline">שמור שיבוץ</span>
                     <span className="md:hidden">שמור</span>
                 </Button>
@@ -1246,7 +1246,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             <div className="flex flex-col gap-0.5">
                 <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight">מחולל סבבים</h2>
                 <div className="flex items-center gap-2 text-xs md:text-sm text-slate-500 font-bold uppercase tracking-wider">
-                    <Wand2 size={14} className="text-blue-500" weight="duotone" />
+                    <Wand2 size={14} className="text-blue-500" weight="bold" />
                     <span>{step === 'config' ? 'הגדרת פרמטרים' : 'תצוגת שיבוץ מוקדמת'}</span>
                 </div>
             </div>
@@ -1254,7 +1254,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 onClick={() => setShowExplanation(true)}
                 className="md:hidden w-10 h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
             >
-                <Info size={24} weight="duotone" />
+                <Info size={24} weight="bold" />
             </button>
         </div>
     );
@@ -1281,7 +1281,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
 
 
                                         <div className="hidden md:flex bg-blue-50 p-3 rounded-lg border border-blue-100 items-center gap-3">
-                                            <Sparkles className="text-blue-600 shrink-0" size={20} weight="duotone" />
+                                            <Sparkles className="text-blue-600 shrink-0" size={20} weight="bold" />
                                             <div className="text-sm text-blue-900 leading-tight">
                                                 <span className="font-bold">מחולל סבבים אוטומטי: </span>
                                                 המערכת תייצר לוח נוכחות אופטימלי בהתבסס על מחזורי יציאות, אילוצים אישיים ושמירה על סד״כ מינימלי בבסיס.
@@ -1295,7 +1295,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectionMode === 'teams' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                                 >
                                                     <div className="flex items-center justify-center gap-2">
-                                                        <Users size={14} weight="duotone" />
+                                                        <Users size={14} weight="bold" />
                                                         לפי צוות
                                                     </div>
                                                 </button>
@@ -1304,7 +1304,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectionMode === 'roles' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                                 >
                                                     <div className="flex items-center justify-center gap-2">
-                                                        <Sparkles size={14} weight="duotone" />
+                                                        <Sparkles size={14} weight="bold" />
                                                         לפי תפקיד
                                                     </div>
                                                 </button>
@@ -1354,7 +1354,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                         </div>
                                                     </div>
                                                     {optimizationMode === 'ratio' && (
-                                                        <CheckCircle size={24} className="text-white md:hidden" weight="duotone" />
+                                                        <CheckCircle size={24} className="text-white md:hidden" weight="bold" />
                                                     )}
                                                 </button>
 
@@ -1367,7 +1367,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                 >
                                                     <div className="flex md:flex-col items-center gap-4 md:gap-2 text-right md:text-center">
                                                         <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${optimizationMode === 'min_staff' ? 'bg-white/20' : 'bg-slate-100'}`}>
-                                                            <Users size={20} className={optimizationMode === 'min_staff' ? 'text-white' : 'text-slate-400'} weight="duotone" />
+                                                            <Users size={20} className={optimizationMode === 'min_staff' ? 'text-white' : 'text-slate-400'} weight="bold" />
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-base md:text-sm font-black leading-tight">סד״כ מינימלי</span>
@@ -1375,7 +1375,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                         </div>
                                                     </div>
                                                     {optimizationMode === 'min_staff' && (
-                                                        <CheckCircle size={24} className="text-white md:hidden" weight="duotone" />
+                                                        <CheckCircle size={24} className="text-white md:hidden" weight="bold" />
                                                     )}
                                                 </button>
 
@@ -1388,7 +1388,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                 >
                                                     <div className="flex md:flex-col items-center gap-4 md:gap-2 text-right md:text-center">
                                                         <div className={`w-10 h-10 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 ${optimizationMode === 'tasks' ? 'bg-white/20' : 'bg-slate-100'}`}>
-                                                            <Wand2 size={20} className={optimizationMode === 'tasks' ? 'text-white' : 'text-slate-400'} weight="duotone" />
+                                                            <Wand2 size={20} className={optimizationMode === 'tasks' ? 'text-white' : 'text-slate-400'} weight="bold" />
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-base md:text-sm font-black leading-tight">נגזרת משימות</span>
@@ -1396,7 +1396,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                         </div>
                                                     </div>
                                                     {optimizationMode === 'tasks' && (
-                                                        <CheckCircle size={24} className="text-white md:hidden" weight="duotone" />
+                                                        <CheckCircle size={24} className="text-white md:hidden" weight="bold" />
                                                     )}
                                                 </button>
                                             </div>
@@ -1443,7 +1443,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                         {optimizationMode === 'tasks' && (
                                             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
                                                 <div className="flex items-center gap-2 text-blue-800">
-                                                    <Users size={16} weight="duotone" />
+                                                    <Users size={16} weight="bold" />
                                                     <span className="text-sm font-bold">דרישת סד״כ מחושבת:</span>
                                                     <span className="text-sm bg-white px-2 py-0.5 rounded border border-blue-200">
                                                         {(() => {
@@ -1493,7 +1493,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                         className="p-1 hover:bg-white rounded-full transition-colors text-blue-500 hover:text-blue-700"
                                                         title="פירוט משימות יומי"
                                                     >
-                                                        <Info size={16} weight="duotone" />
+                                                        <Info size={16} weight="bold" />
                                                     </button>
                                                 </div>
 
@@ -1541,7 +1541,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                             autoFocus
                                                             className="h-10 w-full pr-9 pl-3 text-sm border-slate-200 rounded-xl bg-white shadow-inner focus:ring-2 focus:ring-blue-500/20"
                                                         />
-                                                        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" weight="duotone" />
+                                                        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" weight="bold" />
                                                     </div>
                                                     <button
                                                         onClick={() => { setShowMobileSearch(false); setSearchQuery(''); }}
@@ -1582,7 +1582,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                             onClick={() => setShowMobileSearch(true)}
                                                             className="h-10 w-10 flex items-center justify-center text-slate-600 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
                                                         >
-                                                            <Search size={18} weight="duotone" />
+                                                            <Search size={18} weight="bold" />
                                                         </button>
                                                     </div>
 
@@ -1592,7 +1592,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                         className={`h-10 w-10 flex items-center justify-center rounded-xl shadow-md transition-all active:scale-90 
                                                         ${isTableFullscreen ? 'bg-amber-100 border-amber-200 text-amber-700 font-bold' : 'bg-blue-600 text-white shadow-blue-200'}`}
                                                     >
-                                                        {isTableFullscreen ? <Minimize2 size={18} weight="duotone" /> : <Maximize2 size={18} weight="duotone" />}
+                                                        {isTableFullscreen ? <Minimize2 size={18} weight="bold" /> : <Maximize2 size={18} weight="bold" />}
                                                     </button>
                                                 </div>
                                             )}
@@ -1641,7 +1641,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                 className="h-9 pr-10 pl-3 text-sm border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 w-[140px] transition-all focus:w-[180px] shadow-sm md:shadow-none"
                                             />
                                             <div className="absolute top-0 bottom-0 right-3.5 flex items-center pointer-events-none text-slate-400">
-                                                <Search size={14} weight="duotone" />
+                                                <Search size={14} weight="bold" />
                                             </div>
                                         </div>
                                     </div>
@@ -1676,7 +1676,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                         onClick={() => setIsTableFullscreen(false)}
                                                         className="h-12 px-4 flex items-center justify-center gap-2 text-slate-600 bg-white border border-slate-200 rounded-2xl shadow-sm active:scale-95 transition-all hover:bg-slate-50"
                                                     >
-                                                        <Minimize2 size={24} weight="duotone" />
+                                                        <Minimize2 size={24} weight="bold" />
                                                         <span className="hidden md:inline font-black text-sm">יציאה ממסך מלא</span>
                                                         <span className="md:hidden font-black text-sm">חזרה</span>
                                                     </button>
@@ -2215,7 +2215,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     onClose={() => setShowTaskAnalysis(false)}
                     title={
                         <div className="flex items-center gap-2">
-                            <Calculator size={20} className="text-blue-600" weight="duotone" />
+                            <Calculator size={20} className="text-blue-600" weight="bold" />
                             <span>ניתוח נגזרות משימה</span>
                         </div>
                     }
@@ -2237,7 +2237,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     onClose={() => setShowHistory(false)}
                     title={
                         <div className="flex items-center gap-2">
-                            <RotateCcw size={20} className="text-blue-600" weight="duotone" />
+                            <RotateCcw size={20} className="text-blue-600" weight="bold" />
                             <span>היסטוריית גרסאות</span>
                         </div>
                     }
@@ -2250,7 +2250,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             </div>
                         ) : rotaHistory.length === 0 ? (
                             <div className="text-center py-12 text-slate-500">
-                                <RotateCcw size={48} className="mx-auto mb-4 opacity-30" weight="duotone" />
+                                <RotateCcw size={48} className="mx-auto mb-4 opacity-30" weight="bold" />
                                 <p className="font-bold">אין גרסאות קודמות</p>
                                 <p className="text-sm mt-2">צור סבב ראשון כדי להתחיל</p>
                             </div>
@@ -2409,9 +2409,9 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         {result && result.stats.constraintStats && (
                             <div className={`p-4 rounded-xl border flex flex-col items-center text-center gap-2 ${result.stats.constraintStats.percentage === 100 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
                                 {result.stats.constraintStats.percentage === 100 ? (
-                                    <CheckCircle size={48} className="text-green-500 mb-2" weight="duotone" />
+                                    <CheckCircle size={48} className="text-green-500 mb-2" weight="bold" />
                                 ) : (
-                                    <AlertTriangle size={48} className="text-amber-500 mb-2" weight="duotone" />
+                                    <AlertTriangle size={48} className="text-amber-500 mb-2" weight="bold" />
                                 )}
                                 <div className="text-2xl font-black">
                                     {result.stats.constraintStats.percentage}%
@@ -2433,7 +2433,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                         const p = people.find(p => p.id === c.personId);
                                         return (
                                             <div key={idx} className="p-3 flex gap-3 bg-white">
-                                                <div className="mt-1"><XCircle size={16} className="text-red-500" weight="duotone" /></div>
+                                                <div className="mt-1"><XCircle size={16} className="text-red-500" weight="bold" /></div>
                                                 <div>
                                                     <div className="font-bold text-slate-800 text-sm">{p?.name || 'לוחם לא ידוע'}</div>
                                                     <div className="text-xs text-slate-500">{new Date(c.date).toLocaleDateString('he-IL')} • {c.reason}</div>
@@ -2492,7 +2492,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                     <div className="p-4 space-y-4">
                         <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex flex-col items-center text-center gap-4">
                             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                                <Sparkles size={32} weight="duotone" />
+                                <Sparkles size={32} weight="bold" />
                             </div>
                             <div className="space-y-2">
                                 <h3 className="text-lg font-black text-blue-900">מחולל סבבים אוטומטי</h3>
