@@ -83,14 +83,15 @@ export const getEffectiveAvailability = (
     if (person.dailyAvailability && person.dailyAvailability[dateKey]) {
 
         const manual = person.dailyAvailability[dateKey];
-        let status = manual.status || 'full';
-
-        // Normalize 'base' to 'full' for UI consistency
+        let status = manual.status || (manual.isAvailable === false ? 'home' : 'full');
         if (status === 'base') status = 'full';
 
-        if (!manual.status && manual.isAvailable) {
-            if (manual.startHour && manual.startHour !== '00:00') status = 'arrival';
-            else if (manual.endHour && manual.endHour !== '23:59') status = 'departure';
+        // Derive arrival/departure from hours if it's a base-related status
+        if (status === 'full' && manual.isAvailable !== false) {
+            const isArrival = manual.startHour && manual.startHour !== '00:00';
+            const isDeparture = manual.endHour && manual.endHour !== '23:59';
+            if (isArrival) status = 'arrival';
+            else if (isDeparture) status = 'departure';
         } else if (manual.isAvailable === false) {
             status = 'home';
         }

@@ -59,7 +59,7 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
             relevantPeople.forEach(person => {
                 totalPeople++;
                 const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
-                if (avail.isAvailable) presentPeople++;
+                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') presentPeople++;
             });
 
             const percentage = totalPeople > 0 ? Math.round((presentPeople / totalPeople) * 100) : 0;
@@ -96,8 +96,8 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
 
                     {/* Attendance Indicator */}
                     <div className="flex flex-col items-center">
-                        <span className={`text-sm md:text-xl font-black ${percentage >= 80 ? 'text-emerald-700' : percentage >= 50 ? 'text-amber-700' : 'text-red-700'}`}>
-                            {presentPeople}/{totalPeople}
+                        <span className={`text-sm md:text-xl font-black ${percentage >= 80 ? 'text-emerald-700' : percentage >= 50 ? 'text-amber-700' : 'text-red-700'}`} dir="ltr">
+                            {presentPeople} / {totalPeople}
                         </span>
                         <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                             {percentage}% נוכחים

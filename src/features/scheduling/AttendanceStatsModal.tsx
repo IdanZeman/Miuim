@@ -31,7 +31,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
 
             dates.forEach(d => {
                 const av = getEffectiveAvailability(p, d, teamRotations, absences, hourlyBlockages);
-                const status = (av.status === 'base' || av.status === 'full' || av.status === 'arrival' || av.status === 'departure') ? 'base' : 'home';
+                const status = (av.status === 'base' || av.status === 'full' || av.status === 'arrival') ? 'base' : 'home';
 
                 if (status === 'base') totalBase++;
                 else totalHome++;
@@ -64,7 +64,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
         people.forEach(p => {
             dates.forEach(d => {
                 const av = getEffectiveAvailability(p, d, teamRotations, absences, hourlyBlockages);
-                if (av.status === 'base' || av.status === 'full' || av.status === 'arrival' || av.status === 'departure') companyBase++;
+                if (av.status === 'base' || av.status === 'full' || av.status === 'arrival') companyBase++;
                 else companyHome++;
             });
         });
@@ -78,7 +78,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
             teamPeople.forEach(p => {
                 dates.forEach(d => {
                     const av = getEffectiveAvailability(p, d, teamRotations, absences, hourlyBlockages);
-                    if (av.status === 'base' || av.status === 'full' || av.status === 'arrival' || av.status === 'departure') teamBase++;
+                    if (av.status === 'base' || av.status === 'full' || av.status === 'arrival') teamBase++;
                     else teamHome++;
                 });
             });

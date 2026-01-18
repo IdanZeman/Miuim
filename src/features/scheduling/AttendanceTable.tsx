@@ -212,7 +212,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         let presentCount = 0;
         sortedPeople.forEach(p => {
             const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages);
-            if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+            if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') {
                 presentCount++;
             }
         });
@@ -227,7 +227,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             let present = 0;
             members.forEach(p => {
                 const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages);
-                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') {
                     present++;
                 }
             });
@@ -259,9 +259,9 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest mt-0.5">נתונים מעודכנים</p>
                                     </div>
                                 </div>
-                                <div className="text-left">
-                                    <span className="text-3xl font-bold text-slate-900 ml-1">{globalStats.present}</span>
-                                    <span className="text-base font-black text-slate-300 ">/ {globalStats.total}</span>
+                                <div className="text-left flex items-baseline gap-1" dir="ltr">
+                                    <span className="text-3xl font-bold text-slate-900">{globalStats.present}</span>
+                                    <span className="text-base font-black text-slate-300">/ {globalStats.total}</span>
                                 </div>
                             </div>
 
@@ -313,8 +313,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     <div className="flex items-center gap-2 mt-0.5">
                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{members.length} לוחמים</span>
                                                         <div className="w-1 h-1 rounded-full bg-slate-200" />
-                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${teamStats[team.id]?.present === teamStats[team.id]?.total ? 'text-emerald-500' : 'text-blue-500'}`}>
-                                                            {teamStats[team.id]?.present} נוכחים
+                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${teamStats[team.id]?.present === teamStats[team.id]?.total ? 'text-emerald-500' : 'text-blue-500'}`} dir="ltr">
+                                                            {teamStats[team.id]?.present} / {teamStats[team.id]?.total} נוכחים
                                                         </span>
                                                     </div>
                                                 </div>
@@ -575,7 +575,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 let present = 0;
                                                 sortedPeople.forEach(p => {
                                                     const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
-                                                    if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+                                                    if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') {
                                                         present++;
                                                     }
                                                 });
@@ -614,7 +614,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         sortedPeople.forEach(p => {
                                             dates.forEach(d => {
                                                 const av = getEffectiveAvailability(p, d, teamRotations, absences, hourlyBlockages);
-                                                if (av.status === 'base' || av.status === 'full' || av.status === 'arrival' || av.status === 'departure') baseTotal++;
+                                                if (av.status === 'base' || av.status === 'full' || av.status === 'arrival') baseTotal++;
                                                 else homeTotal++;
                                             });
                                         });
@@ -631,7 +631,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     <span className="text-xs font-black text-red-700">{Math.round(homeAvg)}</span>
                                                 </div>
                                                 <div className="w-14 shrink-0 bg-blue-50 border-b border-l border-blue-100 h-full flex items-center justify-center sticky right-[320px] z-[90]" dir="ltr">
-                                                    <span className="text-[9px] font-black text-blue-700">{homeAvgNorm} / {baseAvgNorm}</span>
+                                                    <span className="text-[10px] font-black text-blue-700">{homeAvgNorm} / {baseAvgNorm}</span>
                                                 </div>
                                             </>
                                         );
@@ -642,18 +642,16 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             let present = 0;
                                             sortedPeople.forEach(p => {
                                                 const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
-                                                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+                                                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') {
                                                     present++;
                                                 }
                                             });
                                             const total = sortedPeople.length;
-                                            const ratio = total > 0 ? present / total : 0;
-
                                             return (
                                                 <div
                                                     key={dateKey}
                                                     className={`w-24 shrink-0 flex items-center justify-center border-l border-slate-300 text-[13px] font-black border-b h-full
-                                                        ${ratio >= 0.8 ? 'text-emerald-700 bg-emerald-100/50' : ratio >= 0.5 ? 'text-amber-700 bg-amber-100/50' : 'text-red-700 bg-red-100/50'}
+                                                        ${(total > 0 ? present / total : 0) >= 0.8 ? 'text-emerald-700 bg-emerald-100/50' : (total > 0 ? present / total : 0) >= 0.5 ? 'text-amber-700 bg-amber-100/50' : 'text-red-700 bg-red-100/50'}
                                                     `}
                                                     dir="ltr"
                                                 >
@@ -698,7 +696,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     teamPeople.forEach(p => {
                                                         dates.forEach(d => {
                                                             const av = getEffectiveAvailability(p, d, teamRotations, absences, hourlyBlockages);
-                                                            if (av.status === 'base' || av.status === 'full' || av.status === 'arrival' || av.status === 'departure') baseTotal++;
+                                                            if (av.status === 'base' || av.status === 'full' || av.status === 'arrival') baseTotal++;
                                                             else homeTotal++;
                                                         });
                                                     });
@@ -726,7 +724,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         const dateKey = date.toISOString().split('T')[0];
                                                         const teamDocs = teamPeople.filter(p => {
                                                             const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
-                                                            return avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
+                                                            return avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival';
                                                         });
                                                         const present = teamDocs.length;
                                                         const total = teamPeople.length;
@@ -739,6 +737,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                 className={`w-24 shrink-0 flex items-center justify-center border-l border-slate-200 text-[11px] font-black border-b h-full
                                                                     ${isFull ? 'text-emerald-700 bg-emerald-50/30' : isEmpty ? 'text-slate-400' : 'text-amber-700 bg-amber-50/30'}
                                                                 `}
+                                                                dir="ltr"
                                                             >
                                                                 {present} / {total}
                                                             </div>
@@ -793,7 +792,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                 let homeDays = 0;
                                                                 dates.forEach(d => {
                                                                     const av = getEffectiveAvailability(person, d, teamRotations, absences, hourlyBlockages);
-                                                                    if (av.status === 'base' || av.status === 'full' || av.status === 'arrival' || av.status === 'departure') baseDays++;
+                                                                    if (av.status === 'base' || av.status === 'full' || av.status === 'arrival') baseDays++;
                                                                     else homeDays++;
                                                                 });
 
