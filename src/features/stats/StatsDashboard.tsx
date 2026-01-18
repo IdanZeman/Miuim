@@ -39,7 +39,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
          {/* Header & Navigation Combined */}
          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4">
             <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 shrink-0">
-               <BarChart3 className="text-blue-600" size={24} className="md:w-7 md:h-7" weight="bold" />
+               <BarChart3 className="text-blue-600 md:w-7 md:h-7" size={24} weight="bold" />
                דוחות ונתונים
                <PageInfo
                   title="דוחות ונתונים"
