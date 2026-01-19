@@ -11,7 +11,7 @@ import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import { ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText } from '@phosphor-icons/react';
-import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, ClockCounterClockwise, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel } from '@phosphor-icons/react';
+import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, ClockCounterClockwise, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel, Info } from '@phosphor-icons/react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
 import { MultiSelect } from '../../components/ui/MultiSelect';
@@ -501,6 +501,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New state for mobile action menu
     const [showRotaWizard, setShowRotaWizard] = useState(false);
     const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+    const [showLegend, setShowLegend] = useState(false);
 
     // For now assuming local handling to match previous logic found in file.
 
@@ -1042,6 +1043,18 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </Tooltip>
                         )}
 
+                        <Tooltip content={showLegend ? "הסתר מקרא" : "הצג מקרא"}>
+                            <button
+                                onClick={() => setShowLegend(!showLegend)}
+                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showLegend
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-inner'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
+                                    }`}
+                            >
+                                <Info size={18} weight="bold" />
+                            </button>
+                        </Tooltip>
+
                         <Tooltip content={isCompact ? "תצוגה רגילה" : "תצוגה קומפקטית"}>
                             <button
                                 onClick={() => setIsCompact(!isCompact)}
@@ -1054,6 +1067,8 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </button>
                         </Tooltip>
                     </div>
+
+
                 </div>
 
                 {/* Mobile Actions Dropdown - Just the Content */}
@@ -1399,6 +1414,87 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     onUpdateShift={onUpdateShift}
                     onToggleCancelShift={onToggleCancelShift}
                 />
+            )}
+
+            {/* Legend Popup - Moved outside for fixed positioning on large screens */}
+
+            {showLegend && (
+                <div className={`
+                    absolute top-16 left-4 z-[100] w-64 
+                    bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 ring-1 ring-slate-900/5
+                    overflow-hidden animate-in fade-in zoom-in-95 duration-200
+                    xl:fixed xl:left-8 xl:top-32 xl:block
+                `}>
+                    <div className="px-5 py-4 flex justify-between items-start">
+                        <div>
+                            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <Info size={16} className="text-indigo-500" weight="duotone" />
+                                מקרא סימונים
+                            </h4>
+                            <p className="text-[10px] text-slate-400 mt-0.5">הסבר על הסטטוסים בלוח</p>
+                        </div>
+                        <button
+                            onClick={() => setShowLegend(false)}
+                            className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-full transition-colors -ml-1"
+                        >
+                            <X size={14} weight="bold" />
+                        </button>
+                    </div>
+
+                    <div className="px-5 pb-5 space-y-5">
+                        <div className="space-y-2.5">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                <User size={12} weight="bold" />
+                                סטטוס איוש
+                            </p>
+                            <div className="space-y-2 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50">
+                                <div className="flex items-center gap-2.5 text-xs">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-200"></div>
+                                    <span className="text-slate-700 font-medium">מאויש מלא (תקין)</span>
+                                </div>
+                                <div className="flex items-center gap-2.5 text-xs">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm shadow-amber-200"></div>
+                                    <span className="text-slate-700 font-medium">חסר איוש / תפקיד</span>
+                                </div>
+                                <div className="flex items-center gap-2.5 text-xs">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-sm shadow-purple-200"></div>
+                                    <span className="text-slate-700 font-medium">איוש יתר (חריגה)</span>
+                                </div>
+                                <div className="flex items-center gap-2.5 text-xs">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-300"></div>
+                                    <span className="text-slate-500">ריק (ללא שיבוץ)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2.5">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                <AlertTriangle size={12} weight="bold" />
+                                התראות ושגיאות
+                            </p>
+                            <div className="space-y-2 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50">
+                                <div className="flex items-center gap-2.5 text-xs group">
+                                    <div className="bg-rose-100 text-rose-600 p-1 rounded-md group-hover:bg-rose-200 transition-colors">
+                                        <ClockCounterClockwise size={14} weight="bold" />
+                                    </div>
+                                    <span className="text-slate-700 font-medium">אי עמידה בזמן מנוחה</span>
+                                </div>
+                                <div className="flex items-center gap-2.5 text-xs group">
+                                    <div className="bg-amber-100 text-amber-600 p-1 rounded-md group-hover:bg-amber-200 transition-colors">
+                                        <AlertTriangle size={14} weight="bold" />
+                                    </div>
+                                    <span className="text-slate-700 font-medium">חסר כוח אדם / תפקיד</span>
+                                </div>
+                                <div className="flex items-center gap-2.5 text-xs group">
+                                    <div className="bg-red-100 text-red-600 p-1 rounded-md group-hover:bg-red-200 transition-colors">
+                                        <Ban size={14} weight="bold" />
+                                    </div>
+                                    <span className="text-slate-700 font-medium">חייל באילוץ / חופש</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {

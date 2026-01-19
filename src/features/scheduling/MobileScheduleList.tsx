@@ -157,19 +157,47 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                 </div>
 
                                                 {/* Status Badge */}
-                                                {isCancelled ? (
-                                                    <span className="px-2 py-1.5 rounded-md bg-slate-100 text-slate-500 text-sm font-bold flex items-center gap-1"> {/* Rule 2: min 14px text */}
-                                                        <Ban size={14} weight="bold" /> מבוטל
-                                                    </span>
-                                                ) : isEmpty ? (
-                                                    <span className="px-2 py-1.5 rounded-md bg-orange-50 text-orange-600 text-sm font-bold border border-orange-100">
-                                                        לא מאויש
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-1.5 rounded-md bg-green-50 text-green-600 text-sm font-bold border border-green-100 flex items-center gap-1">
-                                                        <CheckCircle size={14} weight="bold" /> מאויש
-                                                    </span>
-                                                )}
+                                                {(() => {
+                                                    const requiredPeople = shift.requirements?.requiredPeople ||
+                                                        task.segments?.find(s => s.id === shift.segmentId)?.requiredPeople || 1;
+                                                    const count = assigned.length;
+
+                                                    if (isCancelled) {
+                                                        return (
+                                                            <span className="px-2 py-1.5 rounded-md bg-slate-100 text-slate-500 text-sm font-bold flex items-center gap-1">
+                                                                <Ban size={14} weight="bold" /> מבוטל
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (count === 0) {
+                                                        return (
+                                                            <span className="px-2 py-1.5 rounded-md bg-slate-50 text-slate-500 text-sm font-bold border border-slate-100">
+                                                                לא מאויש
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (count < requiredPeople) {
+                                                        return (
+                                                            <span className="px-2 py-1.5 rounded-md bg-amber-50 text-amber-600 text-sm font-bold border border-amber-100 flex items-center gap-1">
+                                                                <AlertTriangle size={14} weight="bold" />
+                                                                חסר ({count}/{requiredPeople})
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (count > requiredPeople) {
+                                                        return (
+                                                            <span className="px-2 py-1.5 rounded-md bg-purple-50 text-purple-600 text-sm font-bold border border-purple-100 flex items-center gap-1">
+                                                                <Plus size={14} weight="bold" />
+                                                                חריגה ({count}/{requiredPeople})
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <span className="px-2 py-1.5 rounded-md bg-green-50 text-green-600 text-sm font-bold border border-green-100 flex items-center gap-1">
+                                                            <CheckCircle size={14} weight="bold" /> מאויש ({count}/{requiredPeople})
+                                                        </span>
+                                                    );
+                                                })()}
 
                                                 {/* Conflict Warning */}
                                                 {!isCancelled && conflicts.some(c => c.shiftId === shift.id && c.type === 'absence') && (
