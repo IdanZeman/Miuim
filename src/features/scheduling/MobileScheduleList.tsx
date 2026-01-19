@@ -45,7 +45,9 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
     const activeShifts = (shifts || []).filter(s => {
         const start = new Date(s.startTime);
         const end = new Date(s.endTime);
-        const isDayShift = start < dayEnd && end > dayStart;
+        // For mobile list view, only show shifts that START on this day
+        // This prevents overnight shifts from appearing on both days
+        const isDayShift = start >= dayStart && start < dayEnd;
         if (!isDayShift) return false;
 
         // Apply refined filtering logic
