@@ -243,26 +243,14 @@ const ShiftCard: React.FC<{
                     // Header/Footer take about 32px of space.
                     const maxVerticalNames = Math.max(1, Math.floor((cardHeight - 32) / 28));
 
-                    // Dynamic threshold based on height: taller cards can afford more full names
-                    // But we physically cannot fit more than maxVerticalNames vertically.
-                    let initialsThreshold = Math.min(
-                        cardHeight >= 150 ? 8 : (cardHeight >= 100 ? 5 : 3),
-                        maxVerticalNames
-                    );
-
-                    // Midnight Crosser Fix: If cut off by day boundaries and visible height is limited, 
-                    // be even more aggressive since vertical space is precious.
-                    if ((isContinuedFromPrev || isContinuedToNext) && cardHeight < 120) {
-                        initialsThreshold = 1; // Show initials even for 2 people if height is tight
-                    }
-
-                    const isCrowded = assigned.length > initialsThreshold;
+                    // If we have fewer people than available vertical slots, we can show full names in a column
+                    const isCrowded = assigned.length > maxVerticalNames;
 
                     return (
                         <div className={`hidden md:flex flex-1 ${isCrowded ? 'flex-row flex-wrap content-center justify-center' : 'flex-col justify-center items-center'} gap-1 overflow-hidden py-0.5 w-full px-1`}>
                             {assigned.map(p => {
-                                // Only use initials if it's crowded OR if the name is very long and the card isn't tall enough to wrap it well
-                                const useInitials = isCrowded || (assigned.length > 1 && p.name.length > 14 && cardHeight < 120);
+                                // Only use initials if it's truly crowded (more people than vertical slots)
+                                const useInitials = isCrowded;
                                 return (
                                     <div
                                         key={p.id}

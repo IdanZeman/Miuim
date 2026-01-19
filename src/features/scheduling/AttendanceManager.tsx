@@ -1065,10 +1065,11 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                     <>
                                         <button
                                             onClick={() => setShowStatistics(!showStatistics)}
-                                            className={`h-10 w-10 flex items-center justify-center rounded-xl transition-all border shadow-sm ${showStatistics ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-100/50 border-slate-200 text-slate-500 hover:bg-white hover:text-blue-600'}`}
+                                            className={`h-10 px-3 flex items-center justify-center gap-2 rounded-xl transition-all border shadow-sm ${showStatistics ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-100'}`}
                                             title={showStatistics ? 'הסתר סטטיסטיקה' : 'הצג סטטיסטיקה'}
                                         >
-                                            <ChartBar size={20} weight="bold" />
+                                            <ChartBar size={18} weight="bold" />
+                                            <span className="text-xs font-black">סטטיסטיקה</span>
                                         </button>
                                         <button
                                             onClick={() => setShowRequiredDetails(!showRequiredDetails)}

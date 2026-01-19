@@ -1,12 +1,12 @@
-
 import React, { useState } from 'react';
 import { Person, Shift, TaskTemplate, Role, Team, OrganizationSettings, Absence, HourlyBlockage } from '../../types';
-import { Users, ClipboardText as ClipboardList, MapPin, ChartBar as BarChart3, ListChecks } from '@phosphor-icons/react';
+import { Users, ClipboardText as ClipboardList, MapPin, ChartBar as BarChart3, ListChecks, MagicWand as Wand, Warning } from '@phosphor-icons/react';
 import { LocationReport } from './LocationReport';
 import { TaskReports } from './TaskReports';
 import { ManpowerReports } from './ManpowerReports';
 import { CustomFieldsReport } from './CustomFieldsReport';
 import { DailyAttendanceReport } from './DailyAttendanceReport';
+import { ComplianceReport } from './ComplianceReport';
 import { PageInfo } from '../../components/ui/PageInfo';
 
 interface StatsDashboardProps {
@@ -24,7 +24,7 @@ interface StatsDashboardProps {
    currentUserName?: string;
 }
 
-type ReportType = 'manpower' | 'tasks' | 'location' | 'customFields' | 'dailyAttendance';
+type ReportType = 'manpower' | 'tasks' | 'location' | 'customFields' | 'dailyAttendance' | 'compliance';
 
 export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    people, shifts, tasks, roles, teams, teamRotations = [],
@@ -137,6 +137,20 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      <ListChecks size={18} aria-hidden="true" weight="bold" />
                      <span className={reportType === 'dailyAttendance' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>דוח 1</span>
                   </button>
+                  <button
+                     onClick={() => setReportType('compliance')}
+                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-2 md:px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'compliance'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                     role="tab"
+                     aria-selected={reportType === 'compliance'}
+                     aria-controls="report-content"
+                     id="tab-compliance"
+                  >
+                     <Warning size={18} aria-hidden="true" weight="bold" />
+                     <span className={reportType === 'compliance' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>חריגות</span>
+                  </button>
                </div>
             )}
          </div>
@@ -195,6 +209,17 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   absences={absences}
                   teamRotations={teamRotations}
                   settings={settings}
+                  hourlyBlockages={hourlyBlockages}
+               />
+            )}
+
+            {reportType === 'compliance' && (
+               <ComplianceReport
+                  people={activePeople}
+                  shifts={shifts}
+                  tasks={tasks}
+                  roles={roles}
+                  absences={absences}
                   hourlyBlockages={hourlyBlockages}
                />
             )}

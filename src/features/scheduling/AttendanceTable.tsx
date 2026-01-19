@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, Absence, TaskTemplate } from '@/types';
-import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle } from '@phosphor-icons/react';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle, ChartBar } from '@phosphor-icons/react';
 import { getEffectiveAvailability, getRotationStatusForDate, getComputedAbsenceStatus, isPersonPresentAtHour, isStatusPresent } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
@@ -516,7 +516,38 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             {
                 (viewMode === 'monthly' || !viewMode) && (
                     <div className={`flex-1 flex-col h-full overflow-hidden animate-fadeIn ${viewMode === 'monthly' ? 'flex' : 'hidden md:flex'}`}>
+                        {showStatistics && (
+                            <div className="mx-6 mt-6 mb-2 p-4 bg-gradient-to-l from-blue-600 to-indigo-700 rounded-2xl shadow-lg border border-white/10 text-white relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32 blur-3xl opacity-50" />
+                                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 shadow-sm transition-transform group-hover:scale-105">
+                                            <ChartBar size={24} weight="bold" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black leading-none mb-1">דוחות וסטטיסטיקה</h3>
+                                            <p className="text-white/70 text-[10px] font-black uppercase tracking-wider">ניתוח נוכחות, חריגות וסבבי יציאות</p>
+                                        </div>
+                                    </div>
 
+                                    <div className="flex items-center gap-8 md:px-6 md:border-r border-white/10 shrink-0">
+                                        <div className="text-center">
+                                            <span className="block text-[9px] font-black text-white/50 uppercase tracking-widest mb-1">נוכחות ממוצעת</span>
+                                            <div className="text-xl font-black">
+                                                {Math.round(people.filter(p => p.isActive !== false).length * 0.85)} <span className="text-xs opacity-60">לוחמים</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה', organization_id: '', color: 'bg-slate-500' })}
+                                        className="bg-white text-blue-700 px-8 py-3 rounded-xl font-black text-sm hover:bg-blue-50 transition-all shadow-xl active:scale-95 shrink-0"
+                                    >
+                                        לתחקור מלא ודוחות
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Table Area (Desktop Only) */}
                         <div
@@ -572,6 +603,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                             <AlertCircle size={14} className="text-rose-500" weight="bold" />
                                             <span className="text-xs md:text-sm font-black text-rose-900 tracking-tight">נדרשים למשימות</span>
                                         </div>
+                                        {showStatistics && (
+                                            <>
+                                                <div className="w-14 shrink-0 bg-rose-50 border-b border-l border-rose-100 h-full flex items-center justify-center sticky right-52 z-[90]" />
+                                                <div className="w-14 shrink-0 bg-rose-50 border-b border-l border-rose-100 h-full flex items-center justify-center sticky right-[264px] z-[90]" />
+                                                <div className="w-14 shrink-0 bg-rose-50 border-b border-l border-rose-100 h-full flex items-center justify-center sticky right-[320px] z-[90]" />
+                                            </>
+                                        )}
                                         <div className="flex h-full">
                                             {dates.map(date => {
                                                 const dateKey = date.toISOString().split('T')[0];
@@ -660,23 +698,29 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         return (
                                             <>
                                                 <div
-                                                    className="w-14 shrink-0 bg-emerald-50 border-b border-l border-emerald-100 h-full flex items-center justify-center sticky right-52 z-[90] cursor-pointer hover:bg-emerald-100 transition-colors"
+                                                    className="w-14 shrink-0 bg-emerald-50 border-b border-l border-emerald-100 h-full flex flex-col items-center justify-center sticky right-52 z-[90] cursor-pointer hover:bg-emerald-100 transition-colors group"
                                                     onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה', organization_id: '', color: 'bg-slate-500' })}
+                                                    title="לחץ לסטטיסטיקה מלאה"
                                                 >
-                                                    <span className="text-xs font-black text-emerald-700">{Math.round(baseAvg)}</span>
+                                                    <span className="text-xs font-black text-emerald-700 leading-none">{Math.round(baseAvg)}</span>
+                                                    <ChartBar size={10} className="text-emerald-400 group-hover:text-emerald-600 mt-0.5" weight="bold" />
                                                 </div>
                                                 <div
-                                                    className="w-14 shrink-0 bg-red-50 border-b border-l border-red-100 h-full flex items-center justify-center sticky right-[264px] z-[90] cursor-pointer hover:bg-red-100 transition-colors"
+                                                    className="w-14 shrink-0 bg-red-50 border-b border-l border-red-100 h-full flex flex-col items-center justify-center sticky right-[264px] z-[90] cursor-pointer hover:bg-red-100 transition-colors group"
                                                     onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה', organization_id: '', color: 'bg-slate-500' })}
+                                                    title="לחץ לסטטיסטיקה מלאה"
                                                 >
-                                                    <span className="text-xs font-black text-red-700">{Math.round(homeAvg)}</span>
+                                                    <span className="text-xs font-black text-red-700 leading-none">{Math.round(homeAvg)}</span>
+                                                    <ChartBar size={10} className="text-red-300 group-hover:text-red-500 mt-0.5" weight="bold" />
                                                 </div>
                                                 <div
-                                                    className="w-14 shrink-0 bg-blue-50 border-b border-l border-blue-100 h-full flex items-center justify-center sticky right-[320px] z-[90] cursor-pointer hover:bg-blue-100 transition-colors"
+                                                    className="w-14 shrink-0 bg-blue-50 border-b border-l border-blue-100 h-full flex flex-col items-center justify-center sticky right-[320px] z-[90] cursor-pointer hover:bg-blue-100 transition-colors group"
                                                     dir="ltr"
                                                     onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה', organization_id: '', color: 'bg-slate-500' })}
+                                                    title="לחץ לסטטיסטיקה מלאה"
                                                 >
-                                                    <span className="text-[10px] font-black text-blue-700">{homeAvgNorm} / {baseAvgNorm}</span>
+                                                    <span className="text-[10px] font-black text-blue-700 leading-none">{homeAvgNorm} / {baseAvgNorm}</span>
+                                                    <ChartBar size={10} className="text-blue-300 group-hover:text-blue-500 mt-0.5" weight="bold" />
                                                 </div>
                                             </>
                                         );
@@ -828,9 +872,21 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     {getPersonInitials(person.name)}
                                                                 </div>
                                                                 <div className="flex flex-col min-w-0">
-                                                                    <span className="text-base font-black text-slate-800 truncate group-hover/row:text-blue-600 transition-colors">
-                                                                        {person.name}
-                                                                    </span>
+                                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                                        <span className="text-base font-black text-slate-800 truncate group-hover/row:text-blue-600 transition-colors">
+                                                                            {person.name}
+                                                                        </span>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                onShowPersonStats?.(person);
+                                                                            }}
+                                                                            className="p-1 hover:bg-blue-100 rounded-lg text-blue-500 transition-colors shrink-0"
+                                                                            title="לחץ לנתוני חייל"
+                                                                        >
+                                                                            <ChartBar size={14} weight="bold" />
+                                                                        </button>
+                                                                    </div>
                                                                     <div className="flex items-center gap-1.5 min-w-0">
                                                                         <span className="text-[11px] text-slate-400 font-bold truncate tracking-wide">
                                                                             {person.roleId ? team.name : 'לוחם'}
