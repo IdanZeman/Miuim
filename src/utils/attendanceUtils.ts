@@ -237,3 +237,64 @@ export const getComputedAbsenceStatus = (person: Person, absence: Absence | null
 
     return { status: 'pending' };
 };
+
+/**
+ * Determines if a given availability status counts as "present" at a specific time.
+ * This is the central source of truth for headcount calculations.
+ */
+export const isStatusPresent = (
+    avail: any, // AvailabilitySlot or effective availability
+    targetMinutes: number
+): boolean => {
+    // 1. Basic Availability Check
+    if (!avail.isAvailable) return false;
+    if (avail.status === 'home' || avail.status === 'unavailable') return false;
+
+    // 2. Time-of-Day Check (Arrival/Departure)
+    if (avail.status === 'arrival' && avail.startHour) {
+        const [startH, startM] = avail.startHour.split(':').map(Number);
+        if (targetMinutes < (startH * 60 + startM)) return false;
+    }
+
+    if (avail.status === 'departure' && avail.endHour) {
+        const [endH, endM] = avail.endHour.split(':').map(Number);
+        if (targetMinutes >= (endH * 60 + endM)) return false;
+    }
+
+    // 3. Hourly Blockages Check
+    if (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) {
+        const isBlocked = avail.unavailableBlocks.some((block: any) => {
+            const [sh, sm] = block.start.split(':').map(Number);
+            const [eh, em] = block.end.split(':').map(Number);
+            const startMin = sh * 60 + sm;
+            let endMin = eh * 60 + em;
+            
+            // Handle cross-day blocks if any
+            if (endMin < startMin) endMin += 24 * 60;
+            
+            return targetMinutes >= startMin && targetMinutes < endMin;
+        });
+        if (isBlocked) return false;
+    }
+
+    return true;
+};
+
+/**
+ * Checks if a person is physically present at a specific date and time.
+ * Handles arrivals, departures, and hourly blockages.
+ */
+export const isPersonPresentAtHour = (
+    person: Person,
+    date: Date,
+    timeStr: string, // HH:mm
+    teamRotations: TeamRotation[],
+    absences: Absence[] = [],
+    hourlyBlockages: import('@/types').HourlyBlockage[] = []
+): boolean => {
+    const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+    const [targetH, targetM] = timeStr.split(':').map(Number);
+    const targetMinutes = targetH * 60 + targetM;
+
+    return isStatusPresent(avail, targetMinutes);
+};

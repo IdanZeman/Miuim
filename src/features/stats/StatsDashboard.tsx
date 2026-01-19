@@ -6,6 +6,7 @@ import { LocationReport } from './LocationReport';
 import { TaskReports } from './TaskReports';
 import { ManpowerReports } from './ManpowerReports';
 import { CustomFieldsReport } from './CustomFieldsReport';
+import { DailyAttendanceReport } from './DailyAttendanceReport';
 import { PageInfo } from '../../components/ui/PageInfo';
 
 interface StatsDashboardProps {
@@ -23,7 +24,7 @@ interface StatsDashboardProps {
    currentUserName?: string;
 }
 
-type ReportType = 'manpower' | 'tasks' | 'location' | 'customFields';
+type ReportType = 'manpower' | 'tasks' | 'location' | 'customFields' | 'dailyAttendance';
 
 export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    people, shifts, tasks, roles, teams, teamRotations = [],
@@ -122,6 +123,20 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      <ListChecks size={18} aria-hidden="true" weight="bold" />
                      <span className={reportType === 'customFields' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>שדות מותאמים</span>
                   </button>
+                  <button
+                     onClick={() => setReportType('dailyAttendance')}
+                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-2 md:px-4 rounded-lg text-sm font-bold transition-all ${reportType === 'dailyAttendance'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                     role="tab"
+                     aria-selected={reportType === 'dailyAttendance'}
+                     aria-controls="report-content"
+                     id="tab-dailyAttendance"
+                  >
+                     <ListChecks size={18} aria-hidden="true" weight="bold" />
+                     <span className={reportType === 'dailyAttendance' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>דוח 1</span>
+                  </button>
                </div>
             )}
          </div>
@@ -169,6 +184,18 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   people={activePeople}
                   teams={teams}
                   roles={roles}
+               />
+            )}
+
+            {reportType === 'dailyAttendance' && (
+               <DailyAttendanceReport
+                  people={activePeople}
+                  teams={teams}
+                  roles={roles}
+                  absences={absences}
+                  teamRotations={teamRotations}
+                  settings={settings}
+                  hourlyBlockages={hourlyBlockages}
                />
             )}
          </div>

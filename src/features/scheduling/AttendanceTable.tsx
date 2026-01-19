@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Person, Team, TeamRotation, Absence, TaskTemplate } from '@/types';
 import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, CaretDown as ChevronDown, CalendarBlank as Calendar, Users, House as Home, MapPin, XCircle, Clock, Info, CheckCircle as CheckCircle2, MagnifyingGlass as Search, WarningCircle as AlertCircle } from '@phosphor-icons/react';
-import { getEffectiveAvailability, getRotationStatusForDate, getComputedAbsenceStatus } from '@/utils/attendanceUtils';
+import { getEffectiveAvailability, getRotationStatusForDate, getComputedAbsenceStatus, isPersonPresentAtHour, isStatusPresent } from '@/utils/attendanceUtils';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
 import { logger } from '@/services/loggingService';
@@ -206,35 +206,59 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         }
     }, [month, year, viewMode]);
 
+    // State for auto-refreshing stats
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    // Auto-refresh every minute to keep headcount dynamic
+    useEffect(() => {
+        const isToday = new Date().toDateString() === currentDate.toDateString();
+        if (!isToday) return;
+
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 60000);
+        return () => clearInterval(interval);
+    }, [currentDate]);
+
     // Global Stats Calculation
     const globalStats = React.useMemo(() => {
         const totalPeople = sortedPeople.length;
         let presentCount = 0;
+        const isToday = new Date().toDateString() === currentDate.toDateString();
+        const refTime = isToday
+            ? `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`
+            : '12:00'; // Default to noon for non-today views unless we want more granularity
+
         sortedPeople.forEach(p => {
             const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages);
-            if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') {
+            if (isPersonPresentAtHour(p, currentDate, refTime, teamRotations, absences, hourlyBlockages)) {
                 presentCount++;
             }
         });
         return { present: presentCount, total: totalPeople };
-    }, [sortedPeople, currentDate, teamRotations, absences, hourlyBlockages]);
+    }, [sortedPeople, currentDate, teamRotations, absences, hourlyBlockages, currentTime]);
 
     // Team Stats Calculation (for Daily view)
     const teamStats = React.useMemo(() => {
         const stats: Record<string, { present: number; total: number }> = {};
+        const isToday = new Date().toDateString() === currentDate.toDateString();
+        const refTime = isToday
+            ? `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`
+            : '12:00';
+
         teams.forEach(team => {
             const members = sortedPeople.filter(p => p.teamId === team.id);
             let present = 0;
             members.forEach(p => {
                 const avail = getEffectiveAvailability(p, currentDate, teamRotations, absences, hourlyBlockages);
-                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') {
+                if (isPersonPresentAtHour(p, currentDate, refTime, teamRotations, absences, hourlyBlockages)) {
                     present++;
                 }
             });
             stats[team.id] = { present, total: members.length };
         });
         return stats;
-    }, [teams, sortedPeople, currentDate, teamRotations, absences, hourlyBlockages]);
+    }, [teams, sortedPeople, currentDate, teamRotations, absences, hourlyBlockages, currentTime]);
 
     return (
         <div className="h-full flex flex-col relative" dir="rtl">
@@ -573,9 +597,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                                 // Calculate present people to compare
                                                 let present = 0;
+                                                const isThisDayToday = new Date().toDateString() === date.toDateString();
+                                                const refTime = isThisDayToday
+                                                    ? `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`
+                                                    : '12:00';
+
                                                 sortedPeople.forEach(p => {
-                                                    const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
-                                                    if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') {
+                                                    if (isPersonPresentAtHour(p, date, refTime, teamRotations, absences, hourlyBlockages)) {
                                                         present++;
                                                     }
                                                 });
@@ -613,9 +641,16 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         let homeTotal = 0;
                                         sortedPeople.forEach(p => {
                                             dates.forEach(d => {
-                                                const av = getEffectiveAvailability(p, d, teamRotations, absences, hourlyBlockages);
-                                                if (av.status === 'base' || av.status === 'full' || av.status === 'arrival') baseTotal++;
-                                                else homeTotal++;
+                                                const isDToday = new Date().toDateString() === d.toDateString();
+                                                const refT = isDToday
+                                                    ? `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`
+                                                    : '12:00';
+
+                                                if (isPersonPresentAtHour(p, d, refT, teamRotations, absences, hourlyBlockages)) {
+                                                    baseTotal++;
+                                                } else {
+                                                    homeTotal++;
+                                                }
                                             });
                                         });
                                         const baseAvg = sortedPeople.length > 0 ? baseTotal / sortedPeople.length : 0;
@@ -639,10 +674,14 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                     <div className="flex h-full">
                                         {dates.map(date => {
                                             const dateKey = date.toISOString().split('T')[0];
+                                            const isThisDayToday = new Date().toDateString() === date.toDateString();
+                                            const refTime = isThisDayToday
+                                                ? `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`
+                                                : '12:00';
+
                                             let present = 0;
                                             sortedPeople.forEach(p => {
-                                                const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
-                                                if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') {
+                                                if (isPersonPresentAtHour(p, date, refTime, teamRotations, absences, hourlyBlockages)) {
                                                     present++;
                                                 }
                                             });
@@ -695,9 +734,16 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                     let homeTotal = 0;
                                                     teamPeople.forEach(p => {
                                                         dates.forEach(d => {
-                                                            const av = getEffectiveAvailability(p, d, teamRotations, absences, hourlyBlockages);
-                                                            if (av.status === 'base' || av.status === 'full' || av.status === 'arrival') baseTotal++;
-                                                            else homeTotal++;
+                                                            const isDToday = new Date().toDateString() === d.toDateString();
+                                                            const refT = isDToday
+                                                                ? `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`
+                                                                : '12:00';
+
+                                                            if (isPersonPresentAtHour(p, d, refT, teamRotations, absences, hourlyBlockages)) {
+                                                                baseTotal++;
+                                                            } else {
+                                                                homeTotal++;
+                                                            }
                                                         });
                                                     });
                                                     const baseAvg = teamPeople.length > 0 ? baseTotal / teamPeople.length : 0;
@@ -722,11 +768,15 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                 <div className="flex bg-white h-full">
                                                     {dates.map(date => {
                                                         const dateKey = date.toISOString().split('T')[0];
-                                                        const teamDocs = teamPeople.filter(p => {
-                                                            const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
-                                                            return avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival';
-                                                        });
-                                                        const present = teamDocs.length;
+                                                        const isThisDayToday = new Date().toDateString() === date.toDateString();
+                                                        const refTime = isThisDayToday
+                                                            ? `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`
+                                                            : '12:00';
+
+                                                        const presentCount = teamPeople.filter(p =>
+                                                            isPersonPresentAtHour(p, date, refTime, teamRotations, absences, hourlyBlockages)
+                                                        ).length;
+                                                        const present = presentCount;
                                                         const total = teamPeople.length;
                                                         const isFull = present === total;
                                                         const isEmpty = present === 0;
@@ -791,9 +841,16 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                 let baseDays = 0;
                                                                 let homeDays = 0;
                                                                 dates.forEach(d => {
-                                                                    const av = getEffectiveAvailability(person, d, teamRotations, absences, hourlyBlockages);
-                                                                    if (av.status === 'base' || av.status === 'full' || av.status === 'arrival') baseDays++;
-                                                                    else homeDays++;
+                                                                    const isDToday = new Date().toDateString() === d.toDateString();
+                                                                    const refT = isDToday
+                                                                        ? `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`
+                                                                        : '12:00';
+
+                                                                    if (isPersonPresentAtHour(person, d, refT, teamRotations, absences, hourlyBlockages)) {
+                                                                        baseDays++;
+                                                                    } else {
+                                                                        homeDays++;
+                                                                    }
                                                                 });
 
                                                                 const homeNorm = Math.round((homeDays / dates.length) * 14);
