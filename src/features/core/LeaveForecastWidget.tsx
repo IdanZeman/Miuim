@@ -62,8 +62,15 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
             const dateKey = format(date, 'yyyy-MM-dd');
             const avail = availMap.get(dateKey);
 
-            const isHome = avail.isAvailable === false || avail.status === 'home' || avail.status === 'departure' || avail.status === 'leave';
-            const recordType = isHome ? 'home' : 'base';
+            let recordType: 'home' | 'base';
+            if (avail.status === 'departure') {
+                recordType = 'home';
+            } else if (avail.status === 'arrival') {
+                recordType = 'base';
+            } else {
+                const isHome = avail.isAvailable === false || avail.status === 'home' || avail.status === 'leave';
+                recordType = isHome ? 'home' : 'base';
+            }
 
             if (!currentPeriod) {
                 currentPeriod = {
@@ -114,40 +121,18 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
             });
         }
 
-        // Post-process home periods to find accurate exit/return times
+        // Post-process periods to find accurate departure/arrival times
         const finalPeriods = periods.map(p => {
-            if (p.type !== 'home') return p;
+            const dateKey = format(p.startDate, 'yyyy-MM-dd');
+            const avail = availMap.get(dateKey);
 
-            let departureDate = p.startDate;
-            let departureTime = '00:00';
-            let returnDate = addDays(p.endDate, 1);
-            let returnTime = '00:00';
-
-            // Check day before for departure
-            const dayBefore = addDays(p.startDate, -1);
-            const availBefore = availMap.get(format(dayBefore, 'yyyy-MM-dd'));
-            if (availBefore && (availBefore.status === 'departure' || availBefore.isAvailable)) {
-                departureDate = dayBefore;
-                // If it's a departure or just a base day before home, and end hour is default, use 14:00 as default
-                departureTime = (availBefore.endHour === '23:59' || availBefore.endHour === '00:00' || !availBefore.endHour) ? '14:00' : availBefore.endHour;
+            if (p.type === 'home') {
+                let departureTime = (avail.endHour === '23:59' || !avail.endHour) ? '14:00' : avail.endHour;
+                return { ...p, departureDate: p.startDate, departureTime };
+            } else {
+                let returnTime = (avail.startHour === '00:00' || !avail.startHour) ? '10:00' : avail.startHour;
+                return { ...p, returnDate: p.startDate, returnTime };
             }
-
-            // Check day after for return
-            const dayAfter = addDays(p.endDate, 1);
-            const availAfter = availMap.get(format(dayAfter, 'yyyy-MM-dd'));
-            if (availAfter && (availAfter.status === 'arrival' || availAfter.isAvailable)) {
-                returnDate = dayAfter;
-                // If it's an arrival or just a base day after home, and start hour is default, use 10:00 as default
-                returnTime = (availAfter.startHour === '00:00' || !availAfter.startHour) ? '10:00' : availAfter.startHour;
-            }
-
-            return {
-                ...p,
-                departureDate, // New field to handle date transition
-                departureTime,
-                returnDate,    // New field to handle date transition
-                returnTime
-            };
         });
 
         setTimelinePeriods(finalPeriods);
@@ -289,33 +274,30 @@ export const LeaveForecastWidget: React.FC<LeaveForecastWidgetProps> = ({
                                                 )}
                                             </div>
 
-                                            {/* Times for home periods */}
-                                            {isHome && (
-                                                <div className="grid grid-cols-2 gap-3 mt-3">
-                                                    {period.departureTime && (
-                                                        <div className="bg-white/60 rounded-lg p-2 md:p-3 border border-emerald-100">
-                                                            <div className={`flex items-center gap-2 ${isHome ? 'text-rose-700' : 'text-emerald-700'} mb-1`}>
-                                                                <Clock size={12} weight="bold" />
-                                                                <span className="text-[10px] md:text-xs font-black uppercase">יציאה</span>
-                                                            </div>
-                                                            <p className="text-xs md:text-sm font-bold text-slate-900">
-                                                                {format(period.departureDate || period.startDate, 'd/M')} {formatTime(period.departureTime)}
-                                                            </p>
+                                            {/* Times for transitions */}
+                                            <div className="mt-3">
+                                                {isHome ? (
+                                                    <div className="bg-white/60 rounded-lg p-2 md:p-3 border border-rose-100 inline-block min-w-[120px]">
+                                                        <div className="flex items-center gap-2 text-rose-700 mb-1">
+                                                            <Clock size={12} weight="bold" />
+                                                            <span className="text-[10px] md:text-xs font-black uppercase">יציאה</span>
                                                         </div>
-                                                    )}
-                                                    {period.returnTime && (
-                                                        <div className="bg-white/60 rounded-lg p-2 md:p-3 border border-emerald-100">
-                                                            <div className={`flex items-center gap-2 ${isHome ? 'text-rose-700' : 'text-emerald-700'} mb-1`}>
-                                                                <Clock size={12} weight="bold" />
-                                                                <span className="text-[10px] md:text-xs font-black uppercase">חזרה</span>
-                                                            </div>
-                                                            <p className="text-xs md:text-sm font-bold text-slate-900">
-                                                                {format(period.returnDate || getReturnDate(period.endDate), 'd/M')} {formatTime(period.returnTime)}
-                                                            </p>
+                                                        <p className="text-xs md:text-sm font-bold text-slate-900">
+                                                            {format(period.departureDate || period.startDate, 'd/M')} {formatTime(period.departureTime)}
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="bg-white/60 rounded-lg p-2 md:p-3 border border-emerald-100 inline-block min-w-[120px]">
+                                                        <div className="flex items-center gap-2 text-emerald-700 mb-1">
+                                                            <Clock size={12} weight="bold" />
+                                                            <span className="text-[10px] md:text-xs font-black uppercase">הגעה</span>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            )}
+                                                        <p className="text-xs md:text-sm font-bold text-slate-900">
+                                                            {format(period.returnDate || period.startDate, 'd/M')} {formatTime(period.returnTime)}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 );
