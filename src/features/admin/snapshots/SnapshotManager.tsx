@@ -190,17 +190,17 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 md:mb-2">
                 <div>
-                    <h2 className="text-xl font-black text-slate-800">גרסאות מערכת (Snapshots)</h2>
-                    <p className="text-sm text-slate-500 font-bold">שמור ושחזר את מצב המערכת בנקודות זמן שונות</p>
+                    <h2 className="text-lg md:text-xl font-black text-slate-800 text-right">גרסאות מערכת (Snapshots)</h2>
+                    <p className="text-xs md:text-sm text-slate-500 font-bold text-right">שמור ושחזר את מצב המערכת בנקודות זמן שונות</p>
                 </div>
                 <Button
                     variant="primary"
                     icon={Plus}
                     onClick={() => setShowCreateModal(true)}
                     disabled={snapshots.length >= 5}
-                    className="shadow-lg shadow-blue-100"
+                    className="shadow-lg shadow-blue-100 w-full md:w-auto py-3 md:py-2.5"
                 >
                     צור גרסה חדשה
                 </Button>
@@ -222,43 +222,46 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                         </div>
                     </div>
                     {snapshots.map((snapshot) => (
-                        <div key={snapshot.id} className="bg-white border border-slate-200 rounded-3xl p-5 hover:border-blue-300 transition-all group shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                                    <FileText size={24} weight="duotone" />
+                        <div key={snapshot.id} className="bg-white border border-slate-200 rounded-[1.5rem] md:rounded-3xl p-4 md:p-5 hover:border-blue-300 transition-all group shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-start gap-3 md:gap-4">
+                                <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 text-slate-400 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors shrink-0">
+                                    <FileText size={20} className="md:w-6 md:h-6" weight="duotone" />
                                 </div>
-                                <div>
-                                    <h3 className="font-black text-slate-800 text-lg leading-tight">{snapshot.name}</h3>
-                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                                        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
-                                            <Calendar size={14} />
-                                            {new Date(snapshot.created_at).toLocaleString('he-IL')}
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="font-black text-slate-800 text-base md:text-lg leading-tight truncate">{snapshot.name}</h3>
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-1.5 md:mt-1">
+                                        <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 font-bold">
+                                            <Calendar size={14} className="shrink-0" />
+                                            <span className="whitespace-nowrap">{new Date(snapshot.created_at).toLocaleDateString('he-IL')}</span>
+                                            <span className="opacity-50 hidden md:inline">|</span>
+                                            <span className="whitespace-nowrap md:hidden">{new Date(snapshot.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}</span>
+                                            <span className="whitespace-nowrap hidden md:inline">{new Date(snapshot.created_at).toLocaleTimeString('he-IL')}</span>
                                         </div>
-                                        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-bold">
-                                            <User size={14} />
-                                            {snapshot.created_by_name || 'המערכת'}
+                                        <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-500 font-bold">
+                                            <User size={14} className="shrink-0" />
+                                            <span className="truncate max-w-[80px] md:max-w-none">{snapshot.created_by_name || 'המערכת'}</span>
                                         </div>
                                     </div>
                                     {snapshot.description && (
-                                        <p className="text-sm text-slate-500 mt-2 font-medium line-clamp-1">{snapshot.description}</p>
+                                        <p className="text-xs md:text-sm text-slate-500 mt-2 font-medium line-clamp-1 border-r-2 border-slate-100 pr-2">{snapshot.description}</p>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 md:pl-2">
+                            <div className="flex items-center gap-2 md:pl-2 w-full md:w-auto border-t md:border-t-0 border-slate-50 pt-3 md:pt-0 mt-1 md:mt-0">
                                 <Button
                                     variant="ghost"
                                     icon={Eye}
                                     onClick={() => setPreviewSnapshot(snapshot)}
-                                    className="h-10 px-4 rounded-xl bg-slate-50 md:bg-transparent text-slate-600 hover:text-blue-600 hover:bg-blue-50 font-bold"
+                                    className="h-10 flex-1 md:flex-none md:px-4 rounded-xl bg-slate-50 md:bg-transparent text-slate-600 hover:text-blue-600 hover:bg-blue-50 font-bold text-xs md:text-sm"
                                 >
-                                    תצוגה מקדימה
+                                    תצוגה
                                 </Button>
                                 <Button
                                     variant="ghost"
                                     icon={ArrowsClockwise}
                                     onClick={() => handleRestore(snapshot)}
-                                    className="h-10 px-4 rounded-xl bg-slate-50 md:bg-transparent text-slate-600 hover:text-orange-600 hover:bg-orange-50 font-bold"
+                                    className="h-10 flex-1 md:flex-none md:px-4 rounded-xl bg-slate-50 md:bg-transparent text-slate-600 hover:text-orange-600 hover:bg-orange-50 font-bold text-xs md:text-sm"
                                 >
                                     שחזר
                                 </Button>
@@ -266,7 +269,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
                                     variant="ghost"
                                     icon={Trash}
                                     onClick={() => handleDeleteSnapshot(snapshot.id)}
-                                    className="h-10 w-10 !p-0 rounded-xl bg-slate-50 md:bg-transparent text-red-400 hover:text-red-600 hover:bg-red-50"
+                                    className="h-10 w-10 !p-0 rounded-xl bg-slate-50 md:bg-transparent text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0"
                                 />
                             </div>
                         </div>

@@ -327,9 +327,8 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
             {/* Compact Header / Controls */}
             <div className="bg-white/80 backdrop-blur-md p-2.5 md:p-3 rounded-2xl shadow-sm border border-slate-200 sticky top-0 z-20 flex flex-col gap-3">
                 {/* Single Row Filters */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    {/* Left Side: View Toggle + Date */}
-                    <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="flex items-center justify-between md:justify-start gap-4">
                         {/* View Toggle */}
                         <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 h-9 items-center">
                             <button
@@ -346,44 +345,44 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                             </button>
                         </div>
 
+                        {/* Right Side: Actions (Grouped) - Moved here for alignment in mobile */}
+                        <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 h-9 shrink-0">
+                            {/* Filter Button */}
+                            <button
+                                onClick={() => setModalConfig({ isOpen: true, title: 'סינון לפי צוות', people: [], type: 'filter' })}
+                                className={`flex items-center justify-center h-7 px-2 rounded-lg transition-colors ${!selectedTeamIds.includes('all') ? 'bg-blue-100 text-blue-700 font-bold' : 'text-slate-500 hover:bg-white hover:text-slate-700'}`}
+                                title={!selectedTeamIds.includes('all') ? `נבחרו ${selectedTeamIds.length} צוותים` : 'סינון לפי צוות (הכל מוצג)'}
+                            >
+                                {!selectedTeamIds.includes('all') ? (
+                                    <span className="text-xs flex items-center gap-1.5">
+                                        <span className="bg-white px-1.5 rounded-md text-[10px] shadow-sm leading-tight">{selectedTeamIds.length}</span>
+                                        <List size={18} weight="bold" />
+                                    </span>
+                                ) : (
+                                    <List size={18} weight="bold" />
+                                )}
+                            </button>
 
-                        {/* Date Navigator */}
+                            <div className="w-px h-4 bg-slate-200" />
+
+                            {/* Export Button */}
+                            <ExportButton
+                                onExport={handleExport}
+                                iconOnly
+                                className="h-7 w-7 rounded-lg"
+                                title="ייצוא לאקסל"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Date Navigator - Below or beside depending on width */}
+                    <div className="flex justify-center md:justify-end">
                         <DateNavigator
                             date={selectedDate}
                             onDateChange={setSelectedDate}
                             mode="day"
-                            className="h-9 w-fit"
+                            className="h-9 w-full md:w-auto"
                         />
-                    </div>
-
-                    {/* Right Side: Actions (Grouped) */}
-                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 h-9 shrink-0">
-                        {/* Filter Button */}
-                        <button
-                            onClick={() => setModalConfig({ isOpen: true, title: 'סינון לפי צוות', people: [], type: 'filter' })}
-                            className={`flex items-center justify-center h-7 px-2 rounded-lg transition-colors ${!selectedTeamIds.includes('all') ? 'bg-blue-100 text-blue-700 font-bold' : 'text-slate-500 hover:bg-white hover:text-slate-700'}`}
-                            title={!selectedTeamIds.includes('all') ? `נבחרו ${selectedTeamIds.length} צוותים` : 'סינון לפי צוות (הכל מוצג)'}
-                        >
-                            {!selectedTeamIds.includes('all') ? (
-                                <span className="text-xs flex items-center gap-1.5">
-                                    <span className="bg-white px-1.5 rounded-md text-[10px] shadow-sm leading-tight">{selectedTeamIds.length}</span>
-                                    <List size={16} weight="bold" />
-                                </span>
-                            ) : (
-                                <List size={18} weight="bold" />
-                            )}
-                        </button>
-
-                        <div className="w-px h-4 bg-slate-200" />
-
-                        {/* Export Button */}
-                        <ExportButton
-                            onExport={handleExport}
-                            iconOnly
-                            className="h-7 w-7 rounded-lg"
-                            title="ייצוא לאקסל"
-                        />
-
                     </div>
                 </div>
 

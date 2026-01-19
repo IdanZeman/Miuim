@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Person, Shift, TaskTemplate, Role, Team, OrganizationSettings, Absence, HourlyBlockage } from '../../types';
-import { Users, ClipboardText as ClipboardList, MapPin, ChartBar as BarChart3, ListChecks, MagicWand as Wand, Warning } from '@phosphor-icons/react';
+import { Users, ClipboardText as ClipboardList, MapPin, ChartBar as BarChart3, ListChecks, MagicWand as Wand, Warning, IdentificationCard } from '@phosphor-icons/react';
 import { LocationReport } from './LocationReport';
 import { TaskReports } from './TaskReports';
 import { ManpowerReports } from './ManpowerReports';
@@ -134,7 +134,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                      aria-controls="report-content"
                      id="tab-dailyAttendance"
                   >
-                     <ListChecks size={18} aria-hidden="true" weight="bold" />
+                     <IdentificationCard size={18} aria-hidden="true" weight="bold" />
                      <span className={reportType === 'dailyAttendance' ? 'whitespace-nowrap' : 'hidden md:inline whitespace-nowrap'}>דוח 1</span>
                   </button>
                   <button

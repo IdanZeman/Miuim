@@ -447,7 +447,8 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                             label=""
                             value={selectedTime}
                             onChange={setSelectedTime}
-                            className="w-24 md:w-28 h-10"
+                            className="w-16 md:w-24 h-10"
+                            variant="compact"
                         />
                     </div>
                 }

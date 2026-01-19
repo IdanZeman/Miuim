@@ -213,19 +213,19 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedd
             )}
 
             {/* Scrollable Content */}
-            <div className={`flex-1 overflow-y-auto custom-scrollbar ${isEmbedded ? "" : "p-8"} space-y-8`}>
+            <div className={`flex-1 overflow-y-auto custom-scrollbar ${isEmbedded ? "" : "p-4 md:p-8"} space-y-6 md:space-y-8`}>
 
                 {/* About Section - Informational */}
-                <section className="bg-gradient-to-l from-blue-50/50 to-transparent p-6 rounded-3xl border border-blue-100/50 relative overflow-hidden">
+                <section className="bg-gradient-to-l from-blue-50/50 to-transparent p-4 md:p-6 rounded-3xl border border-blue-100/50 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-32 h-32 bg-blue-100/20 rounded-full -ml-16 -mt-16 blur-3xl" />
-                    <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
-                        <div className="w-12 h-12 bg-white rounded-2xl border border-blue-200 flex items-center justify-center text-blue-600 shadow-sm shrink-0">
-                            <Info size={24} weight="duotone" />
+                    <div className="relative z-10 flex flex-col md:flex-row gap-4 md:gap-6 items-start">
+                        <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-[1rem] md:rounded-2xl border border-blue-200 flex items-center justify-center text-blue-600 shadow-sm shrink-0">
+                            <Info size={20} className="md:w-6 md:h-6" weight="duotone" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-black text-slate-900 mb-2">מה דף זה מציג?</h3>
-                            <p className="text-slate-600 text-sm font-medium leading-relaxed max-w-4xl">
-                                דף האנליטיקה מספק שקיפות מלאה על פעולות הליבה של הארגון. כאן ניתן לעקוב אחר שינויים משמעותיים בסד"כ (כמו מחיקות), לוודא שכל המידע מגובה ותקין, ולצפות בפיד פעילות בזמן אמת של המנהלים. המטרה היא להבטיח את תקינות הנתונים ולמנוע אובדן מידע קריטי.
+                            <h3 className="text-base md:text-lg font-black text-slate-900 mb-1 md:mb-2 text-right">מה דף זה מציג?</h3>
+                            <p className="text-slate-600 text-xs md:text-sm font-medium leading-relaxed max-w-4xl text-right">
+                                דף האנליטיקה מספק שקיפות מלאה על פעולות הליבה של הארגון. כאן ניתן לעקוב אחר שינויים משמעותיים בסד"כ, לוודא שהגיבויים תקינים, ולצפות בפיד פעילות בזמן אמת.
                             </p>
                         </div>
                     </div>
@@ -236,21 +236,21 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedd
                 ) : (
                     <>
                         {/* Main Stats Row */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                             <StatCard
                                 title="אנשים פעילים"
                                 value={summary?.active_people}
                                 icon={Users}
                                 color={{ bg: "bg-blue-100/50", text: "text-blue-600" }}
-                                description="Active Personnel"
+                                description="Active People"
                                 tooltip="מספר החיילים המוגדרים כ'פעילים' כרגע במערכת."
                             />
                             <StatCard
-                                title="מחיקות ל-ארכיון"
+                                title="מחיקות 30י"
                                 value={summary?.deletions_30d}
                                 icon={Trash}
                                 color={{ bg: "bg-rose-100/50", text: "text-rose-600" }}
-                                description="Security Audit"
+                                description="Security"
                                 tooltip="כמות החיילים שהוסרו מהארגון ב-30 הימים האחרונים."
                             />
                             <StatCard
@@ -258,7 +258,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedd
                                 value={summary?.snapshots_30d}
                                 icon={Database}
                                 color={{ bg: "bg-indigo-100/50", text: "text-indigo-600" }}
-                                description="System Backups"
+                                description="Backups"
                                 tooltip="כמות הגיבויים המלאים שבוצעו החודש."
                             />
                             <StatCard
@@ -266,7 +266,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedd
                                 value={summary?.restores_30d}
                                 icon={ArrowsClockwise}
                                 color={{ bg: "bg-amber-100/50", text: "text-amber-600" }}
-                                description="Recovery Events"
+                                description="Recovery"
                                 tooltip="כמות הפעמים שבוצע שחזור מידע מגיבוי קודם."
                             />
                         </div>
@@ -335,16 +335,16 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedd
 
                                 {/* Activity Feed */}
                                 <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-                                    <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+                                    <div className="px-5 md:px-8 py-4 md:py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
                                         <div>
-                                            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                                                <Pulse size={22} weight="duotone" className="text-blue-500" />
+                                            <h3 className="text-base md:text-lg font-black text-slate-900 flex items-center gap-2">
+                                                <Pulse size={20} weight="duotone" className="text-blue-500 md:w-5 md:h-5" />
                                                 יומן אירועים אחרונים
                                             </h3>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Recent System Activity</p>
+                                            <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Recent Activity</p>
                                         </div>
-                                        <span className="bg-white border border-slate-200 text-slate-600 text-[10px] font-black px-3 py-1.5 rounded-lg shadow-sm">
-                                            {activity.length} פעולות מוצגות
+                                        <span className="bg-white border border-slate-200 text-slate-600 text-[9px] md:text-[10px] font-black px-2 md:px-3 py-1.5 rounded-lg shadow-sm whitespace-nowrap">
+                                            {activity.length} פעולות
                                         </span>
                                     </div>
 
@@ -360,44 +360,44 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedd
                                         ) : (
                                             <div className="divide-y divide-slate-50">
                                                 {activity.map((event, idx) => (
-                                                    <div key={idx} className="px-8 py-5 hover:bg-slate-50/50 transition-colors group">
-                                                        <div className="flex items-start gap-5">
-                                                            <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 group-hover:border-blue-200 group-hover:shadow-md transition-all">
-                                                                {getEventIcon(event.event_type)}
+                                                    <div key={idx} className="px-4 md:px-8 py-4 md:py-5 hover:bg-slate-50/50 transition-colors group">
+                                                        <div className="flex items-start gap-3 md:gap-5">
+                                                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center shrink-0 group-hover:border-blue-200 group-hover:shadow-md transition-all">
+                                                                {React.cloneElement(getEventIcon(event.event_type) as React.ReactElement<{ size: number }>, { size: window.innerWidth < 768 ? 16 : 20 })}
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center justify-between mb-1.5 text-right">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <h4 className="font-black text-slate-800 truncate">{event.event_name}</h4>
-                                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${event.event_type === 'deletion' ? 'bg-rose-50 text-rose-600' :
+                                                                <div className="flex flex-col md:flex-row md:items-center justify-between mb-1 text-right gap-1">
+                                                                    <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                                                                        <h4 className="font-black text-slate-800 text-sm md:text-base truncate max-w-[150px] md:max-w-none">{event.event_name}</h4>
+                                                                        <span className={`text-[9px] md:text-[10px] font-black px-1.5 md:px-2 py-0.5 rounded-md ${event.event_type === 'deletion' ? 'bg-rose-50 text-rose-600' :
                                                                             event.event_type === 'create' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-600'
                                                                             }`}>
                                                                             {getEventLabel(event.event_type)}
                                                                         </span>
                                                                     </div>
-                                                                    <span className="text-[10px] font-black uppercase text-slate-400 bg-slate-50 px-2 py-1 rounded-md">
+                                                                    <span className="text-[9px] font-black uppercase text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md self-start md:self-auto">
                                                                         {new Date(event.occurred_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                                                                     </span>
                                                                 </div>
-                                                                <div className="flex items-center flex-wrap gap-x-5 gap-y-1.5 text-[11px] text-slate-500 font-bold justify-end">
-                                                                    <span className="flex items-center gap-1.5 bg-slate-100/50 px-2 py-1 rounded-lg">
-                                                                        <UserIcon size={14} weight="bold" className="text-slate-400" />
+                                                                <div className="flex items-center flex-wrap gap-x-3 md:gap-x-5 gap-y-1 text-[10px] md:text-[11px] text-slate-500 font-bold justify-end">
+                                                                    <span className="flex items-center gap-1 bg-slate-100/50 px-1.5 py-0.5 rounded-md">
+                                                                        <UserIcon size={12} weight="bold" className="text-slate-400" />
                                                                         {event.user_name || 'המערכת'}
                                                                     </span>
-                                                                    <span className="flex items-center gap-1.5">
-                                                                        <Calendar size={14} weight="bold" className="text-slate-400" />
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Calendar size={12} weight="bold" className="text-slate-400" />
                                                                         {new Date(event.occurred_at).toLocaleDateString('he-IL')}
                                                                     </span>
-                                                                    <span className={`flex items-center gap-1.5 ${event.status === 'success' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                                        <div className={`w-1.5 h-1.5 rounded-full ${event.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                                                                        {event.status === 'success' ? 'הושלם בהצלחה' : 'נכשל'}
+                                                                    <span className={`flex items-center gap-1 ${event.status === 'success' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                                        <div className={`w-1 h-1 rounded-full ${event.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                                                        {event.status === 'success' ? 'הושלם' : 'נכשל'}
                                                                     </span>
                                                                 </div>
                                                                 {event.metadata?.reason && (
-                                                                    <div className="mt-3 relative">
+                                                                    <div className="mt-2 relative">
                                                                         <div className="absolute inset-y-0 right-0 w-0.5 bg-rose-200 rounded-full" />
-                                                                        <p className="pr-3 text-xs text-slate-500 font-medium italic text-right">
-                                                                            סיבת המחיקה: {event.metadata.reason}
+                                                                        <p className="pr-2 text-[10px] md:text-xs text-slate-500 font-medium italic text-right">
+                                                                            סיבה: {event.metadata.reason}
                                                                         </p>
                                                                     </div>
                                                                 )}

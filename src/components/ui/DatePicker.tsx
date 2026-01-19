@@ -35,11 +35,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({ label, value, onChange, 
             <div className={`flex flex-col gap-1 ${className}`}>
                 {label && <label htmlFor={id} className="text-[10px] font-bold text-slate-500 mb-1 px-1">{label}</label>}
                 <div
-                    className="relative flex items-center justify-center bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-400 rounded-xl h-10 px-3 cursor-pointer transition-all duration-300 group shadow-sm"
+                    className="relative flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-400 rounded-xl h-10 px-1.5 md:px-3 cursor-pointer transition-all duration-300 group shadow-sm"
                     onClick={handleClick}
                 >
-                    <span className="text-base font-bold text-slate-800">
-                        {value ? dateObj.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'בחר תאריך'}
+                    <Calendar size={14} className="text-blue-600 shrink-0" weight="bold" />
+                    <span className="text-sm md:text-base font-bold text-slate-800 whitespace-nowrap">
+                        {value ? dateObj.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) : 'בחר'}
                     </span>
                     <input
                         ref={inputRef}
@@ -120,10 +121,11 @@ export const TimePicker: React.FC<TimePickerProps> = ({ label, value, onChange, 
             <div className={`flex flex-col gap-1 ${className}`}>
                 {label && <label htmlFor={id} className="text-[10px] font-bold text-slate-500 mb-1 px-1">{label}</label>}
                 <div
-                    className="relative flex items-center justify-center bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-400 rounded-xl h-10 px-3 cursor-pointer transition-all duration-300 group shadow-sm"
+                    className="relative flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-400 rounded-xl h-10 px-1.5 md:px-3 cursor-pointer transition-all duration-300 group shadow-sm"
                     onClick={handleClick}
                 >
-                    <span className="text-base font-bold text-slate-800 font-mono">
+                    <Clock size={14} className="text-blue-600 shrink-0" weight="bold" />
+                    <span className="text-sm md:text-base font-bold text-slate-800 font-mono whitespace-nowrap">
                         {value || '00:00'}
                     </span>
                     <input

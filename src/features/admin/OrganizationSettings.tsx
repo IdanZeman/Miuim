@@ -503,17 +503,17 @@ const BattalionAssociationSettings: React.FC<{ organizationId: string; currentBa
     return (
         <div className="space-y-8 max-w-2xl">
             {battalion ? (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-8 animate-in fade-in slide-in-from-bottom-2">
-                    <div className="flex items-center justify-between gap-6">
-                        <div className="flex items-center gap-6">
-                            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
-                                <Shield size={40} weight="bold" />
+                <div className="bg-emerald-50 border border-emerald-100 rounded-[2rem] p-5 md:p-8 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex flex-col sm:flex-row items-center gap-4 md:gap-6 text-center sm:text-right">
+                            <div className="w-16 h-16 md:w-20 md:h-20 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm shrink-0">
+                                <Shield size={32} className="md:w-10 md:h-10" weight="bold" />
                             </div>
                             <div>
-                                <p className="text-emerald-600 font-bold text-sm mb-1">מחובר לגדוד</p>
-                                <h2 className="text-3xl font-black text-slate-900">{battalion.name}</h2>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <span className="bg-white/60 px-3 py-1 rounded-lg text-xs font-mono font-bold text-slate-500 border border-emerald-200">
+                                <p className="text-emerald-600 font-bold text-xs md:text-sm mb-1 uppercase tracking-wider">מחובר לגדוד</p>
+                                <h2 className="text-2xl md:text-3xl font-black text-slate-900">{battalion.name}</h2>
+                                <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
+                                    <span className="bg-white/60 px-3 py-1 rounded-lg text-[10px] md:text-xs font-mono font-bold text-slate-500 border border-emerald-200">
                                         קוד גדוד: {battalion.code}
                                     </span>
                                 </div>
@@ -522,7 +522,7 @@ const BattalionAssociationSettings: React.FC<{ organizationId: string; currentBa
 
                         <Button
                             variant="ghost"
-                            className="text-red-500 hover:bg-red-50 hover:text-red-700 font-bold shrink-0"
+                            className="text-red-500 hover:bg-red-50 hover:text-red-700 font-bold shrink-0 w-full md:w-auto py-3 md:py-2"
                             onClick={handleUnlink}
                             isLoading={unlinking}
                             icon={LinkBreak}
@@ -848,7 +848,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                 {/* === Active Content Area === */}
                 {/* === Active Content Area === */}
                 <div className="flex-1 relative z-20 md:z-auto md:mt-0 md:mx-0 px-0 md:px-0 pb-20 md:pb-0 overflow-y-auto h-full hide-scrollbar">
-                    <div className="bg-white rounded-[2rem] border border-slate-100 p-6 md:p-8">
+                    <div className="bg-white rounded-[2rem] border border-slate-100 p-4 md:p-8">
 
                         {/* Mobile Only: Organization Info & Tabs */}
                         <div className="md:hidden space-y-6 mb-8">
@@ -876,18 +876,18 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                 <p className="text-slate-500 font-medium text-sm">הגדרות וניהול מערכת</p>
                             </div>
 
-                            <div className="bg-slate-50 p-1.5 rounded-2xl flex border border-slate-200 w-full">
+                            <div className="bg-slate-100/50 p-1.5 rounded-2xl flex border border-slate-200 w-full overflow-x-auto hide-scrollbar">
                                 {navigationTabs.map(tab => (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id as any)}
-                                        className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${activeTab === tab.id
-                                            ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
-                                            : 'text-slate-400 hover:bg-slate-200/50 hover:text-slate-600'
+                                        className={`flex-1 flex items-center justify-center py-3 px-1 rounded-xl transition-all min-w-[50px] ${activeTab === tab.id
+                                            ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200'
+                                            : 'text-slate-400 hover:text-slate-600'
                                             }`}
                                         aria-label={tab.label}
                                     >
-                                        <tab.icon size={22} weight={activeTab === tab.id ? 'fill' : 'bold'} className={tab.id === 'messages' && activeTab !== tab.id ? 'text-slate-500' : ''} />
+                                        <tab.icon size={20} weight={activeTab === tab.id ? 'fill' : 'bold'} />
                                     </button>
                                 ))}
                             </div>

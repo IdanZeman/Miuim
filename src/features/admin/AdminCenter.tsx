@@ -52,10 +52,12 @@ export const AdminCenter: React.FC = () => {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`px-5 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-2 font-black text-xs ${activeTab === tab.id ? 'bg-white text-slate-900 shadow-sm ring-1 ring-black/5' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-3 md:px-5 py-2 md:py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 md:gap-2 font-black text-xs ${activeTab === tab.id ? 'bg-white text-slate-900 shadow-sm ring-1 ring-black/5' : 'text-slate-400 hover:text-slate-600'}`}
                             >
                                 <tab.icon size={18} weight={activeTab === tab.id ? 'fill' : 'bold'} className={activeTab === tab.id ? tab.color : ''} />
-                                {tab.label}
+                                <span className={activeTab === tab.id ? 'inline' : 'hidden min-[450px]:inline'}>
+                                    {tab.label}
+                                </span>
                             </button>
                         ))}
                     </div>

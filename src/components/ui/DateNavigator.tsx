@@ -145,7 +145,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
 
             <div
                 ref={triggerRef}
-                className="relative group cursor-pointer flex items-center justify-center gap-2 min-w-[120px] md:min-w-[150px] px-2 h-9"
+                className="relative group cursor-pointer flex items-center justify-center gap-1 md:gap-2 min-w-fit px-1 md:px-2 h-9"
                 onClick={() => setIsOpen(!isOpen)}
             >
                 {label && <span className="text-xs text-slate-500 font-medium hidden md:block">{label}</span>}
@@ -167,7 +167,7 @@ export const DateNavigator: React.FC<DateNavigatorProps> = ({
 
                             {/* Mobile Date Format (Shorter) */}
                             <span className="md:hidden text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap">
-                                {date.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })}
+                                {date.getDate()}/{date.getMonth() + 1}
                             </span>
                         </>
                     )}
