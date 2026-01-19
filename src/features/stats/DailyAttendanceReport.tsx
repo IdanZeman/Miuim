@@ -181,7 +181,25 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
                         const isBase = avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
 
                         if (!isBase) {
-                            rowData.push('בית');
+                            const homeStatusLabels: Record<string, string> = {
+                                'leave_shamp': 'חופשה בשמפ',
+                                'gimel': 'ג\'',
+                                'absent': 'נפקד',
+                                'organization_days': 'ימי התארגנות',
+                                'not_in_shamp': 'לא בשמ"פ'
+                            };
+
+                            const relevantAbsence = absences.find(a =>
+                                a.person_id === p.id &&
+                                date.toLocaleDateString('en-CA') >= a.start_date &&
+                                date.toLocaleDateString('en-CA') <= a.end_date &&
+                                a.status !== 'rejected'
+                            );
+
+                            const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : undefined;
+                            const displayReason = relevantAbsence?.reason || homeTypeLabel || 'חופשה בשמפ';
+
+                            rowData.push(`בית (${displayReason})`);
                         } else {
                             const prevWasPartialReturn = prevAvail.status === 'home' && prevAvail.endHour && prevAvail.endHour !== '23:59' && prevAvail.endHour !== '00:00';
                             const nextWasPartialDeparture = nextAvail.status === 'home' && nextAvail.startHour && nextAvail.startHour !== '00:00';
@@ -502,11 +520,32 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
                                                         let cellBg = "bg-white";
 
                                                         if (!isBase) {
+                                                            const homeStatusLabels: Record<string, string> = {
+                                                                'leave_shamp': 'חופשה בשמפ',
+                                                                'gimel': 'ג\'',
+                                                                'absent': 'נפקד',
+                                                                'organization_days': 'ימי התארגנות',
+                                                                'not_in_shamp': 'לא בשמ"פ'
+                                                            };
+
+                                                            const relevantAbsence = absences.find(a =>
+                                                                a.person_id === person.id &&
+                                                                date.toLocaleDateString('en-CA') >= a.start_date &&
+                                                                date.toLocaleDateString('en-CA') <= a.end_date &&
+                                                                a.status !== 'rejected'
+                                                            );
+
+                                                            const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : undefined;
+                                                            const displayReason = relevantAbsence?.reason || homeTypeLabel || 'חופשה בשמפ';
+
                                                             cellBg = "bg-red-50/70";
                                                             content = (
                                                                 <div className="flex flex-col items-center justify-center gap-0.5">
                                                                     <Home size={14} className="text-red-300" weight="bold" />
                                                                     <span className="text-[10px] font-black text-red-800">בית</span>
+                                                                    <span className="text-[8px] font-bold text-red-500/70 leading-tight text-center px-1 truncate max-w-[80px]">
+                                                                        {displayReason}
+                                                                    </span>
                                                                 </div>
                                                             );
                                                         } else {
