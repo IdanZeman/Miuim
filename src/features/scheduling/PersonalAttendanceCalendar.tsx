@@ -155,7 +155,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             textColor: 'FF94A3B8' // ARGB Slate-400
         };
 
-        if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival') {
+        if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
 
             const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') || (avail.startHour !== '00:00');
             const isDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') || (avail.endHour !== '23:59');

@@ -11,7 +11,7 @@ import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
 import { ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText } from '@phosphor-icons/react';
-import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel } from '@phosphor-icons/react';
+import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, ClockCounterClockwise, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel } from '@phosphor-icons/react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
 import { MultiSelect } from '../../components/ui/MultiSelect';
@@ -104,8 +104,9 @@ const ShiftCard: React.FC<{
     isContinuedFromPrev?: boolean;
     isContinuedToNext?: boolean;
     isCompact?: boolean;
-    hasAbsenceConflict?: boolean; // NEW
-}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext, isCompact, hasAbsenceConflict }) => {
+    hasAbsenceConflict?: boolean;
+    hasRestViolation?: boolean; // NEW
+}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext, isCompact, hasAbsenceConflict, hasRestViolation }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const assigned = shift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
@@ -122,20 +123,28 @@ const ShiftCard: React.FC<{
     }).map(rc => roles.find(r => r.id === rc.roleId)?.name).filter(Boolean);
 
     const hasMissingRoles = missingRoles.length > 0;
+    const isUnderStaffed = assigned.length < req;
+    const isOverStaffed = assigned.length > req;
 
     // Determine status color
     let bgColor = 'bg-blue-50';
     let borderColor = 'border-blue-200';
-    if (shift.isCancelled) { bgColor = 'bg-slate-100'; borderColor = 'border-slate-300'; }
-    else if (shift.assignedPersonIds.length === 0) { bgColor = 'bg-white'; }
-    else if (task.segments && task.segments.length > 0) {
-        if (shift.assignedPersonIds.length >= req && !hasMissingRoles) {
+    if (shift.isCancelled) {
+        bgColor = 'bg-slate-100'; borderColor = 'border-slate-300';
+    }
+    else if (assigned.length === 0) {
+        bgColor = 'bg-white';
+    }
+    else {
+        if (!isUnderStaffed && !isOverStaffed && !hasMissingRoles) {
             bgColor = 'bg-green-50';
             borderColor = 'border-green-200';
-        } else if (hasMissingRoles) {
-            // Even if full by count, if missing roles, warning color
+        } else if (isUnderStaffed || hasMissingRoles) {
             bgColor = 'bg-amber-50';
             borderColor = 'border-amber-200';
+        } else if (isOverStaffed) {
+            bgColor = 'bg-purple-50';
+            borderColor = 'border-purple-200';
         }
     }
 
@@ -205,6 +214,16 @@ const ShiftCard: React.FC<{
                             <Ban size={12} className="text-red-500 shrink-0 animate-pulse" weight="bold" />
                         </span>
                     )}
+                    {hasRestViolation && (
+                        <span title="חייל ללא זמן מנוחה מספיק">
+                            <ClockCounterClockwise size={12} className="text-red-600 shrink-0" weight="bold" />
+                        </span>
+                    )}
+                    {isOverStaffed && (
+                        <span title="חריגה מהתקן (יותר מדי אנשים)">
+                            <Plus size={12} className="text-purple-600 shrink-0" weight="bold" />
+                        </span>
+                    )}
 
                     {task.assignedTeamId && (
                         <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow-sm mr-1 shrink-0 font-bold tracking-tight">
@@ -267,7 +286,7 @@ const ShiftCard: React.FC<{
 
                 {/* Staffing Count */}
                 {(!isCompact || (style?.height && parseInt(String(style.height)) >= 28)) && (
-                    <div className={`text-[10px] font-medium leading-none flex-shrink-0 ml-1 mb-0.5 ${hasMissingRoles ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                    <div className={`text-[10px] font-medium leading-none flex-shrink-0 ml-1 mb-0.5 ${hasMissingRoles || isUnderStaffed ? 'text-red-500 font-bold' : (isOverStaffed ? 'text-purple-600 font-bold' : 'text-slate-400')}`}>
                         {assigned.length}/{req}
                     </div>
                 )}
@@ -807,19 +826,55 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     (s.assignedPersonIds || []).includes(personId) // Safe check here too
                 );
 
-                return otherShifts.some(s => {
+                const hasOverlap = otherShifts.some(s => {
                     const sStart = new Date(s.startTime);
                     const sEnd = new Date(s.endTime);
-
                     return (shiftStart < sEnd && shiftEnd > sStart);
                 });
+                if (hasOverlap) return true;
+
+                // Check rest violation
+                const prevShift = (shifts || []).filter(s =>
+                    s.id !== shift.id &&
+                    (s.assignedPersonIds || []).includes(personId) &&
+                    new Date(s.endTime) <= shiftStart
+                ).sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0];
+
+                if (prevShift) {
+                    const gapMs = shiftStart.getTime() - new Date(prevShift.endTime).getTime();
+                    const gapHours = gapMs / (1000 * 60 * 60);
+                    const requiredRest = prevShift.requirements?.minRest || 8;
+                    if (gapHours < requiredRest) return true;
+                }
+
+                return false;
             }).map(personId => {
                 const person = people.find(p => p.id === personId);
                 const availability = person ? getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages) : { isAvailable: true };
+
+                // Determine conflict type
+                let type: 'absence' | 'overlap' | 'rest_violation' = !availability.isAvailable ? 'absence' : 'overlap';
+
+                if (type === 'overlap') {
+                    const otherShifts = (shifts || []).filter(s =>
+                        s.id !== shift.id &&
+                        (s.assignedPersonIds || []).includes(personId)
+                    );
+                    const hasOverlap = otherShifts.some(s => {
+                        const sStart = new Date(s.startTime);
+                        const sEnd = new Date(s.endTime);
+                        return (shiftStart < sEnd && shiftEnd > sStart);
+                    });
+
+                    if (!hasOverlap) {
+                        type = 'rest_violation';
+                    }
+                }
+
                 return {
                     shiftId: shift.id,
                     personId,
-                    type: !availability.isAvailable ? 'absence' : 'overlap'
+                    type
                 };
             });
         });
@@ -1243,6 +1298,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                         isContinuedToNext={isContinuedToNext}
                                                         isCompact={isCompact}
                                                         hasAbsenceConflict={isShiftConflictDueToAbsence(shift.id)}
+                                                        hasRestViolation={conflicts.some(c => c.shiftId === shift.id && c.type === 'rest_violation')}
                                                         style={{
                                                             top: `${top}px`,
                                                             height: `${Math.max(height, isCompact ? 18 : 30)}px`,

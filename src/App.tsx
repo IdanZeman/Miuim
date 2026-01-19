@@ -709,24 +709,93 @@ const useMainAppState = () => {
             oldTask?.endDate !== t.endDate;
 
         if (schedulingChanged) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() - today.getDay());
-            const newShifts = generateShiftsForTask(t, startOfWeek);
-            const shiftsWithOrg = newShifts.map(s => ({ ...s, organization_id: orgIdForActions }));
             try {
-                await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id);
+                // 1. Get current time to differentiate past/future
+                const now = new Date();
 
-                await supabase.from('shifts').delete().eq('task_id', t.id).eq('organization_id', orgIdForActions);
-                if (shiftsWithOrg.length > 0) {
-                    const { error: shiftsError } = await supabase.from('shifts').insert(shiftsWithOrg.map(mapShiftToDB));
-                    if (shiftsError) console.error('Shifts insert error:', shiftsError);
+                // 2. Fetch current shifts for this task to preserve assignments
+                const { data: currentShiftsData, error: fetchError } = await supabase
+                    .from('shifts')
+                    .select('*')
+                    .eq('task_id', t.id)
+                    .eq('organization_id', orgIdForActions);
+
+                if (fetchError) throw fetchError;
+
+                const existingShifts: Shift[] = currentShiftsData.map(mapShiftFromDB);
+
+                // 3. Separate past/active shifts from future shifts
+                // We keep shifts that have already started or are currently active
+                const shiftsToPreserve = existingShifts.filter(s => new Date(s.startTime) < now);
+                const futureShiftsToReplace = existingShifts.filter(s => new Date(s.startTime) >= now);
+
+                // 4. Generate new shifts starting from today
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - today.getDay());
+
+                const generatedShifts = generateShiftsForTask(t, startOfWeek);
+                const newFutureShifts = generatedShifts
+                    .map(s => ({ ...s, organization_id: orgIdForActions }))
+                    .filter(s => new Date(s.startTime) >= now);
+
+                // 5. Migrate assignments from old future shifts to new ones
+                const matchedNewShifts = newFutureShifts.map(newShift => {
+                    const newShiftTime = new Date(newShift.startTime).getTime();
+
+                    // Try to find a match by BOTH time and segment ID
+                    let match = futureShiftsToReplace.find(oldShift => {
+                        const oldShiftTime = new Date(oldShift.startTime).getTime();
+                        return oldShiftTime === newShiftTime && oldShift.segmentId === newShift.segmentId;
+                    });
+
+                    // Fallback: If no precise match, try matching by time alone 
+                    // (handles cases where a segment was replaced but the slot remains)
+                    if (!match) {
+                        match = futureShiftsToReplace.find(oldShift => {
+                            const oldShiftTime = new Date(oldShift.startTime).getTime();
+                            return Math.abs(oldShiftTime - newShiftTime) < 1000; // Allow 1s tolerance
+                        });
+                    }
+
+                    if (match) {
+                        return {
+                            ...newShift,
+                            assignedPersonIds: match.assignedPersonIds || [],
+                            isLocked: !!match.isLocked,
+                            isCancelled: !!match.isCancelled
+                        };
+                    }
+                    return newShift;
+                });
+
+                // 6. Update task template
+                const { error: taskUpdateError } = await supabase.from('task_templates').update(mapTaskToDB(t)).eq('id', t.id);
+                if (taskUpdateError) throw taskUpdateError;
+
+                // 7. Perform the actual shift swap for future shifts
+                // Delete ONLY future shifts
+                const isoNow = now.toISOString();
+
+                const { error: deleteError } = await supabase.from('shifts')
+                    .delete()
+                    .eq('task_id', t.id)
+                    .eq('organization_id', orgIdForActions)
+                    .gte('start_time', isoNow);
+
+                if (deleteError) throw deleteError;
+
+                // Insert the new future shifts (with migrated assignments)
+                if (matchedNewShifts.length > 0) {
+                    const { error: insertError } = await supabase.from('shifts')
+                        .insert(matchedNewShifts.map(mapShiftToDB));
+                    if (insertError) throw insertError;
                 }
 
                 await logger.logUpdate('task', t.id, t.name, oldTask, t);
                 await refreshData();
-                showToast('המשימה והמשמרות עודכנו בהצלחה', 'success');
+                showToast('המשימה והמשמרות העתידיות עודכנו בהצלחה. היסטוריה ושיבוצים קיימים נשמרו.', 'success');
 
             } catch (e: any) {
                 console.error(e);
