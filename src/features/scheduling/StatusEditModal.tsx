@@ -332,26 +332,26 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
         >
             <div className="flex flex-col gap-6">
                 <>
-                    {/* 1. Segmented Control - Premium Design */}
+                    {/* 1. Segmented Control - Premium Design with smooth transitions */}
                     <div className="bg-slate-50 border border-slate-200 p-1.5 rounded-2xl flex relative shadow-inner">
                         <button
                             onClick={() => setMainStatus('base')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-300 ${mainStatus === 'base'
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-200 ease-out ${mainStatus === 'base'
                                 ? 'bg-white text-green-600 shadow-sm ring-1 ring-black/5 transform scale-[1.02]'
                                 : 'text-slate-400 hover:text-slate-600'
                                 }`}
                         >
-                            <Buildings size={18} weight={mainStatus === 'base' ? 'bold' : 'bold'} />
+                            <Buildings size={18} weight="bold" className="transition-all duration-200" />
                             בבסיס
                         </button>
                         <button
                             onClick={() => setMainStatus('home')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-300 ${mainStatus === 'home'
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-200 ease-out ${mainStatus === 'home'
                                 ? 'bg-white text-slate-600 shadow-sm ring-1 ring-black/5 transform scale-[1.02]'
                                 : 'text-slate-400 hover:text-slate-600'
                                 }`}
                         >
-                            <House size={18} weight={mainStatus === 'home' ? 'bold' : 'bold'} />
+                            <House size={18} weight="bold" className="transition-all duration-200" />
                             בבית
                         </button>
                     </div>
@@ -373,11 +373,11 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                             {/* 2. Day Type Selection (if Base) */}
                             {mainStatus === 'base' && (
                                 <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-500 delay-75">
-                                    {/* Day Type Buttons - Subtle chips */}
+                                    {/* Day Type Buttons - Subtle chips with smooth transitions */}
                                     <div className="flex flex-wrap gap-2 justify-center">
                                         <button
                                             onClick={() => setCustomType(null)}
-                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === null
+                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-150 ease-out ${customType === null
                                                 ? 'bg-green-100 text-green-700 ring-1 ring-green-200'
                                                 : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                                                 }`}
@@ -386,7 +386,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                         </button>
                                         <button
                                             onClick={() => setCustomType('arrival')}
-                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'arrival'
+                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-150 ease-out ${customType === 'arrival'
                                                 ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
                                                 : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                                                 }`}
@@ -395,7 +395,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                         </button>
                                         <button
                                             onClick={() => setCustomType('departure')}
-                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'departure'
+                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-150 ease-out ${customType === 'departure'
                                                 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200'
                                                 : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                                                 }`}
@@ -404,7 +404,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                         </button>
                                         <button
                                             onClick={() => setCustomType('custom')}
-                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${customType === 'custom'
+                                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-150 ease-out ${customType === 'custom'
                                                 ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-200'
                                                 : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                                                 }`}
