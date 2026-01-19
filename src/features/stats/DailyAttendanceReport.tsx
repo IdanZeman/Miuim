@@ -169,7 +169,36 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
                 if (selectedFields.has('attendance')) {
                     exportDates.forEach(date => {
                         const avail = getEffectiveAvailability(p, date, teamRotations, absences, hourlyBlockages);
-                        rowData.push(avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure' ? 'בסיס' : 'בית');
+
+                        const prevDate = new Date(date);
+                        prevDate.setDate(date.getDate() - 1);
+                        const nextDate = new Date(date);
+                        nextDate.setDate(date.getDate() + 1);
+
+                        const prevAvail = getEffectiveAvailability(p, prevDate, teamRotations, absences, hourlyBlockages);
+                        const nextAvail = getEffectiveAvailability(p, nextDate, teamRotations, absences, hourlyBlockages);
+
+                        const isBase = avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
+
+                        if (!isBase) {
+                            rowData.push('בית');
+                        } else {
+                            const prevWasPartialReturn = prevAvail.status === 'home' && prevAvail.endHour && prevAvail.endHour !== '23:59' && prevAvail.endHour !== '00:00';
+                            const nextWasPartialDeparture = nextAvail.status === 'home' && nextAvail.startHour && nextAvail.startHour !== '00:00';
+
+                            const isArrival = ((!prevAvail.isAvailable || prevAvail.status === 'home') && !prevWasPartialReturn) || (avail.startHour !== '00:00');
+                            const isDeparture = ((!nextAvail.isAvailable || nextAvail.status === 'home') && !nextWasPartialDeparture) || (avail.endHour !== '23:59');
+
+                            if (isArrival && isDeparture) {
+                                rowData.push(`יום בודד (${avail.startHour}-${avail.endHour})`);
+                            } else if (isArrival) {
+                                rowData.push(`הגעה (${avail.startHour})`);
+                            } else if (isDeparture) {
+                                rowData.push(`יציאה (${avail.endHour})`);
+                            } else {
+                                rowData.push('בסיס');
+                            }
+                        }
                     });
                 }
                 rows.push(rowData);
@@ -193,12 +222,17 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
                 rows.forEach((row, rowIndex) => {
                     exportDates.forEach((_, dateIdx) => {
                         const cell = worksheet.getCell(rowIndex + 2, attendanceStartCol + dateIdx);
-                        if (cell.value === 'בסיס') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6F4EA' } }; // Light Green
-                            cell.font = { color: { argb: 'FF137333' }, bold: true };
-                        } else if (cell.value === 'בית') {
+                        const val = cell.value?.toString() || '';
+
+                        if (val.includes('בית')) {
                             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE8E6' } }; // Light Red
                             cell.font = { color: { argb: 'FFC5221F' }, bold: true };
+                        } else if (val.includes('יציאה')) {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF4E5' } }; // Light Orange
+                            cell.font = { color: { argb: 'FFB06000' }, bold: true };
+                        } else if (val.includes('הגעה') || val.includes('בסיס') || val.includes('יום בודד')) {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6F4EA' } }; // Light Green
+                            cell.font = { color: { argb: 'FF137333' }, bold: true };
                         }
                     });
                 });
