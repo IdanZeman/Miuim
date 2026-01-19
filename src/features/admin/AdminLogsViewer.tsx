@@ -257,15 +257,7 @@ export const AdminLogsViewer: React.FC<AdminLogsViewerProps> = ({ excludeUserId,
                             />
                         </div>
 
-                        <button
-                            onClick={() => setHideMyLogs(!hideMyLogs)}
-                            className={`h-12 px-5 rounded-2xl border text-xs font-bold transition-all whitespace-nowrap shadow-sm ${hideMyLogs
-                                ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200'
-                                : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
-                                }`}
-                        >
-                            {hideMyLogs ? 'מציג לוגים של אחרים' : 'מציג גם פעולות שלי'}
-                        </button>
+
 
                         <div className="min-w-[150px]">
                             <Select

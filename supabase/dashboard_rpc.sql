@@ -158,3 +158,77 @@ begin
     limit limit_count;
 end;
 $$;
+
+-- 5. Get System Users Trend Chart
+create or replace function get_system_users_chart(time_range text)
+returns table (
+    date_label text,
+    count bigint
+)
+language plpgsql
+security definer
+as $$
+begin
+    if time_range = 'today' then
+        return query
+        select 
+            to_char(created_at, 'HH24:00') as date_label,
+            count(distinct user_id) as count
+        from audit_logs
+        where created_at >= current_date
+        group by 1
+        order by 1;
+    else
+        return query
+        select 
+            to_char(created_at, 'DD/MM'),
+            count(distinct user_id)
+        from audit_logs
+        where created_at >= (
+            case 
+                when time_range = 'week' then (current_date - interval '7 days')
+                else (current_date - interval '30 days')
+            end
+        )
+        group by 1
+        order by min(created_at);
+    end if;
+end;
+$$;
+
+-- 6. Get System Orgs Trend Chart
+create or replace function get_system_orgs_chart(time_range text)
+returns table (
+    date_label text,
+    count bigint
+)
+language plpgsql
+security definer
+as $$
+begin
+    if time_range = 'today' then
+        return query
+        select 
+            to_char(created_at, 'HH24:00') as date_label,
+            count(distinct organization_id) as count
+        from audit_logs
+        where created_at >= current_date
+        group by 1
+        order by 1;
+    else
+        return query
+        select 
+            to_char(created_at, 'DD/MM'),
+            count(distinct organization_id)
+        from audit_logs
+        where created_at >= (
+            case 
+                when time_range = 'week' then (current_date - interval '7 days')
+                else (current_date - interval '30 days')
+            end
+        )
+        group by 1
+        order by min(created_at);
+    end if;
+end;
+$$;

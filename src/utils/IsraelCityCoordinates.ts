@@ -107,6 +107,8 @@ export const ISRAEL_CITIES: Record<string, { lat: number, lon: number }> = {
     'Shlomi': { lat: 33.0720, lon: 35.1430 },
     'Kfar Vradim': { lat: 32.9920, lon: 35.2600 },
     'Yarka': { lat: 32.9560, lon: 35.1910 },
+    'Manshīyet Zabda': { lat: 32.8830, lon: 35.3580 },
+    'Manshet Zabda': { lat: 32.8830, lon: 35.3580 },  // Alternative spelling
     
     // --- South & Negev ---
     'Ashkelon': { lat: 31.6690, lon: 34.5715 },

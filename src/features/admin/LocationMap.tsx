@@ -74,22 +74,45 @@ export const LocationMap: React.FC<LocationMapProps> = ({ data }) => {
                 let lon = item.lon;
                 let usedCache = false;
 
-                // 1. Direct or Static Lookup
+                // 1. Direct or Static Lookup with improved matching
                 if (!lat || !lon) {
                     const searchName = item.name.trim();
 
-                    // Check ISRAEL_CITIES
-                    let found = ISRAEL_CITIES[searchName] ||
-                        Object.values(ISRAEL_CITIES).find((_, i) => Object.keys(ISRAEL_CITIES)[i] === searchName); // Values check is wrong, keys check
+                    // Normalize function for better matching
+                    const normalize = (str: string) => str.toLowerCase()
+                        .replace(/['\-\s]/g, '')  // Remove apostrophes, hyphens, spaces
+                        .replace(/^q/i, 'k')       // Q -> K (Qatzrin -> Katzrin)
+                        .replace(/^c/i, 'k');      // C -> K (Caesarea)
 
+                    const normalizedSearch = normalize(searchName);
+
+                    // Try exact match first
+                    let found = ISRAEL_CITIES[searchName];
+
+                    // Try case-insensitive exact match
                     if (!found) {
-                        const key = Object.keys(ISRAEL_CITIES).find(k => k.toLowerCase() === searchName.toLowerCase() || k.includes(searchName) || searchName.includes(k));
-                        if (key) found = ISRAEL_CITIES[key];
+                        const exactKey = Object.keys(ISRAEL_CITIES).find(k => k.toLowerCase() === searchName.toLowerCase());
+                        if (exactKey) found = ISRAEL_CITIES[exactKey];
+                    }
+
+                    // Try normalized fuzzy match
+                    if (!found) {
+                        const fuzzyKey = Object.keys(ISRAEL_CITIES).find(k => {
+                            const normalizedKey = normalize(k);
+                            return normalizedKey === normalizedSearch ||
+                                normalizedKey.includes(normalizedSearch) ||
+                                normalizedSearch.includes(normalizedKey);
+                        });
+                        if (fuzzyKey) found = ISRAEL_CITIES[fuzzyKey];
                     }
 
                     // Check WORLD_COUNTRIES
                     if (!found) {
-                        const key = Object.keys(WORLD_COUNTRIES).find(k => k.toLowerCase() === searchName.toLowerCase() || k.includes(searchName) || searchName.includes(k));
+                        const key = Object.keys(WORLD_COUNTRIES).find(k =>
+                            k.toLowerCase() === searchName.toLowerCase() ||
+                            k.includes(searchName) ||
+                            searchName.includes(k)
+                        );
                         if (key) found = WORLD_COUNTRIES[key];
                     }
 
