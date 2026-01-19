@@ -659,13 +659,23 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                         const baseAvgNorm = 14 - homeAvgNorm;
                                         return (
                                             <>
-                                                <div className="w-14 shrink-0 bg-emerald-50 border-b border-l border-emerald-100 h-full flex items-center justify-center sticky right-52 z-[90]">
+                                                <div
+                                                    className="w-14 shrink-0 bg-emerald-50 border-b border-l border-emerald-100 h-full flex items-center justify-center sticky right-52 z-[90] cursor-pointer hover:bg-emerald-100 transition-colors"
+                                                    onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה', organization_id: '', color: 'bg-slate-500' })}
+                                                >
                                                     <span className="text-xs font-black text-emerald-700">{Math.round(baseAvg)}</span>
                                                 </div>
-                                                <div className="w-14 shrink-0 bg-red-50 border-b border-l border-red-100 h-full flex items-center justify-center sticky right-[264px] z-[90]">
+                                                <div
+                                                    className="w-14 shrink-0 bg-red-50 border-b border-l border-red-100 h-full flex items-center justify-center sticky right-[264px] z-[90] cursor-pointer hover:bg-red-100 transition-colors"
+                                                    onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה', organization_id: '', color: 'bg-slate-500' })}
+                                                >
                                                     <span className="text-xs font-black text-red-700">{Math.round(homeAvg)}</span>
                                                 </div>
-                                                <div className="w-14 shrink-0 bg-blue-50 border-b border-l border-blue-100 h-full flex items-center justify-center sticky right-[320px] z-[90]" dir="ltr">
+                                                <div
+                                                    className="w-14 shrink-0 bg-blue-50 border-b border-l border-blue-100 h-full flex items-center justify-center sticky right-[320px] z-[90] cursor-pointer hover:bg-blue-100 transition-colors"
+                                                    dir="ltr"
+                                                    onClick={() => onShowTeamStats?.({ id: 'all', name: 'כל הפלוגה', organization_id: '', color: 'bg-slate-500' })}
+                                                >
                                                     <span className="text-[10px] font-black text-blue-700">{homeAvgNorm} / {baseAvgNorm}</span>
                                                 </div>
                                             </>
@@ -858,13 +868,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
                                                                 return (
                                                                     <>
-                                                                        <div className={`w-16 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-60 z-[60] flex items-center justify-center font-black text-sm text-emerald-600 cursor-pointer hover:bg-emerald-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)}>
+                                                                        <div className={`w-14 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-52 z-[60] flex items-center justify-center font-black text-sm text-emerald-600 cursor-pointer hover:bg-emerald-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)}>
                                                                             {baseDays}
                                                                         </div>
-                                                                        <div className={`w-16 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[304px] z-[60] flex items-center justify-center font-black text-sm text-red-600 cursor-pointer hover:bg-red-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)}>
+                                                                        <div className={`w-14 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[264px] z-[60] flex items-center justify-center font-black text-sm text-red-600 cursor-pointer hover:bg-red-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)}>
                                                                             {homeDays}
                                                                         </div>
-                                                                        <div className={`w-16 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[368px] z-[60] flex items-center justify-center font-black text-[11px] text-blue-500 cursor-pointer hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)} dir="ltr">
+                                                                        <div className={`w-14 shrink-0 px-2 py-4 border-l border-slate-100 sticky right-[320px] z-[60] flex items-center justify-center font-black text-[11px] text-blue-500 cursor-pointer hover:bg-blue-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => onShowPersonStats?.(person)} dir="ltr">
                                                                             {homeNorm} / {baseNorm}
                                                                         </div>
                                                                     </>
