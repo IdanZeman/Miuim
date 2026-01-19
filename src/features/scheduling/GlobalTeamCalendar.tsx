@@ -44,7 +44,7 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
         const days = [];
         // Empty slots
         for (let i = 0; i < firstDay; i++) {
-            days.push(<div key={`empty-${i}`} className="min-h-[100px] md:min-h-[120px] bg-slate-50/20 border-b border-r border-slate-100 last:border-r-0" />);
+            days.push(<div key={`empty-${i}`} className="min-h-[80px] md:min-h-[120px] bg-slate-50/20 border-b border-r border-slate-100 last:border-r-0" />);
         }
 
         // Days
@@ -82,7 +82,7 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
                     key={d}
                     onClick={() => onDateClick(date)}
                     className={`
-                        min-h-[100px] md:min-h-[140px] 
+                        min-h-[80px] md:min-h-[140px] 
                         border-b border-r border-slate-100 last:border-r-0 
                         relative p-3 md:p-4
                         transition-all active:scale-[0.98] cursor-pointer 
@@ -91,16 +91,16 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
                     `}
                 >
                     {/* Date Number */}
-                    <span className={`text-2xl md:text-3xl font-black ${dateColorClass} ${isToday ? 'bg-blue-600 text-white w-9 h-9 md:w-12 md:h-12 flex items-center justify-center rounded-full shadow-lg shadow-blue-200' : ''}`}>
+                    <span className={`text-xl md:text-3xl font-black ${dateColorClass} ${isToday ? 'bg-blue-600 text-white w-7 h-7 md:w-12 md:h-12 flex items-center justify-center rounded-full shadow-lg shadow-blue-200' : ''}`}>
                         {d}
                     </span>
 
                     {/* Attendance Indicator */}
                     <div className="flex flex-col items-center">
-                        <span className={`text-sm md:text-xl font-black ${percentage >= 80 ? 'text-emerald-700' : percentage >= 50 ? 'text-amber-700' : 'text-red-700'}`} dir="ltr">
+                        <span className={`text-[11px] md:text-xl font-black ${percentage >= 80 ? 'text-emerald-700' : percentage >= 50 ? 'text-amber-700' : 'text-red-700'} whitespace-nowrap`} dir="ltr">
                             {presentPeople} / {totalPeople}
                         </span>
-                        <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        <span className="hidden md:block text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                             {percentage}% נוכחים
                         </span>
                     </div>

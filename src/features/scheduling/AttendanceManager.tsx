@@ -1172,6 +1172,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         onClose={() => setSelectedPersonForCalendar(null)}
                         onUpdatePerson={onUpdatePerson}
                         isViewer={isViewer}
+                        people={activePeople}
+                        onShowStats={(p) => setStatsEntity({ person: p })}
                     />
                 )
             }

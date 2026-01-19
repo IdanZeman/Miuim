@@ -477,17 +477,23 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                             </>
                                                                         )}
                                                                     </span>
-                                                                ) : (avail.unavailableBlocks && avail.unavailableBlocks.length > 0) && (
-                                                                    <div className="flex items-center gap-1 bg-red-50 text-red-600 px-1.5 py-0.5 rounded border border-red-100 shrink-0">
-                                                                        <Clock size={10} weight="bold" />
-                                                                        <span className="text-[10px] font-black leading-none">
-                                                                            {avail.unavailableBlocks.length === 1
-                                                                                ? `${avail.unavailableBlocks[0].start}-${avail.unavailableBlocks[0].end}`
-                                                                                : `${avail.unavailableBlocks.length} חסימות`
-                                                                            }
-                                                                        </span>
-                                                                    </div>
-                                                                )}
+                                                                ) : (() => {
+                                                                    const displayBlocks = (avail.unavailableBlocks || []).filter(b =>
+                                                                        !(b.start?.slice(0, 5) === '00:00' && (b.end?.slice(0, 5) === '23:59' || b.end?.slice(0, 5) === '00:00'))
+                                                                    );
+                                                                    if (displayBlocks.length === 0) return null;
+                                                                    return (
+                                                                        <div className="flex items-center gap-1 bg-red-50 text-red-600 px-1.5 py-0.5 rounded border border-red-100 shrink-0">
+                                                                            <Clock size={10} weight="bold" />
+                                                                            <span className="text-[10px] font-black leading-none">
+                                                                                {displayBlocks.length === 1
+                                                                                    ? `${displayBlocks[0].start.slice(0, 5)}-${displayBlocks[0].end.slice(0, 5)}`
+                                                                                    : `${displayBlocks.length} חסימות`
+                                                                                }
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })()}
 
                                                                 <div
                                                                     className={`

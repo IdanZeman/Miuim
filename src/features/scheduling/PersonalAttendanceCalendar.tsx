@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Person, TeamRotation, Absence, HomeStatusType, HourlyBlockage } from '@/types';
-import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, CheckCircle as CheckCircle2, MapPin, Info, WarningCircle as AlertCircle, Phone, Envelope, WhatsappLogo, Copy } from '@phosphor-icons/react';
+import { CaretRight as ChevronRight, CaretLeft as ChevronLeft, X, ArrowRight, ArrowLeft, House as Home, CalendarBlank as CalendarIcon, Trash as Trash2, Clock, ArrowCounterClockwise as RotateCcw, CheckCircle as CheckCircle2, MapPin, Info, WarningCircle as AlertCircle, Phone, Envelope, WhatsappLogo, Copy, ChartBar } from '@phosphor-icons/react';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { Button } from '@/components/ui/Button';
@@ -22,11 +22,16 @@ interface PersonalAttendanceCalendarProps {
     onClose: () => void;
     onUpdatePerson: (p: Person) => void;
     isViewer?: boolean;
+    people?: Person[];
+    onShowStats?: (person: Person) => void;
 }
 
 const formatTime = (time?: string) => time?.slice(0, 5) || '';
 
-export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({ person: initialPerson, teamRotations, absences = [], hourlyBlockages = [], onClose, onUpdatePerson, isViewer = false }) => {
+export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProps> = ({
+    person: initialPerson, teamRotations, absences = [], hourlyBlockages = [],
+    onClose, onUpdatePerson, isViewer = false, people = [], onShowStats
+}) => {
     const [person, setPerson] = useState(initialPerson);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [editingDate, setEditingDate] = useState<Date | null>(null);
@@ -442,12 +447,15 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                         {/* Blockages / Constraints Display */}
                         {avail.unavailableBlocks && avail.unavailableBlocks.length > 0 && (
                             <div className="flex flex-col items-center gap-1 mt-1 z-20">
-                                {avail.unavailableBlocks.slice(0, 2).map((block, idx) => (
-                                    <div key={idx} className="flex items-center gap-1 text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100 shadow-sm" title={block.reason}>
-                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                        <span>{block.start.slice(0, 5)}-{block.end.slice(0, 5)}</span>
-                                    </div>
-                                ))}
+                                {avail.unavailableBlocks
+                                    .filter(b => !(b.start?.slice(0, 5) === '00:00' && (b.end?.slice(0, 5) === '23:59' || b.end?.slice(0, 5) === '00:00')))
+                                    .slice(0, 2)
+                                    .map((block, idx) => (
+                                        <div key={idx} className="flex items-center gap-1 text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-md border border-red-100 shadow-sm" title={block.reason}>
+                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                            <span>{block.start.slice(0, 5)}-{block.end.slice(0, 5)}</span>
+                                        </div>
+                                    ))}
                                 {avail.unavailableBlocks.length > 2 && (
                                     <div className="w-1 h-1 rounded-full bg-red-300" />
                                 )}
@@ -516,6 +524,15 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                     title="ייצוא לווטסאפ"
                 >
                     <WhatsappLogo size={24} weight="bold" />
+                </button>
+            )}
+            {onShowStats && (
+                <button
+                    onClick={() => onShowStats(person)}
+                    className="w-10 h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                    title="סטטיסטיקה אישית"
+                >
+                    <ChartBar size={22} weight="bold" />
                 </button>
             )}
             {!isViewer && (
