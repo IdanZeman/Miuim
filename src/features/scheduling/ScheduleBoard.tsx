@@ -108,7 +108,8 @@ const ShiftCard: React.FC<{
     isCompact?: boolean;
     hasAbsenceConflict?: boolean;
     hasRestViolation?: boolean; // NEW
-}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext, isCompact, hasAbsenceConflict, hasRestViolation }) => {
+    shiftConflicts?: { personId: string; type: string; reason?: string }[]; // NEW
+}> = ({ shift, taskTemplates, people, roles, teams, onSelect, onToggleCancel, onReportClick, isViewer, acknowledgedWarnings, missionReports, style, onAutoSchedule, isContinuedFromPrev, isContinuedToNext, isCompact, hasAbsenceConflict, hasRestViolation, shiftConflicts = [] }) => {
     const task = taskTemplates.find(t => t.id === shift.taskId);
     if (!task) return null;
     const assigned = shift.assignedPersonIds.map(id => people.find(p => p.id === id)).filter(Boolean) as Person[];
@@ -253,13 +254,16 @@ const ShiftCard: React.FC<{
                             {assigned.map(p => {
                                 // Only use initials if it's truly crowded (more people than vertical slots)
                                 const useInitials = isCrowded;
+                                const conflict = shiftConflicts.find(c => c.personId === p.id && c.type === 'absence');
+                                const isProblematic = !!conflict;
                                 return (
                                     <div
                                         key={p.id}
-                                        className={`shadow-sm border border-slate-200/60 bg-white/95 
+                                        className={`shadow-sm border 
+                                        ${isProblematic ? 'border-red-400 bg-red-50 text-red-600 animate-pulse' : 'border-slate-200/60 bg-white/95 text-slate-800'}
                                         ${isCrowded ? 'px-1.5 py-0.5 text-[10px]' : 'w-full max-w-[95%] px-2 py-0.5 text-xs'} 
-                                        rounded-full font-bold text-slate-800 truncate text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
-                                        title={p.name}
+                                        rounded-full font-bold truncate text-center hover:scale-105 transition-transform hover:shadow-md cursor-help z-10`}
+                                        title={isProblematic ? `${p.name}: ${conflict.reason}` : p.name}
                                         onClick={(e) => { e.stopPropagation(); onSelect(shift); }}
                                     >
                                         {useInitials ? getPersonInitials(p.name) : p.name}
@@ -284,11 +288,20 @@ const ShiftCard: React.FC<{
                 {/* Avatars Logic */}
                 {(assigned.length > 0 && (!isCompact || (style?.height && parseInt(String(style.height)) >= 32))) && (
                     <div className={`flex -space-x-1.5 space-x-reverse overflow-hidden px-1 pb-0.5 ${(style?.height && parseInt(String(style.height)) >= 50) ? 'md:hidden' : ''}`}>
-                        {assigned.map(p => (
-                            <div key={p.id} className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[9px] md:text-[10px] text-white font-bold ring-2 ring-white ${p.color} shadow-sm`} title={p.name}>
-                                {getPersonInitials(p.name)}
-                            </div>
-                        ))}
+                        {assigned.map(p => {
+                            const conflict = shiftConflicts.find(c => c.personId === p.id && c.type === 'absence');
+                            const isProblematic = !!conflict;
+                            return (
+                                <div key={p.id} className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[9px] md:text-[10px] text-white font-bold ring-2 ${isProblematic ? 'ring-red-500 animate-pulse' : 'ring-white'} ${p.color} shadow-sm relative`} title={isProblematic ? `${p.name}: ${conflict.reason}` : p.name}>
+                                    {getPersonInitials(p.name)}
+                                    {isProblematic && (
+                                        <div className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5 border border-white">
+                                            <Ban size={6} weight="bold" />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -843,10 +856,13 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 return false;
             }).map(personId => {
                 const person = people.find(p => p.id === personId);
-                const availability = person ? getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages) : { isAvailable: true };
+                const availability = person
+                    ? getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages)
+                    : { isAvailable: true, status: 'full', source: 'default', unavailableBlocks: [] as any[], startHour: '00:00', endHour: '23:59' };
 
                 // Determine conflict type
                 let type: 'absence' | 'overlap' | 'rest_violation' = !availability.isAvailable ? 'absence' : 'overlap';
+                let reason = '';
 
                 if (type === 'overlap') {
                     const otherShifts = (shifts || []).filter(s =>
@@ -861,13 +877,43 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                     if (!hasOverlap) {
                         type = 'rest_violation';
+                        reason = 'חוסר בזמן מנוחה';
+                    } else {
+                        reason = 'כפל שיבוץ';
                     }
+                } else {
+                    // Elaborate on absence reason
+                    if (availability.status === 'home') {
+                        if (availability.source === 'absence') {
+                            const block = availability.unavailableBlocks?.find(b => b.type === 'absence' && b.status === 'approved');
+                            reason = `בבית (${block?.reason || 'היעדרות'})`;
+                        } else if (availability.source === 'rotation') reason = 'בבית (סבב צוותי)';
+                        else if (availability.source === 'personal_rotation') reason = 'בבית (סבב אישי)';
+                        else reason = 'בבית (ידני)';
+                    } else if (availability.status === 'arrival') {
+                        reason = `טרם הגיע ליחידה (צפוי ב-${availability.startHour})`;
+                    } else if (availability.status === 'departure') {
+                        reason = `עוזב את היחידה (יוצא ב-${availability.endHour})`;
+                    } else if (availability.unavailableBlocks?.length > 0) {
+                        const overlappingBlock = availability.unavailableBlocks.find(block => {
+                            const [bh, bm] = block.start.split(':').map(Number);
+                            const [eh, em] = block.end.split(':').map(Number);
+                            const bs = new Date(shiftStart); bs.setHours(bh, bm, 0, 0);
+                            const be = new Date(shiftStart); be.setHours(eh, em, 0, 0);
+                            if (be < bs) be.setDate(be.getDate() + 1);
+                            return bs < shiftEnd && be > shiftStart;
+                        });
+                        if (overlappingBlock) reason = `חסימה שעתית (${overlappingBlock.reason || 'מושבת'})`;
+                    }
+
+                    if (!reason) reason = 'לא זמין במערכת הנוכחות';
                 }
 
                 return {
                     shiftId: shift.id,
                     personId,
-                    type
+                    type,
+                    reason
                 };
             });
         });
@@ -1331,6 +1377,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                                         isContinuedToNext={isContinuedToNext}
                                                         isCompact={isCompact}
                                                         hasAbsenceConflict={isShiftConflictDueToAbsence(shift.id)}
+                                                        shiftConflicts={conflicts.filter(c => c.shiftId === shift.id)}
                                                         hasRestViolation={conflicts.some(c => c.shiftId === shift.id && c.type === 'rest_violation')}
                                                         style={{
                                                             top: `${top}px`,

@@ -129,6 +129,86 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             : []
         , [selectedShift, people]);
 
+    // Check for attendance conflicts among already assigned people (with reasons)
+    const assignedConflicts = useMemo(() => {
+        if (!selectedShift || !assignedPeople.length) return [];
+
+        const conflicts: { person: Person; reason: string }[] = [];
+
+        assignedPeople.forEach(p => {
+            const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
+            const shiftStart = new Date(selectedShift.startTime);
+            const shiftEnd = new Date(selectedShift.endTime);
+            const dayStart = new Date(selectedDate);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(dayStart);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            const relevantShiftStart = new Date(Math.max(shiftStart.getTime(), dayStart.getTime()));
+            const relevantShiftEnd = new Date(Math.min(shiftEnd.getTime(), dayEnd.getTime()));
+
+            // 1. Check if status is home
+            if (availability.status === 'home' || (availability.source === 'manual' && !availability.isAvailable)) {
+                let reason = 'לא זמין';
+                if (availability.source === 'absence') {
+                    const block = availability.unavailableBlocks?.find(b => b.type === 'absence' && b.status === 'approved');
+                    reason = `בבית (${block?.reason || 'היעדרות'})`;
+                } else if (availability.source === 'rotation') {
+                    reason = 'בבית (סבב צוותי)';
+                } else if (availability.source === 'personal_rotation') {
+                    reason = 'בבית (סבב אישי)';
+                } else if (availability.source === 'manual' || availability.source === 'last_manual') {
+                    reason = 'בבית (עדכון ידני)';
+                }
+                conflicts.push({ person: p, reason });
+                return;
+            }
+
+            // 2. Check for daily window (arrival/departure)
+            if (availability.startHour || availability.endHour) {
+                const [startH, startM] = (availability.startHour || '00:00').split(':').map(Number);
+                const [endH, endM] = (availability.endHour || '23:59').split(':').map(Number);
+
+                const availStart = new Date(dayStart);
+                availStart.setHours(startH, startM, 0, 0);
+                const availEnd = new Date(dayStart);
+                availEnd.setHours(endH, endM, 0, 0);
+                if (endH === 0 && endM === 0) availEnd.setDate(availEnd.getDate() + 1);
+                else if (availEnd < availStart) availEnd.setDate(availEnd.getDate() + 1);
+
+                if (relevantShiftStart < relevantShiftEnd) {
+                    const isEndOfDay = (endH === 23 && endM === 59) || (endH === 0 && endM === 0);
+                    if (relevantShiftStart < availStart) {
+                        conflicts.push({ person: p, reason: `טרם הגיע (צפוי ב-${availability.startHour})` });
+                        return;
+                    } else if (!isEndOfDay && relevantShiftEnd > availEnd) {
+                        conflicts.push({ person: p, reason: `יציאה (יוצא ב-${availability.endHour})` });
+                        return;
+                    }
+                }
+            }
+
+            // 3. Check for hourly blockages overlap
+            if (availability.unavailableBlocks && availability.unavailableBlocks.length > 0) {
+                const overlappingBlock = availability.unavailableBlocks.find(block => {
+                    const [bh, bm] = block.start.split(':').map(Number);
+                    const [eh, em] = block.end.split(':').map(Number);
+                    const bs = new Date(shiftStart); bs.setHours(bh, bm, 0, 0);
+                    const be = new Date(shiftStart); be.setHours(eh, em, 0, 0);
+                    if (be < bs) be.setDate(be.getDate() + 1);
+                    return bs < shiftEnd && be > shiftStart;
+                });
+
+                if (overlappingBlock) {
+                    conflicts.push({ person: p, reason: `חסימה שעתית (${overlappingBlock.reason || 'מושבת'})` });
+                    return;
+                }
+            }
+        });
+
+        return conflicts;
+    }, [assignedPeople, selectedDate, teamRotations, absences, hourlyBlockages, selectedShift]);
+
     const overlappingShifts = useMemo(() => {
         if (!selectedShift) return [];
         const thisStart = new Date(selectedShift.startTime);
@@ -903,6 +983,34 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 </div>
             )}
 
+            {/* Attendance Conflict Alert */}
+            {assignedConflicts.length > 0 && (
+                <div className="flex flex-col gap-2 bg-red-600 border border-red-500 rounded-2xl p-3 md:p-2 text-white shadow-lg animate-in slide-in-from-top-4 mb-2 mx-1 mt-1 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                            <WarningCircle size={16} className="text-white" weight="bold" />
+                        </div>
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-black text-white">התראת נוכחות</span>
+                                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded uppercase font-bold tracking-widest leading-none">קריטי</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-1 pr-11">
+                        {assignedConflicts.map((c, idx) => (
+                            <div key={idx} className="text-xs font-bold bg-white/10 px-2 py-1 rounded flex items-center justify-between gap-2">
+                                <span className="font-black text-white">{c.person.name}</span>
+                                <span className="text-red-100 flex items-center gap-1">
+                                    <X size={10} weight="bold" />
+                                    {c.reason}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Suggestion Alert (Inline) */}
             {currentSuggestion && (
                 <div className="flex items-center justify-between bg-blue-600 border border-blue-500 rounded-2xl p-3 md:p-2 text-white shadow-lg animate-in slide-in-from-top-4">
@@ -1100,43 +1208,55 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                         <h4 className="font-black text-slate-700 text-sm uppercase tracking-widest">משובצים ({assignedPeople.length})</h4>
                     </div>
                     <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                        {assignedPeople.map(p => (
-                            <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <Tooltip content="צפה בפרטי חייל">
-                                        <div
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedPersonForInfo(p);
-                                            }}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black ${p.color} cursor-help hover:scale-110 transition-all`}
-                                        >
-                                            {getPersonInitials(p.name)}
-                                        </div>
-                                    </Tooltip>
-                                    <div className="flex flex-col leading-tight">
-                                        <Tooltip content="לחץ לצפייה בדוח חייל">
+                        {assignedPeople.map(p => {
+                            const conflict = assignedConflicts.find(c => c.person.id === p.id);
+                            const hasConflict = !!conflict;
+                            return (
+                                <div key={p.id} className={`flex items-center justify-between p-3 rounded-xl bg-white border ${hasConflict ? 'border-red-300 bg-red-50/30' : 'border-slate-100'} shadow-sm transition-all`}>
+                                    <div className="flex items-center gap-3">
+                                        <Tooltip content={hasConflict ? `בעיית נוכחות: ${conflict.reason}` : "צפה בפרטי חייל"}>
                                             <div
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setSelectedPersonForInfo(p);
                                                 }}
-                                                className="flex items-center gap-1 group/info cursor-pointer"
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black ${p.color} cursor-help hover:scale-110 transition-all ${hasConflict ? 'ring-2 ring-red-500 ring-offset-2 animate-pulse' : ''}`}
                                             >
-                                                <span className="text-sm font-black text-slate-800 group-hover/info:text-blue-600 group-hover/info:underline transition-colors">
-                                                    {p.name}
-                                                </span>
-                                                <IdentificationCard size={12} weight="bold" className="text-slate-300 group-hover/info:text-blue-500 transition-colors shrink-0" />
+                                                {getPersonInitials(p.name)}
                                             </div>
                                         </Tooltip>
-                                        <span className="text-[10px] text-slate-400 font-bold">{roles.find(r => (p.roleIds || [p.roleId]).includes(r.id))?.name}</span>
+                                        <div className="flex flex-col leading-tight">
+                                            <Tooltip content="לחץ לצפייה בדוח חייל">
+                                                <div
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedPersonForInfo(p);
+                                                    }}
+                                                    className="flex items-center gap-1 group/info cursor-pointer"
+                                                >
+                                                    <span className={`text-sm font-black ${hasConflict ? 'text-red-600' : 'text-slate-800'} group-hover/info:text-blue-600 group-hover/info:underline transition-colors`}>
+                                                        {p.name}
+                                                    </span>
+                                                    <IdentificationCard size={12} weight="bold" className={`${hasConflict ? 'text-red-400' : 'text-slate-300'} group-hover/info:text-blue-500 transition-colors shrink-0`} />
+                                                </div>
+                                            </Tooltip>
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-[10px] text-slate-400 font-bold">{roles.find(r => (p.roleIds || [p.roleId]).includes(r.id))?.name}</span>
+                                                {hasConflict && (
+                                                    <span className="text-[9px] text-red-500 font-black bg-white px-1 rounded flex items-center gap-0.5 border border-red-100">
+                                                        <WarningCircle size={10} weight="fill" />
+                                                        {conflict.reason}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
+                                    {!isViewer && (
+                                        <button onClick={() => onUnassign(selectedShift.id, p.id)} className={`p-2 transition-colors ${hasConflict ? 'text-red-500 hover:bg-red-50' : 'text-slate-300 hover:text-red-500'} rounded-lg`}><X size={18} weight="bold" /></button>
+                                    )}
                                 </div>
-                                {!isViewer && (
-                                    <button onClick={() => onUnassign(selectedShift.id, p.id)} className="text-slate-300 hover:text-red-500 p-2"><X size={18} weight="bold" /></button>
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </div>

@@ -16,7 +16,7 @@ interface MobileScheduleListProps {
     onAddShift?: (task: TaskTemplate) => void;
     missionReports: MissionReport[];
     onReportClick: (shift: Shift) => void;
-    conflicts?: { shiftId: string, personId: string, type: string }[];
+    conflicts?: { shiftId: string, personId: string, type: string, reason?: string }[];
     filterPersonIds?: string[]; // NEW
     filterTeamIds?: string[]; // NEW
 }
@@ -217,12 +217,13 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                     assigned.length > 2 ? (
                                                         <div className="flex -space-x-3 space-x-reverse overflow-hidden py-1 px-1">
                                                             {assigned.map(person => {
-                                                                const isProblematic = conflicts.some(c => c.shiftId === shift.id && c.personId === person.id && c.type === 'absence');
+                                                                const conflict = conflicts.find(c => c.shiftId === shift.id && c.personId === person.id && c.type === 'absence');
+                                                                const isProblematic = !!conflict;
                                                                 return (
                                                                     <div key={person.id} className="relative group">
                                                                         <div
                                                                             className={`w-10 h-10 rounded-full flex items-center justify-center text-sm text-white font-bold ring-2 ${isProblematic ? 'ring-red-500 animate-pulse' : 'ring-white'} ${person.color} shadow-sm transition-transform hover:scale-110 hover:z-10 relative`}
-                                                                            title={`${person.name}${isProblematic ? ' (לא זמין)' : ''}`}
+                                                                            title={`${person.name}${isProblematic ? `: ${conflict.reason}` : ''}`}
                                                                         >
                                                                             {getPersonInitials(person.name)}
                                                                             {isProblematic && (
@@ -239,7 +240,8 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                         /* Detailed View: Avatar + Name */
                                                         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
                                                             {assigned.map(person => {
-                                                                const isProblematic = conflicts.some(c => c.shiftId === shift.id && c.personId === person.id && c.type === 'absence');
+                                                                const conflict = conflicts.find(c => c.shiftId === shift.id && c.personId === person.id && c.type === 'absence');
+                                                                const isProblematic = !!conflict;
                                                                 return (
                                                                     <div key={person.id} className={`flex items-center gap-2 min-w-fit pr-2 pl-1 py-1 rounded-full border shrink-0 flex-row-reverse ${isProblematic ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100'}`}>
                                                                         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-white font-bold ring-2 ${isProblematic ? 'ring-red-500 animate-pulse' : 'ring-white'} ${person.color} shadow-sm shrink-0 relative`}>
@@ -250,9 +252,9 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                                                 </div>
                                                                             )}
                                                                         </div>
-                                                                        <div className="flex flex-col text-right">
-                                                                            <span className={`text-xs font-bold whitespace-nowrap ${isProblematic ? 'text-red-700' : 'text-slate-800'}`}>{person.name}</span>
-                                                                            <span className={`text-[9px] leading-none ${isProblematic ? 'text-red-400' : 'text-slate-500'}`}>{isProblematic ? 'בחופשה / לא זמין' : 'לוחם'}</span>
+                                                                        <div className="flex flex-col items-end">
+                                                                            <span className={`text-[10px] font-bold ${isProblematic ? 'text-red-700' : 'text-slate-700'}`}>{person.name}</span>
+                                                                            {isProblematic && <span className="text-[8px] text-red-500 font-black leading-none">{conflict.reason}</span>}
                                                                         </div>
                                                                     </div>
                                                                 );
