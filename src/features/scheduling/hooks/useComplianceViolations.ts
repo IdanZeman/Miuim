@@ -24,7 +24,7 @@ export function useComplianceViolations(
         const result: Violation[] = [];
         const activeShifts = shifts.filter(s => !s.isCancelled);
 
-    // If filterDate is provided, filter for violations occurring strictly within that date's 24h window
+        // If filterDate is provided, filter for violations occurring strictly within that date's 24h window
         // If not provided, show all violations from beginning of time (or maybe reasonable past?) - keeping "all" for report
         const filterStart = filterDate ? new Date(filterDate).setHours(0, 0, 0, 0) : 0;
         const filterEnd = filterDate ? new Date(filterDate).setHours(23, 59, 59, 999) : Infinity;

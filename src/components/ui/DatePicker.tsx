@@ -37,21 +37,18 @@ export const DatePicker: React.FC<DatePickerProps> = ({ label, value, onChange, 
         return (
             <div className={`flex flex-col gap-1 ${className}`}>
                 {label && <label htmlFor={id} className="text-[10px] font-bold text-slate-500 mb-1 px-1">{label}</label>}
-                <div
-                    className="relative flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-400 rounded-xl h-10 px-1.5 md:px-3 cursor-pointer transition-all duration-300 group shadow-sm"
-                    onClick={handleClick}
-                >
-                    <Calendar size={14} className="text-blue-600 shrink-0" weight="bold" />
-                    <span className="text-sm md:text-base font-bold text-slate-800 whitespace-nowrap">
-                        {value ? dateObj.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' }) : 'בחר'}
-                    </span>
+                <div className="relative flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-400 rounded-xl h-10 px-3 transition-all duration-300 group shadow-sm">
+                    <Calendar size={14} className="text-blue-600 shrink-0 absolute right-3 pointer-events-none z-10" weight="bold" />
                     <input
                         ref={inputRef}
                         id={id}
                         type="date"
                         value={value}
                         onChange={(e) => onChange(e.target.value)}
-                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                        className="w-full h-full text-sm md:text-base font-bold text-slate-800 bg-transparent border-0 outline-none cursor-pointer text-center pr-5 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        style={{
+                            colorScheme: 'light',
+                        }}
                         aria-label={`בחר תאריך${label ? ' עבור ' + label : ''}`}
                     />
                 </div>

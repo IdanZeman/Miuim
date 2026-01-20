@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Person, Shift, TaskTemplate, Role, Absence, HourlyBlockage } from '../../types';
-import { useComplianceViolations } from '../scheduling/hooks/useComplianceViolations';
+import { useComplianceViolations, Violation } from '../scheduling/hooks/useComplianceViolations';
 import { Warning, Clock, UserFocus, CalendarX, CheckCircle, Info, SortAscending, SortDescending, Funnel, Shield } from '@phosphor-icons/react';
 import { ExportButton } from '../../components/ui/ExportButton';
 import { ActionBar } from '../../components/ui/ActionBar';
@@ -14,18 +14,10 @@ interface ComplianceReportProps {
     hourlyBlockages: HourlyBlockage[];
 }
 
-interface Violation {
-    id: string;
-    type: 'rest_time' | 'role_mismatch' | 'absence_conflict';
-    person: Person;
-    shifts: Shift[];
-    details: string;
-    severity: 'high' | 'medium' | 'low';
-    timestamp: number;
-}
-
 type SortField = 'name' | 'date' | 'severity';
 type SortOrder = 'asc' | 'desc';
+
+import { DatePicker } from '../../components/ui/DatePicker';
 
 export const ComplianceReport: React.FC<ComplianceReportProps> = ({
     people, shifts, tasks, roles, absences, hourlyBlockages
@@ -37,10 +29,25 @@ export const ComplianceReport: React.FC<ComplianceReportProps> = ({
     const [filterSeverity, setFilterSeverity] = useState<string>('all');
     const [isSearchExpanded, setIsSearchExpanded] = useState(false);
 
+    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 3);
+        return d.toISOString().split('T')[0];
+    });
+
     const violations = useComplianceViolations(people, shifts, tasks, roles, absences, hourlyBlockages)
         .filter(v => v.person.name.toLowerCase().includes(searchTerm.toLowerCase()))
         .filter(v => filterType === 'all' || v.type === filterType)
         .filter(v => filterSeverity === 'all' || v.severity === filterSeverity)
+        .filter(v => {
+            const vDate = new Date(v.timestamp);
+            const startWindow = new Date(startDate);
+            startWindow.setHours(0, 0, 0, 0);
+            const endWindow = new Date(endDate);
+            endWindow.setHours(23, 59, 59, 999);
+            return vDate >= startWindow && vDate <= endWindow;
+        })
         .sort((a, b) => {
             let comparison = 0;
             if (sortField === 'name') {
@@ -78,7 +85,7 @@ export const ComplianceReport: React.FC<ComplianceReportProps> = ({
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `compliance_report_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `compliance_report_${startDate}_${endDate}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -99,6 +106,28 @@ export const ComplianceReport: React.FC<ComplianceReportProps> = ({
                     isSearchExpanded={isSearchExpanded}
                     onSearchExpandedChange={setIsSearchExpanded}
                     className="bg-white/50 p-2 rounded-[1.5rem] border border-slate-200"
+                    // Center Actions: Date Range Pickers
+                    centerActions={
+                        <div className="flex items-center gap-2">
+                            <DatePicker
+                                id="report-start-date"
+                                value={startDate}
+                                onChange={setStartDate}
+                                variant="compact"
+                                label="מתאריך"
+                                className="w-40"
+                            />
+                            <div className="w-px h-8 bg-slate-200" />
+                            <DatePicker
+                                id="report-end-date"
+                                value={endDate}
+                                onChange={setEndDate}
+                                variant="compact"
+                                label="עד תאריך"
+                                className="w-40"
+                            />
+                        </div>
+                    }
                     leftActions={
                         <div className="flex items-center gap-4">
                             {/* Summary Badge - ABSOLUTE RIGHT in RTL */}

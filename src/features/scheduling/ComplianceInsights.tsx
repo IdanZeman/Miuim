@@ -59,7 +59,7 @@ export const ComplianceInsights: React.FC<ComplianceInsightsProps> = ({
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-2xl bg-red-50 text-red-600 shadow-sm border border-red-100">
-                            <Shield size={24} weight="duotone" />
+                            <Warning size={24} weight="duotone" />
                         </div>
                         <div>
                             <h3 className="text-xl font-black text-slate-800 tracking-tight">חריגות שיבוץ</h3>

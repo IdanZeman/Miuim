@@ -10,7 +10,7 @@ import { generateShiftsForTask } from '../../utils/shiftUtils';
 import { getEffectiveAvailability } from '../../utils/attendanceUtils';
 import { getPersonInitials } from '../../utils/nameUtils';
 import { DateNavigator } from '../../components/ui/DateNavigator';
-import { ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText } from '@phosphor-icons/react';
+import { ArrowsInSimple, ArrowsOutSimple, ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, FileText, Warning } from '@phosphor-icons/react';
 import { CaretLeft as ChevronLeft, CaretRight as ChevronRight, Plus, X, Check, Warning as AlertTriangle, Clock, ClockCounterClockwise, User, MapPin, CalendarBlank as CalendarIcon, PencilSimple as Pencil, FloppyDisk as Save, Trash as Trash2, Copy, CheckCircle, Prohibit as Ban, ArrowUUpLeft as Undo2, CaretDown as ChevronDown, MagnifyingGlass as Search, DotsThreeVertical as MoreVertical, MagicWand as Wand2, ClipboardText as ClipboardIcon, Funnel, Info } from '@phosphor-icons/react';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
 import { MobileScheduleList } from './MobileScheduleList';
@@ -32,7 +32,7 @@ import { RotaWizardModal } from './RotaWizardModal';
 import { IdlePersonnelInsights } from './IdlePersonnelInsights';
 import { ComplianceInsights } from './ComplianceInsights';
 import { FeatureTour, TourStep } from '@/components/ui/FeatureTour';
-import { FileArrowDown as FileDown, Coffee, Shield } from '@phosphor-icons/react';
+import { FileArrowDown as FileDown, Coffee } from '@phosphor-icons/react';
 import { ShiftCard } from './components/ShiftCard';
 
 export interface ScheduleBoardProps {
@@ -903,7 +903,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                         : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
                                         }`}
                                 >
-                                    <Shield size={18} weight="bold" />
+                                    <Warning size={18} weight="bold" />
                                 </button>
                             </Tooltip>
                         )}
@@ -976,7 +976,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     className="flex items-center gap-4 px-4 py-3.5 bg-red-50 text-red-700 hover:bg-red-100 active:bg-red-200 rounded-xl transition-colors text-right w-full"
                                 >
                                     <div className="p-2 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                                        <Shield size={22} weight="bold" />
+                                        <Warning size={22} weight="bold" />
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="font-bold text-base text-red-700">חריגות והתראות</span>

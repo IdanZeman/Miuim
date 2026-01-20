@@ -71,6 +71,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     const [suggestedCandidates, setSuggestedCandidates] = useState<{ person: Person, reason: string }[]>([]);
     const [suggestionIndex, setSuggestionIndex] = useState(0);
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
+    const [isWarningDismissed, setIsWarningDismissed] = useState(false);
 
     const [activeMobileTab, setActiveMobileTab] = useState<'available' | 'assigned'>('assigned');
     const [selectedPersonForInfo, setSelectedPersonForInfo] = useState<Person | null>(null);
@@ -1011,25 +1012,33 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             )}
 
             {/* Attendance Conflict Alert */}
-            {assignedConflicts.length > 0 && (
-                <div className="flex flex-col gap-2 bg-red-600 border border-red-500 rounded-2xl p-3 md:p-2 text-white shadow-lg animate-in slide-in-from-top-4 mb-2 mx-1 mt-1 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                            <WarningCircle size={16} className="text-white" weight="bold" />
-                        </div>
-                        <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-black text-white">התראת נוכחות</span>
-                                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded uppercase font-bold tracking-widest leading-none">קריטי</span>
+            {assignedConflicts.length > 0 && !isWarningDismissed && (
+                <div className="flex flex-col gap-2 bg-red-50 border border-red-200 rounded-2xl p-3 md:p-2 text-red-900 shadow-sm animate-in slide-in-from-top-4 mb-2 mx-1 mt-1 shrink-0">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                                <AlertTriangle size={16} className="text-red-600" weight="bold" />
+                            </div>
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-black text-red-900">התראת נוכחות</span>
+                                    <span className="text-[10px] bg-red-100/50 text-red-700 px-1.5 py-0.5 rounded uppercase font-bold tracking-widest leading-none border border-red-200">קריטי</span>
+                                </div>
                             </div>
                         </div>
+                        <button
+                            onClick={() => setIsWarningDismissed(true)}
+                            className="p-1.5 hover:bg-red-100 text-red-400 hover:text-red-700 rounded-lg transition-colors"
+                        >
+                            <X size={16} weight="bold" />
+                        </button>
                     </div>
-                    <div className="flex flex-col gap-1 pr-11">
+                    <div className="flex flex-col gap-1 pr-[2.75rem]">
                         {assignedConflicts.map((c, idx) => (
-                            <div key={idx} className="text-xs font-bold bg-white/10 px-2 py-1 rounded flex items-center justify-between gap-2">
-                                <span className="font-black text-white">{c.person.name}</span>
-                                <span className="text-red-100 flex items-center gap-1">
-                                    <X size={10} weight="bold" />
+                            <div key={idx} className="text-xs font-bold bg-white border border-red-100 px-2 py-1.5 rounded-lg flex items-center justify-between gap-2 shadow-sm">
+                                <span className="font-black text-red-900">{c.person.name}</span>
+                                <span className="text-red-600 flex items-center gap-1">
+                                    <AlertTriangle size={12} weight="fill" />
                                     {c.reason}
                                 </span>
                             </div>
