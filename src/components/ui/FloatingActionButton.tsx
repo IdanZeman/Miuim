@@ -11,6 +11,7 @@ interface FloatingActionButtonProps {
     variant?: ButtonVariant;
     className?: string;
     iconWeight?: "bold" | "bold" | "fill" | "light" | "regular" | "thin";
+    id?: string;
 }
 
 /**
@@ -26,12 +27,14 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
     show = true,
     variant = "action",
     className = "",
-    iconWeight
+    iconWeight,
+    id
 }) => {
     if (!show) return null;
 
     return createPortal(
         <Button
+            id={id}
             variant={variant}
             size="icon"
             icon={icon}

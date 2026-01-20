@@ -23,6 +23,8 @@ import { Battalion } from '../../types';
 import { CustomFieldsManager } from '../personnel/CustomFieldsManager';
 import { SnapshotManager } from './snapshots/SnapshotManager';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { FeatureTour } from '@/components/ui/FeatureTour';
+import { useRoleBasedTour } from '@/hooks/useRoleBasedTour';
 
 import { canManageOrganization, getRoleDisplayName, getRoleDescription, SYSTEM_ROLE_PRESETS } from '../../utils/permissions';
 
@@ -647,6 +649,30 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
     const { checkAccess } = useAuth();
     const isAdmin = profile?.is_super_admin || checkAccess('settings', 'edit');
 
+    const { steps: tourSteps, tourId: settingsTourId } = useRoleBasedTour({
+        tourId: 'org_settings',
+        steps: [
+            {
+                targetId: '#tour-settings-sidebar',
+                title: 'תפריט ההגדרות',
+                content: 'כאן תוכלו לעבור בין כל קטגוריות הניהול של הארגון. מהגדרות כלליות ועד ניהול משתמשים והרשאות.',
+                position: 'left'
+            },
+            {
+                targetId: '#tour-settings-general',
+                title: 'הגדרות כלליות',
+                content: 'נהלו את שעות הלילה של היחידה, חשיפת הלו"ז לחיילים והצטרפות לממשק גדודי.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-settings-roles-tab',
+                title: 'תבניות הרשאות',
+                content: 'צרו תפקידים מובנים (כמו "מפקד", "חייל") והגדירו בדיוק מה כל אחד יכול לראות ולעשות במערכת.',
+                position: 'right'
+            }
+        ]
+    });
+
     useEffect(() => {
         if (organization?.id) {
             loadInitialData();
@@ -803,7 +829,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
             <div className="md:flex flex-1 md:gap-8 md:p-6">
 
                 {/* === Desktop Sidebar (Left Menu) === */}
-                <div className="hidden md:flex flex-col w-64 shrink-0 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm h-full">
+                <div className="hidden md:flex flex-col w-64 shrink-0 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm h-full" id="tour-settings-sidebar">
                     <div className="p-6 border-b border-slate-100 bg-slate-50">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-lg flex items-center justify-center font-bold text-lg">
@@ -825,7 +851,6 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                     }`}
                                 role="tab"
-                                aria-selected={activeTab === tab.id}
                                 aria-controls={`panel-${tab.id}`}
                             >
                                 <tab.icon size={18} weight="bold" className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} aria-hidden="true" />
@@ -876,10 +901,11 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                                 <p className="text-slate-500 font-medium text-sm">הגדרות וניהול מערכת</p>
                             </div>
 
-                            <div className="bg-slate-100/50 p-1.5 rounded-2xl flex border border-slate-200 w-full overflow-x-auto hide-scrollbar">
+                            <div className="bg-slate-100/50 p-1.5 rounded-2xl flex border border-slate-200 w-full overflow-x-auto hide-scrollbar" id="tour-settings-tabs-mobile">
                                 {navigationTabs.map(tab => (
                                     <button
                                         key={tab.id}
+                                        id={tab.id === 'roles' ? 'tour-settings-roles-tab' : undefined}
                                         onClick={() => setActiveTab(tab.id as any)}
                                         className={`flex-1 flex items-center justify-center py-3 px-1 rounded-xl transition-all min-w-[50px] ${activeTab === tab.id
                                             ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200'
@@ -932,7 +958,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
 
                                 <div className="h-px bg-slate-100 my-6"></div>
 
-                                <section>
+                                <section id="tour-settings-general">
                                     <div className="flex items-center gap-2 mb-4 text-slate-800">
                                         <Clock className="text-orange-500" size={20} weight="bold" />
                                         <h2 className="text-xl font-black">הגדרות כלליות</h2>
@@ -1002,19 +1028,22 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
                 show={isAdmin && !loading && activeTab === 'roles'}
             />
 
-            {editingPermissionsFor && (
-                <PermissionEditor
-                    isOpen={true}
-                    onClose={() => setEditingPermissionsFor(null)}
-                    user={editingPermissionsFor}
-                    onSave={handleSavePermissions}
-                    teams={teams}
-                    templates={templates}
-                    onManageTemplates={() => setActiveTab('roles')}
-                    isHq={organization?.is_hq}
-                />
-            )}
+            {
+                editingPermissionsFor && (
+                    <PermissionEditor
+                        isOpen={true}
+                        onClose={() => setEditingPermissionsFor(null)}
+                        user={editingPermissionsFor}
+                        onSave={handleSavePermissions}
+                        teams={teams}
+                        templates={templates}
+                        onManageTemplates={() => setActiveTab('roles')}
+                        isHq={organization?.is_hq}
+                    />
+                )
+            }
             <ConfirmationModal {...modalProps} />
+            <FeatureTour tourId={settingsTourId} steps={tourSteps} />
         </div>
     );
 };

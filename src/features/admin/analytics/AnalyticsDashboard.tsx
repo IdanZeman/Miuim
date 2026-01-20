@@ -236,7 +236,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedd
                 ) : (
                     <>
                         {/* Main Stats Row */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6" id="tour-analytics-stats">
                             <StatCard
                                 title="אנשים פעילים"
                                 value={summary?.active_people}
@@ -275,7 +275,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedd
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             {/* System Performance & Health */}
                             <div className="lg:col-span-2 space-y-8">
-                                <div className="bg-white border border-slate-200/60 rounded-[2.5rem] p-8 shadow-sm flex flex-col md:flex-row items-center gap-8">
+                                <div className="bg-white border border-slate-200/60 rounded-[2.5rem] p-8 shadow-sm flex flex-col md:flex-row items-center gap-8" id="tour-analytics-health">
                                     <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
                                         <svg className="w-full h-full transform -rotate-90">
                                             <circle
@@ -334,7 +334,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ isEmbedd
                                 </div>
 
                                 {/* Activity Feed */}
-                                <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+                                <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col min-h-[500px]" id="tour-analytics-activity">
                                     <div className="px-5 md:px-8 py-4 md:py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
                                         <div>
                                             <h3 className="text-base md:text-lg font-black text-slate-900 flex items-center gap-2">

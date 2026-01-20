@@ -31,6 +31,7 @@ import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
 import { RotaWizardModal } from './RotaWizardModal';
 import { IdlePersonnelInsights } from './IdlePersonnelInsights';
 import { FeatureTour, TourStep } from '@/components/ui/FeatureTour';
+import { useRoleBasedTour } from '@/hooks/useRoleBasedTour';
 import { FileArrowDown as FileDown, Coffee } from '@phosphor-icons/react';
 
 export interface ScheduleBoardProps {
@@ -440,6 +441,46 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 }) => {
     const activePeople = useMemo(() => people.filter(p => p.isActive !== false), [people]);
     const { profile } = useAuth();
+
+    const { steps: tourSteps, tourId: boardTourId } = useRoleBasedTour({
+        tourId: 'schedule_board',
+        steps: [
+            {
+                targetId: '#tour-date-nav',
+                title: 'ניווט בזמן',
+                content: 'כאן תוכל לעבור בין ימים ולראות את השיבוץ העתידי או ההיסטורי.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-auto-schedule',
+                title: 'שיבוץ אוטומטי',
+                content: 'בלחיצה אחת, המערכת תשבץ את כל החיילים הפנויים למשימות לפי חוקי המנוחה והתפקיד.',
+                roles: ['admin', 'editor'],
+                position: 'top'
+            },
+            {
+                targetId: '#tour-rota-wizard',
+                title: 'מחולל סבבים',
+                content: 'צרו סבב יציאות הביתה בצורה אוטומטית שמאזנת בין בקשות הלוחמים לבין דרישות כוח האדם המבצעיות.',
+                roles: ['admin'],
+                position: 'left'
+            },
+            {
+                targetId: '#tour-idle-toggle',
+                title: 'תמונת מצב פנויים',
+                content: 'כלי עוצמתי שמוצא לך מיידית מי נמצא בבסיס ויכול להיכנס למשימה שחסר בה איוש.',
+                roles: ['admin', 'editor'],
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-legend-toggle',
+                title: 'מקרא סימונים',
+                content: 'לא בטוח מה כל צבע אומר? כאן תוכל לראות את הפירוש להתרעות ולסטטוסים בלוח.',
+                position: 'right'
+            }
+        ]
+    });
+
     // Scroll Synchronization Refs
     const verticalScrollRef = useRef<HTMLDivElement>(null);
     const [isCompact, setIsCompact] = useState(true); // Default to compact view
@@ -1011,14 +1052,16 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     {/* Center: Date Navigation & Mobile Menu */}
                     <div className="flex flex-row items-center justify-center flex-1 z-50 gap-2">
 
-                        <DateNavigator
-                            date={selectedDate}
-                            onDateChange={handleDateChange}
-                            canGoPrev={canGoPrev}
-                            canGoNext={canGoNext}
-                            maxDate={isViewer ? maxViewerDate : undefined}
-                            className="bg-white/50 backdrop-blur-sm shadow-sm rounded-2xl border border-slate-100 p-1"
-                        />
+                        <div id="tour-date-nav">
+                            <DateNavigator
+                                date={selectedDate}
+                                onDateChange={handleDateChange}
+                                canGoPrev={canGoPrev}
+                                canGoNext={canGoNext}
+                                maxDate={isViewer ? maxViewerDate : undefined}
+                                className="bg-white/50 backdrop-blur-sm shadow-sm rounded-2xl border border-slate-100 p-1"
+                            />
+                        </div>
 
                         {/* Mobile Menu Button - Moved to LEFT of Date (After in DOM for RTL? No, checking visual) */}
                         {/* User said "Left of the Date". In RTL, "Left" is the end. So let's place it AFTER. */}
@@ -1083,6 +1126,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
                         <Tooltip content={showLegend ? "הסתר מקרא" : "הצג מקרא"}>
                             <button
+                                id="tour-legend-toggle"
                                 onClick={() => setShowLegend(!showLegend)}
                                 className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showLegend
                                     ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-inner'
@@ -1092,6 +1136,18 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 <Info size={18} weight="bold" />
                             </button>
                         </Tooltip>
+
+                        {(profile?.role === 'admin' || profile?.is_super_admin) && (
+                            <Tooltip content="אשף הסבבים">
+                                <button
+                                    id="tour-rota-wizard"
+                                    onClick={() => setShowRotaWizard(true)}
+                                    className="flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-amber-600 hover:bg-amber-50 hover:border-amber-200 transition-all shadow-sm"
+                                >
+                                    <Sparkles size={18} weight="bold" />
+                                </button>
+                            </Tooltip>
+                        )}
 
                         <Tooltip content={showInsights ? "הסתר תובנות" : "הצג תובנות פנויים"}>
                             <button
@@ -1152,6 +1208,22 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     <span className="text-xs opacity-80">סינון לפי משימה, חייל או צוות</span>
                                 </div>
                             </button>
+
+                            {profile?.role === 'admin' || profile?.is_super_admin && (
+                                <button
+                                    id="tour-rota-wizard"
+                                    onClick={() => { setShowRotaWizard(true); setIsMobileMenuOpen(false); }}
+                                    className="flex items-center gap-4 px-4 py-3.5 bg-amber-50 text-amber-700 hover:bg-amber-100 active:bg-amber-200 rounded-xl transition-colors text-right w-full"
+                                >
+                                    <div className="p-2 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                        <Sparkles size={22} weight="bold" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-base text-amber-700">מחולל סבבים</span>
+                                        <span className="text-xs text-amber-600/80">יצירת סידור עבודה אוטומטי</span>
+                                    </div>
+                                </button>
+                            )}
 
                             <button
                                 onClick={() => { setShowInsights(true); setIsMobileMenuOpen(false); }}
@@ -1507,6 +1579,19 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             )}
 
             <FeatureTour
+                tourId={boardTourId}
+                steps={tourSteps}
+                onStepChange={(idx) => {
+                    // Specific logic for the board tour if needed
+                    const currentStep = tourSteps[idx];
+                    if (currentStep?.targetId === '#tour-idle-toggle') {
+                        // We might want to show how it looks
+                    }
+                }}
+            />
+
+            {/* Keeping the specific Idle Insights tour as a separate sub-tour or merging it */}
+            <FeatureTour
                 tourId="idle_personnel_insights"
                 steps={[
                     {
@@ -1686,6 +1771,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
             }
 
             <FloatingActionButton
+                id="tour-auto-schedule"
                 icon={Wand2}
                 onClick={onAutoSchedule || (() => { })}
                 ariaLabel="שיבוץ אוטומטי"

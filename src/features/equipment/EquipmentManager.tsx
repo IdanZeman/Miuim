@@ -39,6 +39,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { PersonSearchSelect } from '@/components/ui/PersonSearchSelect';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { FeatureTour } from '@/components/ui/FeatureTour';
+import { useRoleBasedTour } from '@/hooks/useRoleBasedTour';
 
 interface EquipmentManagerProps {
     people: Person[];
@@ -67,6 +69,37 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
     currentPerson
 }) => {
     const { showToast } = useToast();
+
+    const { steps: tourSteps, tourId: equipmentTourId } = useRoleBasedTour({
+        tourId: 'equipment_manager',
+        steps: [
+            {
+                targetId: '#tour-equipment-header',
+                title: 'ניהול רשימת ציוד',
+                content: 'כאן מנהלים את כל האמל"ח, האופטיקה והציוד המחלקתי. ניתן לעקוב אחרי מי חתום על כל פריט ומה מצבו.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-equipment-tabs',
+                title: 'רשימה מול בדיקה יומית',
+                content: 'עברו בין "רשימה" לניהול המלאי, לבין "בדיקה יומית" כדי לבצע דיווח תקינות יומי של הלוחמים על הציוד שלהם.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-equipment-filters',
+                title: 'חיפוש וסינון',
+                content: 'סננו פריטים לפי סוג (למשל: רק כוונות) או לפי סטטוס תקינות.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-equipment-add',
+                title: 'הוספת ציוד חדש',
+                content: 'לחצו כאן כדי להוסיף פריט חדש למאגר הציוד שלכם.',
+                roles: ['admin'],
+                position: 'left'
+            }
+        ]
+    });
     const [viewMode, setViewMode] = useState<'list' | 'verify'>('list');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all');
@@ -309,7 +342,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                         <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-100/50">
                             <Package size={20} weight="bold" />
                         </div>
-                        <h2 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-1.5 min-w-0">
+                        <h2 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-1.5 min-w-0" id="tour-equipment-header">
                             <span className="truncate">רשימת ציוד</span>
                             <div className="hidden md:block">
                                 <PageInfo
@@ -345,7 +378,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                     </div>
                 }
                 centerActions={
-                    <div className="bg-slate-100/80 p-1 rounded-xl flex items-center gap-1">
+                    <div className="bg-slate-100/80 p-1 rounded-xl flex items-center gap-1" id="tour-equipment-tabs">
                         <button
                             onClick={() => setViewMode('list')}
                             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-black transition-all ${viewMode === 'list'
@@ -390,6 +423,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                         icon: Filter
                     }
                 ] : []}
+                id="tour-equipment-filters"
                 rightActions={
                     <div className="flex items-center gap-2">
                         {/* Stats Badge - Desktop Only */}
@@ -758,6 +792,7 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
 
             {/* Floating Action Button (FAB) - Standard Yellow Bottom FAB */}
             <FloatingActionButton
+                id="tour-equipment-add"
                 icon={Plus}
                 onClick={() => { setEditingItem({}); setIsAddEditModalOpen(true); }}
                 ariaLabel="הוסף פריט חדש"
@@ -885,6 +920,25 @@ export const EquipmentManager: React.FC<EquipmentManagerProps> = ({
                 }}
                 onCancel={() => setIsDeleteModalOpen(false)}
             />
+
+            <FloatingActionButton
+                id="tour-equipment-add"
+                icon={Plus}
+                onClick={() => {
+                    setEditingItem({
+                        type: '',
+                        serial_number: '',
+                        assigned_to_id: null,
+                        status: 'present',
+                        notes: ''
+                    } as any);
+                    setIsAddEditModalOpen(true);
+                }}
+                ariaLabel="פריט חדש"
+                show={!isViewer && !isAddEditModalOpen}
+            />
+
+            <FeatureTour tourId={equipmentTourId} steps={tourSteps} />
         </div>
     );
 };

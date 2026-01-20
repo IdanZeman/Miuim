@@ -48,6 +48,8 @@ import { DatePicker, TimePicker } from '@/components/ui/DatePicker';
 import { logger } from '@/services/loggingService';
 import { GenericModal } from '@/components/ui/GenericModal';
 import { SheetModal } from '@/components/ui/SheetModal';
+import { FeatureTour } from '@/components/ui/FeatureTour';
+import { useRoleBasedTour } from '@/hooks/useRoleBasedTour';
 
 
 
@@ -73,6 +75,37 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
     const { organization, profile, checkAccess } = useAuth();
     const canEdit = !isViewer && checkAccess('absences', 'edit');
     const { showToast } = useToast();
+
+    const { steps: tourSteps, tourId: absenceTourId } = useRoleBasedTour({
+        tourId: 'absence_manager',
+        steps: [
+            {
+                targetId: '#tour-absence-header',
+                title: 'בקשות יציאה',
+                content: 'כאן מרכזים את כל הבקשות לחופשה, סופי שבוע ואירועים חריגים. המערכת מסנכרנת הכל אוטומטית עם יומן הנוכחות.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-absence-people-list',
+                title: 'בחירת חייל',
+                content: 'ניתן לבחור חייל מהרשימה כדי לראות את היסטוריית היציאות שלו ביומן אישי וברצועת השיבוצים.',
+                position: 'left'
+            },
+            {
+                targetId: '#tour-absence-filters',
+                title: 'סינון וחיפוש',
+                content: 'חפשו בקשות ספציפיות או סננו לפי סטטוס: "ממתין", "מאושר" או "נדחה".',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-absence-add',
+                title: 'הגשת בקשה',
+                content: 'מפקדים יכולים להגיש בקשה עבור החיילים שלהם כאן.',
+                roles: ['admin', 'attendance'],
+                position: 'left'
+            }
+        ]
+    });
     const [viewDate, setViewDate] = useState(new Date());
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
@@ -691,7 +724,7 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                         <div className="hidden md:flex w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl items-center justify-center">
                             <CalendarDays size={22} weight="bold" />
                         </div>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col" id="tour-absence-header">
                             <h2 className="text-lg md:text-xl font-black text-slate-800 tracking-tight leading-tight">ניהול היעדרויות</h2>
                             <span className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest">אילוצים ובקשות יציאה</span>
                         </div>
@@ -784,11 +817,15 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
                         icon: Filter
                     }
                 ]}
+                id="tour-absence-filters"
             />
 
             <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative">
                 {/* Sidebar: People List */}
-                <div className={`w-full md:w-80 bg-white border-l border-slate-100 flex flex-col shrink-0 flex-1 md:flex-none min-h-0 ${isSidebarOpen ? 'flex' : 'hidden md:flex'}`}>
+                <div
+                    id="tour-absence-people-list"
+                    className={`w-full md:w-80 bg-white border-l border-slate-100 flex flex-col shrink-0 flex-1 md:flex-none min-h-0 ${isSidebarOpen ? 'flex' : 'hidden md:flex'}`}
+                >
                     {/* PC Only Title Area */}
                     <div className="hidden md:flex px-6 py-5 border-b border-slate-100 bg-white items-center justify-between">
                         <div className="flex flex-col text-right">
@@ -1565,11 +1602,14 @@ export const AbsenceManager: React.FC<AbsenceManagerProps> = ({
 
             {/* Primary Action Button (FAB) */}
             <FloatingActionButton
+                id="tour-absence-add"
                 icon={Plus}
                 onClick={() => openAddModal()}
                 ariaLabel="בקשה חדשה"
                 show={canManage}
             />
+
+            <FeatureTour tourId={absenceTourId} steps={tourSteps} />
         </div>
     );
 };

@@ -11,6 +11,8 @@ import { Button } from '../../components/ui/Button';
 import { PageInfo } from '../../components/ui/PageInfo';
 import { cn } from '@/lib/utils';
 import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
+import { FeatureTour } from '@/components/ui/FeatureTour';
+import { useRoleBasedTour } from '@/hooks/useRoleBasedTour';
 
 interface ConstraintsManagerProps {
     people: Person[];
@@ -43,6 +45,37 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 }) => {
     const activePeople = people.filter(p => p.isActive !== false);
     const { showToast } = useToast();
+
+    const { steps: tourSteps, tourId: constraintsTourId } = useRoleBasedTour({
+        tourId: 'constraints_manager',
+        steps: [
+            {
+                targetId: '#tour-constraints-header',
+                title: 'ניהול אילוצים',
+                content: 'כאן מגדירים את ה"חוקים" של הפלוגה - מי לא יכול לעשות מה, ומי חייב לעשות מה.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-constraints-tabs',
+                title: 'סוגי חוקים',
+                content: 'ניתן להגדיר חוקים מבוססי משימה (למשל: סמלים לא עושים שמירה) או חוקים בין-אישיים (למשל: לא לשבץ שני חיילים מסוימים יחד).',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-constraints-search',
+                title: 'חיפוש מהיר',
+                content: 'חפשו חוקים קיימים לפי שם חייל, משימה או תיאור האילוץ.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-constraints-add',
+                title: 'הוספת חוק חדש',
+                content: 'לחצו כאן כדי להוסיף מגבלה חדשה שתשפיע על השיבוץ האוטומטי.',
+                roles: ['admin'],
+                position: 'left'
+            }
+        ]
+    });
 
     const [managerMode, setManagerMode] = useState<'tasks' | 'interperson'>('tasks');
     const [rulesSearch, setRulesSearch] = useState('');
@@ -420,7 +453,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
             {/* Header Section */}
             <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col gap-4 bg-white/50 backdrop-blur-sm z-10 shrink-0">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3" id="tour-constraints-header">
                         <ShieldAlert className="text-blue-600" size={32} weight="bold" />
                         <div>
                             <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-none">ניהול אילוצים</h2>
@@ -433,7 +466,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
             </div>
 
             {/* Tab Selector */}
-            <div className="px-4 md:px-6 pt-2 pb-0 flex border-b border-slate-100 bg-slate-50/30">
+            <div className="px-4 md:px-6 pt-2 pb-0 flex border-b border-slate-100 bg-slate-50/30" id="tour-constraints-tabs">
                 <button
                     onClick={() => setManagerMode('tasks')}
                     className={cn(
@@ -455,7 +488,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
             </div>
 
             {/* Search Bar */}
-            <div className="px-4 md:px-6 py-4 bg-white/50 backdrop-blur-sm z-10 shrink-0">
+            <div className="px-4 md:px-6 py-4 bg-white/50 backdrop-blur-sm z-10 shrink-0" id="tour-constraints-search">
                 <div className="relative group">
                     <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} weight="bold" />
                     <input
@@ -586,6 +619,7 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
 
             {/* Standard FAB */}
             <FloatingActionButton
+                id="tour-constraints-add"
                 show={!isViewer && !isRuleModalOpen && !isInterPersonModalOpen}
                 onClick={managerMode === 'tasks' ? () => openRuleModal() : () => openInterPersonModal()}
                 icon={Plus}
@@ -1011,6 +1045,8 @@ export const ConstraintsManager: React.FC<ConstraintsManagerProps> = ({
                 onConfirm={confirmDelete}
                 onCancel={() => setGroupToDelete(null)}
             />
+
+            <FeatureTour tourId={constraintsTourId} steps={tourSteps} />
         </div>
     );
 };

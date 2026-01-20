@@ -42,6 +42,7 @@ interface ActionBarProps {
     isSearchExpanded?: boolean;
     onSearchExpandedChange?: (expanded: boolean) => void;
     testId?: string;
+    id?: string;
 }
 
 export const ActionBar: React.FC<ActionBarProps> = ({
@@ -60,7 +61,8 @@ export const ActionBar: React.FC<ActionBarProps> = ({
     mobileMoreActions,
     isSearchExpanded: isSearchExpandedProp,
     onSearchExpandedChange,
-    testId
+    testId,
+    id
 }) => {
     const [isInternalSearchExpanded, setIsInternalSearchExpanded] = useState(isSearchExpandedDefault || !!searchTerm);
     const isSearchExpanded = isSearchExpandedProp !== undefined ? isSearchExpandedProp : isInternalSearchExpanded;
@@ -75,7 +77,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
     const activeFiltersCount = filters.filter(f => f.value && f.value !== 'all').length;
 
     return (
-        <div className={`shrink-0 z-50 relative ${className}`}>
+        <div id={id} className={`shrink-0 z-50 relative ${className}`}>
             {/* 1. Mobile Layout - Clean & Minimalist */}
             <div className="md:hidden flex flex-col py-2 px-3">
                 {/* Top Row: Title & Entry Points */}

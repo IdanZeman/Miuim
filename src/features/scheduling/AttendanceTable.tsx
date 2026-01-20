@@ -261,7 +261,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     }, [teams, sortedPeople, currentDate, teamRotations, absences, hourlyBlockages, currentTime]);
 
     return (
-        <div className="h-full flex flex-col relative" dir="rtl">
+        <div id="tour-attendance-table" className="h-full flex flex-col relative" dir="rtl">
             {/* --- DAILY AGENDA VIEW (Mobile default, Desktop optional) --- */}
             {(viewMode === 'daily' || !viewMode) && (
                 <div

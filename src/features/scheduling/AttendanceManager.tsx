@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import ExcelJS from 'exceljs';
 import { Person, Team, Role, TeamRotation, TaskTemplate, SchedulingConstraint, OrganizationSettings, Shift, DailyPresence, Absence } from '@/types';
 import { CalendarBlank as Calendar, CheckCircle as CheckCircle2, XCircle, CaretRight as ChevronRight, CaretLeft as ChevronLeft, MagnifyingGlass as Search, Gear as Settings, Calendar as CalendarDays, CaretDown as ChevronDown, ArrowLeft, ArrowRight, CheckSquare, ListChecks, X, MagicWand as Wand2, Sparkle as Sparkles, Users, DotsThreeVertical as MoreVertical, DownloadSimple as Download, ChartBar } from '@phosphor-icons/react';
+import { FeatureTour } from '@/components/ui/FeatureTour';
+import { useRoleBasedTour } from '@/hooks/useRoleBasedTour';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 import { PersonalAttendanceCalendar } from './PersonalAttendanceCalendar';
 import { DateNavigator } from '../../components/ui/DateNavigator';
@@ -90,6 +92,44 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         confirmText?: string;
         type?: 'warning' | 'danger' | 'info';
     }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
+
+    const { steps: tourSteps, tourId: attendanceTourId } = useRoleBasedTour({
+        tourId: 'attendance_manager',
+        steps: [
+            {
+                targetId: '#tour-view-mode',
+                title: 'שינוי תצוגה',
+                content: 'תוכל לעבור בין מבט חודשי בלוח שנה, טבלה מפורטת או רשימה יומית לשיבוץ מהיר.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-date-navigator',
+                title: 'בחירת תאריך',
+                content: 'דווח נוכחות עבור ימים עתידיים כדי שהמערכת תוכל לתכנן את השיבוץ מראש.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-attendance-stats',
+                title: 'סיכומי נוכחות',
+                content: 'כאן תוכל לראות כמה ימי "בית" קיבל כל חייל החודש ולוודא הוגנות במחלקות.',
+                roles: ['admin', 'attendance'],
+                position: 'left'
+            },
+            {
+                targetId: '#tour-rota-wizard-attendance',
+                title: 'מחולל סבבים',
+                content: 'צרו סבב יציאות הביתה בצורה אוטומטית שמאזנת בין בקשות הלוחמים לבין דרישות כוח האדם המבצעיות.',
+                roles: ['admin'],
+                position: 'left'
+            },
+            {
+                targetId: '#tour-attendance-table',
+                title: 'ניהול נוכחות',
+                content: 'לחץ על שם חייל או על תאריך בלוח השנה כדי לעדכן סטטוס הגעה/יציאה/בית.',
+                position: 'top'
+            }
+        ]
+    });
 
     // Export Modal State
     const [showExportModal, setShowExportModal] = useState(false);
@@ -853,6 +893,16 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
     return (
         <div ref={containerRef} className="bg-white rounded-[2rem] shadow-xl md:shadow-portal border border-slate-100 flex flex-col h-[calc(100dvh-70px)] md:h-[calc(100vh-90px)] relative overflow-hidden">
+            <FeatureTour
+                steps={tourSteps}
+                tourId={attendanceTourId}
+                onStepChange={(idx) => {
+                    const step = tourSteps[idx];
+                    if (step?.targetId === '#tour-attendance-stats') {
+                        setViewMode('table');
+                    }
+                }}
+            />
             {/* --- GREEN HEADER (Mobile & Desktop Unified or Mobile Only?) --- */}
 
             {/* --- UNIFIED MOBILE CONTAINER --- */}
@@ -864,7 +914,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-50 px-3 py-2.5 flex flex-col gap-2.5">
                     <div className="flex items-center gap-2">
                         {/* Compact Segmented Control */}
-                        <div className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 h-8.5">
+                        <div id="tour-view-mode" className="flex-1 flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/50 h-8.5">
                             <button
                                 onClick={() => setViewMode('calendar')}
                                 className={`flex-1 flex items-center justify-center gap-1.5 h-full rounded-lg transition-all duration-300 ${viewMode === 'calendar' ? 'bg-white text-blue-600 shadow-sm font-black' : 'text-slate-500 font-bold'}`}
@@ -883,6 +933,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
                         {!isViewer && (
                             <button
+                                id="tour-rota-wizard-attendance"
                                 onClick={() => setShowRotaWizard(true)}
                                 className="w-8.5 h-8.5 flex items-center justify-center bg-blue-50 text-blue-600 rounded-xl border border-blue-100 active:scale-95 transition-all shrink-0"
                                 title="מחולל סבבים"
@@ -901,7 +952,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     </div>
 
                     {/* Date Navigator - Optimized for Mobile */}
-                    <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-0.5">
+                    <div id="tour-date-navigator" className="bg-slate-50/50 rounded-xl border border-slate-100 p-0.5">
                         <DateNavigator
                             date={viewMode === 'calendar' ? viewDate : selectedDate}
                             onDateChange={(d) => {
@@ -1021,7 +1072,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         </div>
                     }
                     centerActions={
-                        <div className="bg-slate-100/80 p-1 rounded-[15px] flex items-center gap-1 shadow-inner border border-slate-200/50">
+                        <div id="tour-view-mode" className="bg-slate-100/80 p-1 rounded-[15px] flex items-center gap-1 shadow-inner border border-slate-200/50">
                             {[
                                 { id: 'calendar', label: 'לוח שנה', icon: CalendarDays },
                                 { id: 'table', label: 'טבלה חודשית', icon: ListChecks },
@@ -1044,26 +1095,29 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     }
                     rightActions={
                         <div className="flex items-center gap-2">
-                            <DateNavigator
-                                date={(viewMode === 'calendar' || viewMode === 'table') ? viewDate : selectedDate}
-                                onDateChange={(d) => {
-                                    if (viewMode === 'calendar' || viewMode === 'table') setViewDate(d);
-                                    else setSelectedDate(d);
-                                }}
-                                mode={(viewMode === 'calendar' || viewMode === 'table') ? 'month' : 'day'}
-                                maxDate={isViewer ? (() => {
-                                    const days = settings?.viewer_schedule_days || 7;
-                                    const d = new Date();
-                                    d.setHours(0, 0, 0, 0);
-                                    d.setDate(d.getDate() + (days - 1));
-                                    return d;
-                                })() : undefined}
-                            />
+                            <div id="tour-date-navigator">
+                                <DateNavigator
+                                    date={(viewMode === 'calendar' || viewMode === 'table') ? viewDate : selectedDate}
+                                    onDateChange={(d) => {
+                                        if (viewMode === 'calendar' || viewMode === 'table') setViewDate(d);
+                                        else setSelectedDate(d);
+                                    }}
+                                    mode={(viewMode === 'calendar' || viewMode === 'table') ? 'month' : 'day'}
+                                    maxDate={isViewer ? (() => {
+                                        const days = settings?.viewer_schedule_days || 7;
+                                        const d = new Date();
+                                        d.setHours(0, 0, 0, 0);
+                                        d.setDate(d.getDate() + (days - 1));
+                                        return d;
+                                    })() : undefined}
+                                />
+                            </div>
 
                             <div className="flex items-center gap-2">
                                 {viewMode === 'table' && (
                                     <>
                                         <button
+                                            id="tour-attendance-stats"
                                             onClick={() => setShowStatistics(!showStatistics)}
                                             className={`h-10 px-3 flex items-center justify-center gap-2 rounded-xl transition-all border shadow-sm ${showStatistics ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-100'}`}
                                             title={showStatistics ? 'הסתר סטטיסטיקה' : 'הצג סטטיסטיקה'}
@@ -1083,6 +1137,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
                                 {(profile?.permissions?.canManageRotaWizard || profile?.is_super_admin) && (
                                     <button
+                                        id="tour-rota-wizard-attendance"
                                         onClick={() => setShowRotaWizard(true)}
                                         data-testid="open-rota-wizard-btn"
                                         className="h-10 w-10 flex items-center justify-center bg-slate-100/50 text-slate-500 hover:bg-white hover:text-blue-600 rounded-xl transition-all border border-slate-200 shadow-sm transition-all group"
@@ -1096,7 +1151,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     }
                 />
 
-                <div className="flex-1 overflow-hidden flex flex-col isolate z-10">
+                <div id="tour-attendance-content" className="flex-1 overflow-hidden flex flex-col isolate z-10">
                     {/* Content Render (Desktop) */}
                     {viewMode === 'calendar' ? (
                         <div className="h-full flex flex-col bg-white overflow-hidden">

@@ -15,9 +15,10 @@ interface FeatureTourProps {
     tourId: string; // Used to track completion in localStorage
     onStepChange?: (stepIndex: number) => void;
     onComplete?: () => void;
+    showProgress?: boolean;
 }
 
-export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepChange, onComplete }) => {
+export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepChange, onComplete, showProgress = true }) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -35,6 +36,27 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
 
     useEffect(() => {
         if (!isVisible) return;
+        const step = steps[currentStep];
+        if (!step) return;
+
+        // Small delay to allow elements to render/settle
+        const timer = setTimeout(() => {
+            const elements = document.querySelectorAll(step.targetId);
+            const el = Array.from(elements).find(e => {
+                const rect = (e as HTMLElement).getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0;
+            }) as HTMLElement | null || (elements[0] as HTMLElement | null);
+
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [isVisible, currentStep, steps]);
+
+    useEffect(() => {
+        if (!isVisible) return;
 
         let intervalId: number;
 
@@ -42,32 +64,42 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
             const step = steps[currentStep];
             if (!step) return;
 
-            const el = document.querySelector(step.targetId);
+            const elements = document.querySelectorAll(step.targetId);
+            const el = Array.from(elements).find(e => {
+                const rect = (e as HTMLElement).getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0;
+            }) as HTMLElement | null || (elements[0] as HTMLElement | null);
+
             if (el) {
                 const rect = el.getBoundingClientRect();
+                // Ensure we have a valid rect before proceeding
+                if (rect.width === 0 && rect.height === 0 && elements.length > 1) {
+                    // If we somehow still got a zero rect but have other options, skip this frame
+                    return;
+                }
                 setTargetRect(rect);
 
                 // Calculate position logic
                 const screenPadding = 20;
                 const tooltipWidth = 320;
-                let left = rect.x + rect.width / 2;
+                let left = rect.left + rect.width / 2;
                 let top = 0;
                 let xPerc = -50;
                 let yPerc = 0;
 
                 if (step.position === 'bottom') {
-                    top = rect.y + rect.height + 20;
+                    top = rect.top + rect.height + 20;
                 } else if (step.position === 'top') {
-                    top = rect.y - 20;
+                    top = rect.top - 20;
                     yPerc = -100;
                 } else if (step.position === 'right') {
-                    left = rect.x + rect.width + 20;
-                    top = rect.y + rect.height / 2;
+                    left = rect.left + rect.width + 20;
+                    top = rect.top + rect.height / 2;
                     xPerc = 0;
                     yPerc = -50;
                 } else if (step.position === 'left') {
-                    left = rect.x - 20;
-                    top = rect.y + rect.height / 2;
+                    left = rect.left - 20;
+                    top = rect.top + rect.height / 2;
                     xPerc = -100;
                     yPerc = -50;
                 }
@@ -84,6 +116,55 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                         const diff = idealLeft - left;
                         arrowOffset = 50 + (diff / tooltipWidth) * 100;
                         arrowOffset = Math.max(10, Math.min(90, arrowOffset));
+                    }
+                }
+
+                // Vertical Clamping
+                const tooltipEstimatedHeight = 280; // More realistic estimate
+                let actualTop = top;
+                if (yPerc === -100) actualTop = top - tooltipEstimatedHeight;
+                else if (yPerc === -50) actualTop = top - tooltipEstimatedHeight / 2;
+
+                if (actualTop < screenPadding) {
+                    // If it's cutting off at top
+                    if (step.position === 'top') {
+                        // Switch to bottom
+                        top = rect.top + rect.height + 20;
+                        yPerc = 0;
+
+                        // If rect is very large (e.g. content area), pointing to the bottom might be off-screen.
+                        // In this case, fall back to a fixed centered position at bottom of viewport.
+                        if (top > window.innerHeight - screenPadding - 100) {
+                            top = window.innerHeight - screenPadding - 20;
+                            yPerc = -100;
+                            left = window.innerWidth / 2;
+                            xPerc = -50;
+                        }
+                    } else {
+                        // Just clamp
+                        if (yPerc === -100) top = screenPadding + tooltipEstimatedHeight;
+                        else if (yPerc === -50) top = screenPadding + tooltipEstimatedHeight / 2;
+                        else top = screenPadding;
+                    }
+                } else if (top + (yPerc === 0 ? tooltipEstimatedHeight : yPerc === -50 ? tooltipEstimatedHeight / 2 : 0) > window.innerHeight - screenPadding) {
+                    // If it's cutting off at bottom
+                    if (step.position === 'bottom') {
+                        // Switch to top
+                        top = rect.top - 20;
+                        yPerc = -100;
+
+                        // If rect is very large, pointing to the top might be off-screen.
+                        if (top < screenPadding + 100) {
+                            top = screenPadding + 20;
+                            yPerc = 0;
+                            left = window.innerWidth / 2;
+                            xPerc = -50;
+                        }
+                    } else {
+                        // Clamp
+                        if (yPerc === -100) top = window.innerHeight - screenPadding;
+                        else if (yPerc === -50) top = window.innerHeight - screenPadding - tooltipEstimatedHeight / 2;
+                        else top = window.innerHeight - screenPadding - tooltipEstimatedHeight;
                     }
                 }
 
@@ -143,7 +224,7 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
     if (!isVisible || !step) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[9999] pointer-events-none overflow-hidden">
+        <div className="fixed inset-0 z-[99999] pointer-events-none overflow-hidden">
             {/* Overlay Mask */}
             <AnimatePresence>
                 {targetRect && (
@@ -159,8 +240,8 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                                 <motion.rect
                                     initial={false}
                                     animate={{
-                                        x: targetRect.x - 8,
-                                        y: targetRect.y - 8,
+                                        x: targetRect.left - 8,
+                                        y: targetRect.top - 8,
                                         width: targetRect.width + 16,
                                         height: targetRect.height + 16,
                                         rx: 12
@@ -188,7 +269,6 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                 {targetRect && (
                     <motion.div
                         key={currentStep}
-                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
                         animate={{
                             opacity: 1,
                             scale: 1,
@@ -197,15 +277,20 @@ export const FeatureTour: React.FC<FeatureTourProps> = ({ steps, tourId, onStepC
                             x: tooltipStyles.x,
                             y: tooltipStyles.y
                         }}
+                        initial={{
+                            opacity: 0,
+                            scale: 0.9,
+                            left: tooltipStyles.left,
+                            top: tooltipStyles.top,
+                            x: tooltipStyles.x,
+                            y: tooltipStyles.y
+                        }}
                         exit={{ opacity: 0, scale: 0.9, y: 10 }}
                         transition={{ type: 'spring', damping: 20, stiffness: 300 }}
                         className="absolute z-[10000] pointer-events-auto"
-                        style={{
-                            left: 0,
-                            top: 0
-                        }}
+                        style={{}}
                     >
-                        <div className="bg-white rounded-3xl shadow-2xl p-6 w-80 border border-slate-100 relative group">
+                        <div className="bg-white rounded-3xl shadow-2xl p-6 w-[320px] min-h-[180px] flex flex-col border border-slate-100 relative group">
                             {/* Connector Arrow */}
                             <div
                                 className={`absolute w-4 h-4 bg-white rotate-45 border-slate-100 ${step.position === 'bottom' ? 'top-[-8px] border-t border-l' :

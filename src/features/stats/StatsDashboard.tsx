@@ -26,6 +26,9 @@ interface StatsDashboardProps {
 
 type ReportType = 'manpower' | 'tasks' | 'location' | 'customFields' | 'dailyAttendance' | 'compliance';
 
+import { useRoleBasedTour } from '../../hooks/useRoleBasedTour';
+import { FeatureTour } from '../../components/ui/FeatureTour';
+
 export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    people, shifts, tasks, roles, teams, teamRotations = [],
    absences = [], hourlyBlockages = [],
@@ -34,8 +37,33 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
    const activePeople = people.filter(p => p.isActive !== false);
    const [reportType, setReportType] = useState<ReportType>(isViewer ? 'tasks' : 'manpower');
 
+   const { steps, tourId } = useRoleBasedTour({
+      tourId: 'stats_dashboard',
+      steps: [
+         {
+            targetId: '#tab-manpower',
+            title: 'דוח כוח אדם',
+            content: 'כאן תוכל לראות את התפלגות הסד"כ שלך לפי תפקידים, צוותים ונוכחות בזמן אמת.',
+            roles: ['admin', 'editor']
+         },
+         {
+            targetId: '#tab-tasks',
+            title: 'ניתוח שיבוצים',
+            content: 'במסך זה תוכל למצוא מדדי הוגנות (Fairness), עומסים על חיילים וסיכומי שעות.',
+            roles: ['admin', 'editor', 'viewer']
+         },
+         {
+            targetId: '#tab-compliance',
+            title: 'מעקב חריגות',
+            content: 'כאן המערכת מתריעה על שבירת זמני מנוחה, חוסר בכוח אדם או שיבוץ חיילים שאינם כשירים.',
+            roles: ['admin', 'editor']
+         }
+      ]
+   });
+
    return (
       <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden p-3 md:p-8">
+         <FeatureTour steps={steps} tourId={tourId} />
 
          {/* Header & Navigation Combined */}
          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4">

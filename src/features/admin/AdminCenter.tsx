@@ -5,6 +5,8 @@ import {
     ShieldCheck as ShieldIcon
 } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FeatureTour } from '@/components/ui/FeatureTour';
+import { useRoleBasedTour } from '@/hooks/useRoleBasedTour';
 import { AnalyticsDashboard } from './analytics/AnalyticsDashboard';
 import { UserActivityStats } from './UserActivityStats';
 import { useAuth } from '../auth/AuthContext';
@@ -25,6 +27,42 @@ export const AdminCenter: React.FC = () => {
         ...(canViewLogs ? [{ id: 'logs' as const, label: 'יומן פעילות משתמשים', icon: ListIcon, color: 'text-indigo-600', bg: 'bg-indigo-50' }] : [])
     ];
 
+    const { steps: tourSteps, tourId: adminTourId } = useRoleBasedTour({
+        tourId: 'admin_center',
+        steps: [
+            {
+                targetId: '#tour-admin-header',
+                title: 'מרכז ניהול ובקרה',
+                content: 'ברוכים הבאים למרכז השליטה. כאן תוכלו לראות תמונת מצב של המערכת, היקפי פעילות ויומן פעולות מפורט.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-admin-tabs',
+                title: 'ניהול מול בקרה',
+                content: 'עברו בין "אנליטיקה" לראות גרפים ולוח מחוונים, לבין "יומן פעילות" כדי לעקוב אחרי כל פעולה שבוצעה במערכת.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-analytics-stats',
+                title: 'מדדי ביצוע (KPIs)',
+                content: 'כאן תוכלו לראות במספרים את מצב הארגון: כמה אנשים פעילים, כמות מחיקות חריגות וגיבויים שבוצעו.',
+                position: 'top'
+            },
+            {
+                targetId: '#tour-analytics-health',
+                title: 'בריאות המערכת',
+                content: 'ציון ה-Health משקף את תקינות הנתונים ומהירות התגובה של המערכת בארגון שלכם.',
+                position: 'top'
+            },
+            {
+                targetId: '#tour-analytics-activity',
+                title: 'יומן פעילות בזמן אמת',
+                content: 'עקבו אחרי כל שינוי משמעותי שקורה במערכת. שקיפות מלאה היא המפתח לניהול נכון.',
+                position: 'top'
+            }
+        ]
+    });
+
     if (!organization) return null;
 
     return (
@@ -32,7 +70,7 @@ export const AdminCenter: React.FC = () => {
             {/* Unified Premium Header with Tabs */}
             <div className="bg-white border-b border-slate-100 shrink-0">
                 <div className="flex flex-col md:flex-row items-center justify-between px-8 py-6 md:h-24 gap-4">
-                    <div className="flex items-center gap-5 w-full md:w-auto">
+                    <div className="flex items-center gap-5 w-full md:w-auto" id="tour-admin-header">
                         <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200">
                             <ShieldIcon size={28} weight="duotone" />
                         </div>
@@ -47,7 +85,7 @@ export const AdminCenter: React.FC = () => {
                     </div>
 
                     {/* Tab Switcher */}
-                    <div className="flex bg-slate-50 border border-slate-200/60 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto relative z-30">
+                    <div className="flex bg-slate-50 border border-slate-200/60 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto relative z-30" id="tour-admin-tabs">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
@@ -87,6 +125,8 @@ export const AdminCenter: React.FC = () => {
                     </motion.div>
                 </AnimatePresence>
             </div>
+
+            <FeatureTour tourId={adminTourId} steps={tourSteps} />
         </div>
     );
 };

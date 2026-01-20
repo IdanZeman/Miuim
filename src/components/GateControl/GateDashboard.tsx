@@ -18,6 +18,8 @@ import { ManageAuthorizedVehiclesModal, AuthorizedVehiclesContent } from './Mana
 import { GateHistory } from './GateHistory';
 import { supabase } from '../../lib/supabase';
 import { DashboardSkeleton } from '../ui/DashboardSkeleton';
+import { FeatureTour } from '@/components/ui/FeatureTour';
+import { useRoleBasedTour } from '@/hooks/useRoleBasedTour';
 
 export const GateDashboard: React.FC = () => {
     const {
@@ -36,6 +38,36 @@ export const GateDashboard: React.FC = () => {
 
     const { showToast } = useToast();
     const { profile } = useAuth();
+
+    const { steps: tourSteps, tourId: gateTourId } = useRoleBasedTour({
+        tourId: 'gate_control',
+        steps: [
+            {
+                targetId: '#tour-gate-header',
+                title: 'שער הכניסה (ש.ג)',
+                content: 'כאן מנטרים את מי שנכנס ויוצא מהבסיס. המערכת עוזרת לוודא שרק רכבים ואנשים מורשים נכנסים.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-gate-tabs',
+                title: 'תנועה מול ניהול',
+                content: 'בלשונית "תנועה" מדווחים בזמן אמת, ובלשונית "ניהול" מעדכנים את רשימת הרכבים המורשים לבסיס.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-gate-report-form',
+                title: 'דיווח מהיר',
+                content: 'הזינו מספר רכב או שם הולך רגל. המערכת תזהה אוטומטית אם הם מורשים ותסמן אותם כ"בתוך הבסיס".',
+                position: 'left'
+            },
+            {
+                targetId: '#tour-gate-history',
+                title: 'יומן תנועות',
+                content: 'כאן רואים את כל מי שנמצא כרגע בבסיס ואת היסטוריית התנועות האחרונה.',
+                position: 'bottom'
+            }
+        ]
+    });
 
     const canManageAuthorized = profile?.is_super_admin ||
         profile?.role === 'admin' ||
@@ -652,7 +684,7 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                 <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white sticky top-0 z-20">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20" id="tour-gate-header">
                                 <ShieldCheckIcon size={24} weight="bold" />
                             </div>
                             <div className="flex flex-col">
@@ -671,7 +703,7 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                     </div>
 
                     {/* Navigation Tabs */}
-                    <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/50 w-full md:w-auto self-stretch md:self-auto">
+                    <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/50 w-full md:w-auto self-stretch md:self-auto" id="tour-gate-tabs">
                         <button
                             onClick={() => setCurrentTab('control')}
                             className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${currentTab === 'control'
@@ -702,7 +734,7 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                     {currentTab === 'control' ? (
                         <div className="flex flex-col lg:flex-row h-full p-4 md:p-6 gap-6 animate-in fade-in duration-300">
                             {/* Desktop Sidebar Form */}
-                            <aside className="hidden lg:flex w-full lg:w-[380px] shrink-0 flex-col gap-4 h-full overflow-y-auto">
+                            <aside className="hidden lg:flex w-full lg:w-[380px] shrink-0 flex-col gap-4 h-full overflow-y-auto" id="tour-gate-report-form">
                                 {renderEntryForm()}
                             </aside>
 
@@ -745,7 +777,7 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
 
                             {/* History & Active List */}
                             <main className="flex-1 flex flex-col gap-4 overflow-hidden min-w-0">
-                                <div className="bg-slate-50 rounded-2xl flex flex-col flex-1 shadow-sm border border-slate-100 overflow-hidden">
+                                <div className="bg-slate-50 rounded-2xl flex flex-col flex-1 shadow-sm border border-slate-100 overflow-hidden" id="tour-gate-history">
                                     {/* History Header */}
                                     <div className="border-b border-slate-200 p-4 md:p-5 shrink-0 bg-slate-50 z-10">
                                         <div className="flex items-center justify-between mb-4">
@@ -806,6 +838,8 @@ w-full h-14 rounded-2xl font-black text-lg transition-all shadow-xl active:scale
                 isOpen={isAddVehicleModalOpen}
                 onClose={() => setIsAddVehicleModalOpen(false)}
             />
+
+            <FeatureTour tourId={gateTourId} steps={tourSteps} />
         </div>
     );
 };

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe, Tag, CloudArrowUp } from '@phosphor-icons/react';
+import { MagnifyingGlass as Search, Plus, CaretDown as ChevronDown, CaretLeft as ChevronLeft, User, Users, Shield, PencilSimple as Pencil, Envelope as Mail, Pulse as Activity, Trash, FileXls as FileSpreadsheet, X, Check, DownloadSimple as Download, Archive, Warning as AlertTriangle, Funnel as Filter, ArrowsDownUp as ArrowUpDown, SortAscending as ArrowDownAZ, SortDescending as ArrowUpZA, Stack as Layers, List as LayoutList, DotsThreeVertical as MoreVertical, MagnifyingGlass, Funnel, DotsThreeVertical, FunnelIcon, DotsThreeVerticalIcon, FileXls, DownloadSimple, SortDescending, SortAscending, SortDescendingIcon, SortAscendingIcon, CaretLeft, CaretLeftIcon, MagnifyingGlassIcon, Globe, Tag, CloudArrowUp, Gear as GearSix } from '@phosphor-icons/react';
+import { FeatureTour } from '@/components/ui/FeatureTour';
+import { useRoleBasedTour } from '@/hooks/useRoleBasedTour';
 import { Person, Team, Role, CustomFieldDefinition } from '../../types';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -21,7 +23,7 @@ import { ActionBar, ActionListItem } from '../../components/ui/ActionBar';
 import { Eye, EyeSlash } from '@phosphor-icons/react';
 import { getPersonInitials, formatPhoneNumber } from '../../utils/nameUtils';
 import { PersonnelTableView } from './PersonnelTableView';
-import { Table as TableIcon, SquaresFour as GridIcon, GearSix } from '@phosphor-icons/react';
+import { Table as TableIcon, SquaresFour as GridIcon } from '@phosphor-icons/react';
 import { CustomFieldsManager } from './CustomFieldsManager';
 
 interface PersonnelManagerProps {
@@ -115,13 +117,51 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
     // Import Results Modal State
     const [importResults, setImportResults] = useState<{ added: number; updated: number; failed: number; errors: { name: string; error: string }[] } | null>(null);
 
-    // NEW: Confirmation Modal State
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; type?: 'danger' | 'warning' | 'info' }>({
         isOpen: false,
         title: '',
         message: '',
         onConfirm: () => { },
         type: 'danger'
+    });
+
+    const { steps: tourSteps, tourId: personnelTourId } = useRoleBasedTour({
+        tourId: 'personnel_manager',
+        steps: [
+            {
+                targetId: '#tour-personnel-tabs',
+                title: 'ניהול קטגוריות',
+                content: 'עבור בין ניהול לוחמים, צוותים או תפקידים כדי לארגן את כוח האדם ביחידה.',
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-personnel-fields',
+                title: 'שדות מותאמים',
+                content: 'נהל שדות נוספים כמו "נשק", "מידה" או כל נתון רלוונטי אחר שחשוב לכם.',
+                roles: ['admin'],
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-personnel-import',
+                title: 'ייבוא מאקסל',
+                content: 'יש לכם רשימה מוכנה? ייבאו אותה בבת אחת במקום להוסיף אחד אחד.',
+                roles: ['admin'],
+                position: 'bottom'
+            },
+            {
+                targetId: '#tour-personnel-add',
+                title: 'הוספה מהירה',
+                content: 'לחץ כאן כדי להוסיף לוחם, צוות או תפקיד חדש למערכת.',
+                roles: ['admin'],
+                position: 'top'
+            },
+            {
+                targetId: '#tour-personnel-content',
+                title: 'ניהול נתונים',
+                content: 'לחץ על כרטיס לוחם כדי לערוך את פרטיו, לשנות שיוך לצוות או לעדכן תפקידים.',
+                position: 'top'
+            }
+        ]
     });
 
     const [isSaving, setIsSaving] = useState(false); // NEW: Loading state
@@ -1387,6 +1427,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
     return (
         <div className="bg-white rounded-[2rem] border border-slate-100 flex flex-col relative overflow-hidden">
+            <FeatureTour steps={tourSteps} tourId={personnelTourId} />
             <ActionBar
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
@@ -1421,7 +1462,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                     </div>
                 }
                 centerActions={
-                    <div className="bg-slate-100/80 p-1 rounded-[15px] flex items-center gap-1 shadow-inner border border-slate-200/50">
+                    <div id="tour-personnel-tabs" className="bg-slate-100/80 p-1 rounded-[15px] flex items-center gap-1 shadow-inner border border-slate-200/50">
                         {[
                             { id: 'people', label: 'חיילים', icon: User },
                             { id: 'teams', label: 'צוותים', icon: Users },
@@ -1501,6 +1542,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
 
                         {/* Manage Fields Button */}
                         <button
+                            id="tour-personnel-fields"
                             onClick={() => setIsManageFieldsOpen(true)}
                             className="hidden md:flex h-10 w-10 rounded-xl border border-slate-200 bg-slate-100/50 text-slate-500 items-center justify-center transition-all hover:bg-white hover:text-indigo-600 shadow-sm"
                             title="ניהול שדות מותאמים"
@@ -1520,6 +1562,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                         {/* Import Button */}
                         {canEdit && activeTab === 'people' && (
                             <button
+                                id="tour-personnel-import"
                                 onClick={() => setIsImportWizardOpen(true)}
                                 className="hidden md:flex h-10 w-10 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl items-center justify-center hover:bg-emerald-100 transition-colors shadow-sm"
                                 title="ייבוא מאקסל"
@@ -1595,7 +1638,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
             />
 
             {/* Custom Content area (Personnel Table, Teams, Roles) */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-1 md:px-6 md:pb-6 md:pt-0 pt-0">
+            <div id="tour-personnel-content" className="flex-1 overflow-y-auto custom-scrollbar p-1 md:px-6 md:pb-6 md:pt-0 pt-0">
                 <div className="relative">
                     {/* Only the Import Wizard remains here, opened by the ActionBar menu */}
 
@@ -2120,6 +2163,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                                 </div>
                             ) : (
                                 <FloatingActionButton
+                                    id="tour-personnel-add"
                                     icon={Plus}
                                     onClick={() => {
                                         if (activeTab === 'people' && teams.length === 0) {
