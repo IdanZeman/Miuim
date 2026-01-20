@@ -158,55 +158,57 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                     </div>
                                                 </div>
 
-                                                {/* Status Badge */}
-                                                {(() => {
-                                                    const requiredPeople = shift.requirements?.requiredPeople ||
-                                                        task.segments?.find(s => s.id === shift.segmentId)?.requiredPeople || 1;
-                                                    const count = assigned.length;
+                                                <div className="flex flex-wrap items-center justify-end gap-1.5 min-w-0">
+                                                    {/* Status Badge */}
+                                                    {(() => {
+                                                        const requiredPeople = shift.requirements?.requiredPeople ||
+                                                            task.segments?.find(s => s.id === shift.segmentId)?.requiredPeople || 1;
+                                                        const count = assigned.length;
 
-                                                    if (isCancelled) {
+                                                        if (isCancelled) {
+                                                            return (
+                                                                <span className="px-2 py-1.5 rounded-md bg-slate-100 text-slate-500 text-[10px] md:text-sm font-bold flex items-center gap-1 shrink-0">
+                                                                    <Ban size={14} weight="bold" /> מבוטל
+                                                                </span>
+                                                            );
+                                                        }
+                                                        if (count === 0) {
+                                                            return (
+                                                                <span className="px-2 py-1.5 rounded-md bg-slate-50 text-slate-500 text-[10px] md:text-sm font-bold border border-slate-100 shrink-0">
+                                                                    לא מאויש
+                                                                </span>
+                                                            );
+                                                        }
+                                                        if (count < requiredPeople) {
+                                                            return (
+                                                                <span className="px-2 py-1.5 rounded-md bg-amber-50 text-amber-600 text-[10px] md:text-sm font-bold border border-amber-100 flex items-center gap-1 shrink-0">
+                                                                    <AlertTriangle size={14} weight="bold" />
+                                                                    חסר ({count}/{requiredPeople})
+                                                                </span>
+                                                            );
+                                                        }
+                                                        if (count > requiredPeople) {
+                                                            return (
+                                                                <span className="px-2 py-1.5 rounded-md bg-purple-50 text-purple-600 text-[10px] md:text-sm font-bold border border-purple-100 flex items-center gap-1 shrink-0">
+                                                                    <Plus size={14} weight="bold" />
+                                                                    חריגה ({count}/{requiredPeople})
+                                                                </span>
+                                                            );
+                                                        }
                                                         return (
-                                                            <span className="px-2 py-1.5 rounded-md bg-slate-100 text-slate-500 text-sm font-bold flex items-center gap-1">
-                                                                <Ban size={14} weight="bold" /> מבוטל
+                                                            <span className="px-2 py-1.5 rounded-md bg-green-50 text-green-600 text-[10px] md:text-sm font-bold border border-green-100 flex items-center gap-1 shrink-0">
+                                                                <CheckCircle size={14} weight="bold" /> מאויש ({count}/{requiredPeople})
                                                             </span>
                                                         );
-                                                    }
-                                                    if (count === 0) {
-                                                        return (
-                                                            <span className="px-2 py-1.5 rounded-md bg-slate-50 text-slate-500 text-sm font-bold border border-slate-100">
-                                                                לא מאויש
-                                                            </span>
-                                                        );
-                                                    }
-                                                    if (count < requiredPeople) {
-                                                        return (
-                                                            <span className="px-2 py-1.5 rounded-md bg-amber-50 text-amber-600 text-sm font-bold border border-amber-100 flex items-center gap-1">
-                                                                <AlertTriangle size={14} weight="bold" />
-                                                                חסר ({count}/{requiredPeople})
-                                                            </span>
-                                                        );
-                                                    }
-                                                    if (count > requiredPeople) {
-                                                        return (
-                                                            <span className="px-2 py-1.5 rounded-md bg-purple-50 text-purple-600 text-sm font-bold border border-purple-100 flex items-center gap-1">
-                                                                <Plus size={14} weight="bold" />
-                                                                חריגה ({count}/{requiredPeople})
-                                                            </span>
-                                                        );
-                                                    }
-                                                    return (
-                                                        <span className="px-2 py-1.5 rounded-md bg-green-50 text-green-600 text-sm font-bold border border-green-100 flex items-center gap-1">
-                                                            <CheckCircle size={14} weight="bold" /> מאויש ({count}/{requiredPeople})
+                                                    })()}
+
+                                                    {/* Conflict Warning */}
+                                                    {!isCancelled && conflicts.some(c => c.shiftId === shift.id && c.type === 'absence') && (
+                                                        <span className="px-2 py-1.5 rounded-md bg-red-50 text-red-600 text-[10px] md:text-sm font-black border border-red-100 flex items-center gap-1 animate-pulse shrink-0" title="חייל בבית / לא זמין">
+                                                            <Ban size={14} weight="bold" /> התראת נוכחות
                                                         </span>
-                                                    );
-                                                })()}
-
-                                                {/* Conflict Warning */}
-                                                {!isCancelled && conflicts.some(c => c.shiftId === shift.id && c.type === 'absence') && (
-                                                    <span className="px-2 py-1.5 rounded-md bg-red-50 text-red-600 text-sm font-bold border border-red-100 flex items-center gap-1 animate-pulse" title="חייל בבית / לא זמין">
-                                                        <Ban size={14} weight="bold" /> התרעת נוכחות
-                                                    </span>
-                                                )}
+                                                    )}
+                                                </div>
                                             </div>
 
                                             {/* Body: Person Info */}
@@ -214,31 +216,47 @@ export const MobileScheduleList: React.FC<MobileScheduleListProps> = ({
                                                 {assigned.length > 0 ? (
                                                     assigned.length > 2 ? (
                                                         <div className="flex -space-x-3 space-x-reverse overflow-hidden py-1 px-1">
-                                                            {assigned.map(person => (
-                                                                <div key={person.id} className="relative group">
-                                                                    <div
-                                                                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm text-white font-bold ring-2 ring-white ${person.color} shadow-sm transition-transform hover:scale-110 hover:z-10`}
-                                                                        title={`${person.name}`}
-                                                                    >
-                                                                        {getPersonInitials(person.name)}
+                                                            {assigned.map(person => {
+                                                                const isProblematic = conflicts.some(c => c.shiftId === shift.id && c.personId === person.id && c.type === 'absence');
+                                                                return (
+                                                                    <div key={person.id} className="relative group">
+                                                                        <div
+                                                                            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm text-white font-bold ring-2 ${isProblematic ? 'ring-red-500 animate-pulse' : 'ring-white'} ${person.color} shadow-sm transition-transform hover:scale-110 hover:z-10 relative`}
+                                                                            title={`${person.name}${isProblematic ? ' (לא זמין)' : ''}`}
+                                                                        >
+                                                                            {getPersonInitials(person.name)}
+                                                                            {isProblematic && (
+                                                                                <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 border border-white">
+                                                                                    <Ban size={10} weight="bold" />
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     ) : (
                                                         /* Detailed View: Avatar + Name */
                                                         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                                            {assigned.map(person => (
-                                                                <div key={person.id} className="flex items-center gap-2 min-w-fit bg-slate-50 pr-2 pl-1 py-1 rounded-full border border-slate-100 shrink-0 flex-row-reverse">
-                                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-white font-bold ring-2 ring-white ${person.color} shadow-sm shrink-0`}>
-                                                                        {getPersonInitials(person.name)}
+                                                            {assigned.map(person => {
+                                                                const isProblematic = conflicts.some(c => c.shiftId === shift.id && c.personId === person.id && c.type === 'absence');
+                                                                return (
+                                                                    <div key={person.id} className={`flex items-center gap-2 min-w-fit pr-2 pl-1 py-1 rounded-full border shrink-0 flex-row-reverse ${isProblematic ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100'}`}>
+                                                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-white font-bold ring-2 ${isProblematic ? 'ring-red-500 animate-pulse' : 'ring-white'} ${person.color} shadow-sm shrink-0 relative`}>
+                                                                            {getPersonInitials(person.name)}
+                                                                            {isProblematic && (
+                                                                                <div className="absolute -top-0.5 -right-0.5 bg-red-500 text-white rounded-full p-0.5 border border-white">
+                                                                                    <Ban size={6} weight="bold" />
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex flex-col text-right">
+                                                                            <span className={`text-xs font-bold whitespace-nowrap ${isProblematic ? 'text-red-700' : 'text-slate-800'}`}>{person.name}</span>
+                                                                            <span className={`text-[9px] leading-none ${isProblematic ? 'text-red-400' : 'text-slate-500'}`}>{isProblematic ? 'בחופשה / לא זמין' : 'לוחם'}</span>
+                                                                        </div>
                                                                     </div>
-                                                                    <div className="flex flex-col text-right">
-                                                                        <span className="text-xs font-bold text-slate-800 whitespace-nowrap">{person.name}</span>
-                                                                        <span className="text-[9px] text-slate-500 leading-none">לוחם</span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     )
                                                 ) : (
