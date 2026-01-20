@@ -1024,6 +1024,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                         {/* User said "Left of the Date". In RTL, "Left" is the end. So let's place it AFTER. */}
                         <div className="md:hidden">
                             <button
+                                id="tour-mobile-menu"
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                                 className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-700 active:bg-slate-50 transition-colors shadow-sm"
                                 aria-label="More actions"
@@ -1093,18 +1094,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </button>
                         </Tooltip>
 
-                        <Tooltip content={showInsights ? "הסתר תובנות" : "הצג תובנות פנויים"}>
-                            <button
-                                id="tour-idle-toggle"
-                                onClick={() => setShowInsights(!showInsights)}
-                                className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showInsights
-                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
-                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
-                                    }`}
-                            >
-                                <Coffee size={18} weight="bold" />
-                            </button>
-                        </Tooltip>
+                        {!isViewer && (
+                            <Tooltip content={showInsights ? "הסתר תובנות" : "הצג תובנות פנויים"}>
+                                <button
+                                    id="tour-idle-toggle"
+                                    onClick={() => setShowInsights(!showInsights)}
+                                    className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showInsights
+                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-inner'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
+                                        }`}
+                                >
+                                    <Coffee size={18} weight="bold" />
+                                </button>
+                            </Tooltip>
+                        )}
 
                         <Tooltip content={isCompact ? "תצוגה רגילה" : "תצוגה קומפקטית"}>
                             <button
@@ -1153,18 +1156,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                 </div>
                             </button>
 
-                            <button
-                                onClick={() => { setShowInsights(true); setIsMobileMenuOpen(false); }}
-                                className="flex items-center gap-4 px-4 py-3.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:bg-indigo-200 rounded-xl transition-colors text-right w-full"
-                            >
-                                <div className="p-2 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                                    <Coffee size={22} weight="bold" />
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-base text-indigo-700">תובנות פנויים</span>
-                                    <span className="text-xs text-indigo-500/80">מי בבסיס וזמין לשיבוץ כרגע</span>
-                                </div>
-                            </button>
+                            {!isViewer && (
+                                <button
+                                    onClick={() => { setShowInsights(true); setIsMobileMenuOpen(false); }}
+                                    className="flex items-center gap-4 px-4 py-3.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:bg-indigo-200 rounded-xl transition-colors text-right w-full"
+                                >
+                                    <div className="p-2 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                        <Coffee size={22} weight="bold" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-base text-indigo-700">תובנות פנויים</span>
+                                        <span className="text-xs text-indigo-500/80">מי בבסיס וזמין לשיבוץ כרגע</span>
+                                    </div>
+                                </button>
+                            )}
                             <button
                                 onClick={() => { setIsExportModalOpen(true); setIsMobileMenuOpen(false); }}
                                 className="flex items-center gap-4 px-4 py-3.5 bg-slate-50 text-slate-700 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition-colors text-right w-full"
@@ -1506,54 +1511,56 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                 />
             )}
 
-            <FeatureTour
-                tourId="idle_personnel_insights"
-                steps={[
-                    {
-                        targetId: '#tour-idle-toggle',
-                        title: 'הכירו את תמונת מצב פנויים',
-                        content: 'מערכת חדשה שמאפשרת לכם לראות מי מהלוחמים פנוי כרגע, נמצא בבסיס ומסיים את המנוחה שלו. המערכת תסרוק את כל המשימות החסרות ותציע לכם הצעות שיבוץ חכמות.',
-                        position: 'bottom'
-                    },
-                    {
-                        targetId: '#tour-idle-panel',
-                        title: 'לוח הפנויים',
-                        content: 'כאן מופיעים כל הלוחמים שאינם משובצים כרגע וביצעו את המנוחה הנדרשת שלהם.',
-                        position: 'right'
-                    },
-                    {
-                        targetId: '#tour-idle-time',
-                        title: 'כמה זמן הוא ממתין?',
-                        content: 'כאן תוכל לראות בדיוק כמה זמן עבר מאז שהחייל סיים את המנוחה שלו והפך להיות זמין לשיבוץ מחדש.',
-                        position: 'bottom'
-                    },
-                    {
-                        targetId: '#tour-idle-history',
-                        title: 'היסטוריה ותכנון',
-                        content: 'המערכת מציגה לך מה הייתה המשימה האחרונה ומתי המשימה הבאה שרשומה לו, כדי שתקבל החלטה מושכלת.',
-                        position: 'bottom'
-                    },
-                    {
-                        targetId: '#tour-idle-suggestions',
-                        title: 'שיבוץ מהיר וחכם',
-                        content: 'אלו ההצעות הכי טובות עבורו. לחיצה על ה-V תשבץ אותו מיידית למשימה בלוח.',
-                        position: 'top'
-                    }
-                ]}
-                onStepChange={(idx) => {
-                    // Open insights panel when we reach step 1 (index starts at 0)
-                    if (idx >= 1) {
-                        setShowInsights(true);
-                        setIsTourActive(true);
-                    } else {
+            {!isViewer && (
+                <FeatureTour
+                    tourId="idle_personnel_insights_v2"
+                    steps={[
+                        {
+                            targetId: window.innerWidth < 768 ? '#tour-mobile-menu' : '#tour-idle-toggle',
+                            title: 'הכירו את תמונת מצב פנויים',
+                            content: 'מערכת חדשה שמאפשרת לכם לראות מי מהלוחמים פנוי כרגע, נמצא בבסיס ומסיים את המנוחה שלו. המערכת תסרוק את כל המשימות החסרות ותציע לכם הצעות שיבוץ חכמות.',
+                            position: 'bottom'
+                        },
+                        {
+                            targetId: '#tour-idle-panel',
+                            title: 'לוח הפנויים',
+                            content: 'כאן מופיעים כל הלוחמים שאינם משובצים כרגע וביצעו את המנוחה הנדרשת שלהם.',
+                            position: 'right'
+                        },
+                        {
+                            targetId: '#tour-idle-time',
+                            title: 'כמה זמן הוא ממתין?',
+                            content: 'כאן תוכל לראות בדיוק כמה זמן עבר מאז שהחייל סיים את המנוחה שלו והפך להיות זמין לשיבוץ מחדש.',
+                            position: 'bottom'
+                        },
+                        {
+                            targetId: '#tour-idle-history',
+                            title: 'היסטוריה ותכנון',
+                            content: 'המערכת מציגה לך מה הייתה המשימה האחרונה ומתי המשימה הבאה שרשומה לו, כדי שתקבל החלטה מושכלת.',
+                            position: 'bottom'
+                        },
+                        {
+                            targetId: '#tour-idle-suggestions',
+                            title: 'שיבוץ מהיר וחכם',
+                            content: 'אלו ההצעות הכי טובות עבורו. לחיצה על ה-V תשבץ אותו מיידית למשימה בלוח.',
+                            position: 'top'
+                        }
+                    ]}
+                    onStepChange={(idx) => {
+                        // Open insights panel when we reach step 1 (index starts at 0)
+                        if (idx >= 1) {
+                            setShowInsights(true);
+                            setIsTourActive(true);
+                        } else {
+                            setShowInsights(false);
+                        }
+                    }}
+                    onComplete={() => {
+                        setIsTourActive(false);
                         setShowInsights(false);
-                    }
-                }}
-                onComplete={() => {
-                    setIsTourActive(false);
-                    setShowInsights(false);
-                }}
-            />
+                    }}
+                />
+            )}
 
             {/* Legend Popup - Moved outside for fixed positioning on large screens */}
 
