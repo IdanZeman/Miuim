@@ -325,6 +325,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     isBlocked,
                     availabilityStatus: availability.status,
                     hoursSinceLast: lastShift ? (thisStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
+                    liveHoursSinceLast: lastShift ? (Date.now() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
                     hoursUntilNext: nextShift ? (new Date(nextShift.startTime).getTime() - thisEnd.getTime()) / (1000 * 60 * 60) : Infinity,
                     requiredRest: lastShift?.requirements?.minRest || 8,
                     isRestSufficient: lastShift
@@ -1056,10 +1057,13 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                             ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                                                             : 'bg-orange-50 text-orange-600 border-orange-100'
                                                             }`}>
-                                                            {metrics.hoursSinceLast < 1
-                                                                ? 'ממש עכשיו'
-                                                                : `${Math.floor(metrics.hoursSinceLast)} ש׳ (${metrics.isRestSufficient ? 'תקין' : 'לא מספיק'})`
+                                                            {metrics.hoursSinceLast < 0.1
+                                                                ? 'רציף'
+                                                                : metrics.hoursSinceLast < 1
+                                                                    ? 'ממש עכשיו'
+                                                                    : `${Math.floor(metrics.liveHoursSinceLast)} ש׳`
                                                             }
+                                                            {!metrics.isRestSufficient && <span className="mr-1 opacity-70">(חוסר מנוחה)</span>}
                                                         </span>
                                                     </div>
                                                 ) : (
