@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Person, Shift, Team, TaskTemplate, TeamRotation, Absence, HourlyBlockage, OrganizationSettings } from '@/types';
 import { X, User, Clock, Coffee, CalendarCheck, Warning, Info, ArrowRight, Sparkle, Checks, ArrowLeft } from '@phosphor-icons/react';
-import { getEffectiveAvailability, isPersonPresentAtHour } from '@/utils/attendanceUtils';
+import { getEffectiveAvailability, isPersonPresentAtHour, isStatusPresent } from '@/utils/attendanceUtils';
 import { Button } from '@/components/ui/Button';
 
 interface IdlePersonnelInsightsProps {
@@ -52,9 +52,19 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
         const globalHasUnderstaffed = underStaffedShifts.length > 0;
 
         const processedPeople = people.filter(person => {
-            // 1. Must be present at base
-            const isPresent = isPersonPresentAtHour(person, selectedDate, timeStr, teamRotations, absences, hourlyBlockages);
-            if (!isPresent) return false;
+            // 1. Must be present or arriving later today
+            const avail = getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);
+            const timeInMinutes = referenceTime.getHours() * 60 + referenceTime.getMinutes();
+            const isPresent = isStatusPresent(avail, timeInMinutes);
+
+            // Special handling: if status is explicitly 'arrival' and we have a start hour, 
+            // treat them as "Arriving Later" for UI purposes even if they just arrived or are about to arrive.
+            // This ensures the tag shows up for 10:00 arrivals when reference time is 10:00.
+            const isArrivingLater = avail.status === 'arrival' && !!avail.startHour;
+
+            // If they are not present, they MUST be arriving later to be included.
+            // If they ARE present, we include them (unless they are arriving later, which we handle via display logic)
+            if (!isPresent && !isArrivingLater) return false;
 
             // 2. No active shift now
             const activeShift = shifts.find(s => {
@@ -78,6 +88,10 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
 
             return true;
         }).map(person => {
+            const avail = getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);
+            const timeInMinutes = referenceTime.getHours() * 60 + referenceTime.getMinutes();
+            const isPresent = isStatusPresent(avail, timeInMinutes);
+
             const pastShifts = shifts
                 .filter(s => !s.isCancelled && s.assignedPersonIds.includes(person.id) && new Date(s.endTime) <= referenceTime)
                 .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime());
@@ -121,6 +135,17 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                     const restEndTime = new Date(lastShift.endTime).getTime() + restReq * 60 * 60 * 1000;
                     minStartTimeMillis = Math.max(minStartTimeMillis, restEndTime);
                 }
+
+                // If arriving later, tasks can only start after arrival
+                if (avail.status === 'arrival' && avail.startHour) {
+                    const [h, m] = avail.startHour.split(':').map(Number);
+                    const arrivalTime = new Date(selectedDate);
+                    arrivalTime.setHours(h, m, 0, 0);
+                    if (arrivalTime.getTime() > minStartTimeMillis) {
+                        minStartTimeMillis = arrivalTime.getTime();
+                    }
+                }
+
                 minStartTimeMillis = Math.max(minStartTimeMillis, now.getTime());
 
                 if (sStart.getTime() < minStartTimeMillis) {
@@ -161,7 +186,9 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                 idleTimeMinutes,
                 suggestions,
                 reasons,
-                team: teams.find(t => t.id === person.teamId)
+                team: teams.find(t => t.id === person.teamId),
+                effectiveAvailability: avail,
+                isArrivingLater: avail.status === 'arrival' && !!avail.startHour
             };
         }).sort((a, b) => {
             // Priority 1: Soldiers with suggestions first
@@ -207,6 +234,19 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
     }, [people, shifts, selectedDate, teamRotations, absences, hourlyBlockages, teams, referenceTime, taskTemplates, now, forceShowDemo]);
 
     const { people: idlePeople, globalHasUnderstaffed } = idlePeopleData;
+
+    const [pendingAssignment, setPendingAssignment] = React.useState<{ person: Person, shift: Shift } | null>(null);
+
+    const handleSuggestionClick = (person: Person, shift: Shift) => {
+        setPendingAssignment({ person, shift });
+    };
+
+    const handleConfirmAssignment = () => {
+        if (pendingAssignment) {
+            onAssignClick?.(pendingAssignment.person, pendingAssignment.shift.id);
+            setPendingAssignment(null);
+        }
+    };
 
     const formatIdleTime = (minutes: number) => {
         const hours = Math.floor(minutes / 60);
@@ -255,7 +295,67 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
             </div>
 
             {/* List */}
-            <div id="tour-idle-list" className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
+            <div id="tour-idle-list" className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4 relative">
+                {pendingAssignment && (
+                    <div className="absolute inset-0 bg-white/95 z-50 flex flex-col animate-in fade-in duration-200">
+                        <div className="flex-1 p-6 flex flex-col">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 shadow-sm border border-indigo-100 mx-auto">
+                                <Checks size={24} weight="bold" />
+                            </div>
+                            <h3 className="text-lg font-black text-slate-800 text-center mb-1">אישור שיבוץ</h3>
+                            <p className="text-xs text-slate-500 text-center mb-6">אנא אשר את פרטי השיבוץ לפני הביצוע</p>
+
+                            <div className="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-400">חייל</span>
+                                    <span className="text-sm font-bold text-slate-800">{pendingAssignment.person.name}</span>
+                                </div>
+                                <div className="h-px bg-slate-200" />
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-400">משימה</span>
+                                    {(() => {
+                                        const task = taskTemplates.find(t => t.id === pendingAssignment.shift.taskId);
+                                        return <span className="text-sm font-bold text-slate-800" style={{ color: task?.color }}>{task?.name}</span>;
+                                    })()}
+                                </div>
+                                <div className="h-px bg-slate-200" />
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-400">שעות</span>
+                                    <span dir="ltr" className="text-sm font-mono font-bold text-slate-600">
+                                        {new Date(pendingAssignment.shift.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(pendingAssignment.shift.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 mb-auto">
+                                <div className="p-3 rounded-xl bg-white border border-slate-200 text-center">
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-1">לפני השיבוץ</div>
+                                    <div className="text-xl font-black text-slate-700">
+                                        {pendingAssignment.shift.assignedPersonIds.length}
+                                        <span className="text-xs font-medium text-slate-400 mr-1">כוח אדם</span>
+                                    </div>
+                                </div>
+                                <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-center relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-indigo-100/20" />
+                                    <div className="text-[10px] font-bold text-indigo-500 uppercase tracking-tight mb-1 relative">אחרי השיבוץ</div>
+                                    <div className="text-xl font-black text-indigo-700 relative">
+                                        {pendingAssignment.shift.assignedPersonIds.length + 1}
+                                        <span className="text-xs font-medium text-indigo-400 mr-1">כוח אדם</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-4">
+                                <Button variant="outline" className="flex-1" onClick={() => setPendingAssignment(null)}>
+                                    ביטול
+                                </Button>
+                                <Button onClick={handleConfirmAssignment} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200">
+                                    אשר שיבוץ
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {!globalHasUnderstaffed && (
                     <div className="mb-4 p-4 rounded-2xl bg-amber-50 border border-amber-100 flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
                         <Warning size={18} className="text-amber-500 shrink-0 mt-0.5" weight="bold" />
@@ -275,7 +375,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                         <p className="text-xs text-slate-400">כולם משובצים או נמצאים במנוחה</p>
                     </div>
                 ) : (
-                    idlePeople.map(({ person, lastShift, nextShift, idleTimeMinutes, suggestions, reasons, team }, idx) => {
+                    idlePeople.map(({ person, lastShift, nextShift, idleTimeMinutes, suggestions, reasons, team, effectiveAvailability, isArrivingLater }, idx) => {
                         const nextTask = nextShift ? taskTemplates.find(t => t.id === nextShift.taskId) : null;
                         const lastTask = lastShift ? taskTemplates.find(t => t.id === lastShift.taskId) : null;
 
@@ -304,11 +404,23 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                                         </div>
                                     </div>
                                     <div id={idx === 0 ? "tour-idle-time" : undefined} className="text-left">
-                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                            <Clock size={12} weight="bold" />
-                                            <span className="text-[11px] font-black">{formatIdleTime(idleTimeMinutes)}</span>
-                                        </div>
-                                        <div className="text-[9px] font-bold text-slate-400 mt-1 uppercase text-right">זמין מסוף מנוחה</div>
+                                        {(isArrivingLater && effectiveAvailability.startHour) ? (
+                                            <>
+                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                                    <ArrowRight size={12} weight="bold" />
+                                                    <span className="text-[11px] font-black">מגיע לבסיס בשעה {effectiveAvailability.startHour}</span>
+                                                </div>
+                                                <div className="text-[9px] font-bold text-slate-400 mt-1 uppercase text-right">שעת הגעה מתוכננת</div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                    <Clock size={12} weight="bold" />
+                                                    <span className="text-[11px] font-black">{formatIdleTime(idleTimeMinutes)}</span>
+                                                </div>
+                                                <div className="text-[9px] font-bold text-slate-400 mt-1 uppercase text-right">זמין מסוף מנוחה</div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
@@ -349,18 +461,34 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                                     {suggestions.length > 0 ? (
                                         suggestions.map(s => {
                                             const task = taskTemplates.find(t => t.id === s.taskId);
+                                            const sDate = new Date(s.startTime);
+                                            const eDate = new Date(s.endTime);
+                                            const isSameDay = sDate.toDateString() === eDate.toDateString();
+
+                                            // Format: "HH:MM - HH:MM" with LTR force
+                                            const startStr = sDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
+                                            const endStr = eDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
+                                            const timeRange = `${startStr} - ${endStr}`;
+
                                             return (
                                                 <button
                                                     key={s.id}
-                                                    onClick={() => onAssignClick?.(person, s.id)}
+                                                    onClick={() => handleSuggestionClick(person, s)}
                                                     className="w-full flex items-center justify-between p-2 rounded-lg bg-white border border-slate-100 hover:border-indigo-300 hover:shadow-sm transition-all group/s"
                                                 >
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: task?.color }} />
                                                         <div className="text-right">
                                                             <div className="text-[11px] font-bold text-slate-700">{task?.name}</div>
-                                                            <div className="text-[9px] text-slate-400">
-                                                                {new Date(s.startTime).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })} • {new Date(s.startTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} - {new Date(s.endTime).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                                                            <div className="text-[9px] text-slate-400 flex items-center gap-1">
+                                                                <span>{sDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}</span>
+                                                                <span>•</span>
+                                                                <span dir="ltr" className="font-mono text-[10px]">{timeRange}</span>
+                                                                {!isSameDay && (
+                                                                    <span className="text-amber-600 font-bold bg-amber-50 px-1 rounded text-[8px]">
+                                                                        נמשך עד {eDate.getDate()}/{eDate.getMonth() + 1}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>

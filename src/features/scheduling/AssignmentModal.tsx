@@ -74,7 +74,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
     const [activeMobileTab, setActiveMobileTab] = useState<'available' | 'assigned'>('assigned');
     const [selectedPersonForInfo, setSelectedPersonForInfo] = useState<Person | null>(null);
-    const [showDetailedMetrics, setShowDetailedMetrics] = useState(false);
+    const [showDetailedMetrics, setShowDetailedMetrics] = useState(true);
 
     // Time Editing State
     const [newStart, setNewStart] = useState('');
@@ -204,10 +204,37 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     return;
                 }
             }
+
+            // 4. Check for Overlapping Shifts
+            const pShifts = shifts.filter(s => s.assignedPersonIds.includes(p.id) && !s.isCancelled && s.id !== selectedShift.id);
+            const hasOverlap = pShifts.some(s => {
+                const sStart = new Date(s.startTime);
+                const sEnd = new Date(s.endTime);
+                return sStart < shiftEnd && sEnd > shiftStart;
+            });
+
+            if (hasOverlap) {
+                conflicts.push({ person: p, reason: 'חפיפת זמנים עם משימה אחרת' });
+                return;
+            }
+
+            // 5. Check for Insufficient Rest (from previous shift)
+            const lastShift = pShifts
+                .filter(s => new Date(s.endTime) <= shiftStart)
+                .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0];
+
+            if (lastShift) {
+                const restGap = (shiftStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60);
+                const minRest = lastShift.requirements?.minRest || 8;
+                if (restGap < minRest) {
+                    conflicts.push({ person: p, reason: `חוסר מנוחה (${restGap.toFixed(1)}/${minRest})` });
+                    return;
+                }
+            }
         });
 
         return conflicts;
-    }, [assignedPeople, selectedDate, teamRotations, absences, hourlyBlockages, selectedShift]);
+    }, [assignedPeople, selectedDate, teamRotations, absences, hourlyBlockages, selectedShift, shifts]);
 
     const overlappingShifts = useMemo(() => {
         if (!selectedShift) return [];
@@ -1088,12 +1115,25 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 {/* 2. MIDDLE COLUMN: POOL */}
                 <div className={`flex-1 bg-white flex flex-col min-h-0 overflow-hidden relative ${activeMobileTab === 'available' ? 'flex' : 'hidden md:flex'}`}>
                     <div className="p-3 md:p-2 border-b border-slate-100 flex justify-between items-center text-sm md:text-xs bg-white sticky top-0 z-20">
-                        <span className="font-black text-slate-900 tracking-tight">מאגר זמין ({availablePeopleWithMetrics.length})</span>
+                        <div className="flex items-center gap-2">
+                            <span className="font-black text-slate-900 tracking-tight">מאגר זמין ({availablePeopleWithMetrics.length})</span>
+                            <Tooltip content={
+                                <div className="text-right space-y-1">
+                                    <div className="font-bold border-b border-slate-500/30 pb-1 mb-1">סדר המיון (מהגבוה לנמוך):</div>
+                                    <div>1. זמינות (ללא הרחקות/חסימות)</div>
+                                    <div>2. ללא חפיפת זמנים</div>
+                                    <div>3. עומס יומי נמוך</div>
+                                    <div>4. מרווח זמן מקסימלי לפני המשימה הבאה</div>
+                                </div>
+                            }>
+                                <Info size={14} className="text-slate-400 cursor-help hover:text-blue-500 transition-colors" weight="bold" />
+                            </Tooltip>
+                        </div>
                         <button
                             onClick={() => setShowDetailedMetrics(!showDetailedMetrics)}
                             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${showDetailedMetrics ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
                         >
-                            <Info size={14} weight={showDetailedMetrics ? 'fill' : 'bold'} />
+                            {showDetailedMetrics ? <ArrowLeft size={14} weight="bold" /> : <Info size={14} weight="bold" />}
                             <span>{showDetailedMetrics ? 'תצוגה מצומצמת' : 'הצג פירוט'}</span>
                         </button>
                     </div>
@@ -1161,18 +1201,22 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                 {metrics.lastShift ? (
                                                     <div className="text-[9px] font-black text-slate-600 truncate flex items-center gap-1">
                                                         <span className="truncate">{taskTemplates?.find(t => t.id === metrics.lastShift?.taskId)?.name || 'משימה'}</span>
-                                                        <span className={`font-bold px-1.5 rounded-full shrink-0 border ${metrics.isRestSufficient
-                                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                                            : 'bg-orange-50 text-orange-600 border-orange-100'
-                                                            }`}>
-                                                            {metrics.hoursSinceLast < 0.1
-                                                                ? 'רציף'
-                                                                : metrics.hoursSinceLast < 1
-                                                                    ? 'ממש עכשיו'
-                                                                    : `${Math.floor(metrics.liveHoursSinceLast)} ש׳`
-                                                            }
-                                                            {!metrics.isRestSufficient && <span className="mr-1 opacity-70">(חוסר מנוחה)</span>}
-                                                        </span>
+                                                        <Tooltip content="זמן שחלף מאז סיום המשימה הקודמת">
+                                                            <span dir="ltr" className={`font-bold px-1.5 rounded-full shrink-0 border cursor-help ${metrics.isRestSufficient
+                                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                                                : 'bg-orange-50 text-orange-600 border-orange-100'
+                                                                }`}>
+                                                                {metrics.hoursSinceLast < 0.1
+                                                                    ? 'רציף'
+                                                                    : `${Math.floor(metrics.hoursSinceLast)} ש׳`
+                                                                }
+                                                            </span>
+                                                        </Tooltip>
+                                                        {!metrics.isRestSufficient && (
+                                                            <Tooltip content={`זמן המנוחה (${metrics.hoursSinceLast.toFixed(1)} שעות) נמוך מהנדרש (${metrics.requiredRest} שעות)`}>
+                                                                <span className="mr-1 opacity-70 cursor-help text-red-500 font-bold">(חוסר מנוחה)</span>
+                                                            </Tooltip>
+                                                        )}
                                                     </div>
                                                 ) : (
                                                     <span className="text-[9px] font-bold text-slate-300 italic">אין מידע</span>
@@ -1188,7 +1232,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                 {metrics.nextShift ? (
                                                     <div className="text-[9px] font-black text-blue-600 truncate flex items-center gap-1">
                                                         <span className="truncate">{taskTemplates?.find(t => t.id === metrics.nextShift?.taskId)?.name || 'משימה'}</span>
-                                                        <span className="text-blue-400 font-bold bg-blue-50 px-1 rounded shrink-0">בעוד {Math.floor(metrics.hoursUntilNext)}ש</span>
+                                                        <Tooltip content="זמן עד תחילת המשימה הבאה">
+                                                            <span className="text-blue-400 font-bold bg-blue-50 px-1 rounded shrink-0 cursor-help">בעוד {Math.floor(metrics.hoursUntilNext)}ש</span>
+                                                        </Tooltip>
                                                     </div>
                                                 ) : (
                                                     <span className="text-[9px] font-bold text-slate-300 italic">אין מידע</span>

@@ -30,8 +30,9 @@ import { ExportButton } from '../../components/ui/ExportButton';
 import { FloatingActionButton } from '../../components/ui/FloatingActionButton';
 import { RotaWizardModal } from './RotaWizardModal';
 import { IdlePersonnelInsights } from './IdlePersonnelInsights';
+import { ComplianceInsights } from './ComplianceInsights';
 import { FeatureTour, TourStep } from '@/components/ui/FeatureTour';
-import { FileArrowDown as FileDown, Coffee } from '@phosphor-icons/react';
+import { FileArrowDown as FileDown, Coffee, Shield } from '@phosphor-icons/react';
 import { ShiftCard } from './components/ShiftCard';
 
 export interface ScheduleBoardProps {
@@ -289,6 +290,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
     const [isClearModalOpen, setIsClearModalOpen] = useState(false);
     const [showLegend, setShowLegend] = useState(false);
     const [showInsights, setShowInsights] = useState(false);
+    const [showCompliance, setShowCompliance] = useState(false);
     const [isTourActive, setIsTourActive] = useState(false);
 
     // For now assuming local handling to match previous logic found in file.
@@ -892,6 +894,20 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             </Tooltip>
                         )}
 
+                        {!isViewer && (
+                            <Tooltip content={showCompliance ? "הסתר חריגות" : "הצג חריגות והתראות"}>
+                                <button
+                                    onClick={() => setShowCompliance(!showCompliance)}
+                                    className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all shadow-sm ${showCompliance
+                                        ? 'bg-red-50 text-red-700 border-red-200 shadow-inner'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+                                        }`}
+                                >
+                                    <Shield size={18} weight="bold" />
+                                </button>
+                            </Tooltip>
+                        )}
+
                         <Tooltip content={isCompact ? "תצוגה רגילה" : "תצוגה קומפקטית"}>
                             <button
                                 onClick={() => setIsCompact(!isCompact)}
@@ -950,6 +966,21 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                                     <div className="flex flex-col">
                                         <span className="font-bold text-base text-indigo-700">תובנות פנויים</span>
                                         <span className="text-xs text-indigo-500/80">מי בבסיס וזמין לשיבוץ כרגע</span>
+                                    </div>
+                                </button>
+                            )}
+
+                            {!isViewer && (
+                                <button
+                                    onClick={() => { setShowCompliance(true); setIsMobileMenuOpen(false); }}
+                                    className="flex items-center gap-4 px-4 py-3.5 bg-red-50 text-red-700 hover:bg-red-100 active:bg-red-200 rounded-xl transition-colors text-right w-full"
+                                >
+                                    <div className="p-2 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                        <Shield size={22} weight="bold" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-base text-red-700">חריגות והתראות</span>
+                                        <span className="text-xs text-red-500/80">דוח חריגות שיבוץ מהיר</span>
                                     </div>
                                 </button>
                             )}
@@ -1290,6 +1321,23 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             setFilterPersonIds([p.id]);
                         }
                         setShowInsights(false);
+                    }}
+                />
+            )}
+
+            {showCompliance && (
+                <ComplianceInsights
+                    people={activePeople}
+                    shifts={shifts}
+                    tasks={taskTemplates}
+                    roles={roles}
+                    absences={absences}
+                    hourlyBlockages={hourlyBlockages}
+                    selectedDate={selectedDate}
+                    onClose={() => setShowCompliance(false)}
+                    onPersonSelect={(personId) => {
+                        setFilterPersonIds([personId]);
+                        setShowCompliance(false);
                     }}
                 />
             )}

@@ -56,19 +56,25 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
                 return;
             }
 
+            // Calculate max assignees for dynamic columns
+            const maxAssignees = filteredShifts.reduce((max, s) => Math.max(max, s.assignedPersonIds.length), 0);
+
             // Generate CSV
-            const headers = ['תאריך', 'יום', 'שעת התחלה', 'שעת סיום', 'משימה', 'משובצים', 'הערות'];
+            const assigneeHeaders = Array.from({ length: maxAssignees }, (_, i) => `משובץ ${i + 1}`);
+            const headers = ['תאריך', 'יום', 'שעת התחלה', 'שעת סיום', 'משימה', ...assigneeHeaders, 'הערות']; // Dynamic headers
+
             const rows = filteredShifts.map(s => {
                 const sDate = new Date(s.startTime);
                 const eDate = new Date(s.endTime);
 
                 const taskName = tasks.find(t => t.id === s.taskId)?.name || 'לא ידוע';
-                const now = new Date();
                 const activePeople = people.filter(p => p.isActive !== false);
                 const assigneeNames = s.assignedPersonIds
                     .map(id => activePeople.find(p => p.id === id)?.name)
-                    .filter(Boolean)
-                    .join(', ');
+                    .filter(Boolean) as string[];
+
+                // Pad with empty strings if fewer assignees than max
+                const paddedAssignees = [...assigneeNames, ...Array(maxAssignees - assigneeNames.length).fill('')];
 
                 return [
                     sDate.toLocaleDateString('he-IL'),
@@ -76,7 +82,7 @@ export const ExportScheduleModal: React.FC<ExportScheduleModalProps> = ({
                     sDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
                     eDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
                     `"${taskName}"`, // Quote to handle commas
-                    `"${assigneeNames}"`,
+                    ...paddedAssignees.map(name => `"${name}"`), // Spread names into columns
                     s.isCancelled ? 'מבוטל' : ''
                 ];
             });

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 interface TooltipProps {
-    content: string;
+    content: React.ReactNode;
     children: React.ReactNode;
 }
 
