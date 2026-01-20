@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Person, Team, TeamRotation, Absence, HourlyBlockage } from '@/types';
-import { X, House as Home, Wall as Base, TrendUp, ChartBar, ListNumbers, Users, Warning, DownloadSimple, CheckSquare, Square } from '@phosphor-icons/react';
+import { X, House as Home, Wall as Base, TrendUp, ChartBar, ListNumbers, Users, Warning, DownloadSimple, CheckSquare, Square, CaretDown, CaretLeft } from '@phosphor-icons/react';
 import ExcelJS from 'exceljs';
 import { getEffectiveAvailability } from '@/utils/attendanceUtils';
 
@@ -21,6 +21,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
 }) => {
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
     const [expandedPersonId, setExpandedPersonId] = React.useState<string | null>(null);
+    const [collapsedTeamIds, setCollapsedTeamIds] = React.useState<Set<string>>(new Set());
 
     // Date Range Selection State
     const [rangeStart, setRangeStart] = React.useState<string>(dates[0]?.toISOString().split('T')[0] || '');
@@ -432,98 +433,116 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
                                                 });
                                             }
 
-                                            return grouped.map(({ team: t, members }) => (
-                                                <React.Fragment key={t.id}>
-                                                    <tr className="bg-slate-50/80">
-                                                        <td colSpan={5} className="px-4 py-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className={`w-1 h-4 rounded-full ${t.color.replace('border-', 'bg-').split(' ')[0] || 'bg-blue-600'}`} />
-                                                                <span className="text-xs font-black text-slate-800">{t.name}</span>
-                                                                <span className="text-[10px] font-bold text-slate-400">({members.length} לוחמים)</span>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                    {members.map(p => (
-                                                        <React.Fragment key={p.id}>
-                                                            <tr className={`hover:bg-slate-50 transition-colors ${p.isAnomaly ? 'bg-amber-50/30' : ''} ${expandedPersonId === p.id ? 'bg-blue-50/50' : ''}`}>
-                                                                <td className="p-3 text-center">
-                                                                    <button onClick={(e) => { e.stopPropagation(); toggleSelect(p.id); }} className="p-1 hover:bg-slate-200 rounded transition-colors">
-                                                                        {selectedIds.has(p.id) ? <CheckSquare size={18} weight="fill" className="text-blue-600" /> : <Square size={18} weight="bold" className="text-slate-400" />}
-                                                                    </button>
-                                                                </td>
-                                                                <td className="p-3">
-                                                                    <button
-                                                                        onClick={() => setExpandedPersonId(expandedPersonId === p.id ? null : p.id)}
-                                                                        className="text-xs font-black text-slate-700 hover:text-blue-600 transition-colors flex flex-col items-start gap-0.5"
-                                                                    >
-                                                                        {p.name}
-                                                                        <span className="text-[9px] font-bold text-slate-400">לחץ לפירוט חישוב</span>
-                                                                    </button>
-                                                                </td>
-                                                                <td className="p-3 text-xs font-bold text-slate-600 text-center" dir="ltr">{Math.round(p.homePerc)}%</td>
-                                                                <td className="p-3 text-xs font-black text-blue-600 text-center" dir="ltr">{p.cycle}</td>
-                                                                <td className="p-3 text-center">
-                                                                    {p.isAnomaly ? (
-                                                                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black border border-amber-200 animate-pulse">
-                                                                            <Warning size={10} weight="fill" />
-                                                                            חריג עומס
-                                                                        </div>
-                                                                    ) : (
-                                                                        <span className="text-[10px] text-slate-300">-</span>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                            {expandedPersonId === p.id && (
-                                                                <tr>
-                                                                    <td colSpan={5} className="p-0 bg-slate-50/50">
-                                                                        <div className="p-6 space-y-4 animate-in slide-in-from-top-2 duration-200">
-                                                                            <div className="flex items-center justify-between">
-                                                                                <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                                                                    <ListNumbers size={14} className="text-blue-600" />
-                                                                                    פירוט חישוב ונוכחות ({p.base} בבסיס, {p.home} בבית)
-                                                                                </h5>
+                                            return grouped.map(({ team: t, members }) => {
+                                                const isCollapsed = collapsedTeamIds.has(t.id);
+                                                return (
+                                                    <React.Fragment key={t.id}>
+                                                        <tr
+                                                            className="bg-slate-50/80 cursor-pointer hover:bg-slate-100 transition-colors"
+                                                            onClick={() => {
+                                                                setCollapsedTeamIds(prev => {
+                                                                    const next = new Set(prev);
+                                                                    if (next.has(t.id)) next.delete(t.id);
+                                                                    else next.add(t.id);
+                                                                    return next;
+                                                                });
+                                                            }}
+                                                        >
+                                                            <td colSpan={5} className="px-4 py-2">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className={`w-1 h-4 rounded-full ${t.color.replace('border-', 'bg-').split(' ')[0] || 'bg-blue-600'}`} />
+                                                                        <span className="text-xs font-black text-slate-800">{t.name}</span>
+                                                                        <span className="text-[10px] font-bold text-slate-400">({members.length} לוחמים)</span>
+                                                                    </div>
+                                                                    <div className="text-slate-400">
+                                                                        {isCollapsed ? <CaretLeft size={14} weight="bold" /> : <CaretDown size={14} weight="bold" />}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        {!isCollapsed && members.map(p => (
+                                                            <React.Fragment key={p.id}>
+                                                                <tr className={`hover:bg-slate-50 transition-colors ${p.isAnomaly ? 'bg-amber-50/30' : ''} ${expandedPersonId === p.id ? 'bg-blue-50/50' : ''}`}>
+                                                                    <td className="p-3 text-center">
+                                                                        <button onClick={(e) => { e.stopPropagation(); toggleSelect(p.id); }} className="p-1 hover:bg-slate-200 rounded transition-colors">
+                                                                            {selectedIds.has(p.id) ? <CheckSquare size={18} weight="fill" className="text-blue-600" /> : <Square size={18} weight="bold" className="text-slate-400" />}
+                                                                        </button>
+                                                                    </td>
+                                                                    <td className="p-3">
+                                                                        <button
+                                                                            onClick={() => setExpandedPersonId(expandedPersonId === p.id ? null : p.id)}
+                                                                            className="text-xs font-black text-slate-700 hover:text-blue-600 transition-colors flex flex-col items-start gap-0.5"
+                                                                        >
+                                                                            {p.name}
+                                                                            <span className="text-[9px] font-bold text-slate-400">לחץ לפירוט חישוב</span>
+                                                                        </button>
+                                                                    </td>
+                                                                    <td className="p-3 text-xs font-bold text-slate-600 text-center" dir="ltr">{Math.round(p.homePerc)}%</td>
+                                                                    <td className="p-3 text-xs font-black text-blue-600 text-center" dir="ltr">{p.cycle}</td>
+                                                                    <td className="p-3 text-center">
+                                                                        {p.isAnomaly ? (
+                                                                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black border border-amber-200 animate-pulse">
+                                                                                <Warning size={10} weight="fill" />
+                                                                                חריג עומס
                                                                             </div>
-                                                                            <div className="grid grid-cols-7 gap-1">
-                                                                                {p.dayBreakdown.map((d, i) => (
-                                                                                    <div
-                                                                                        key={i}
-                                                                                        className={`p-2 rounded-lg border text-center flex flex-col gap-1 transition-all ${d.status === 'base'
-                                                                                            ? 'bg-emerald-50 border-emerald-100'
-                                                                                            : 'bg-red-50 border-red-100'
-                                                                                            }`}
-                                                                                    >
-                                                                                        <span className="text-[9px] font-black opacity-40 uppercase">
-                                                                                            {d.date.toLocaleDateString('he-IL', { weekday: 'short' })}
-                                                                                        </span>
-                                                                                        <span className="text-[10px] font-black text-slate-700">
-                                                                                            {d.date.getDate()}/{d.date.getMonth() + 1}
-                                                                                        </span>
-                                                                                        {d.detail && (
-                                                                                            <span className="text-[8px] font-bold text-red-600/60 leading-none">
-                                                                                                {d.detail}
-                                                                                            </span>
-                                                                                        )}
-                                                                                        <div className={`w-1.5 h-1.5 rounded-full mx-auto mt-1 ${d.status === 'base' ? 'bg-emerald-500' : 'bg-red-500'
-                                                                                            }`} />
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                            <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
-                                                                                <p className="text-[10px] font-bold text-blue-800 leading-relaxed">
-                                                                                    <span className="font-black italic ml-1">* נוסחת החישוב:</span>
-                                                                                    יחס הבית מחושב לפי {p.home} ימים מתוך {stats.totalDays} ימי הטווח ({Math.round(p.homePerc)}%).
-                                                                                    סבב ה-X-Y מנורמל ל-14 ימים (X=בית, Y=בסיס).
-                                                                                    חריג עומס מסומן עבור ה-10% עם רצף הימים הארוך ביותר בבסיס (כרגע מעל {stats.anomalyThreshold} ימים).
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
+                                                                        ) : (
+                                                                            <span className="text-[10px] text-slate-300">-</span>
+                                                                        )}
                                                                     </td>
                                                                 </tr>
-                                                            )}
-                                                        </React.Fragment>
-                                                    ))}
-                                                </React.Fragment>
-                                            ));
+                                                                {expandedPersonId === p.id && (
+                                                                    <tr>
+                                                                        <td colSpan={5} className="p-0 bg-slate-50/50">
+                                                                            <div className="p-6 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                                                                        <ListNumbers size={14} className="text-blue-600" />
+                                                                                        פירוט חישוב ונוכחות ({p.base} בבסיס, {p.home} בבית)
+                                                                                    </h5>
+                                                                                </div>
+                                                                                <div className="grid grid-cols-7 gap-1">
+                                                                                    {p.dayBreakdown.map((d, i) => (
+                                                                                        <div
+                                                                                            key={i}
+                                                                                            className={`p-2 rounded-lg border text-center flex flex-col gap-1 transition-all ${d.status === 'base'
+                                                                                                ? 'bg-emerald-50 border-emerald-100'
+                                                                                                : 'bg-red-50 border-red-100'
+                                                                                                }`}
+                                                                                        >
+                                                                                            <span className="text-[9px] font-black opacity-40 uppercase">
+                                                                                                {d.date.toLocaleDateString('he-IL', { weekday: 'short' })}
+                                                                                            </span>
+                                                                                            <span className="text-[10px] font-black text-slate-700">
+                                                                                                {d.date.getDate()}/{d.date.getMonth() + 1}
+                                                                                            </span>
+                                                                                            {d.detail && (
+                                                                                                <span className="text-[8px] font-bold text-red-600/60 leading-none">
+                                                                                                    {d.detail}
+                                                                                                </span>
+                                                                                            )}
+                                                                                            <div className={`w-1.5 h-1.5 rounded-full mx-auto mt-1 ${d.status === 'base' ? 'bg-emerald-500' : 'bg-red-500'
+                                                                                                }`} />
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                                <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
+                                                                                    <p className="text-[10px] font-bold text-blue-800 leading-relaxed">
+                                                                                        <span className="font-black italic ml-1">* נוסחת החישוב:</span>
+                                                                                        יחס הבית מחושב לפי {p.home} ימים מתוך {stats.totalDays} ימי הטווח ({Math.round(p.homePerc)}%).
+                                                                                        סבב ה-X-Y מנורמל ל-14 ימים (X=בית, Y=בסיס).
+                                                                                        חריג עומס מסומן עבור ה-10% עם רצף הימים הארוך ביותר בבסיס (כרגע מעל {stats.anomalyThreshold} ימים).
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+                                                            </React.Fragment>
+                                                        ))}
+                                                    </React.Fragment>
+                                                );
+                                            });
                                         })()}
                                     </tbody>
                                 </table>
