@@ -12,9 +12,10 @@ export interface UndefinedArrivalIssue {
 interface UndefinedArrivalsWidgetProps {
     issues: UndefinedArrivalIssue[];
     idPrefix?: string;
+    onIssueClick?: (issue: UndefinedArrivalIssue) => void;
 }
 
-export const UndefinedArrivalsWidget: React.FC<UndefinedArrivalsWidgetProps> = ({ issues, idPrefix = '' }) => {
+export const UndefinedArrivalsWidget: React.FC<UndefinedArrivalsWidgetProps> = ({ issues, idPrefix = '', onIssueClick }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     if (issues.length === 0) return null;
@@ -51,7 +52,13 @@ export const UndefinedArrivalsWidget: React.FC<UndefinedArrivalsWidgetProps> = (
                             {issues.map((issue, idx) => (
                                 <button
                                     key={`${issue.person.id}-${issue.date.toISOString()}`}
-                                    onClick={() => handleScrollTo(issue.targetId)}
+                                    onClick={() => {
+                                        if (onIssueClick) {
+                                            onIssueClick(issue);
+                                        } else {
+                                            handleScrollTo(issue.targetId);
+                                        }
+                                    }}
                                     className="w-full text-right flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-all group border border-transparent hover:border-slate-100"
                                 >
                                     <div>

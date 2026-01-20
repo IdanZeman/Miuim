@@ -11,8 +11,8 @@ import { ExportButton } from '@/components/ui/ExportButton';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
 import ExcelJS from 'exceljs';
-
-// ... imports
+import { getAttendanceVisualProps } from '@/utils/attendanceVisuals';
+import { AvailabilitySlot } from '@/types';
 
 interface PersonalAttendanceCalendarProps {
     person: Person;
@@ -51,7 +51,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         setPerson(initialPerson);
     }, [initialPerson]);
 
-    const handleSaveRotation = (rotationSettings: any) => {
+    const handleSaveRotation = (rotationSettings: NonNullable<Person['personalRotation']>) => {
         const updatedPerson = {
             ...person,
             personalRotation: rotationSettings
@@ -95,7 +95,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
         const dateKey = editingDate.toLocaleDateString('en-CA');
 
-        let newData: any = {
+        let newData: Partial<AvailabilitySlot> = {
             source: 'manual',
             unavailableBlocks // Save blocks
         };
@@ -128,7 +128,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             ...person,
             dailyAvailability: {
                 ...(person.dailyAvailability || {}),
-                [dateKey]: newData
+                [dateKey]: newData as AvailabilitySlot
             }
         };
 
@@ -148,102 +148,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
     // Helper helper to avoid duplicating logic in render & export
     const getVisualProps = (date: Date) => {
-        const avail = getDisplayAvailability(date);
-
-        // Fetch prev/next for logic
-        const prevDate = new Date(date); prevDate.setDate(date.getDate() - 1);
-        const nextDate = new Date(date); nextDate.setDate(date.getDate() + 1);
-        const prevAvail = getDisplayAvailability(prevDate);
-        const nextAvail = getDisplayAvailability(nextDate);
-
-        // Defaults
-        let statusConfig = {
-            label: '',
-            subLabel: undefined as string | undefined,
-            bg: 'bg-white',
-            text: 'text-slate-400',
-            fillColor: 'FFFFFFFF', // ARGB White
-            textColor: 'FF94A3B8' // ARGB Slate-400
-        };
-
-        if (avail.status === 'undefined') {
-            statusConfig = {
-                label: 'לא מוגדר',
-                subLabel: 'חסר דיווח יומי',
-                bg: 'bg-slate-100',
-                text: 'text-slate-500',
-                fillColor: 'FFF1F5F9', // Slate-100
-                textColor: 'FF64748B' // Slate-500
-            };
-        } else if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
-
-            const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') || (avail.startHour !== '00:00');
-            const isDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') || (avail.endHour !== '23:59');
-            const isSingleDay = isArrival && isDeparture;
-
-            const isUndefinedTime = (isArrival && avail.startHour === '00:00') || (isDeparture && avail.endHour === '23:59' && avail.status !== 'departure');
-
-            if (isUndefinedTime && avail.status !== 'full' && avail.status !== 'base') {
-                const subLabel = (isArrival && isDeparture) ? 'חסר הגעה ויציאה' : isArrival ? 'חסר שעת הגעה' : 'חסר שעת יציאה';
-                statusConfig = {
-                    label: 'לא מוגדר',
-                    subLabel: subLabel,
-                    bg: 'bg-slate-100',
-                    text: 'text-slate-500',
-                    fillColor: 'FFF1F5F9',
-                    textColor: 'FF64748B'
-                };
-            } else {
-                statusConfig = {
-                    label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
-                    subLabel: undefined,
-                    bg: isArrival || isSingleDay ? 'bg-emerald-50' : isDeparture ? 'bg-amber-50' : 'bg-emerald-50',
-                    text: isArrival || isSingleDay ? 'text-emerald-700' : isDeparture ? 'text-amber-700' : 'text-emerald-700',
-                    fillColor: isArrival || isSingleDay ? 'FFECFDF5' : isDeparture ? 'FFFFFBEB' : 'FFECFDF5',
-                    textColor: isArrival || isSingleDay ? 'FF047857' : isDeparture ? 'FFB45309' : 'FF047857'
-                };
-            }
-
-            if (!isUndefinedTime && (avail.startHour !== '00:00' || avail.endHour !== '23:59')) {
-                if (isSingleDay || (!isArrival && !isDeparture)) {
-                    statusConfig.label += ` ${avail.startHour}-${avail.endHour}`;
-                } else if (isArrival && avail.startHour !== '00:00') {
-                    statusConfig.label += ` ${avail.startHour}`;
-                } else if (isDeparture && avail.endHour !== '23:59') {
-                    statusConfig.label += ` ${avail.endHour}`;
-                }
-            }
-        } else if (avail.status === 'home') {
-            // Get home status type label
-            const homeStatusLabels: Record<string, string> = {
-                'leave_shamp': 'חופשה בשמפ',
-                'gimel': 'ג\'',
-                'absent': 'נפקד',
-                'organization_days': 'ימי התארגנות',
-                'not_in_shamp': 'לא בשמ"פ'
-            };
-            const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : 'חופשה בשמפ';
-
-            statusConfig = {
-                label: homeTypeLabel,
-                subLabel: undefined,
-                bg: 'bg-red-50',
-                text: 'text-red-600',
-                fillColor: 'FFF5F5F5',
-                textColor: 'FFEF4444'
-            };
-        } else if (avail.status === 'unavailable') {
-            statusConfig = {
-                label: 'אילוץ',
-                subLabel: undefined,
-                bg: 'bg-amber-50',
-                text: 'text-amber-700',
-                fillColor: 'FFFFFBEB',
-                textColor: 'FFB45309'
-            };
-        }
-
-        return statusConfig;
+        return getAttendanceVisualProps(date, person, teamRotations, absences, hourlyBlockages);
     };
 
     const generateAttendanceSummary = () => {
