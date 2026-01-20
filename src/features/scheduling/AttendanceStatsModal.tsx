@@ -17,15 +17,15 @@ interface AttendanceStatsModalProps {
 }
 
 export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
-    person, team, people, teams, teamRotations, absences, hourlyBlockages, dates, onClose
+    person, team, people = [], teams = [], teamRotations = [], absences = [], hourlyBlockages = [], dates = [], onClose
 }) => {
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
     const [expandedPersonId, setExpandedPersonId] = React.useState<string | null>(null);
     const [collapsedTeamIds, setCollapsedTeamIds] = React.useState<Set<string>>(new Set());
 
     // Date Range Selection State
-    const [rangeStart, setRangeStart] = React.useState<string>(dates[0]?.toISOString().split('T')[0] || '');
-    const [rangeEnd, setRangeEnd] = React.useState<string>(dates[dates.length - 1]?.toISOString().split('T')[0] || '');
+    const [rangeStart, setRangeStart] = React.useState<string>(dates && dates.length > 0 ? dates[0].toISOString().split('T')[0] : '');
+    const [rangeEnd, setRangeEnd] = React.useState<string>(dates && dates.length > 0 ? dates[dates.length - 1].toISOString().split('T')[0] : '');
 
     // Initialize selection when stats change
     React.useEffect(() => {

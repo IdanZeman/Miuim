@@ -1221,6 +1221,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         person={statsEntity.person}
                         team={statsEntity.team}
                         people={activePeople}
+                        teams={teams}
                         teamRotations={teamRotations}
                         absences={absences}
                         hourlyBlockages={hourlyBlockages}
