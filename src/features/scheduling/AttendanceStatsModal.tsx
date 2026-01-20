@@ -8,6 +8,7 @@ interface AttendanceStatsModalProps {
     person?: Person;
     team?: Team;
     people: Person[];
+    teams: Team[];
     teamRotations: TeamRotation[];
     absences: Absence[];
     hourlyBlockages: HourlyBlockage[];
@@ -16,7 +17,7 @@ interface AttendanceStatsModalProps {
 }
 
 export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
-    person, team, people, teamRotations, absences, hourlyBlockages, dates, onClose
+    person, team, people, teams, teamRotations, absences, hourlyBlockages, dates, onClose
 }) => {
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
     const [expandedPersonId, setExpandedPersonId] = React.useState<string | null>(null);
@@ -176,6 +177,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
             return {
                 id: p.id,
                 name: p.name,
+                teamId: p.teamId,
                 base: pBase,
                 home: pHome,
                 homePerc,
@@ -230,6 +232,9 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
 
         worksheet.columns = [
             { header: 'שם מלא', key: 'name', width: 25 },
+            { header: 'צוות', key: 'team', width: 20 },
+            { header: 'ימים בבסיס', key: 'base', width: 15 },
+            { header: 'ימים בבית', key: 'home', width: 15 },
             { header: 'אחוז זמן בית', key: 'homeTime', width: 15 },
             { header: 'סבב ממוצע (X-Y)', key: 'cycle', width: 20 },
             { header: 'חריג עומס', key: 'anomaly', width: 15 }
@@ -240,6 +245,9 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
         selectedData.forEach(p => {
             worksheet.addRow({
                 name: p.name,
+                team: teams.find(t => t.id === p.teamId)?.name || 'ללא צוות',
+                base: Math.round(p.base),
+                home: Math.round(p.home),
                 homeTime: `${Math.round(p.homePerc)}%`,
                 cycle: p.cycle,
                 anomaly: p.isAnomaly ? 'כן' : 'לא'
@@ -404,85 +412,119 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {stats.peopleMetrics.map(p => (
-                                            <React.Fragment key={p.id}>
-                                                <tr className={`hover:bg-slate-50 transition-colors ${p.isAnomaly ? 'bg-amber-50/30' : ''} ${expandedPersonId === p.id ? 'bg-blue-50/50' : ''}`}>
-                                                    <td className="p-3 text-center">
-                                                        <button onClick={(e) => { e.stopPropagation(); toggleSelect(p.id); }} className="p-1 hover:bg-slate-200 rounded transition-colors">
-                                                            {selectedIds.has(p.id) ? <CheckSquare size={18} weight="fill" className="text-blue-600" /> : <Square size={18} weight="bold" className="text-slate-400" />}
-                                                        </button>
-                                                    </td>
-                                                    <td className="p-3">
-                                                        <button
-                                                            onClick={() => setExpandedPersonId(expandedPersonId === p.id ? null : p.id)}
-                                                            className="text-xs font-black text-slate-700 hover:text-blue-600 transition-colors flex flex-col items-start gap-0.5"
-                                                        >
-                                                            {p.name}
-                                                            <span className="text-[9px] font-bold text-slate-400">לחץ לפירוט חישוב</span>
-                                                        </button>
-                                                    </td>
-                                                    <td className="p-3 text-xs font-bold text-slate-600 text-center" dir="ltr">{Math.round(p.homePerc)}%</td>
-                                                    <td className="p-3 text-xs font-black text-blue-600 text-center" dir="ltr">{p.cycle}</td>
-                                                    <td className="p-3 text-center">
-                                                        {p.isAnomaly ? (
-                                                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black border border-amber-200 animate-pulse">
-                                                                <Warning size={10} weight="fill" />
-                                                                חריג עומס
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-[10px] text-slate-300">-</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                                {expandedPersonId === p.id && (
-                                                    <tr>
-                                                        <td colSpan={5} className="p-0 bg-slate-50/50">
-                                                            <div className="p-6 space-y-4 animate-in slide-in-from-top-2 duration-200">
-                                                                <div className="flex items-center justify-between">
-                                                                    <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                                                        <ListNumbers size={14} className="text-blue-600" />
-                                                                        פירוט חישוב ונוכחות ({p.base} בבסיס, {p.home} בבית)
-                                                                    </h5>
-                                                                </div>
-                                                                <div className="grid grid-cols-7 gap-1">
-                                                                    {p.dayBreakdown.map((d, i) => (
-                                                                        <div
-                                                                            key={i}
-                                                                            className={`p-2 rounded-lg border text-center flex flex-col gap-1 transition-all ${d.status === 'base'
-                                                                                ? 'bg-emerald-50 border-emerald-100'
-                                                                                : 'bg-red-50 border-red-100'
-                                                                                }`}
-                                                                        >
-                                                                            <span className="text-[9px] font-black opacity-40 uppercase">
-                                                                                {d.date.toLocaleDateString('he-IL', { weekday: 'short' })}
-                                                                            </span>
-                                                                            <span className="text-[10px] font-black text-slate-700">
-                                                                                {d.date.getDate()}/{d.date.getMonth() + 1}
-                                                                            </span>
-                                                                            {d.detail && (
-                                                                                <span className="text-[8px] font-bold text-red-600/60 leading-none">
-                                                                                    {d.detail}
-                                                                                </span>
-                                                                            )}
-                                                                            <div className={`w-1.5 h-1.5 rounded-full mx-auto mt-1 ${d.status === 'base' ? 'bg-emerald-500' : 'bg-red-500'
-                                                                                }`} />
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                                <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
-                                                                    <p className="text-[10px] font-bold text-blue-800 leading-relaxed">
-                                                                        <span className="font-black italic ml-1">* נוסחת החישוב:</span>
-                                                                        יחס הבית מחושב לפי {p.home} ימים מתוך {stats.totalDays} ימי הטווח ({Math.round(p.homePerc)}%).
-                                                                        סבב ה-X-Y מנורמל ל-14 ימים (X=בית, Y=בסיס).
-                                                                        חריג עומס מסומן עבור ה-10% עם רצף הימים הארוך ביותר בבסיס (כרגע מעל {stats.anomalyThreshold} ימים).
-                                                                    </p>
-                                                                </div>
+                                        {(() => {
+                                            const grouped: { team: Team | { id: string, name: string, color: string }, members: typeof stats.peopleMetrics }[] = [];
+
+                                            // 1. Defined Teams
+                                            teams.forEach(t => {
+                                                const members = stats.peopleMetrics.filter(pm => pm.teamId === t.id);
+                                                if (members.length > 0) {
+                                                    grouped.push({ team: t, members });
+                                                }
+                                            });
+
+                                            // 2. Unassigned
+                                            const unassigned = stats.peopleMetrics.filter(pm => !pm.teamId || !teams.find(t => t.id === pm.teamId));
+                                            if (unassigned.length > 0) {
+                                                grouped.push({
+                                                    team: { id: 'unassigned', name: 'ללא צוות', color: 'bg-slate-500' },
+                                                    members: unassigned
+                                                });
+                                            }
+
+                                            return grouped.map(({ team: t, members }) => (
+                                                <React.Fragment key={t.id}>
+                                                    <tr className="bg-slate-50/80">
+                                                        <td colSpan={5} className="px-4 py-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`w-1 h-4 rounded-full ${t.color.replace('border-', 'bg-').split(' ')[0] || 'bg-blue-600'}`} />
+                                                                <span className="text-xs font-black text-slate-800">{t.name}</span>
+                                                                <span className="text-[10px] font-bold text-slate-400">({members.length} לוחמים)</span>
                                                             </div>
                                                         </td>
                                                     </tr>
-                                                )}
-                                            </React.Fragment>
-                                        ))}
+                                                    {members.map(p => (
+                                                        <React.Fragment key={p.id}>
+                                                            <tr className={`hover:bg-slate-50 transition-colors ${p.isAnomaly ? 'bg-amber-50/30' : ''} ${expandedPersonId === p.id ? 'bg-blue-50/50' : ''}`}>
+                                                                <td className="p-3 text-center">
+                                                                    <button onClick={(e) => { e.stopPropagation(); toggleSelect(p.id); }} className="p-1 hover:bg-slate-200 rounded transition-colors">
+                                                                        {selectedIds.has(p.id) ? <CheckSquare size={18} weight="fill" className="text-blue-600" /> : <Square size={18} weight="bold" className="text-slate-400" />}
+                                                                    </button>
+                                                                </td>
+                                                                <td className="p-3">
+                                                                    <button
+                                                                        onClick={() => setExpandedPersonId(expandedPersonId === p.id ? null : p.id)}
+                                                                        className="text-xs font-black text-slate-700 hover:text-blue-600 transition-colors flex flex-col items-start gap-0.5"
+                                                                    >
+                                                                        {p.name}
+                                                                        <span className="text-[9px] font-bold text-slate-400">לחץ לפירוט חישוב</span>
+                                                                    </button>
+                                                                </td>
+                                                                <td className="p-3 text-xs font-bold text-slate-600 text-center" dir="ltr">{Math.round(p.homePerc)}%</td>
+                                                                <td className="p-3 text-xs font-black text-blue-600 text-center" dir="ltr">{p.cycle}</td>
+                                                                <td className="p-3 text-center">
+                                                                    {p.isAnomaly ? (
+                                                                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black border border-amber-200 animate-pulse">
+                                                                            <Warning size={10} weight="fill" />
+                                                                            חריג עומס
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-[10px] text-slate-300">-</span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                            {expandedPersonId === p.id && (
+                                                                <tr>
+                                                                    <td colSpan={5} className="p-0 bg-slate-50/50">
+                                                                        <div className="p-6 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                                                                    <ListNumbers size={14} className="text-blue-600" />
+                                                                                    פירוט חישוב ונוכחות ({p.base} בבסיס, {p.home} בבית)
+                                                                                </h5>
+                                                                            </div>
+                                                                            <div className="grid grid-cols-7 gap-1">
+                                                                                {p.dayBreakdown.map((d, i) => (
+                                                                                    <div
+                                                                                        key={i}
+                                                                                        className={`p-2 rounded-lg border text-center flex flex-col gap-1 transition-all ${d.status === 'base'
+                                                                                            ? 'bg-emerald-50 border-emerald-100'
+                                                                                            : 'bg-red-50 border-red-100'
+                                                                                            }`}
+                                                                                    >
+                                                                                        <span className="text-[9px] font-black opacity-40 uppercase">
+                                                                                            {d.date.toLocaleDateString('he-IL', { weekday: 'short' })}
+                                                                                        </span>
+                                                                                        <span className="text-[10px] font-black text-slate-700">
+                                                                                            {d.date.getDate()}/{d.date.getMonth() + 1}
+                                                                                        </span>
+                                                                                        {d.detail && (
+                                                                                            <span className="text-[8px] font-bold text-red-600/60 leading-none">
+                                                                                                {d.detail}
+                                                                                            </span>
+                                                                                        )}
+                                                                                        <div className={`w-1.5 h-1.5 rounded-full mx-auto mt-1 ${d.status === 'base' ? 'bg-emerald-500' : 'bg-red-500'
+                                                                                            }`} />
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                            <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
+                                                                                <p className="text-[10px] font-bold text-blue-800 leading-relaxed">
+                                                                                    <span className="font-black italic ml-1">* נוסחת החישוב:</span>
+                                                                                    יחס הבית מחושב לפי {p.home} ימים מתוך {stats.totalDays} ימי הטווח ({Math.round(p.homePerc)}%).
+                                                                                    סבב ה-X-Y מנורמל ל-14 ימים (X=בית, Y=בסיס).
+                                                                                    חריג עומס מסומן עבור ה-10% עם רצף הימים הארוך ביותר בבסיס (כרגע מעל {stats.anomalyThreshold} ימים).
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        </React.Fragment>
+                                                    ))}
+                                                </React.Fragment>
+                                            ));
+                                        })()}
                                     </tbody>
                                 </table>
                             </div>
