@@ -41,6 +41,8 @@ export const BattalionPersonnelTable: React.FC = () => {
         let details = null;
 
         switch (entry.status) {
+            case 'undefined':
+                return { status: entry.status, label: 'לא מוגדר', class: 'bg-slate-100 text-slate-500', details: null };
             case 'base':
                 label = 'בבסיס';
                 if (entry.arrival_date) {
@@ -141,6 +143,9 @@ export const BattalionPersonnelTable: React.FC = () => {
                 } else if (presence.status === 'leave') {
                     statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } }; // Indigo
                     statusCell.font = { color: { argb: 'FF3730A3' } };
+                } else if (presence.status === 'undefined') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }; // Slate 100
+                    statusCell.font = { color: { argb: 'FF6B7280' } };
                 }
 
                 // General borders

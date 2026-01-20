@@ -131,7 +131,7 @@ export interface AvailabilitySlot {
   startHour?: string; // "08:00"
   endHour?: string;   // "17:00"
   source?: string;
-  status?: string; // 'arrival' | 'departure' | 'base' | 'home'
+  status?: string; // 'arrival' | 'departure' | 'base' | 'home' | 'undefined'
   homeStatusType?: HomeStatusType; // Required when status='home'
   unavailableBlocks?: { id: string; start: string; end: string; reason?: string; type?: string; status?: string }[];
 }
@@ -168,7 +168,7 @@ export interface Person {
   };
   customFields?: Record<string, any>; // NEW
   lastManualStatus?: { // NEW: Remember last manually-set status
-    status: 'base' | 'home' | 'unavailable';
+    status: 'base' | 'home' | 'unavailable' | 'undefined';
     homeStatusType?: HomeStatusType;
     date: string; // Last date this was set
   };
@@ -337,7 +337,7 @@ export interface DailyPresence {
   date: string; // ISO Date YYYY-MM-DD
   person_id: string;
   organization_id: string;
-  status: 'home' | 'base' | 'unavailable' | 'leave';
+  status: 'home' | 'base' | 'unavailable' | 'leave' | 'undefined';
   homeStatusType?: HomeStatusType; // Required when status='home'
   source: 'algorithm' | 'manual' | 'override';
   created_at?: string;

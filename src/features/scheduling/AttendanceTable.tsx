@@ -5,6 +5,8 @@ import { getEffectiveAvailability, getRotationStatusForDate, getComputedAbsenceS
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
 import { logger } from '@/services/loggingService';
+import { FeatureTour } from '@/components/ui/FeatureTour';
+import { UndefinedArrivalsWidget } from './UndefinedArrivalsWidget';
 
 interface AttendanceTableProps {
     teams: Team[];
@@ -29,12 +31,14 @@ interface AttendanceTableProps {
     showStatistics?: boolean; // NEW: Show base/home totals
     onShowPersonStats?: (person: Person) => void; // NEW: Open stats modal
     onShowTeamStats?: (team: Team) => void; // NEW: Open stats modal
+    idPrefix?: string; // NEW: Avoid ID collisions
 }
 
 export const AttendanceTable: React.FC<AttendanceTableProps> = ({
     teams, people, teamRotations, absences, hourlyBlockages = [], tasks = [], currentDate, onDateChange, onSelectPerson, onUpdateAvailability, className, viewMode, isViewer = false, searchTerm = '', showRequiredDetails = false, companies = [], hideAbsenceDetails = false,
     defaultArrivalHour = '10:00', defaultDepartureHour = '14:00',
-    showStatistics = false, onShowPersonStats, onShowTeamStats
+    showStatistics = false, onShowPersonStats, onShowTeamStats,
+    idPrefix = ''
 }) => {
     const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(() => new Set(teams.map(t => t.id)));
     // State for the modal (editing mode) - now supports multiple dates
@@ -208,6 +212,119 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
 
     // State for auto-refreshing stats
     const [currentTime, setCurrentTime] = useState(new Date());
+
+    // Import FeatureTour types if needed, but we use component directly
+    // Feature Tour State
+    const [tourSteps, setTourSteps] = useState<import('@/components/ui/FeatureTour').TourStep[]>([]);
+
+    // Detect undefined arrival issues (ALL of them)
+    const undefinedArrivalIssues = React.useMemo(() => {
+        const issues: { person: Person, date: Date, targetId: string }[] = [];
+
+        for (const person of sortedPeople) {
+            for (const date of dates) {
+                const avail = getEffectiveAvailability(person, date, teamRotations, absences, hourlyBlockages);
+
+                // Only care if start hour is undefined (00:00)
+                if (avail.startHour === '00:00') {
+                    // Check if it's visually an arrival
+                    if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+                        const prevDate = new Date(date);
+                        prevDate.setDate(date.getDate() - 1);
+                        const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
+
+                        const prevWasPartialReturn = prevAvail.status === 'home' && prevAvail.endHour && prevAvail.endHour !== '23:59' && prevAvail.endHour !== '00:00';
+                        const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') && !prevWasPartialReturn;
+
+                        if (isArrival) {
+                            const dateKey = date.toLocaleDateString('en-CA');
+                            const targetId = `#${idPrefix}attendance-cell-${person.id}-${dateKey}`;
+                            issues.push({ person, date, targetId });
+                        }
+                    }
+                }
+            }
+        }
+        return issues;
+    }, [sortedPeople, dates, teamRotations, absences, hourlyBlockages]);
+
+    // Detect undefined arrival for Tour (Use the memoized list)
+    useEffect(() => {
+        // v9 to force show again for user & fix selector issues
+        const tourId = 'attendance_undefined_arrival_v9';
+
+        const isCompleted = localStorage.getItem(`tour_completed_${tourId}`);
+        console.log('[TourDebug] Checking tour:', tourId, 'Completed:', isCompleted);
+        console.log('[TourDebug] Dates length:', dates.length);
+        console.log('[TourDebug] Issues found:', undefinedArrivalIssues.length);
+
+        if (isCompleted) return;
+
+        // Avoid running on both instances if both are in DOM
+        const isMobileView = window.innerWidth < 1024; // Match MD breakpoint or similar
+        const isInstanceMobile = idPrefix === 'mobile-';
+        if (isMobileView !== isInstanceMobile) {
+            console.log('[TourDebug] Instance mismatch, skipping:', idPrefix, 'isMobileView:', isMobileView);
+            return;
+        }
+
+        // Only run on Monthly view (approx > 7 days to be safe, usually 28-31)
+        if (dates.length < 7) {
+            console.log('[TourDebug] Skipped: Not monthly view (dates < 7)');
+            return;
+        }
+
+        // Reduced delay for "immediate" feel while ensuring render
+        const timer = setTimeout(() => {
+            console.log('[TourDebug] Timer fired. Issues:', undefinedArrivalIssues.length);
+
+            if (undefinedArrivalIssues.length > 0) {
+                const firstIssue = undefinedArrivalIssues[0];
+                const teamId = firstIssue.person.teamId;
+
+                // Ensure team is expanded
+                if (collapsedTeams.has(teamId)) {
+                    console.log('[TourDebug] Expanding team:', teamId);
+                    toggleTeam(teamId);
+                    return;
+                }
+
+                const targetSelector = firstIssue.targetId;
+                const el = document.querySelector(targetSelector) as HTMLElement;
+
+                console.log('[TourDebug] Target Selector:', targetSelector, 'Element found:', !!el);
+
+                // Ignore if element is not visible (hidden in mobile/desktop container)
+                if (el && el.offsetParent === null) {
+                    console.log('[TourDebug] Element found but not visible, ignoring.');
+                    return;
+                }
+
+                if (el) {
+                    console.log('[TourDebug] Scrolling to target and starting tour...');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                    setTourSteps([
+                        {
+                            targetId: targetSelector,
+                            title: 'הגדרת שעת הגעה',
+                            content: 'שים לב! יום זה מסומן כיום הגעה (חזרה מהבית) אך לא הוזנה שעה. לחץ על המשבצת כדי לעדכן מתי החייל חוזר.',
+                            position: 'top'
+                        },
+                        {
+                            targetId: `#${idPrefix}undefined-arrivals-widget`,
+                            title: 'ריכוז חריגות',
+                            content: 'כל החריגות מרכזות עבורך כאן בוידג\'ט הצף. ניתן ללחוץ עליו כדי לראות את הרשימה המלאה ולנווט במהירות לכל בעיה.',
+                            position: 'right'
+                        }
+                    ]);
+                } else {
+                    console.warn('[TourDebug] Target element not found in DOM:', targetSelector);
+                }
+            }
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [undefinedArrivalIssues, dates.length, collapsedTeams]);
 
     // Auto-refresh every minute to keep headcount dynamic
     useEffect(() => {
@@ -1005,7 +1122,20 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     const isFirstDayHome = (prevAvail.status === 'base' || prevAvail.status === 'full' || prevAvail.status === 'arrival') && avail.status === 'home';
                                                                     const isLastDayHome = (nextAvail.status === 'base' || nextAvail.status === 'full' || nextAvail.status === 'departure') && avail.status === 'home';
 
-                                                                    if (avail.status === 'home' || avail.status === 'unavailable' || !avail.isAvailable) {
+                                                                    if (avail.status === 'undefined') {
+                                                                        cellBg = "bg-slate-100/80 text-slate-500";
+                                                                        themeColor = "bg-slate-400";
+                                                                        content = (
+                                                                            <div className="flex flex-col items-center justify-center gap-0.5" title="סטטוס לא מוגדר">
+                                                                                <div className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center mb-0.5">
+                                                                                    <span className="text-[10px] font-black">?</span>
+                                                                                </div>
+                                                                                <span className="text-[10px] font-black uppercase">לא מוגדר</span>
+                                                                                <span className="text-[9px] font-bold opacity-60 whitespace-nowrap scale-90">חסר דיווח יומי</span>
+                                                                                {constraintText}
+                                                                            </div>
+                                                                        );
+                                                                    } else if (avail.status === 'home' || avail.status === 'unavailable' || !avail.isAvailable) {
                                                                         cellBg = "bg-red-50/70 text-red-800";
                                                                         themeColor = "bg-red-400";
                                                                         const isConstraint = avail.status === 'unavailable';
@@ -1043,53 +1173,103 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         const isDeparture = ((!nextAvail.isAvailable || nextAvail.status === 'home') && !nextWasPartialDeparture) || (avail.endHour !== '23:59');
 
                                                                         if (isArrival && isDeparture) {
-                                                                            cellBg = "bg-emerald-50 text-emerald-800";
-                                                                            themeColor = "bg-emerald-500";
-                                                                            content = (
-                                                                                <div className="flex flex-col items-center justify-center relative w-full h-full">
-                                                                                    {isUnapprovedExit && (
-                                                                                        <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
-                                                                                            <AlertCircle size={10} weight="fill" />
+                                                                            const isUndefinedTime = avail.startHour === '00:00';
+
+                                                                            if (isUndefinedTime) {
+                                                                                cellBg = "bg-slate-100/80 text-slate-500";
+                                                                                themeColor = "bg-slate-400";
+                                                                                content = (
+                                                                                    <div className="flex flex-col items-center justify-center gap-0.5" title="לא מוגדר">
+                                                                                        <div className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center mb-0.5 relative">
+                                                                                            <span className="text-[10px] font-black">?</span>
                                                                                         </div>
-                                                                                    )}
-                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יום בודד</span>
-                                                                                    <span className="text-[9px] font-bold opacity-70">{avail.startHour === '00:00' ? defaultArrivalHour : avail.startHour}-{avail.endHour === '23:59' ? defaultDepartureHour : avail.endHour}</span>
-                                                                                    {constraintText}
-                                                                                </div>
-                                                                            );
+                                                                                        <span className="text-[10px] font-black uppercase">לא מוגדר</span>
+                                                                                        <span className="text-[9px] font-bold opacity-60 whitespace-nowrap scale-90">חסר הגעה ויציאה</span>
+                                                                                        {constraintText}
+                                                                                    </div>
+                                                                                );
+                                                                            } else {
+                                                                                cellBg = "bg-emerald-50 text-emerald-800";
+                                                                                themeColor = "bg-emerald-500";
+                                                                                content = (
+                                                                                    <div className="flex flex-col items-center justify-center relative w-full h-full">
+                                                                                        {isUnapprovedExit && (
+                                                                                            <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
+                                                                                                <AlertCircle size={10} weight="fill" />
+                                                                                            </div>
+                                                                                        )}
+                                                                                        <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יום בודד</span>
+                                                                                        <span className="text-[9px] font-bold opacity-70">{avail.startHour}-{avail.endHour === '23:59' ? defaultDepartureHour : avail.endHour}</span>
+                                                                                        {constraintText}
+                                                                                    </div>
+                                                                                );
+                                                                            }
                                                                         } else if (isArrival) {
-                                                                            cellBg = "bg-emerald-50/60 text-emerald-800";
-                                                                            themeColor = "bg-emerald-500";
-                                                                            content = (
-                                                                                <div className="flex flex-col items-center justify-center relative w-full h-full">
-                                                                                    {isUnapprovedExit && (
-                                                                                        <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
-                                                                                            <AlertCircle size={10} weight="fill" />
+                                                                            const isUndefinedTime = avail.startHour === '00:00';
+
+                                                                            if (isUndefinedTime) {
+                                                                                cellBg = "bg-slate-100/80 text-slate-500";
+                                                                                themeColor = "bg-slate-400";
+                                                                                content = (
+                                                                                    <div className="flex flex-col items-center justify-center gap-0.5" title="לא מוגדר">
+                                                                                        <div className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center mb-0.5 relative">
+                                                                                            <span className="text-[10px] font-black">?</span>
                                                                                         </div>
-                                                                                    )}
-                                                                                    <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-emerald-500"} weight="bold" />
-                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>הגעה</span>
-                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.startHour === '00:00' ? defaultArrivalHour : avail.startHour}</span>
-                                                                                    {constraintText}
-                                                                                </div>
-                                                                            );
-                                                                        } else if (isDeparture && avail.endHour !== '23:59') {
-                                                                            // Only show Departure context if specific time is set
-                                                                            cellBg = "bg-amber-50/60 text-amber-900";
-                                                                            themeColor = "bg-amber-500";
-                                                                            content = (
-                                                                                <div className="flex flex-col items-center justify-center relative w-full h-full">
-                                                                                    {isUnapprovedExit && (
-                                                                                        <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
-                                                                                            <AlertCircle size={10} weight="fill" />
+                                                                                        <span className="text-[10px] font-black uppercase">לא מוגדר</span>
+                                                                                        <span className="text-[9px] font-bold opacity-60 whitespace-nowrap scale-90">חסר שעת הגעה</span>
+                                                                                        {constraintText}
+                                                                                    </div>
+                                                                                );
+                                                                            } else {
+                                                                                cellBg = "bg-emerald-50/60 text-emerald-800";
+                                                                                themeColor = "bg-emerald-500";
+                                                                                content = (
+                                                                                    <div className="flex flex-col items-center justify-center relative w-full h-full">
+                                                                                        {isUnapprovedExit && (
+                                                                                            <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
+                                                                                                <AlertCircle size={10} weight="fill" />
+                                                                                            </div>
+                                                                                        )}
+                                                                                        <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-emerald-500"} weight="bold" />
+                                                                                        <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>הגעה</span>
+                                                                                        <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.startHour}</span>
+                                                                                        {constraintText}
+                                                                                    </div>
+                                                                                );
+                                                                            }
+                                                                        }
+                                                                        else if (isDeparture) {
+                                                                            const isUndefinedTime = avail.endHour === '23:59';
+                                                                            if (isUndefinedTime) {
+                                                                                cellBg = "bg-slate-100/80 text-slate-500";
+                                                                                themeColor = "bg-slate-400";
+                                                                                content = (
+                                                                                    <div className="flex flex-col items-center justify-center gap-0.5" title="לא מוגדר">
+                                                                                        <div className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center mb-0.5 relative">
+                                                                                            <span className="text-[10px] font-black">?</span>
                                                                                         </div>
-                                                                                    )}
-                                                                                    <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="bold" />
-                                                                                    <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יציאה</span>
-                                                                                    <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour === '23:59' ? defaultDepartureHour : avail.endHour}</span>
-                                                                                    {constraintText}
-                                                                                </div>
-                                                                            );
+                                                                                        <span className="text-[10px] font-black uppercase">לא מוגדר</span>
+                                                                                        <span className="text-[9px] font-bold opacity-60 whitespace-nowrap scale-90">חסר שעת יציאה</span>
+                                                                                        {constraintText}
+                                                                                    </div>
+                                                                                );
+                                                                            } else {
+                                                                                cellBg = "bg-amber-50/60 text-amber-900";
+                                                                                themeColor = "bg-amber-500";
+                                                                                content = (
+                                                                                    <div className="flex flex-col items-center justify-center relative w-full h-full">
+                                                                                        {isUnapprovedExit && (
+                                                                                            <div className="absolute top-1 left-1.5 text-red-500 animate-pulse">
+                                                                                                <AlertCircle size={10} weight="fill" />
+                                                                                            </div>
+                                                                                        )}
+                                                                                        <MapPin size={12} className={isUnapprovedExit ? "text-red-500" : "text-amber-500"} weight="bold" />
+                                                                                        <span className={`text-[10px] font-black ${isUnapprovedExit ? "text-red-700" : ""}`}>יציאה</span>
+                                                                                        <span className="text-[9px] font-bold opacity-70 whitespace-nowrap scale-90">{avail.endHour}</span>
+                                                                                        {constraintText}
+                                                                                    </div>
+                                                                                );
+                                                                            }
                                                                         } else {
                                                                             cellBg = "bg-emerald-50/40 text-emerald-800";
                                                                             themeColor = "bg-emerald-500";
@@ -1121,7 +1301,8 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                     return (
                                                                         <div
                                                                             key={date.toISOString()}
-                                                                            data-testid={`attendance-cell-${person.id}-${dateKey}`}
+                                                                            id={`${idPrefix}attendance-cell-${person.id}-${dateKey}`}
+                                                                            data-testid={`${idPrefix}attendance-cell-${person.id}-${dateKey}`}
                                                                             className={`w-24 h-20 shrink-0 border-l border-slate-100 flex flex-col items-center justify-center cursor-pointer transition-all relative group/cell 
                                                                         ${cellBg} 
                                                                         ${isSelected ? 'z-30 ring-4 ring-blue-500 shadow-2xl scale-110 rounded-lg bg-white' : 'hover:z-10 hover:shadow-lg hover:bg-white'} 
@@ -1200,16 +1381,29 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
             {
                 editingCell && (() => {
                     const person = people.find(p => p.id === editingCell.personId);
+                    if (!person) return null;
+
                     const firstDate = editingCell.dates[0];
-                    const availability = person ? getEffectiveAvailability(person, new Date(firstDate), teamRotations, absences, hourlyBlockages) : undefined;
+                    const availability = getEffectiveAvailability(person, new Date(firstDate), teamRotations, absences, hourlyBlockages);
+
+                    // Context for Boundary Days (Arrival/Departure)
+                    const prevDate = new Date(firstDate);
+                    prevDate.setDate(prevDate.getDate() - 1);
+                    const prevAvailability = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
+
+                    const nextDate = new Date(firstDate);
+                    nextDate.setDate(nextDate.getDate() + 1);
+                    const nextAvailability = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
 
                     return (
                         <StatusEditModal
                             isOpen={!!editingCell}
                             date={firstDate}
                             dates={editingCell.dates}
-                            personName={person?.name}
+                            personName={person.name}
                             currentAvailability={availability}
+                            prevAvailability={prevAvailability}
+                            nextAvailability={nextAvailability}
                             onClose={() => setEditingCell(null)}
                             onApply={handleApplyStatus}
                             defaultArrivalHour={defaultArrivalHour}
@@ -1218,6 +1412,13 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                     );
                 })()
             }
+
+            <FeatureTour
+                steps={tourSteps}
+                tourId="attendance_undefined_arrival_v9"
+            />
+
+            <UndefinedArrivalsWidget issues={undefinedArrivalIssues} idPrefix={idPrefix} />
         </div>
     );
 };

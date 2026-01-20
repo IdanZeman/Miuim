@@ -25,7 +25,7 @@ interface LocationReportProps {
     hourlyBlockages?: HourlyBlockage[];
 }
 
-type LocationStatus = 'mission' | 'base' | 'home';
+type LocationStatus = 'mission' | 'base' | 'home' | 'undefined';
 
 interface PersonLocation {
     person: Person;
@@ -88,8 +88,17 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                 };
             }
 
-            // 2. Check Attendance (Home/Base)
+            // 2. Check Attendance (Home/Base/Undefined)
             const avail = getEffectiveAvailability(person, checkTime, teamRotations);
+
+            if (avail.status === 'undefined') {
+                return {
+                    person,
+                    status: 'undefined',
+                    details: 'לא מוגדר',
+                    time: ''
+                };
+            }
 
             // User Rule: Arrival Day = Base, Departure Day = Home (But respect specific time check)
             if (avail.status === 'arrival') {
@@ -558,7 +567,7 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                             return val || '';
                                         });
 
-                                        const statusMap = { mission: 'במשימה', base: 'בבסיס', home: 'בבית' };
+                                        const statusMap: Record<string, string> = { mission: 'במשימה', base: 'בבסיס', home: 'בבית', undefined: 'לא מוגדר' };
 
                                         return [
                                             selectedDate.toLocaleDateString('he-IL'),
@@ -595,6 +604,9 @@ export const LocationReport: React.FC<LocationReportProps> = ({
                                         } else if (statusVal === 'במשימה') {
                                             statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } };
                                             statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+                                        } else if (statusVal === 'לא מוגדר') {
+                                            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+                                            statusCell.font = { color: { argb: 'FF6B7280' }, bold: true };
                                         }
                                     });
 
@@ -672,8 +684,8 @@ const PersonCard: React.FC<PersonCardProps> = ({ r, showStatusBadge = false, tea
                 <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-bold text-slate-800 text-sm">{r.person.name}</span>
                     {showStatusBadge && (
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${r.status === 'mission' ? 'bg-rose-100 text-rose-700' : r.status === 'base' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                            {r.status === 'mission' ? 'משימה' : r.status === 'base' ? 'בסיס' : 'בית'}
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${r.status === 'mission' ? 'bg-rose-100 text-rose-700' : r.status === 'base' ? 'bg-emerald-100 text-emerald-700' : r.status === 'undefined' ? 'bg-slate-100 text-slate-500' : 'bg-slate-100 text-slate-600'}`}>
+                            {r.status === 'mission' ? 'משימה' : r.status === 'base' ? 'בסיס' : r.status === 'undefined' ? 'לא מוגדר' : 'בית'}
                         </span>
                     )}
                 </div>

@@ -255,7 +255,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
+            <div id="tour-idle-list" className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
                 {!globalHasUnderstaffed && (
                     <div className="mb-4 p-4 rounded-2xl bg-amber-50 border border-amber-100 flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
                         <Warning size={18} className="text-amber-500 shrink-0 mt-0.5" weight="bold" />
@@ -275,14 +275,14 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                         <p className="text-xs text-slate-400">כולם משובצים או נמצאים במנוחה</p>
                     </div>
                 ) : (
-                    idlePeople.map(({ person, lastShift, nextShift, idleTimeMinutes, suggestions, reasons, team }) => {
+                    idlePeople.map(({ person, lastShift, nextShift, idleTimeMinutes, suggestions, reasons, team }, idx) => {
                         const nextTask = nextShift ? taskTemplates.find(t => t.id === nextShift.taskId) : null;
                         const lastTask = lastShift ? taskTemplates.find(t => t.id === lastShift.taskId) : null;
 
                         return (
                             <div
                                 key={person.id}
-                                id="tour-idle-card"
+                                id={idx === 0 ? "tour-idle-card" : undefined}
                                 className="group relative bg-white border border-slate-100 rounded-2xl p-4 hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all duration-300 cursor-default"
                             >
                                 <div className="flex items-start justify-between mb-3">
@@ -303,7 +303,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                                             </div>
                                         </div>
                                     </div>
-                                    <div id="tour-idle-time" className="text-left">
+                                    <div id={idx === 0 ? "tour-idle-time" : undefined} className="text-left">
                                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
                                             <Clock size={12} weight="bold" />
                                             <span className="text-[11px] font-black">{formatIdleTime(idleTimeMinutes)}</span>
@@ -312,7 +312,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                                     </div>
                                 </div>
 
-                                <div id="tour-idle-history" className="space-y-2 mb-4">
+                                <div id={idx === 0 ? "tour-idle-history" : undefined} className="space-y-2 mb-4">
                                     {lastTask && (
                                         <div className="flex items-center gap-2 text-[11px]">
                                             <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
@@ -340,7 +340,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                                 </div>
 
                                 {/* Smart Suggestions */}
-                                <div id="tour-idle-suggestions" className="space-y-2 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50">
+                                <div id={idx === 0 ? "tour-idle-suggestions" : undefined} className="space-y-2 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50">
                                     <div className="flex items-center gap-1.5 mb-2 px-1">
                                         <Sparkle size={14} weight="fill" className="text-indigo-500" />
                                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-tight">הצעות לשיבוץ מיידי</span>

@@ -86,7 +86,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
     };
 
     const handleSaveStatus = (
-        mainStatus: 'base' | 'home',
+        mainStatus: 'base' | 'home' | 'undefined',
         customTimes?: { start: string, end: string },
         unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[],
         homeStatusType?: HomeStatusType
@@ -104,7 +104,12 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             newData.isAvailable = false;
             newData.status = 'home';
             newData.homeStatusType = homeStatusType;
-            // Clear times for home
+            newData.startHour = '00:00';
+            newData.endHour = '23:59';
+        } else if (mainStatus === 'undefined') {
+            newData.isAvailable = false;
+            newData.status = 'undefined';
+            newData.homeStatusType = undefined;
             newData.startHour = '00:00';
             newData.endHour = '23:59';
         } else {
@@ -154,27 +159,52 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         // Defaults
         let statusConfig = {
             label: '',
+            subLabel: undefined as string | undefined,
             bg: 'bg-white',
             text: 'text-slate-400',
             fillColor: 'FFFFFFFF', // ARGB White
             textColor: 'FF94A3B8' // ARGB Slate-400
         };
 
-        if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+        if (avail.status === 'undefined') {
+            statusConfig = {
+                label: 'לא מוגדר',
+                subLabel: 'חסר דיווח יומי',
+                bg: 'bg-slate-100',
+                text: 'text-slate-500',
+                fillColor: 'FFF1F5F9', // Slate-100
+                textColor: 'FF64748B' // Slate-500
+            };
+        } else if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
 
             const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') || (avail.startHour !== '00:00');
             const isDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') || (avail.endHour !== '23:59');
             const isSingleDay = isArrival && isDeparture;
 
-            statusConfig = {
-                label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
-                bg: isArrival || isSingleDay ? 'bg-emerald-50' : isDeparture ? 'bg-amber-50' : 'bg-emerald-50',
-                text: isArrival || isSingleDay ? 'text-emerald-700' : isDeparture ? 'text-amber-700' : 'text-emerald-700',
-                fillColor: isArrival || isSingleDay ? 'FFECFDF5' : isDeparture ? 'FFFFFBEB' : 'FFECFDF5',
-                textColor: isArrival || isSingleDay ? 'FF047857' : isDeparture ? 'FFB45309' : 'FF047857'
-            };
+            const isUndefinedTime = (isArrival && avail.startHour === '00:00') || (isDeparture && avail.endHour === '23:59' && avail.status !== 'departure');
 
-            if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
+            if (isUndefinedTime && avail.status !== 'full' && avail.status !== 'base') {
+                const subLabel = (isArrival && isDeparture) ? 'חסר הגעה ויציאה' : isArrival ? 'חסר שעת הגעה' : 'חסר שעת יציאה';
+                statusConfig = {
+                    label: 'לא מוגדר',
+                    subLabel: subLabel,
+                    bg: 'bg-slate-100',
+                    text: 'text-slate-500',
+                    fillColor: 'FFF1F5F9',
+                    textColor: 'FF64748B'
+                };
+            } else {
+                statusConfig = {
+                    label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
+                    subLabel: undefined,
+                    bg: isArrival || isSingleDay ? 'bg-emerald-50' : isDeparture ? 'bg-amber-50' : 'bg-emerald-50',
+                    text: isArrival || isSingleDay ? 'text-emerald-700' : isDeparture ? 'text-amber-700' : 'text-emerald-700',
+                    fillColor: isArrival || isSingleDay ? 'FFECFDF5' : isDeparture ? 'FFFFFBEB' : 'FFECFDF5',
+                    textColor: isArrival || isSingleDay ? 'FF047857' : isDeparture ? 'FFB45309' : 'FF047857'
+                };
+            }
+
+            if (!isUndefinedTime && (avail.startHour !== '00:00' || avail.endHour !== '23:59')) {
                 if (isSingleDay || (!isArrival && !isDeparture)) {
                     statusConfig.label += ` ${avail.startHour}-${avail.endHour}`;
                 } else if (isArrival && avail.startHour !== '00:00') {
@@ -196,6 +226,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
             statusConfig = {
                 label: homeTypeLabel,
+                subLabel: undefined,
                 bg: 'bg-red-50',
                 text: 'text-red-600',
                 fillColor: 'FFF5F5F5',
@@ -204,6 +235,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         } else if (avail.status === 'unavailable') {
             statusConfig = {
                 label: 'אילוץ',
+                subLabel: undefined,
                 bg: 'bg-amber-50',
                 text: 'text-amber-700',
                 fillColor: 'FFFFFBEB',
@@ -262,6 +294,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             else if (l.includes('הגעה')) emoji = '➡️';
             else if (l.includes('יציאה')) emoji = '⬅️';
             else if (l.includes('יום בודד')) emoji = '✅';
+            else if (l.includes('לא מוגדר')) emoji = '❓';
             else if (l.includes('אילוץ')) emoji = '❌';
 
             // Bold the status text
@@ -359,7 +392,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             const cell = currentRow.getCell(currentColumn);
 
             // Content: Day number + Status text
-            cell.value = `${d}\n${currentProps.label}`;
+            const fullLabel = currentProps.subLabel ? `${currentProps.label}\n(${currentProps.subLabel})` : currentProps.label;
+            cell.value = `${d}\n${fullLabel}`;
             cell.alignment = { wrapText: true, horizontal: 'center', vertical: 'top' };
 
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: currentProps.fillColor } };
@@ -439,8 +473,19 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                                 flex flex-col items-center gap-1 text-center font-black leading-tight
                                 ${statusConfig.text}
                             `}>
-                                <Icon size={20} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-0.5 opacity-90" />
-                                <span className="text-[11px] px-1">{statusConfig.label}</span>
+                                {statusConfig.label === 'לא מוגדר' ? (
+                                    <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center mb-0.5">
+                                        <span className="text-[11px] font-black">?</span>
+                                    </div>
+                                ) : (
+                                    <Icon size={20} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-0.5 opacity-90" />
+                                )}
+                                <span className="text-[11px] px-1 uppercase">{statusConfig.label}</span>
+                                {statusConfig.subLabel && (
+                                    <span className="text-[9px] font-bold opacity-60 whitespace-nowrap scale-90 -mt-0.5">
+                                        {statusConfig.subLabel}
+                                    </span>
+                                )}
                             </div>
                         )}
 
@@ -660,18 +705,25 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             }
 
             {/* Status Edit Modal - Unified */}
-            {editingDate && (
-                <StatusEditModal
-                    isOpen={true}
-                    onClose={() => setEditingDate(null)}
-                    onApply={handleSaveStatus}
-                    personName={person.name}
-                    date={editingDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
-                    currentAvailability={getDisplayAvailability(editingDate)}
-                    defaultArrivalHour="10:00"
-                    defaultDepartureHour="14:00"
-                />
-            )}
+            {editingDate && (() => {
+                const prevDate = new Date(editingDate); prevDate.setDate(editingDate.getDate() - 1);
+                const nextDate = new Date(editingDate); nextDate.setDate(editingDate.getDate() + 1);
+
+                return (
+                    <StatusEditModal
+                        isOpen={true}
+                        onClose={() => setEditingDate(null)}
+                        onApply={handleSaveStatus}
+                        personName={person.name}
+                        date={editingDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        currentAvailability={getDisplayAvailability(editingDate)}
+                        prevAvailability={getDisplayAvailability(prevDate)}
+                        nextAvailability={getDisplayAvailability(nextDate)}
+                        defaultArrivalHour="10:00"
+                        defaultDepartureHour="14:00"
+                    />
+                );
+            })()}
         </GenericModal >
     );
 };

@@ -202,7 +202,9 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                 let detailLabel = '';
                 let reasonLabel = '';
 
-                if (isAvailable) {
+                if (availability?.status === 'undefined') {
+                    statusLabel = 'לא מוגדר';
+                } else if (isAvailable) {
                     if (availability?.status === 'arrival' || (availability?.startHour && availability.startHour !== '00:00')) {
                         statusLabel = `הגעה (${availability?.startHour || '00:00'})`;
                     } else if (availability?.status === 'departure' || (availability?.endHour && availability.endHour !== '23:59')) {
@@ -300,6 +302,9 @@ export const ManpowerReports: React.FC<ManpowerReportsProps> = ({
                 } else if (statusVal === 'נוכח' || statusVal.startsWith('הגעה')) {
                     statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
                     statusCell.font = { color: { argb: 'FF065F46' }, bold: true };
+                } else if (statusVal === 'לא מוגדר') {
+                    statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+                    statusCell.font = { color: { argb: 'FF6B7280' }, bold: true };
                 }
             });
 

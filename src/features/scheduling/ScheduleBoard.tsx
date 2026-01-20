@@ -1513,7 +1513,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
 
             {!isViewer && (
                 <FeatureTour
-                    tourId="idle_personnel_insights_v2"
+                    tourId="idle_personnel_insights_v3"
                     steps={[
                         {
                             targetId: window.innerWidth < 768 ? '#tour-mobile-menu' : '#tour-idle-toggle',
@@ -1522,7 +1522,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                             position: 'bottom'
                         },
                         {
-                            targetId: '#tour-idle-panel',
+                            targetId: '#tour-idle-list',
                             title: 'לוח הפנויים',
                             content: 'כאן מופיעים כל הלוחמים שאינם משובצים כרגע וביצעו את המנוחה הנדרשת שלהם.',
                             position: 'right'
