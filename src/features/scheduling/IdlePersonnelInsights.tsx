@@ -17,6 +17,7 @@ interface IdlePersonnelInsightsProps {
     onClose: () => void;
     onAssignClick?: (person: Person, shiftId?: string) => void;
     forceShowDemo?: boolean;
+    constraints?: import('@/types').SchedulingConstraint[];
 }
 
 export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
@@ -31,7 +32,8 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
     settings,
     onClose,
     onAssignClick,
-    forceShowDemo = false
+    forceShowDemo = false,
+    constraints = []
 }) => {
     const now = new Date();
     const isSelectedDayToday = selectedDate.toLocaleDateString('en-CA') === now.toLocaleDateString('en-CA');
@@ -82,9 +84,45 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                 if (referenceTime < restEndTime) return false;
             }
 
+            // 4. Scheduling Constraints (NEW)
+            const isTimeBlockedNow = constraints.some(c => {
+                if (c.type !== 'time_block' || !c.startTime || !c.endTime) return false;
+                if (c.personId && c.personId !== person.id) return false;
+                if (c.teamId && c.teamId !== person.teamId) return false;
+                if (c.roleId && !(person.roleIds || [person.roleId]).includes(c.roleId)) return false;
+                const bs = new Date(c.startTime);
+                const be = new Date(c.endTime);
+                return bs < referenceTime && be > referenceTime;
+            });
+            if (isTimeBlockedNow) return false;
+
+            // If pinned to a task that is active NOW, they aren't idle
+            const pinnedActiveTaskNow = constraints.find(c => {
+                if (c.type !== 'always_assign' || !c.taskId) return false;
+                if (c.personId && c.personId !== person.id) return false;
+                if (c.teamId && c.teamId !== person.teamId) return false;
+                if (c.roleId && !(person.roleIds || [person.roleId]).includes(c.roleId)) return false;
+
+                // Find if THIS specific task they are pinned to is running now
+                return shifts.some(s => {
+                    const sStart = new Date(s.startTime);
+                    const sEnd = new Date(s.endTime);
+                    return s.taskId === c.taskId && !s.isCancelled && referenceTime >= sStart && referenceTime < sEnd;
+                });
+            });
+            if (pinnedActiveTaskNow) return false;
+
             return true;
         }).map(person => {
             const avail = getEffectiveAvailability(person, selectedDate, teamRotations, absences, hourlyBlockages);
+
+            // NEW: Find if they are pinned to ANY task (to show in UI)
+            const pinnedConstraint = constraints.find(c =>
+                c.type === 'always_assign' &&
+                c.taskId &&
+                (c.personId === person.id || (c.teamId && person.teamId === c.teamId) || (c.roleId && (person.roleIds || [person.roleId]).includes(c.roleId)))
+            );
+            const pinnedTask = pinnedConstraint ? taskTemplates.find(t => t.id === pinnedConstraint.taskId) : null;
             const timeInMinutes = referenceTime.getHours() * 60 + referenceTime.getMinutes();
             const isPresent = isStatusPresent(avail, timeInMinutes);
 
@@ -170,6 +208,32 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                     }
                 }
 
+                // 4. Scheduling Constraints (NEW)
+                const isNeverAssign = constraints.some(c =>
+                    c.type === 'never_assign' &&
+                    c.taskId === s.taskId &&
+                    (c.personId === person.id || (c.teamId && person.teamId === c.teamId) || (c.roleId && (person.roleIds || [person.roleId]).includes(c.roleId)))
+                );
+                if (isNeverAssign) return false;
+
+                const isPinnedToDifferentTask = constraints.some(c =>
+                    c.type === 'always_assign' &&
+                    c.taskId !== s.taskId &&
+                    (c.personId === person.id || (c.teamId && person.teamId === c.teamId) || (c.roleId && (person.roleIds || [person.roleId]).includes(c.roleId)))
+                );
+                if (isPinnedToDifferentTask) return false;
+
+                const isTimeBlockedForShift = constraints.some(c => {
+                    if (c.type !== 'time_block' || !c.startTime || !c.endTime) return false;
+                    if (c.personId && c.personId !== person.id) return false;
+                    if (c.teamId && c.teamId !== person.teamId) return false;
+                    if (c.roleId && !(person.roleIds || [person.roleId]).includes(c.roleId)) return false;
+                    const bs = new Date(c.startTime);
+                    const be = new Date(c.endTime);
+                    return bs < sEnd && be > sStart;
+                });
+                if (isTimeBlockedForShift) return false;
+
                 return true;
             })
                 .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
@@ -183,6 +247,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                 suggestions,
                 reasons,
                 team: teams.find(t => t.id === person.teamId),
+                pinnedTask,
                 effectiveAvailability: avail
             };
         }).sort((a, b) => {
@@ -193,7 +258,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
             return b.idleTimeMinutes - a.idleTimeMinutes;
         });
 
-        let finalPeople = processedPeople;
+        let finalPeople = processedPeople.filter(p => p.suggestions.length > 0 || forceShowDemo);
         if (finalPeople.length === 0 && forceShowDemo) {
             // Create a mock person for the tour
             const mockPerson: Person = {
@@ -370,7 +435,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                         <p className="text-xs text-slate-400">כולם משובצים או נמצאים במנוחה</p>
                     </div>
                 ) : (
-                    idlePeople.map(({ person, lastShift, nextShift, idleTimeMinutes, suggestions, reasons, team }) => {
+                    idlePeople.map(({ person, lastShift, nextShift, idleTimeMinutes, suggestions, reasons, team, pinnedTask }) => {
                         const nextTask = nextShift ? taskTemplates.find(t => t.id === nextShift.taskId) : null;
                         const lastTask = lastShift ? taskTemplates.find(t => t.id === lastShift.taskId) : null;
 
@@ -388,7 +453,15 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                                             {person.name.charAt(0)}
                                         </div>
                                         <div>
-                                            <h4 className="font-bold text-slate-800 text-sm leading-none mb-1">{person.name}</h4>
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="font-bold text-slate-800 text-sm leading-none mb-1">{person.name}</h4>
+                                                {pinnedTask && (
+                                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-[8px] font-black text-emerald-600 border border-emerald-100 uppercase tracking-tighter">
+                                                        <Sparkle size={8} weight="fill" />
+                                                        <span>מיועד ל: {pinnedTask.name}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                             <div className="flex items-center gap-1.5">
                                                 <div
                                                     className="w-2 h-2 rounded-full"
@@ -482,16 +555,16 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                                             )
                                         })
                                     ) : (
-                                        <div className="flex flex-col gap-1 py-1 px-1">
-                                            <div className="flex items-center gap-2 text-[10px] text-slate-400 italic">
+                                        <div className="flex flex-col gap-1.5 py-1 px-1">
+                                            <div className="flex items-center gap-2 text-[10px] text-slate-400 italic mb-1">
                                                 <Info size={12} />
                                                 לא נמצאו משימות מתאימות כרגע
                                             </div>
                                             {globalHasUnderstaffed && (
-                                                <div className="text-[9px] text-slate-400 font-medium pl-5 leading-tight">
-                                                    {reasons.role > 0 && `• ${reasons.role} משימות דורשות תפקיד אחר`}
-                                                    {reasons.rest > 0 && `\n• ${reasons.rest} משימות שחופפות למשימה קודמת או שכבר החלו`}
-                                                    {reasons.conflict > 0 && `\n• ${reasons.conflict} משימות המשאירות מנוחה קצרה מדי לפני המשימה הבאה`}
+                                                <div className="flex flex-col gap-1 text-[9px] text-slate-400 font-medium pl-2 bg-slate-100/50 p-2 rounded-lg border border-slate-100">
+                                                    {reasons.role > 0 && <div className="flex items-start gap-1.5"><span>•</span><span>{reasons.role} משימות דורשות תפקיד אחר</span></div>}
+                                                    {reasons.rest > 0 && <div className="flex items-start gap-1.5"><span>•</span><span>{reasons.rest} משימות שחופפות למשימה קודמת או שכבר החלו</span></div>}
+                                                    {reasons.conflict > 0 && <div className="flex items-start gap-1.5"><span>•</span><span>{reasons.conflict} משימות המשאירות מנוחה קצרה מדי לפני המשימה הבאה</span></div>}
                                                 </div>
                                             )}
                                         </div>

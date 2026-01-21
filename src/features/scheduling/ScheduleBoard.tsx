@@ -1639,6 +1639,7 @@ export const ScheduleBoard: React.FC<ScheduleBoardProps> = ({
                     absences={absences}
                     hourlyBlockages={hourlyBlockages}
                     settings={settings}
+                    constraints={constraints}
                     onClose={() => setShowInsights(false)}
                     forceShowDemo={isTourActive}
                     onAssignClick={(p, shiftId) => {

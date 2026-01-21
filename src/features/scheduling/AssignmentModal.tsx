@@ -286,7 +286,19 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
             );
 
-            if ((isNeverAssign || isPinnedToDifferentTask) && !searchTerm) return false;
+            const shiftStartAt = new Date(selectedShift.startTime);
+            const shiftEndAt = new Date(selectedShift.endTime);
+            const isTimeBlocked = constraints.some(c => {
+                if (c.type !== 'time_block' || !c.startTime || !c.endTime) return false;
+                if (c.personId && c.personId !== p.id) return false;
+                if (c.teamId && c.teamId !== p.teamId) return false;
+                if (c.roleId && !(p.roleIds || [p.roleId]).includes(c.roleId)) return false;
+                const bs = new Date(c.startTime);
+                const be = new Date(c.endTime);
+                return bs < shiftEndAt && be > shiftStartAt;
+            });
+
+            if ((isNeverAssign || isPinnedToDifferentTask || isTimeBlocked) && !searchTerm) return false;
 
             // Availability Check
             const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
@@ -379,7 +391,19 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
             );
 
-            if (isNeverAssign || isPinnedToDifferentTask) {
+            const shiftStartAt = new Date(selectedShift.startTime);
+            const shiftEndAt = new Date(selectedShift.endTime);
+            const isTimeBlocked = constraints.some(c => {
+                if (c.type !== 'time_block' || !c.startTime || !c.endTime) return false;
+                if (c.personId && c.personId !== p.id) return false;
+                if (c.teamId && c.teamId !== p.teamId) return false;
+                if (c.roleId && !(p.roleIds || [p.roleId]).includes(c.roleId)) return false;
+                const bs = new Date(c.startTime);
+                const be = new Date(c.endTime);
+                return bs < shiftEndAt && be > shiftStartAt;
+            });
+
+            if (isNeverAssign || isPinnedToDifferentTask || isTimeBlocked) {
                 isAvailable = false;
                 isBlocked = true;
             }
@@ -473,6 +497,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     isNeverAssign,
                     isPinnedToDifferentTask,
                     isPinnedToThisTask,
+                    isTimeBlocked,
                     availabilityStatus: availability.status,
                     hoursSinceLast: lastShift ? (thisStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
                     liveHoursSinceLast: lastShift ? (Date.now() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
@@ -558,6 +583,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
         const currentAssigned = assignedPeople;
         const requiredRest = segment?.minRestHoursAfter || 8;
 
+        const shiftStart = new Date(selectedShift.startTime);
+        const shiftEnd = new Date(selectedShift.endTime);
+
         const missingRoleIds = roleComposition.filter(rc => {
             const currentCount = currentAssigned.filter(p => {
                 const rIds = p.roleIds || [p.roleId];
@@ -605,18 +633,49 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 reasons.push('העדפה: שבץ רק לזה');
             }
 
+            // NEW: Time Block checking in suggestions
+            const isTimeBlocked = constraints.some(c => {
+                if (c.type !== 'time_block' || !c.startTime || !c.endTime) return false;
+                if (c.personId && c.personId !== p.id) return false;
+                if (c.teamId && c.teamId !== p.teamId) return false;
+                if (c.roleId && !(p.roleIds || [p.roleId]).includes(c.roleId)) return false;
+                const bs = new Date(c.startTime);
+                const be = new Date(c.endTime);
+                return bs < shiftEnd && be > shiftStart;
+            });
+            if (isTimeBlocked) {
+                score -= 100000;
+                reasons.push('אילוץ: חסימת זמן');
+            }
+
+            // NEW: Preferred Together scoring in suggestions
+            const prefTogether = (interPersonConstraints || []).filter(ipc => ipc.type === 'preferred_together');
+            prefTogether.forEach(ipc => {
+                const matchesA = p.customFields?.[ipc.fieldA] === ipc.valueA;
+                const matchesB = p.customFields?.[ipc.fieldB] === ipc.valueB;
+                if (matchesA || matchesB) {
+                    const alreadyAssignedMatchesOther = assignedPeople.some(ap => {
+                        const apMatchesA = ap.customFields?.[ipc.fieldA] === ipc.valueA;
+                        const apMatchesB = ap.customFields?.[ipc.fieldB] === ipc.valueB;
+                        return (matchesA && apMatchesB) || (matchesB && apMatchesA);
+                    });
+                    if (alreadyAssignedMatchesOther) {
+                        score += 5000;
+                        reasons.push('העדפה: עדיפות לשיבוץ יחד');
+                    }
+                }
+            });
+
             // Strict Availability Check (Same as list)
             const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
             if (availability.status === 'home') score -= 20000;
-            if (availability.source === 'manual' && availability.isAvailable) {
+            if (availability.source === 'manual') {
                 if (!availability.isAvailable) score -= 20000;
             } else if (!availability.isAvailable) {
                 score -= 20000;
             }
 
             // Strict Time Window Check
-            const shiftStart = new Date(selectedShift.startTime);
-            const shiftEnd = new Date(selectedShift.endTime);
 
             if (availability.startHour || availability.endHour) {
                 const [startH, startM] = (availability.startHour || '00:00').split(':').map(Number);
@@ -1289,9 +1348,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                     <span className="text-[9px] text-slate-500 font-bold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 whitespace-nowrap">
                                                         {teams.find(t => t.id === p.teamId)?.name}
                                                     </span>
-                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${!metrics.isAvailable ? (metrics.isNeverAssign || metrics.isPinnedToDifferentTask ? 'bg-slate-900 text-white shadow-lg' : metrics.isHome || metrics.isBlocked ? 'bg-red-600 text-white shadow-md ring-2 ring-red-100' : 'bg-amber-500 text-white shadow-sm') : metrics.isPinnedToThisTask ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-100' : metrics.hasOverlap ? 'bg-red-500 text-white shadow-sm' : metrics.dailyLoad === 0 ? 'bg-blue-600 text-white shadow-md' : metrics.dailyLoad > 8 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-slate-100 text-slate-600'}`}>
-                                                        {!metrics.isAvailable ? (metrics.isNeverAssign ? <Prohibit size={10} weight="fill" /> : metrics.isPinnedToDifferentTask ? <Prohibit size={10} weight="fill" /> : metrics.isHome ? <House size={10} weight="fill" /> : metrics.isBlocked ? <Prohibit size={10} weight="fill" /> : <WarningCircle size={10} weight="fill" />) : metrics.isPinnedToThisTask ? <CheckCircle size={10} weight="fill" /> : metrics.hasOverlap ? <WarningCircle size={10} weight="fill" /> : metrics.dailyLoad === 0 && <Sparkles size={10} weight="fill" />}
-                                                        {!metrics.isAvailable ? (metrics.isNeverAssign ? 'אילוץ: לעולם לא לשבץ' : metrics.isPinnedToDifferentTask ? 'מיועד למשימה אחרת' : metrics.isHome ? 'בבית' : metrics.isBlocked ? 'חסימה בלו״ז' : 'לא זמין') : metrics.isPinnedToThisTask ? 'מיועד למשימה זו' : metrics.hasOverlap ? 'חפיפת זמנים' : metrics.dailyLoad === 0 ? 'לא שובץ היום' : `שובץ ${metrics.dailyLoad.toFixed(1)} ש׳`}
+                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${!metrics.isAvailable ? (metrics.isNeverAssign || metrics.isPinnedToDifferentTask || metrics.isTimeBlocked ? 'bg-slate-900 text-white shadow-lg' : metrics.isHome || metrics.isBlocked ? 'bg-red-600 text-white shadow-md ring-2 ring-red-100' : 'bg-amber-500 text-white shadow-sm') : metrics.isPinnedToThisTask ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-100' : metrics.hasOverlap ? 'bg-red-500 text-white shadow-sm' : metrics.dailyLoad === 0 ? 'bg-blue-600 text-white shadow-md' : metrics.dailyLoad > 8 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-slate-100 text-slate-600'}`}>
+                                                        {!metrics.isAvailable ? (metrics.isNeverAssign ? <Prohibit size={10} weight="fill" /> : metrics.isPinnedToDifferentTask ? <Prohibit size={10} weight="fill" /> : metrics.isTimeBlocked ? <ClockAfternoon size={10} weight="fill" /> : metrics.isHome ? <House size={10} weight="fill" /> : metrics.isBlocked ? <Prohibit size={10} weight="fill" /> : <WarningCircle size={10} weight="fill" />) : metrics.isPinnedToThisTask ? <CheckCircle size={10} weight="fill" /> : metrics.hasOverlap ? <WarningCircle size={10} weight="fill" /> : metrics.dailyLoad === 0 && <Sparkles size={10} weight="fill" />}
+                                                        {!metrics.isAvailable ? (metrics.isNeverAssign ? 'אילוץ: לעולם לא לשבץ' : metrics.isPinnedToDifferentTask ? 'מיועד למשימה אחרת' : metrics.isTimeBlocked ? 'אילוץ: חסימת זמן' : metrics.isHome ? 'בבית' : metrics.isBlocked ? 'חסימה בלו״ז' : 'לא זמין') : metrics.isPinnedToThisTask ? 'מיועד למשימה זו' : metrics.hasOverlap ? 'חפיפת זמנים' : metrics.dailyLoad === 0 ? 'לא שובץ היום' : `שובץ ${metrics.dailyLoad.toFixed(1)} ש׳`}
                                                     </span>
                                                 </div>
                                             </div>
