@@ -180,11 +180,12 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
         logger.info('CLICK', `Opened attendance status editor for ${person.name} on ${dateStr}`, { personId: person.id, date: dateStr });
     };
 
-    const handleApplyStatus = (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType) => {
+    const handleApplyStatus = (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: import('@/types').HomeStatusType, rangeDates?: string[]) => {
         if (!editingCell || !onUpdateAvailability) return;
         // Map 'unavailable' status (legacy) to 'home' or maintain compatibility if needed, 
         // but typically the modal now controls 'base' vs 'home'.
-        onUpdateAvailability(editingCell.personId, editingCell.dates, status, customTimes, unavailableBlocks, homeStatusType);
+        const datesToUpdate = rangeDates && rangeDates.length > 0 ? rangeDates : editingCell.dates;
+        onUpdateAvailability(editingCell.personId, datesToUpdate, status, customTimes, unavailableBlocks, homeStatusType);
         setEditingCell(null);
     };
 

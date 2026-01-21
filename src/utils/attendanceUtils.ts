@@ -105,9 +105,10 @@ export const getEffectiveAvailability = (
     }
 
     // Default return structure
-    // Use last manual status if available, otherwise default to 'full'
+    // Default return structure
     let derivedStatus = 'full' as any;
     let isAvailable = true;
+    let derivedHomeStatusType: import('@/types').HomeStatusType | undefined;
 
     // Check for APPROVED full day coverage
     const fullDayAbsence = unavailableBlocks.find(b =>
@@ -118,16 +119,49 @@ export const getEffectiveAvailability = (
     if (fullDayAbsence) {
         derivedStatus = 'home'; // Or 'unavailable'
         isAvailable = false;
+        // Absences might result in specific home types in the future, but for now generic
     }
 
-    // Apply last manual status if no absence overrides
-    if (!fullDayAbsence && person.lastManualStatus) {
-        if (person.lastManualStatus.status === 'home' || person.lastManualStatus.status === 'unavailable') {
-            derivedStatus = 'home';
-            isAvailable = false;
-        } else if (person.lastManualStatus.status === 'base') {
-            derivedStatus = 'full';
-            isAvailable = true;
+    // Apply last manual status from history (Chronological Propagation)
+    if (!fullDayAbsence) {
+        const availKeys = person.dailyAvailability ? Object.keys(person.dailyAvailability) : [];
+        let maxPrevDate = '';
+
+        for (const k of availKeys) {
+            if (k < dateKey && k > maxPrevDate) {
+                maxPrevDate = k;
+            }
+        }
+
+        if (maxPrevDate && person.dailyAvailability) {
+            const prevEntry = person.dailyAvailability[maxPrevDate];
+            const prevStatus = prevEntry.status || (prevEntry.isAvailable === false ? 'home' : 'full');
+            
+            if (['home', 'unavailable', 'leave', 'gimel', 'not_in_shamp', 'organization_days', 'absent', 'departure'].includes(prevStatus)) {
+                derivedStatus = 'home';
+                isAvailable = false;
+                
+                if (prevEntry.homeStatusType) {
+                    derivedHomeStatusType = prevEntry.homeStatusType;
+                } else if (['gimel', 'leave_shamp', 'absent', 'organization_days', 'not_in_shamp'].includes(prevStatus)) {
+                    derivedHomeStatusType = prevStatus as import('@/types').HomeStatusType;
+                } else {
+                    derivedHomeStatusType = 'leave_shamp'; // Default to vacation for generic home/departure
+                }
+            } else if (['base', 'full', 'arrival'].includes(prevStatus)) {
+                derivedStatus = 'full';
+                isAvailable = true;
+            }
+        } else if (person.lastManualStatus) {
+            // Fallback to global last manual status if no history found in window
+             if (person.lastManualStatus.status === 'home' || person.lastManualStatus.status === 'unavailable') {
+                derivedStatus = 'home';
+                isAvailable = false;
+                derivedHomeStatusType = person.lastManualStatus.homeStatusType || 'leave_shamp';
+            } else if (person.lastManualStatus.status === 'base') {
+                derivedStatus = 'full';
+                isAvailable = true;
+            }
         }
     }
 
@@ -138,7 +172,7 @@ export const getEffectiveAvailability = (
         status: derivedStatus,
         source: fullDayAbsence ? 'absence' : (person.lastManualStatus ? 'last_manual' : 'default'),
         unavailableBlocks,
-        homeStatusType: (person.lastManualStatus?.homeStatusType || undefined) as import('@/types').HomeStatusType | undefined
+        homeStatusType: derivedHomeStatusType
     };
 
     // 2. Personal Rotation

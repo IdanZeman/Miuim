@@ -89,52 +89,54 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         mainStatus: 'base' | 'home',
         customTimes?: { start: string, end: string },
         unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[],
-        homeStatusType?: HomeStatusType
+        homeStatusType?: HomeStatusType,
+        rangeDates?: string[]
     ) => {
-        if (!editingDate) return;
+        const targetDates = (rangeDates && rangeDates.length > 0)
+            ? rangeDates
+            : (editingDate ? [editingDate.toLocaleDateString('en-CA')] : []);
 
-        const dateKey = editingDate.toLocaleDateString('en-CA');
+        if (targetDates.length === 0) return;
 
-        let newData: any = {
-            source: 'manual',
-            unavailableBlocks // Save blocks
-        };
+        const newAvailabilityMap = { ...(person.dailyAvailability || {}) };
 
-        if (mainStatus === 'home') {
-            newData.isAvailable = false;
-            newData.status = 'home';
-            newData.homeStatusType = homeStatusType;
-            // Clear times for home
-            newData.startHour = '00:00';
-            newData.endHour = '23:59';
-        } else {
-            newData.isAvailable = true;
-            // Handle times
-            if (customTimes) {
-                newData.startHour = customTimes.start;
-                newData.endHour = customTimes.end;
-            } else {
+        targetDates.forEach(dateKey => {
+            let newData: any = {
+                source: 'manual',
+                unavailableBlocks: unavailableBlocks ? unavailableBlocks.map(b => ({ ...b, id: crypto.randomUUID() })) : [] // Clone blocks with new IDs to be safe
+            };
+
+            if (mainStatus === 'home') {
+                newData.isAvailable = false;
+                newData.status = 'home';
+                newData.homeStatusType = homeStatusType;
                 newData.startHour = '00:00';
                 newData.endHour = '23:59';
+            } else {
+                newData.isAvailable = true;
+                if (customTimes) {
+                    newData.startHour = customTimes.start;
+                    newData.endHour = customTimes.end;
+                } else {
+                    newData.startHour = '00:00';
+                    newData.endHour = '23:59';
+                }
             }
-        }
+            newAvailabilityMap[dateKey] = newData;
+        });
 
         const updatedPerson = {
             ...person,
-            dailyAvailability: {
-                ...(person.dailyAvailability || {}),
-                [dateKey]: newData
-            }
+            dailyAvailability: newAvailabilityMap
         };
 
         setPerson(updatedPerson);
         onUpdatePerson(updatedPerson);
 
-        logger.info('UPDATE', `Updated status for ${person.name} on ${dateKey}`, {
+        logger.info('UPDATE', `Updated status for ${person.name} on ${targetDates.length} days`, {
             personId: person.id,
-            date: dateKey,
+            dates: targetDates,
             status: mainStatus,
-            ...newData,
             category: 'attendance'
         });
 
