@@ -228,7 +228,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 const restGap = (shiftStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60);
                 const minRest = lastShift.requirements?.minRest || 8;
                 if (restGap < minRest) {
-                    conflicts.push({ person: p, reason: `חוסר מנוחה (${restGap.toFixed(1)}/${minRest})` });
+                    conflicts.push({ person: p, reason: `חוסר מנוחה (${restGap.toFixed(1)} מתוך ${minRest})` });
                     return;
                 }
             }
