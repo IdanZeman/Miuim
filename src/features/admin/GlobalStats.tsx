@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../services/supabaseClient';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -71,21 +72,57 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 supabase.rpc('get_top_organizations', { time_range: timeframe, limit_count: 100 }),
 
                 // D. Top Users (Server-Side)
-                supabase.rpc('get_top_users', { time_range: timeframe, limit_count: 50 }),
+                // D. Active Users (Direct DB Query as requested)
+                supabase.from('audit_logs')
+                    .select('user_id')
+                    .gte('created_at', startDate)
+                    .limit(5000)
+                    .then(async ({ data: logs, error }) => {
+                        if (error) throw error;
+
+                        // Aggregate counts client-side
+                        const userCounts: Record<string, number> = {};
+                        logs?.forEach((l: any) => {
+                            // Handle possible varied column names if needed, but 'user_id' is standard
+                            const uid = l.user_id || l.userId;
+                            if (uid) userCounts[uid] = (userCounts[uid] || 0) + 1;
+                        });
+
+                        const userIds = Object.keys(userCounts);
+
+                        // Fetch details for these users
+                        if (userIds.length === 0) return { data: [] };
+
+                        const { data: profiles } = await supabase
+                            .from('profiles')
+                            .select('*, organizations(name)')
+                            .in('id', userIds);
+
+                        // Merge details with counts
+                        return {
+                            data: profiles?.map(p => ({
+                                user_id: p.id,
+                                full_name: p.full_name || p.email, // Fallback
+                                email: p.email,
+                                org_name: p.organizations?.name,
+                                activity_count: userCounts[p.id]
+                            })).sort((a, b) => b.activity_count - a.activity_count) || []
+                        };
+                    }),
 
                 // E. New Organizations List (for modal)
                 supabase.from('organizations')
                     .select('*')
                     .gte('created_at', startDate)
                     .order('created_at', { ascending: false })
-                    .limit(50),
+                    .limit(1000),
 
                 // F. New Users List (for modal)
                 supabase.from('profiles')
                     .select('*, organizations(name)')
                     .gte('created_at', startDate)
                     .order('created_at', { ascending: false })
-                    .limit(50),
+                    .limit(1000),
 
                 // G. Audit Logs (Only for Map & Device Stats - sample is fine)
                 supabase.from('audit_logs')
@@ -230,16 +267,34 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 email: u.email,
                 count: u.activity_count,
                 org_name: u.org_name
-            }));
+            })).filter((u: any) => u.count > 0);
+
+            // Derive active orgs from Top Users (Action based) to match KPI
+            const derivedActiveOrgs = Object.values(formattedTopUsers.reduce((acc: any, user: any) => {
+                if (!user.org_name) return acc;
+                if (!acc[user.org_name]) {
+                    acc[user.org_name] = {
+                        org_name: user.org_name, // standardized key
+                        name: user.org_name,
+                        shifts_count: 0,
+                        count: 0,
+                        users_count: 0
+                    };
+                }
+                acc[user.org_name].shifts_count += user.count;
+                acc[user.org_name].count += user.count;
+                acc[user.org_name].users_count += 1;
+                return acc;
+            }, {}));
 
             return {
                 newOrgsCount: globalStats.new_orgs_count || 0,
                 newOrgsList,
                 newUsersCount: globalStats.new_users_count || 0,
                 newUsersList,
-                activeOrgsCount: globalStats.active_orgs_count || 0,
-                activeOrgsList,
-                activeUsersCount: globalStats.active_users_count || 0,
+                activeOrgsCount: derivedActiveOrgs.length, // Derived count
+                activeOrgsList: derivedActiveOrgs, // Derived list
+                activeUsersCount: formattedTopUsers.length, // Derived count
                 topUsers: formattedTopUsers,
                 totalActions: globalStats.total_actions || 0,
                 // Return all 3 trends
@@ -249,7 +304,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                 deviceStats,
                 mapData,
                 cityStats,
-                topOrgs: activeOrgsList.slice(0, 10),
+                topOrgs: activeOrgsList.slice(0, 10), // Keep original topOrgs for the table below if needed, or switch to derived? Keeping original for now as table has different columns.
             };
         },
         staleTime: 1000 * 30,
@@ -342,7 +397,9 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                         sub="ביצעו פעולות בטווח"
                         icon={<GlobeIcon size={24} weight="bold" />}
                         color="cyan"
-                        onClick={() => setSelectedMetric({ title: 'ארגונים פעילים', type: 'orgs', data: activeOrgsList })}
+                        onClick={() => {
+                            setSelectedMetric({ title: 'ארגונים פעילים', type: 'orgs', data: activeOrgsList });
+                        }}
                     />
                     <KPICard
                         title="סה״כ פעולות"
@@ -548,9 +605,9 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
             </div>
 
             {/* Detailed List Modal */}
-            {selectedMetric && (
-                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] md:max-h-[80vh] flex flex-col animate-in slide-in-from-bottom md:zoom-in-95 duration-200 border border-white/20 safe-bottom">
+            {selectedMetric && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200" style={{ position: 'fixed' }}>
+                    <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] md:max-h-[80vh] flex flex-col animate-in slide-in-from-bottom md:zoom-in-95 duration-200 border border-white/20 safe-bottom pb-8 md:pb-0">
                         <div className="flex items-center justify-between p-4 md:p-5 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl md:rounded-t-2xl">
                             <div>
                                 <h3 className="text-base md:text-lg font-black text-slate-800">{selectedMetric.title}</h3>
@@ -606,7 +663,8 @@ export const GlobalStats: React.FC<GlobalStatsProps> = () => {
                             )}
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

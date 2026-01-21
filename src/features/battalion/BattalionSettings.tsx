@@ -7,6 +7,8 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { Battalion, Organization } from '@/types';
 import { fetchBattalion, fetchBattalionCompanies, updateBattalionMorningReportTime } from '../../services/battalionService';
 
+import { SettingsSkeleton } from '../../components/ui/SettingsSkeleton';
+
 export const BattalionSettings: React.FC = () => {
     const { profile, organization } = useAuth();
     const { showToast } = useToast();
@@ -70,17 +72,7 @@ export const BattalionSettings: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="max-w-4xl mx-auto space-y-8">
-                <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm animate-pulse">
-                    <div className="h-8 bg-slate-200 rounded w-1/3 mb-6"></div>
-                    <div className="space-y-4">
-                        <div className="h-12 bg-slate-100 rounded"></div>
-                        <div className="h-12 bg-slate-100 rounded"></div>
-                    </div>
-                </div>
-            </div>
-        );
+        return <SettingsSkeleton />;
     }
 
     if (!battalion) return <div className="text-center text-slate-500 mt-8">שגיאה בטעינת נתוני הגדוד</div>;

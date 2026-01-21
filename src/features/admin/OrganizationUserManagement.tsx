@@ -10,6 +10,7 @@ import { PermissionEditor } from './PermissionEditor';
 import { Modal } from '../../components/ui/Modal';
 import { Select } from '../../components/ui/Select';
 import { useQueryClient } from '@tanstack/react-query';
+import { SettingsSkeleton } from '../../components/ui/SettingsSkeleton';
 
 interface OrganizationUserManagementProps {
     teams: Team[];
@@ -228,12 +229,7 @@ export const OrganizationUserManagement: React.FC<OrganizationUserManagementProp
         );
 
     if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-100 italic text-slate-400">
-                <CircleNotch size={32} className="animate-spin mb-4" />
-                <p>טוען רשימת משתמשים...</p>
-            </div>
-        );
+        return <SettingsSkeleton />;
     }
 
     return (

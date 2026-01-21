@@ -7,6 +7,7 @@ import { Users, MagnifyingGlass, PencilSimple, ShieldCheck, Shield, CircleNotch,
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { UserEditModal } from './UserEditModal';
+import { SettingsSkeleton } from '../../components/ui/SettingsSkeleton';
 
 export const GlobalUserManagement: React.FC = () => {
     const { profile: myProfile } = useAuth();
@@ -123,12 +124,7 @@ export const GlobalUserManagement: React.FC = () => {
     );
 
     if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-100 italic text-slate-400">
-                <CircleNotch size={32} className="animate-spin mb-4" />
-                <p>טוען רשימת משתמשים...</p>
-            </div>
-        );
+        return <SettingsSkeleton />;
     }
     // Render logic remains similar but uses UserEditModal
     return (
