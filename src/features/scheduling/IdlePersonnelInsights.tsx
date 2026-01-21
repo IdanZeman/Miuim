@@ -57,14 +57,10 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
             const timeInMinutes = referenceTime.getHours() * 60 + referenceTime.getMinutes();
             const isPresent = isStatusPresent(avail, timeInMinutes);
 
-            // Special handling: if status is explicitly 'arrival' and we have a start hour, 
-            // treat them as "Arriving Later" for UI purposes even if they just arrived or are about to arrive.
-            // This ensures the tag shows up for 10:00 arrivals when reference time is 10:00.
-            const isArrivingLater = avail.status === 'arrival' && !!avail.startHour;
 
             // If they are not present, they MUST be arriving later to be included.
             // If they ARE present, we include them (unless they are arriving later, which we handle via display logic)
-            if (!isPresent && !isArrivingLater) return false;
+            if (!isPresent) return false;
 
             // 2. No active shift now
             const activeShift = shifts.find(s => {
@@ -187,8 +183,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                 suggestions,
                 reasons,
                 team: teams.find(t => t.id === person.teamId),
-                effectiveAvailability: avail,
-                isArrivingLater: avail.status === 'arrival' && !!avail.startHour
+                effectiveAvailability: avail
             };
         }).sort((a, b) => {
             // Priority 1: Soldiers with suggestions first
@@ -375,14 +370,14 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                         <p className="text-xs text-slate-400">כולם משובצים או נמצאים במנוחה</p>
                     </div>
                 ) : (
-                    idlePeople.map(({ person, lastShift, nextShift, idleTimeMinutes, suggestions, reasons, team, effectiveAvailability, isArrivingLater }, idx) => {
+                    idlePeople.map(({ person, lastShift, nextShift, idleTimeMinutes, suggestions, reasons, team }) => {
                         const nextTask = nextShift ? taskTemplates.find(t => t.id === nextShift.taskId) : null;
                         const lastTask = lastShift ? taskTemplates.find(t => t.id === lastShift.taskId) : null;
 
                         return (
                             <div
                                 key={person.id}
-                                id={idx === 0 ? "tour-idle-card" : undefined}
+                                id="tour-idle-card"
                                 className="group relative bg-white border border-slate-100 rounded-2xl p-4 hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all duration-300 cursor-default"
                             >
                                 <div className="flex items-start justify-between mb-3">
@@ -403,28 +398,16 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                                             </div>
                                         </div>
                                     </div>
-                                    <div id={idx === 0 ? "tour-idle-time" : undefined} className="text-left">
-                                        {(isArrivingLater && effectiveAvailability.startHour) ? (
-                                            <>
-                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
-                                                    <ArrowRight size={12} weight="bold" />
-                                                    <span className="text-[11px] font-black">מגיע לבסיס בשעה {effectiveAvailability.startHour}</span>
-                                                </div>
-                                                <div className="text-[9px] font-bold text-slate-400 mt-1 uppercase text-right">שעת הגעה מתוכננת</div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                                    <Clock size={12} weight="bold" />
-                                                    <span className="text-[11px] font-black">{formatIdleTime(idleTimeMinutes)}</span>
-                                                </div>
-                                                <div className="text-[9px] font-bold text-slate-400 mt-1 uppercase text-right">זמין מסוף מנוחה</div>
-                                            </>
-                                        )}
+                                    <div id="tour-idle-time" className="text-left">
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                            <Clock size={12} weight="bold" />
+                                            <span className="text-[11px] font-black">{formatIdleTime(idleTimeMinutes)}</span>
+                                        </div>
+                                        <div className="text-[9px] font-bold text-slate-400 mt-1 uppercase text-right">זמין מסוף מנוחה</div>
                                     </div>
                                 </div>
 
-                                <div id={idx === 0 ? "tour-idle-history" : undefined} className="space-y-2 mb-4">
+                                <div id="tour-idle-history" className="space-y-2 mb-4">
                                     {lastTask && (
                                         <div className="flex items-center gap-2 text-[11px]">
                                             <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
@@ -452,7 +435,7 @@ export const IdlePersonnelInsights: React.FC<IdlePersonnelInsightsProps> = ({
                                 </div>
 
                                 {/* Smart Suggestions */}
-                                <div id={idx === 0 ? "tour-idle-suggestions" : undefined} className="space-y-2 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50">
+                                <div id="tour-idle-suggestions" className="space-y-2 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50">
                                     <div className="flex items-center gap-1.5 mb-2 px-1">
                                         <Sparkle size={14} weight="fill" className="text-indigo-500" />
                                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-tight">הצעות לשיבוץ מיידי</span>

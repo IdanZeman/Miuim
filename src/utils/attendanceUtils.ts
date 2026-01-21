@@ -92,7 +92,7 @@ export const getEffectiveAvailability = (
             const isDeparture = manual.endHour && manual.endHour !== '23:59';
             if (isArrival) status = 'arrival';
             else if (isDeparture) status = 'departure';
-        } else if (manual.isAvailable === false && status !== 'undefined') {
+        } else if (manual.isAvailable === false) {
             status = 'home';
         }
 
@@ -106,7 +106,7 @@ export const getEffectiveAvailability = (
 
     // Default return structure
     // Use last manual status if available, otherwise default to 'full'
-    let derivedStatus = 'undefined' as any;
+    let derivedStatus = 'full' as any;
     let isAvailable = true;
 
     // Check for APPROVED full day coverage
@@ -248,7 +248,7 @@ export const isStatusPresent = (
 ): boolean => {
     // 1. Basic Availability Check
     if (!avail.isAvailable) return false;
-    if (avail.status === 'home' || avail.status === 'unavailable' || avail.status === 'undefined') return false;
+    if (avail.status === 'home' || avail.status === 'unavailable') return false;
 
     // 2. Time-of-Day Check (Arrival/Departure)
     if (avail.status === 'arrival' && avail.startHour) {

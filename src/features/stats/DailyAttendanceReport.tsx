@@ -180,9 +180,7 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
 
                         const isBase = avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure';
 
-                        if (avail.status === 'undefined') {
-                            rowData.push('לא מוגדר');
-                        } else if (!isBase) {
+                        if (!isBase) {
                             const homeStatusLabels: Record<string, string> = {
                                 'leave_shamp': 'חופשה בשמפ',
                                 'gimel': 'ג\'',
@@ -521,17 +519,7 @@ export const DailyAttendanceReport: React.FC<DailyAttendanceReportProps> = ({
                                                         let content = null;
                                                         let cellBg = "bg-white";
 
-                                                        if (avail.status === 'undefined') {
-                                                            cellBg = "bg-slate-50";
-                                                            content = (
-                                                                <div className="flex flex-col items-center justify-center gap-0.5">
-                                                                    <div className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center mb-0.5">
-                                                                        <span className="text-[10px] font-black text-slate-500">?</span>
-                                                                    </div>
-                                                                    <span className="text-[10px] font-black text-slate-600">לא מוגדר</span>
-                                                                </div>
-                                                            );
-                                                        } else if (!isBase) {
+                                                        if (!isBase) {
                                                             const homeStatusLabels: Record<string, string> = {
                                                                 'leave_shamp': 'חופשה בשמפ',
                                                                 'gimel': 'ג\'',

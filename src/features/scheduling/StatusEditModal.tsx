@@ -15,17 +15,15 @@ interface StatusEditModalProps {
     dates?: string[]; // NEW: Support for multiple dates
     personName?: string;
     currentAvailability?: AvailabilitySlot;
-    prevAvailability?: AvailabilitySlot;
-    nextAvailability?: AvailabilitySlot;
     onClose: () => void;
-    onApply: (status: 'base' | 'home' | 'undefined', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: HomeStatusType) => void;
+    onApply: (status: 'base' | 'home', customTimes?: { start: string, end: string }, unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[], homeStatusType?: HomeStatusType) => void;
     defaultArrivalHour?: string;
     defaultDepartureHour?: string;
     disableJournal?: boolean;
 }
 
 export const StatusEditModal: React.FC<StatusEditModalProps> = ({
-    isOpen, date, dates, personName, currentAvailability, prevAvailability, nextAvailability, onClose, onApply,
+    isOpen, date, dates, personName, currentAvailability, onClose, onApply,
     defaultArrivalHour = '10:00',
     defaultDepartureHour = '14:00',
     disableJournal = false
@@ -36,7 +34,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
         : (date || dates?.[0] || '');
 
     // Main Status State
-    const [mainStatus, setMainStatus] = useState<'base' | 'home' | 'undefined'>('base');
+    const [mainStatus, setMainStatus] = useState<'base' | 'home'>('base');
     const [customStart, setCustomStart] = useState(defaultArrivalHour);
     const [customEnd, setCustomEnd] = useState(defaultDepartureHour);
     const [homeStatusType, setHomeStatusType] = useState<HomeStatusType>('leave_shamp'); // Default to leave_shamp
@@ -58,29 +56,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
     useEffect(() => {
         if (currentAvailability) {
             // Status
-            const s = currentAvailability.startHour || '00:00';
-            const e = currentAvailability.endHour || '23:59';
-
-            // Determine if this is an "incomplete" mandatory partial day (Missing report)
-            // Logic synced with AttendanceTable
-            let isImplicitArrival = false;
-            let isImplicitDeparture = false;
-
-            if (prevAvailability) {
-                const prevWasPartialReturn = prevAvailability.status === 'home' && prevAvailability.endHour && prevAvailability.endHour !== '23:59';
-                isImplicitArrival = (!prevAvailability.isAvailable || prevAvailability.status === 'home') && !prevWasPartialReturn;
-            }
-
-            if (nextAvailability) {
-                const nextWasPartialDeparture = nextAvailability.status === 'home' && nextAvailability.startHour && nextAvailability.startHour !== '00:00';
-                isImplicitDeparture = (!nextAvailability.isAvailable || nextAvailability.status === 'home') && !nextWasPartialDeparture;
-            }
-
-            const isMissingTime = (isImplicitArrival && s === '00:00') || (isImplicitDeparture && e === '23:59');
-
-            if (currentAvailability.status === 'undefined' || (isMissingTime && currentAvailability.status !== 'home' && !currentAvailability.homeStatusType)) {
-                setMainStatus('undefined');
-            } else if (currentAvailability.status === 'home' || !currentAvailability.isAvailable) {
+            if (currentAvailability.status === 'home' || !currentAvailability.isAvailable) {
                 setMainStatus('home');
             } else {
                 setMainStatus('base');
@@ -94,6 +70,8 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             }
 
             // Times & Type
+            const s = currentAvailability.startHour || '00:00';
+            const e = currentAvailability.endHour || '23:59';
             if (s !== '00:00' && (e === '23:59' || e === '00:00')) {
                 setCustomType('arrival');
                 setCustomStart(s);
@@ -114,12 +92,12 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             }
         } else {
             // Default new
-            setMainStatus('undefined');
+            setMainStatus('base');
             setUnavailableBlocks([]);
             setCustomType(null);
             setHomeStatusType('leave_shamp'); // Default
         }
-    }, [currentAvailability, prevAvailability, nextAvailability, isOpen, defaultArrivalHour, defaultDepartureHour]);
+    }, [currentAvailability, isOpen, defaultArrivalHour, defaultDepartureHour]);
 
     const handleApply = () => {
         let finalStart = '00:00';
@@ -363,7 +341,7 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                 : 'text-slate-400 hover:text-slate-600'
                                 }`}
                         >
-                            <Buildings size={18} weight="bold" />
+                            <Buildings size={18} weight="bold" className="transition-all duration-200" />
                             בבסיס
                         </button>
                         <button
@@ -373,18 +351,8 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
                                 : 'text-slate-400 hover:text-slate-600'
                                 }`}
                         >
-                            <House size={18} weight="bold" />
+                            <House size={18} weight="bold" className="transition-all duration-200" />
                             בבית
-                        </button>
-                        <button
-                            onClick={() => setMainStatus('undefined' as any)}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black transition-all duration-200 ease-out ${mainStatus as any === 'undefined'
-                                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5 transform scale-[1.02]'
-                                : 'text-slate-400 hover:text-slate-600'
-                                }`}
-                        >
-                            <div className="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center text-[10px]">?</div>
-                            לא מוגדר
                         </button>
                     </div>
 

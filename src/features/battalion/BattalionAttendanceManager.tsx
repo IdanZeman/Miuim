@@ -108,9 +108,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                         );
 
                         let cellText = '';
-                        if (avail.status === 'undefined') {
-                            cellText = 'לא מוגדר';
-                        } else if (avail.status === 'base' || avail.status === 'full') {
+                        if (avail.status === 'base' || avail.status === 'full') {
                             cellText = 'בבסיס';
                         } else if (avail.status === 'arrival') {
                             cellText = `הגעה\n${avail.startHour}`;
@@ -144,10 +142,7 @@ export const BattalionAttendanceManager: React.FC = () => {
 
                         cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-                        if (avail.status === 'undefined') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-                            cell.font = { color: { argb: 'FF6B7280' }, size: 9 };
-                        } else if (avail.status === 'home') {
+                        if (avail.status === 'home') {
                             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
                             cell.font = { color: { argb: 'FF991B1B' }, size: 9 };
                         } else if (avail.status === 'base' || avail.status === 'full') {
@@ -205,11 +200,7 @@ export const BattalionAttendanceManager: React.FC = () => {
                     let cellColor = '';
                     let textColor = '';
 
-                    if (avail.status === 'undefined') {
-                        statusLabel = 'לא מוגדר';
-                        cellColor = 'FFF3F4F6';
-                        textColor = 'FF6B7280';
-                    } else if (isAtBase) {
+                    if (isAtBase) {
                         statusLabel = avail.status === 'arrival' ? 'הגעה' : (avail.status === 'departure' ? 'יציאה' : 'בבסיס');
                         cellColor = 'FFD1FAE5'; // Green
                         textColor = 'FF065F46';

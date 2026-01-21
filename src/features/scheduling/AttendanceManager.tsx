@@ -275,7 +275,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         showToast('הגדרות סבב אישי עודכנו', 'success');
     };
 
-    const handleUpdateAvailability = async (personId: string, dateOrDates: string | string[], status: 'base' | 'home' | 'unavailable' | 'undefined', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType, forceConfirm = false) => {
+    const handleUpdateAvailability = async (personId: string, dateOrDates: string | string[], status: 'base' | 'home' | 'unavailable', customTimes?: { start: string, end: string }, newUnavailableBlocks?: { id: string, start: string, end: string, reason?: string, type?: string }[], homeStatusType?: import('@/types').HomeStatusType, forceConfirm = false) => {
         if (isViewer) return;
 
         const person = people.find(p => p.id === personId);
@@ -437,11 +437,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 newData.startHour = '00:00';
                 newData.endHour = '00:00';
                 newData.reason = 'אילוץ / לא זמין';
-                newData.homeStatusType = undefined;
-            } else if (status === 'undefined') {
-                newData.isAvailable = false;
-                newData.startHour = '00:00';
-                newData.endHour = '23:59';
                 newData.homeStatusType = undefined;
             }
 
@@ -617,9 +612,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         );
 
                         let cellText = '';
-                        if (avail.status === 'undefined') {
-                            cellText = 'לא מוגדר';
-                        } else if (avail.status === 'base' || avail.status === 'full') {
+                        if (avail.status === 'base' || avail.status === 'full') {
                             cellText = 'בבסיס';
                         } else if (avail.status === 'arrival') {
                             cellText = `הגעה\n${avail.startHour}`;
@@ -659,10 +652,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                             right: { style: 'thin' }
                         };
 
-                        if (avail.status === 'undefined') {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-                            cell.font = { color: { argb: 'FF6B7280' }, size: 9 };
-                        } else if (avail.status === 'home') {
+                        if (avail.status === 'home') {
                             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
                             cell.font = { color: { argb: 'FF991B1B' }, size: 9 };
                         } else if (avail.status === 'base' || avail.status === 'full') {
@@ -734,9 +724,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                         let detailLabel = '';
                         let reasonLabel = '';
 
-                        if (avail.status === 'undefined') {
-                            statusLabel = 'לא מוגדר';
-                        } else if (isAvailable) {
+                        if (isAvailable) {
                             if (avail.status === 'arrival' || (avail.startHour && avail.startHour !== '00:00')) {
                                 statusLabel = `הגעה (${avail.startHour || '00:00'})`;
                             } else if (avail.status === 'departure' || (avail.endHour && avail.endHour !== '23:59')) {
@@ -829,10 +817,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                     if (rowNumber === 1) return;
                     const statusCell = row.getCell(columns.length - 2); // Status column index
                     const statusVal = statusCell.value?.toString() || '';
-                    if (statusVal === 'לא מוגדר') {
-                        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
-                        statusCell.font = { color: { argb: 'FF6B7280' }, bold: true };
-                    } else if (statusVal.includes('בית') || statusVal === "ג'" || statusVal === 'נפקד' || statusVal.includes('שמ"פ')) {
+                    if (statusVal.includes('בית') || statusVal === "ג'" || statusVal === 'נפקד' || statusVal.includes('שמ"פ')) {
                         statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
                         statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
                     } else if (statusVal.startsWith('יציאה')) {
@@ -988,7 +973,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 onUpdateAvailability={handleUpdateAvailability}
                                 className="h-full"
                                 isViewer={isViewer}
-                                idPrefix="mobile-"
                             />
                         </div>
                     )}
@@ -1154,7 +1138,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                                 onShowPersonStats={(p) => setStatsEntity({ person: p })}
                                 onShowTeamStats={(t) => setStatsEntity({ team: t })}
                                 tasks={tasks}
-                                idPrefix="desktop-"
                             />
                         </div>
                     )}

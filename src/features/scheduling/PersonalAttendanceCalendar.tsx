@@ -11,8 +11,8 @@ import { ExportButton } from '@/components/ui/ExportButton';
 import { getPersonInitials } from '@/utils/nameUtils';
 import { StatusEditModal } from './StatusEditModal';
 import ExcelJS from 'exceljs';
-import { getAttendanceVisualProps } from '@/utils/attendanceVisuals';
-import { AvailabilitySlot } from '@/types';
+
+// ... imports
 
 interface PersonalAttendanceCalendarProps {
     person: Person;
@@ -51,7 +51,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
         setPerson(initialPerson);
     }, [initialPerson]);
 
-    const handleSaveRotation = (rotationSettings: NonNullable<Person['personalRotation']>) => {
+    const handleSaveRotation = (rotationSettings: any) => {
         const updatedPerson = {
             ...person,
             personalRotation: rotationSettings
@@ -86,7 +86,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
     };
 
     const handleSaveStatus = (
-        mainStatus: 'base' | 'home' | 'undefined',
+        mainStatus: 'base' | 'home',
         customTimes?: { start: string, end: string },
         unavailableBlocks?: { id: string, start: string, end: string, reason?: string }[],
         homeStatusType?: HomeStatusType
@@ -95,7 +95,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
         const dateKey = editingDate.toLocaleDateString('en-CA');
 
-        let newData: Partial<AvailabilitySlot> = {
+        let newData: any = {
             source: 'manual',
             unavailableBlocks // Save blocks
         };
@@ -104,12 +104,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             newData.isAvailable = false;
             newData.status = 'home';
             newData.homeStatusType = homeStatusType;
-            newData.startHour = '00:00';
-            newData.endHour = '23:59';
-        } else if (mainStatus === 'undefined') {
-            newData.isAvailable = false;
-            newData.status = 'undefined';
-            newData.homeStatusType = undefined;
+            // Clear times for home
             newData.startHour = '00:00';
             newData.endHour = '23:59';
         } else {
@@ -128,7 +123,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             ...person,
             dailyAvailability: {
                 ...(person.dailyAvailability || {}),
-                [dateKey]: newData as AvailabilitySlot
+                [dateKey]: newData
             }
         };
 
@@ -148,7 +143,75 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
 
     // Helper helper to avoid duplicating logic in render & export
     const getVisualProps = (date: Date) => {
-        return getAttendanceVisualProps(date, person, teamRotations, absences, hourlyBlockages);
+        const avail = getDisplayAvailability(date);
+
+        // Fetch prev/next for logic
+        const prevDate = new Date(date); prevDate.setDate(date.getDate() - 1);
+        const nextDate = new Date(date); nextDate.setDate(date.getDate() + 1);
+        const prevAvail = getDisplayAvailability(prevDate);
+        const nextAvail = getDisplayAvailability(nextDate);
+
+        // Defaults
+        let statusConfig = {
+            label: '',
+            bg: 'bg-white',
+            text: 'text-slate-400',
+            fillColor: 'FFFFFFFF', // ARGB White
+            textColor: 'FF94A3B8' // ARGB Slate-400
+        };
+
+        if (avail.status === 'base' || avail.status === 'full' || avail.status === 'arrival' || avail.status === 'departure') {
+
+            const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') || (avail.startHour !== '00:00');
+            const isDeparture = (!nextAvail.isAvailable || nextAvail.status === 'home') || (avail.endHour !== '23:59');
+            const isSingleDay = isArrival && isDeparture;
+
+            statusConfig = {
+                label: isSingleDay ? 'יום בודד' : isArrival ? 'הגעה' : isDeparture ? 'יציאה' : 'בבסיס',
+                bg: isArrival || isSingleDay ? 'bg-emerald-50' : isDeparture ? 'bg-amber-50' : 'bg-emerald-50',
+                text: isArrival || isSingleDay ? 'text-emerald-700' : isDeparture ? 'text-amber-700' : 'text-emerald-700',
+                fillColor: isArrival || isSingleDay ? 'FFECFDF5' : isDeparture ? 'FFFFFBEB' : 'FFECFDF5',
+                textColor: isArrival || isSingleDay ? 'FF047857' : isDeparture ? 'FFB45309' : 'FF047857'
+            };
+
+            if (avail.startHour !== '00:00' || avail.endHour !== '23:59') {
+                if (isSingleDay || (!isArrival && !isDeparture)) {
+                    statusConfig.label += ` ${avail.startHour}-${avail.endHour}`;
+                } else if (isArrival && avail.startHour !== '00:00') {
+                    statusConfig.label += ` ${avail.startHour}`;
+                } else if (isDeparture && avail.endHour !== '23:59') {
+                    statusConfig.label += ` ${avail.endHour}`;
+                }
+            }
+        } else if (avail.status === 'home') {
+            // Get home status type label
+            const homeStatusLabels: Record<string, string> = {
+                'leave_shamp': 'חופשה בשמפ',
+                'gimel': 'ג\'',
+                'absent': 'נפקד',
+                'organization_days': 'ימי התארגנות',
+                'not_in_shamp': 'לא בשמ"פ'
+            };
+            const homeTypeLabel = avail.homeStatusType ? homeStatusLabels[avail.homeStatusType] : 'חופשה בשמפ';
+
+            statusConfig = {
+                label: homeTypeLabel,
+                bg: 'bg-red-50',
+                text: 'text-red-600',
+                fillColor: 'FFF5F5F5',
+                textColor: 'FFEF4444'
+            };
+        } else if (avail.status === 'unavailable') {
+            statusConfig = {
+                label: 'אילוץ',
+                bg: 'bg-amber-50',
+                text: 'text-amber-700',
+                fillColor: 'FFFFFBEB',
+                textColor: 'FFB45309'
+            };
+        }
+
+        return statusConfig;
     };
 
     const generateAttendanceSummary = () => {
@@ -199,7 +262,6 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             else if (l.includes('הגעה')) emoji = '➡️';
             else if (l.includes('יציאה')) emoji = '⬅️';
             else if (l.includes('יום בודד')) emoji = '✅';
-            else if (l.includes('לא מוגדר')) emoji = '❓';
             else if (l.includes('אילוץ')) emoji = '❌';
 
             // Bold the status text
@@ -297,8 +359,7 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             const cell = currentRow.getCell(currentColumn);
 
             // Content: Day number + Status text
-            const fullLabel = currentProps.subLabel ? `${currentProps.label}\n(${currentProps.subLabel})` : currentProps.label;
-            cell.value = `${d}\n${fullLabel}`;
+            cell.value = `${d}\n${currentProps.label}`;
             cell.alignment = { wrapText: true, horizontal: 'center', vertical: 'top' };
 
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: currentProps.fillColor } };
@@ -378,19 +439,8 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
                                 flex flex-col items-center gap-1 text-center font-black leading-tight
                                 ${statusConfig.text}
                             `}>
-                                {statusConfig.label === 'לא מוגדר' ? (
-                                    <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center mb-0.5">
-                                        <span className="text-[11px] font-black">?</span>
-                                    </div>
-                                ) : (
-                                    <Icon size={20} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-0.5 opacity-90" />
-                                )}
-                                <span className="text-[11px] px-1 uppercase">{statusConfig.label}</span>
-                                {statusConfig.subLabel && (
-                                    <span className="text-[9px] font-bold opacity-60 whitespace-nowrap scale-90 -mt-0.5">
-                                        {statusConfig.subLabel}
-                                    </span>
-                                )}
+                                <Icon size={20} weight={statusConfig.bg.includes('500') ? "fill" : "bold"} className="mb-0.5 opacity-90" />
+                                <span className="text-[11px] px-1">{statusConfig.label}</span>
                             </div>
                         )}
 
@@ -610,25 +660,18 @@ export const PersonalAttendanceCalendar: React.FC<PersonalAttendanceCalendarProp
             }
 
             {/* Status Edit Modal - Unified */}
-            {editingDate && (() => {
-                const prevDate = new Date(editingDate); prevDate.setDate(editingDate.getDate() - 1);
-                const nextDate = new Date(editingDate); nextDate.setDate(editingDate.getDate() + 1);
-
-                return (
-                    <StatusEditModal
-                        isOpen={true}
-                        onClose={() => setEditingDate(null)}
-                        onApply={handleSaveStatus}
-                        personName={person.name}
-                        date={editingDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
-                        currentAvailability={getDisplayAvailability(editingDate)}
-                        prevAvailability={getDisplayAvailability(prevDate)}
-                        nextAvailability={getDisplayAvailability(nextDate)}
-                        defaultArrivalHour="10:00"
-                        defaultDepartureHour="14:00"
-                    />
-                );
-            })()}
+            {editingDate && (
+                <StatusEditModal
+                    isOpen={true}
+                    onClose={() => setEditingDate(null)}
+                    onApply={handleSaveStatus}
+                    personName={person.name}
+                    date={editingDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    currentAvailability={getDisplayAvailability(editingDate)}
+                    defaultArrivalHour="10:00"
+                    defaultDepartureHour="14:00"
+                />
+            )}
         </GenericModal >
     );
 };

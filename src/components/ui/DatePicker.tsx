@@ -14,10 +14,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ label, value, onChange, 
     const inputRef = useRef<HTMLInputElement>(null);
     const dateObj = value ? new Date(value) : new Date();
 
-    const handleClick = (e: React.MouseEvent) => {
-        // Prevent conflict if clicking directly on the input
-        if ((e.target as HTMLElement).tagName === 'INPUT') return;
-
+    const handleClick = () => {
         const input = inputRef.current as any;
         if (input) {
             try {
@@ -100,10 +97,7 @@ interface TimePickerProps {
 export const TimePicker: React.FC<TimePickerProps> = ({ label, value, onChange, className = '', id, variant = 'default' }) => {
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const handleClick = (e: React.MouseEvent) => {
-        // Prevent conflict if clicking directly on the input
-        if ((e.target as HTMLElement).tagName === 'INPUT') return;
-
+    const handleClick = () => {
         const input = inputRef.current as any;
         if (input) {
             try {
@@ -178,10 +172,7 @@ export const DateTimePicker: React.FC<DatePickerProps> = ({ label, value, onChan
     const inputRef = useRef<HTMLInputElement>(null);
     const dateObj = value ? new Date(value) : null;
 
-    const handleClick = (e: React.MouseEvent) => {
-        // Prevent conflict if clicking directly on the input
-        if ((e.target as HTMLElement).tagName === 'INPUT') return;
-
+    const handleClick = () => {
         const input = inputRef.current as any;
         if (input) {
             try {

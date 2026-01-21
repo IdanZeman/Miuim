@@ -239,9 +239,6 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
             override.status = 'base'; // DB status is base (custom hours)
             override.startTime = customTimes.start || '08:00';
             override.endTime = customTimes.end || '17:00';
-        } else if (status === 'undefined') {
-            override.startTime = '00:00';
-            override.endTime = '23:59'; // Full day undefined
         }
 
         setManualOverrides(prev => ({
@@ -569,7 +566,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                 endDate: new Date(endDate),
                 people: effectivePeople,
                 teams,
-                settings: { ...settings, optimization_mode: optimizationMode } as OrganizationSettings, // Pass mode
+                settings: { ...settings, optimizationMode }, // Pass mode
                 teamRotations,
                 constraints,
                 absences,
@@ -719,11 +716,9 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                             endTime = override.endTime || userDepartureHour;
                         } else if (override.status === 'custom') {
                             // Should be caught by 'base' usually, but just in case
+                            r.status = 'base';
+                            startTime = override.startTime || '00:00';
                             endTime = override.endTime || '23:59';
-                        } else if (override.status === 'undefined') {
-                            r.status = 'undefined' as any;
-                            startTime = '00:00';
-                            endTime = '23:59';
                         }
                     }
 
@@ -798,7 +793,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                         date: r.date,
                         person_id: r.person_id,
                         organization_id: settings.organization_id,
-                        status: r.status === 'base' ? 'base' : (r.status === 'undefined' ? 'undefined' : (r.status === 'unavailable' ? 'unavailable' : 'home')),
+                        status: r.status === 'base' ? 'base' : (r.status === 'unavailable' ? 'unavailable' : 'home'),
                         source: override ? 'override' : 'algorithm',
                         start_time: startTime,
                         end_time: endTime
@@ -1970,15 +1965,7 @@ export const RotaWizardModal: React.FC<RotaWizardModalProps> = ({
                                                             const constraintText = isExitRequest ? (relevantAbsence.reason === 'EMPTY_REASON' ? 'בקשת יציאה' : relevantAbsence.reason) : '';
 
 
-
-                                                            if (status === 'undefined') {
-                                                                cellClass = "bg-slate-100 text-slate-500 border-l border-slate-100";
-                                                                content = (
-                                                                    <div className="w-full h-full flex flex-col items-center justify-center text-[10px] items-center relative">
-                                                                        <span className="font-bold">לא מוגדר</span>
-                                                                    </div>
-                                                                );
-                                                            } else if (status === 'home' || status === 'unavailable') {
+                                                            if (status === 'home' || status === 'unavailable') {
                                                                 const isOverridden = manualOverrides[`${person.id}-${dateKey}`];
 
                                                                 if (!isOverridden && prevStatus === 'base') {

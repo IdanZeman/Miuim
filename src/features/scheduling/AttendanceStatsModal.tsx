@@ -171,7 +171,7 @@ export const AttendanceStatsModal: React.FC<AttendanceStatsModalProps> = ({
                 dayBreakdown.push({
                     date: d,
                     status: (av.status === 'base' || av.status === 'full' || av.status === 'arrival') ? 'base' : 'home',
-                    detail: av.status === 'undefined' ? 'לא מוגדר' : (av.homeStatusType === 'leave_shamp' ? 'חופשה' : av.homeStatusType === 'gimel' ? 'גימלים' : av.homeStatusType === 'absent' ? 'נפקד' : av.homeStatusType === 'organization_days' ? 'התארגנות' : undefined)
+                    detail: av.homeStatusType === 'leave_shamp' ? 'חופשה' : av.homeStatusType === 'gimel' ? 'גימלים' : av.homeStatusType === 'absent' ? 'נפקד' : av.homeStatusType === 'organization_days' ? 'התארגנות' : undefined
                 });
             });
 

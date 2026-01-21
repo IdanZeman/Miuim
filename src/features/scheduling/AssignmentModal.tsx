@@ -345,7 +345,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             let isHome = false;
             let isBlocked = false;
 
-            if (availability.status === 'home' || availability.status === 'undefined') {
+            if (availability.status === 'home') {
                 isAvailable = false;
                 isHome = true;
             } else if (availability.source === 'manual') {

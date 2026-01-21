@@ -53,7 +53,7 @@ export const StatusEditPopover: React.FC<StatusEditPopoverProps> = ({
         >
             <div
                 className={`bg-white shadow-2xl flex flex-col gap-1 transition-all duration-300 ${isMobile
-                    ? 'fixed bottom-0 left-0 right-0 rounded-t-[2rem] p-4 pb-8 animate-in slide-in-from-bottom duration-300 ease-out'
+                    ? 'fixed bottom-0 left-0 right-0 rounded-t-[2rem] p-6 pb-10 animate-in slide-in-from-bottom duration-300 ease-out'
                     : 'absolute rounded-lg shadow-xl border border-slate-200 p-2 min-w-[200px] animate-in fade-in zoom-in-95 duration-100'
                     }`}
                 style={isMobile ? {} : {
