@@ -317,17 +317,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
         <header className="sticky top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50 h-16 flex-none">
             <div className="max-w-[1400px] mx-auto px-4 lg:px-6 h-full flex items-center justify-between">
 
-                <div className="flex items-center gap-4 min-w-[200px]">
+                <div className="flex items-center gap-4 sm:min-w-[200px] shrink-0">
                     <button
                         onClick={() => handleNav('home')}
-                        className="flex items-center gap-3 px-2 py-1.5 rounded-xl transition-all group"
+                        className="flex items-center gap-2 sm:gap-3 px-1 sm:px-2 py-1.5 rounded-xl transition-all group"
                     >
-                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden shrink-0">
-                            <img src="/images/logo.webp" alt="Logo" className="w-8 h-8 object-contain" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-full flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden shrink-0">
+                            <img src="/images/logo.webp" alt="Logo" className="w-7 h-7 sm:w-8 sm:h-8 object-contain" />
                         </div>
 
-                        <div className="flex flex-col items-start leading-tight text-right">
-                            <span className="text-base font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
+                        <div className="flex flex-col items-start leading-tight text-right overflow-hidden">
+                            <span className="text-sm sm:text-base font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors truncate max-w-[120px] sm:max-w-none">
                                 {battalionName ? battalionName : (organization?.name || 'מערכת ניהול')}
                             </span>
                         </div>
@@ -348,7 +348,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setView, isPublic =
                     </nav>
                 )}
 
-                <div className="flex items-center justify-end gap-3 min-w-[200px]">
+                <div className="flex items-center justify-end gap-2 sm:gap-3 sm:min-w-[200px] shrink-0">
                     {!isPublic && (
                         <>
                             <button
