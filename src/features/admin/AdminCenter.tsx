@@ -40,17 +40,17 @@ export const AdminCenter: React.FC<AdminCenterProps> = ({ initialTab, onClearNav
     if (!organization) return null;
 
     return (
-        <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-8rem)] relative z-20" dir="rtl">
+        <div className="bg-white rounded-[1.5rem] sm:rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-8rem)] relative z-20" dir="rtl">
             {/* Unified Premium Header with Tabs */}
             <div className="bg-white border-b border-slate-100 shrink-0">
-                <div className="flex flex-col md:flex-row items-center justify-between px-8 py-6 md:h-24 gap-4">
-                    <div className="flex items-center gap-5 w-full md:w-auto">
-                        <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200">
-                            <ShieldIcon size={28} weight="duotone" />
+                <div className="flex flex-col md:flex-row items-center justify-between px-4 sm:px-8 py-4 sm:py-6 md:h-24 gap-4">
+                    <div className="flex items-center gap-4 sm:gap-5 w-full md:w-auto">
+                        <div className="w-12 h-12 md:w-14 md:h-14 bg-slate-900 text-white rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200">
+                            <ShieldIcon size={24} className="md:size-[28px]" weight="duotone" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none">מרכז ניהול ובקרה</h2>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                            <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-none">מרכז ניהול ובקרה</h2>
+                            <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1.5 md:mt-2 flex items-center gap-2">
                                 Admin Control Center
                                 <span className="w-1 h-1 bg-slate-300 rounded-full" />
                                 {organization?.name}
@@ -59,7 +59,7 @@ export const AdminCenter: React.FC<AdminCenterProps> = ({ initialTab, onClearNav
                     </div>
 
                     {/* Tab Switcher */}
-                    <div className="flex bg-slate-50 border border-slate-200/60 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto relative z-30">
+                    <div className="flex bg-slate-50 border border-slate-200/60 p-1 rounded-xl sm:rounded-2xl w-full md:w-auto overflow-x-auto relative z-30">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
@@ -88,7 +88,7 @@ export const AdminCenter: React.FC<AdminCenterProps> = ({ initialTab, onClearNav
                         className="h-full"
                     >
                         {activeTab === 'analytics' ? (
-                            <div className="h-full overflow-y-auto custom-scrollbar p-8 pt-4">
+                            <div className="h-full overflow-y-auto custom-scrollbar p-4 sm:p-8 pt-2 sm:pt-4">
                                 <AnalyticsDashboard isEmbedded={true} onNavigate={setActiveTab} />
                             </div>
                         ) : (

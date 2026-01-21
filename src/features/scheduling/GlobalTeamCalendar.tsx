@@ -68,42 +68,67 @@ export const GlobalTeamCalendar: React.FC<GlobalTeamCalendarProps> = ({
             // Mobile Heatmap Logic: Background Color based on status
             // Green (>80%), Yellow (50-80%), Red (<50%)
             let bgClass = 'bg-white';
-            let dateColorClass = isToday ? 'text-blue-600' : 'text-slate-800';
+            let borderClass = 'border-slate-200';
+            let dateColorClass = isToday ? 'text-white' : 'text-slate-800';
 
-            if (percentage >= 80) bgClass = 'bg-emerald-50/80';
-            else if (percentage >= 50) bgClass = 'bg-amber-50/80';
-            else if (totalPeople > 0) bgClass = 'bg-red-50/80';
-
-            // Desktop: Keep stroke/border feel? Or unify? User wants "native mobile app". 
-            // We will stick to the "Cell" design.
+            if (percentage >= 80) bgClass = 'bg-emerald-50/40';
+            else if (percentage >= 50) bgClass = 'bg-amber-50/40';
+            else if (totalPeople > 0) bgClass = 'bg-rose-50/40';
 
             days.push(
                 <div
                     key={d}
                     onClick={() => onDateClick(date)}
                     className={`
-                        min-h-[80px] md:min-h-[140px] 
-                        border-b border-r border-slate-100 last:border-r-0 
-                        relative p-3 md:p-4
-                        transition-all active:scale-[0.98] cursor-pointer 
-                        flex flex-col items-center justify-center gap-1
+                        min-h-[90px] md:min-h-[140px] 
+                        border-b border-r ${borderClass}
+                        relative p-2 md:p-4
+                        transition-all duration-200 hover:bg-slate-50/50 cursor-pointer 
+                        flex flex-col items-center justify-center gap-1.5 md:gap-3
+                        group active:scale-95
                         ${bgClass}
                     `}
                 >
                     {/* Date Number */}
-                    <span className={`text-xl md:text-3xl font-black ${dateColorClass} ${isToday ? 'bg-blue-600 text-white w-7 h-7 md:w-12 md:h-12 flex items-center justify-center rounded-full shadow-lg shadow-blue-200' : ''}`}>
+                    <span className={`
+                        text-xl md:text-4xl font-black 
+                        flex items-center justify-center 
+                        transition-transform group-hover:scale-110
+                        ${isToday
+                            ? 'bg-blue-600 text-white w-9 h-9 md:w-16 md:h-16 rounded-2xl shadow-lg shadow-blue-200'
+                            : dateColorClass
+                        }
+                    `}>
                         {d}
                     </span>
 
                     {/* Attendance Indicator */}
-                    <div className="flex flex-col items-center">
-                        <span className={`text-[11px] md:text-xl font-black ${percentage >= 80 ? 'text-emerald-700' : percentage >= 50 ? 'text-amber-700' : 'text-red-700'} whitespace-nowrap`} dir="ltr">
-                            {presentPeople} / {totalPeople}
-                        </span>
-                        <span className="hidden md:block text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                    <div className="flex flex-col items-center gap-0.5">
+                        <div className={`
+                            flex items-center px-1.5 md:px-3 py-0.5 md:py-1 rounded-full
+                            ${percentage >= 80 ? 'bg-emerald-100 text-emerald-800' :
+                                percentage >= 50 ? 'bg-amber-100 text-amber-800' :
+                                    'bg-rose-100 text-rose-800'}
+                        `}>
+                            <div className="flex items-baseline gap-0.5" dir="ltr">
+                                <span className="text-[11px] md:text-xl font-black">
+                                    {presentPeople}
+                                </span>
+                                <span className="text-[10px] md:text-lg font-bold opacity-40">/</span>
+                                <span className="text-[9px] md:text-base font-bold opacity-80">
+                                    {totalPeople}
+                                </span>
+                            </div>
+                        </div>
+                        <span className="hidden md:block text-[10px] text-slate-400 font-extrabold uppercase tracking-tighter opacity-70">
                             {percentage}% נוכחים
                         </span>
                     </div>
+
+                    {/* Today Dot Alternative (if not using the big blue box) */}
+                    {isToday && !isToday && (
+                        <div className="absolute top-2 right-2 w-2 h-2 bg-blue-600 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.6)]" />
+                    )}
                 </div>
             );
         }
