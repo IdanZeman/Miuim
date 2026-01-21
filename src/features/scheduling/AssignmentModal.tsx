@@ -273,6 +273,21 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 if (p.teamId !== selectedTeamFilter) return false;
             }
 
+            // Scheduling Constraints (NEW: Check for 'never_assign' and 'always_assign')
+            const isNeverAssign = constraints.some(c =>
+                c.type === 'never_assign' &&
+                c.taskId === task.id &&
+                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+            );
+
+            const isPinnedToDifferentTask = constraints.some(c =>
+                c.type === 'always_assign' &&
+                c.taskId !== task.id &&
+                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+            );
+
+            if ((isNeverAssign || isPinnedToDifferentTask) && !searchTerm) return false;
+
             // Availability Check
             const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
 
@@ -344,6 +359,30 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             let isAvailable = true;
             let isHome = false;
             let isBlocked = false;
+
+            // NEW: Check for constraints
+            const isNeverAssign = constraints.some(c =>
+                c.type === 'never_assign' &&
+                c.taskId === task.id &&
+                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+            );
+
+            const isPinnedToDifferentTask = constraints.some(c =>
+                c.type === 'always_assign' &&
+                c.taskId !== task.id &&
+                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+            );
+
+            const isPinnedToThisTask = constraints.some(c =>
+                c.type === 'always_assign' &&
+                c.taskId === task.id &&
+                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+            );
+
+            if (isNeverAssign || isPinnedToDifferentTask) {
+                isAvailable = false;
+                isBlocked = true;
+            }
 
             if (availability.status === 'home') {
                 isAvailable = false;
@@ -431,6 +470,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                     isAvailable,
                     isHome,
                     isBlocked,
+                    isNeverAssign,
+                    isPinnedToDifferentTask,
+                    isPinnedToThisTask,
                     availabilityStatus: availability.status,
                     hoursSinceLast: lastShift ? (thisStart.getTime() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
                     liveHoursSinceLast: lastShift ? (Date.now() - new Date(lastShift.endTime).getTime()) / (1000 * 60 * 60) : Infinity,
@@ -444,6 +486,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
         });
 
         return withMetrics.sort((a, b) => {
+            // Priority -1: Pinned to this task (HIGHEST)
+            if (a.metrics.isPinnedToThisTask !== b.metrics.isPinnedToThisTask) {
+                return a.metrics.isPinnedToThisTask ? -1 : 1;
+            }
+
             // Priority 0: Available first (if not searching specifically)
             if (a.metrics.isAvailable !== b.metrics.isAvailable) {
                 return a.metrics.isAvailable ? -1 : 1;
@@ -525,6 +572,38 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
             if (p.isActive === false) score -= 20000;
             if (selectedShift.assignedPersonIds.includes(p.id)) score -= 10000;
+
+            // NEW: Check for never_assign constraint
+            const isNeverAssign = constraints.some(c =>
+                c.type === 'never_assign' &&
+                c.taskId === task.id &&
+                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+            );
+            if (isNeverAssign) {
+                score -= 100000; // Critical penalty
+                reasons.push('אילוץ: לעולם לא לשבץ');
+            }
+
+            const isPinnedToDifferentTask = constraints.some(c =>
+                c.type === 'always_assign' &&
+                c.taskId !== task.id &&
+                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+            );
+            if (isPinnedToDifferentTask) {
+                const otherTaskName = taskTemplates.find(tt => tt.id === constraints.find(c => c.type === 'always_assign' && c.taskId !== task.id && (c.personId === p.id || (c.teamId && p.teamId === c.teamId)))?.taskId)?.name || 'משימה אחרת';
+                score -= 100000;
+                reasons.push(`מיועד ל: ${otherTaskName}`);
+            }
+
+            const isPinnedToThisTask = constraints.some(c =>
+                c.type === 'always_assign' &&
+                c.taskId === task.id &&
+                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+            );
+            if (isPinnedToThisTask) {
+                score += 50000;
+                reasons.push('העדפה: שבץ רק לזה');
+            }
 
             // Strict Availability Check (Same as list)
             const availability = getEffectiveAvailability(p, selectedDate, teamRotations, absences, hourlyBlockages);
@@ -710,6 +789,28 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
             })) {
                 isCurrentlyAvailable = false;
                 unavailReason = 'חסימה בלו״ז';
+            }
+
+            // NEW: Final Assignment Enforcement check for never_assign
+            const isNeverAssign = constraints.some(c =>
+                c.type === 'never_assign' &&
+                c.taskId === task.id &&
+                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+            );
+            if (isNeverAssign) {
+                isCurrentlyAvailable = false;
+                unavailReason = 'קיים אילוץ "לעולם לא לשבץ" למשימה זו';
+            }
+
+            const isPinnedToDifferentTask = constraints.some(c =>
+                c.type === 'always_assign' &&
+                c.taskId !== task.id &&
+                (c.personId === p.id || (c.teamId && p.teamId === c.teamId) || (c.roleId && (p.roleIds || [p.roleId]).includes(c.roleId)))
+            );
+            if (isPinnedToDifferentTask) {
+                const otherTask = taskTemplates.find(tt => tt.id === constraints.find(c => c.type === 'always_assign' && c.taskId !== task.id && (c.personId === p.id || (c.teamId && p.teamId === c.teamId)))?.taskId);
+                isCurrentlyAvailable = false;
+                unavailReason = `מיועד בלעדית למשימה: ${otherTask?.name || 'אחרת'}`;
             }
         }
 
@@ -1188,9 +1289,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                                                     <span className="text-[9px] text-slate-500 font-bold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 whitespace-nowrap">
                                                         {teams.find(t => t.id === p.teamId)?.name}
                                                     </span>
-                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${!metrics.isAvailable ? (metrics.isHome || metrics.isBlocked ? 'bg-red-600 text-white shadow-md ring-2 ring-red-100' : 'bg-amber-500 text-white shadow-sm') : metrics.hasOverlap ? 'bg-red-500 text-white shadow-sm' : metrics.dailyLoad === 0 ? 'bg-blue-600 text-white shadow-md' : metrics.dailyLoad > 8 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-slate-100 text-slate-600'}`}>
-                                                        {!metrics.isAvailable ? (metrics.isHome ? <House size={10} weight="fill" /> : metrics.isBlocked ? <Prohibit size={10} weight="fill" /> : <WarningCircle size={10} weight="fill" />) : metrics.hasOverlap ? <WarningCircle size={10} weight="fill" /> : metrics.dailyLoad === 0 && <Sparkles size={10} weight="fill" />}
-                                                        {!metrics.isAvailable ? (metrics.isHome ? 'בבית' : metrics.isBlocked ? 'חסימה בלו״ז' : 'לא זמין') : metrics.hasOverlap ? 'חפיפת זמנים' : metrics.dailyLoad === 0 ? 'לא שובץ היום' : `שובץ ${metrics.dailyLoad.toFixed(1)} ש׳`}
+                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0 ${!metrics.isAvailable ? (metrics.isNeverAssign || metrics.isPinnedToDifferentTask ? 'bg-slate-900 text-white shadow-lg' : metrics.isHome || metrics.isBlocked ? 'bg-red-600 text-white shadow-md ring-2 ring-red-100' : 'bg-amber-500 text-white shadow-sm') : metrics.isPinnedToThisTask ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-100' : metrics.hasOverlap ? 'bg-red-500 text-white shadow-sm' : metrics.dailyLoad === 0 ? 'bg-blue-600 text-white shadow-md' : metrics.dailyLoad > 8 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-slate-100 text-slate-600'}`}>
+                                                        {!metrics.isAvailable ? (metrics.isNeverAssign ? <Prohibit size={10} weight="fill" /> : metrics.isPinnedToDifferentTask ? <Prohibit size={10} weight="fill" /> : metrics.isHome ? <House size={10} weight="fill" /> : metrics.isBlocked ? <Prohibit size={10} weight="fill" /> : <WarningCircle size={10} weight="fill" />) : metrics.isPinnedToThisTask ? <CheckCircle size={10} weight="fill" /> : metrics.hasOverlap ? <WarningCircle size={10} weight="fill" /> : metrics.dailyLoad === 0 && <Sparkles size={10} weight="fill" />}
+                                                        {!metrics.isAvailable ? (metrics.isNeverAssign ? 'אילוץ: לעולם לא לשבץ' : metrics.isPinnedToDifferentTask ? 'מיועד למשימה אחרת' : metrics.isHome ? 'בבית' : metrics.isBlocked ? 'חסימה בלו״ז' : 'לא זמין') : metrics.isPinnedToThisTask ? 'מיועד למשימה זו' : metrics.hasOverlap ? 'חפיפת זמנים' : metrics.dailyLoad === 0 ? 'לא שובץ היום' : `שובץ ${metrics.dailyLoad.toFixed(1)} ש׳`}
                                                     </span>
                                                 </div>
                                             </div>
