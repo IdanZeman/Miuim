@@ -740,7 +740,7 @@ export const OrganizationSettings: React.FC<{ teams: Team[] }> = ({ teams = [] }
         { id: 'members', label: 'חברים', icon: Users },
         { id: 'messages', label: 'הודעות ועדכונים', icon: SpeakerHigh },
         { id: 'battalion', label: 'שיוך גדודי', icon: Anchor },
-        { id: 'snapshots', label: 'גרסאות מערכת', icon: ClockCounterClockwise },
+        { id: 'snapshots', label: 'גיבויים', icon: ClockCounterClockwise },
     ];
 
     return (

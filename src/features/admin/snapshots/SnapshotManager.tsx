@@ -192,7 +192,7 @@ export const SnapshotManager: React.FC<SnapshotManagerProps> = ({ organizationId
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 md:mb-2">
                 <div>
-                    <h2 className="text-lg md:text-xl font-black text-slate-800 text-right">גרסאות מערכת (Snapshots)</h2>
+                    <h2 className="text-lg md:text-xl font-black text-slate-800 text-right">גיבויים (Snapshots)</h2>
                     <p className="text-xs md:text-sm text-slate-500 font-bold text-right">שמור ושחזר את מצב המערכת בנקודות זמן שונות</p>
                 </div>
                 <Button
