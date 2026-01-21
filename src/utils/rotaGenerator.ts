@@ -366,11 +366,40 @@ const generateRoster = (params: RosterGenerationParams): RosterGenerationResult 
     const constraintMap = new Map<string, Set<number>>();
     people.forEach(p => {
         const set = new Set<number>();
-        // Add manual availability
+        // Add manual availability & propagate intents (Sequence Gap Repair)
          if (p.dailyAvailability) {
-            Object.entries(p.dailyAvailability).forEach(([dStr, avail]) => {
-                if (!avail.isAvailable && avail.source !== 'algorithm') {
-                    set.add(getDayIndex(new Date(dStr), startDate));
+            const sortedEntries = Object.entries(p.dailyAvailability)
+                .filter(([_, v]) => v.source !== 'algorithm')
+                .sort((a, b) => a[0].localeCompare(b[0]));
+
+            sortedEntries.forEach(([dStr, avail], idx) => {
+                const dayIndex = getDayIndex(new Date(dStr), startDate);
+                if (dayIndex < 0 || dayIndex >= totalDays) return;
+
+                // 1. Direct Constraint (Home/Unavailable)
+                if (!avail.isAvailable) {
+                    set.add(dayIndex);
+                }
+
+                // 2. Intent Propagation (Forward from Departure/Home)
+                // If this is a Departure or Home day, propagate "Home" intent until next manual Arrival/Base
+                const isDeparture = avail.status === 'departure' || (avail.endHour && avail.endHour !== '23:59' && avail.isAvailable !== false);
+                const isHome = !avail.isAvailable || avail.status === 'home';
+                
+                if (isDeparture || isHome) {
+                    const nextManual = sortedEntries.slice(idx + 1).find(([_, v]) => {
+                        const isArrival = v.status === 'arrival' || (v.startHour && v.startHour !== '00:00' && v.isAvailable !== false);
+                        const isBase = v.status === 'base' || v.status === 'full' || (v.isAvailable && !v.startHour && !v.endHour);
+                        return isArrival || isBase;
+                    });
+
+                    const stopDay = nextManual 
+                        ? getDayIndex(new Date(nextManual[0]), startDate)
+                        : totalDays;
+
+                    for (let i = dayIndex + 1; i < stopDay; i++) {
+                        if (i >= 0 && i < totalDays) set.add(i);
+                    }
                 }
             });
         }

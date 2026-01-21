@@ -381,7 +381,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                         const prevAvail = getEffectiveAvailability(person, prevDate, teamRotations, absences, hourlyBlockages);
                                                         const nextAvail = getEffectiveAvailability(person, nextDate, teamRotations, absences, hourlyBlockages);
 
-                                                        const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home') || (avail.startHour !== '00:00');
+                                                        const isArrival = (!prevAvail.isAvailable || prevAvail.status === 'home' || prevAvail.status === 'departure') || (avail.startHour !== '00:00');
 
                                                         // Modified departure logic: Only true if explicitly set
                                                         const isExplicitDeparture = (avail.endHour !== '23:59');
@@ -1054,7 +1054,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                                                                         const prevWasPartialReturn = prevAvail.status === 'home' && prevAvail.endHour && prevAvail.endHour !== '23:59' && prevAvail.endHour !== '00:00';
                                                                         const nextWasPartialDeparture = nextAvail.status === 'home' && nextAvail.startHour && nextAvail.startHour !== '00:00';
 
-                                                                        const isArrival = ((!prevAvail.isAvailable || prevAvail.status === 'home') && !prevWasPartialReturn) || (avail.startHour !== '00:00');
+                                                                        const isArrival = ((!prevAvail.isAvailable || prevAvail.status === 'home' || prevAvail.status === 'departure') && !prevWasPartialReturn) || (avail.startHour !== '00:00');
 
                                                                         const isExplicitDeparture = (avail.endHour !== '23:59');
                                                                         const nextIsHomeOrUnavailable = (!nextAvail.isAvailable || nextAvail.status === 'home') && !nextWasPartialDeparture;

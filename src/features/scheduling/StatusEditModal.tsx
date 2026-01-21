@@ -81,16 +81,21 @@ export const StatusEditModal: React.FC<StatusEditModalProps> = ({
             // Times & Type
             const s = currentAvailability.startHour || '00:00';
             const e = currentAvailability.endHour || '23:59';
+
             if (s !== '00:00' && (e === '23:59' || e === '00:00')) {
                 setCustomType('arrival');
                 setCustomStart(s);
-            } else if ((s === '00:00') && e !== '23:59' && e !== '00:00') {
+            } else if (s === '00:00' && e !== '23:59' && e !== '00:00') {
                 setCustomType('departure');
                 setCustomEnd(e);
+            } else if (s !== '00:00' && e !== '23:59' && e !== '00:00') {
+                setCustomType('custom');
+                setCustomStart(s);
+                setCustomEnd(e);
             } else {
-                setCustomType(null); // Simple logic
-                setCustomStart(s === '00:00' ? defaultArrivalHour : s);
-                setCustomEnd(e === '23:59' ? defaultDepartureHour : e);
+                setCustomType(null); // Full day (00:00 - 23:59)
+                setCustomStart(defaultArrivalHour);
+                setCustomEnd(defaultDepartureHour);
             }
 
             // Blocks

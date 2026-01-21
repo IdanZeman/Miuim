@@ -79,10 +79,12 @@ export const getEffectiveAvailability = (
         });
     });
 
-    // Check person.dailyAvailability first (legacy/manual overrides)
-    if (person.dailyAvailability && person.dailyAvailability[dateKey]) {
+    // C. Check Current Date Manual Entry
+    const dbEntry = person.dailyAvailability?.[dateKey];
+    const isManualEntry = dbEntry && dbEntry.source !== 'algorithm';
 
-        const manual = person.dailyAvailability[dateKey];
+    if (isManualEntry) {
+        const manual = dbEntry;
         let status = manual.status || (manual.isAvailable === false ? 'home' : 'full');
         if (status === 'base') status = 'full';
 
@@ -122,28 +124,33 @@ export const getEffectiveAvailability = (
         // Absences might result in specific home types in the future, but for now generic
     }
 
-    // Apply last manual status from history (Chronological Propagation)
+    // D. Apply last manual status from history (Chronological Propagation)
+    // IMPORTANT: We only propagate from NON-ALGORITHM manual entries
     if (!fullDayAbsence) {
         const availKeys = person.dailyAvailability ? Object.keys(person.dailyAvailability) : [];
-        let maxPrevDate = '';
+        let maxPrevManualDate = '';
 
         for (const k of availKeys) {
-            if (k < dateKey && k > maxPrevDate) {
-                maxPrevDate = k;
+            if (k < dateKey && k > maxPrevManualDate) {
+                const entry = person.dailyAvailability![k];
+                if (entry.source !== 'algorithm') {
+                    maxPrevManualDate = k;
+                }
             }
         }
 
-        if (maxPrevDate && person.dailyAvailability) {
-            const prevEntry = person.dailyAvailability[maxPrevDate];
+        if (maxPrevManualDate && person.dailyAvailability) {
+            const prevEntry = person.dailyAvailability[maxPrevManualDate];
             let prevStatus = prevEntry.status || (prevEntry.isAvailable === false ? 'home' : 'full');
             if (prevStatus === 'base') prevStatus = 'full';
 
-            // Derive arrival/departure for propagation
-            if (prevStatus === 'full' && prevEntry.isAvailable !== false) {
+            // Derive arrival/departure for propagation even if status isn't 'full'
+            if (prevEntry.isAvailable !== false) {
                 const isArrival = prevEntry.startHour && prevEntry.startHour !== '00:00';
                 const isDeparture = prevEntry.endHour && prevEntry.endHour !== '23:59';
-                if (isArrival) prevStatus = 'arrival';
-                if (isDeparture) prevStatus = 'departure'; // Departure wins for next-day propagation
+                // Departure takes priority for next-day propagation
+                if (isDeparture) prevStatus = 'departure';
+                else if (isArrival) prevStatus = 'arrival';
             }
             
             if (['home', 'unavailable', 'leave', 'gimel', 'not_in_shamp', 'organization_days', 'absent', 'departure'].includes(prevStatus)) {
@@ -155,14 +162,14 @@ export const getEffectiveAvailability = (
                 } else if (['gimel', 'leave_shamp', 'absent', 'organization_days', 'not_in_shamp'].includes(prevStatus)) {
                     derivedHomeStatusType = prevStatus as import('@/types').HomeStatusType;
                 } else {
-                    derivedHomeStatusType = 'leave_shamp'; // Default to vacation for generic home/departure
+                    derivedHomeStatusType = 'leave_shamp'; 
                 }
             } else if (['base', 'full', 'arrival'].includes(prevStatus)) {
                 derivedStatus = 'full';
                 isAvailable = true;
             }
         } else if (person.lastManualStatus) {
-            // Fallback to global last manual status if no history found in window
+            // Fallback to global last manual status
              if (person.lastManualStatus.status === 'home' || person.lastManualStatus.status === 'unavailable') {
                 derivedStatus = 'home';
                 isAvailable = false;
@@ -171,6 +178,36 @@ export const getEffectiveAvailability = (
                 derivedStatus = 'full';
                 isAvailable = true;
             }
+        }
+    }
+
+    // E. Handle Algorithm Entry (Override propagation ONLY if manual propagation didn't find "Home" intent)
+    // If propagation says we are Home (due to manual departure), we MUST ignore the algorithm's 'base'
+    if (dbEntry && dbEntry.source === 'algorithm') {
+        if (isAvailable === false && derivedStatus === 'home' && (dbEntry.status === 'base' || dbEntry.status === 'full' || dbEntry.isAvailable !== false)) {
+            // Manual intent (Home) wins
+        } else {
+            // Otherwise, algorithm entry provides more specific data for this date
+            let status = dbEntry.status || (dbEntry.isAvailable === false ? 'home' : 'full');
+            if (status === 'base') status = 'full';
+            
+            // Derive arrival/departure
+            if (status === 'full' && dbEntry.isAvailable !== false) {
+                const isArrival = dbEntry.startHour && dbEntry.startHour !== '00:00';
+                const isDeparture = dbEntry.endHour && dbEntry.endHour !== '23:59';
+                if (isArrival) status = 'arrival';
+                else if (isDeparture) status = 'departure';
+            } else if (dbEntry.isAvailable === false) {
+                status = 'home';
+            }
+
+            return { 
+                ...dbEntry, 
+                status, 
+                source: 'algorithm', 
+                unavailableBlocks: [...unavailableBlocks, ...(dbEntry.unavailableBlocks || [])],
+                homeStatusType: dbEntry.homeStatusType 
+            };
         }
     }
 
